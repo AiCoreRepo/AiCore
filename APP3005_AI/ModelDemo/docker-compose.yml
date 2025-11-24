@@ -1,0 +1,17 @@
+version: "3.9"
+
+services:
+  app:
+    build: .
+    container_name: virtual-try-on
+    ports:
+      - "8501:8501"
+    environment:
+      # Reduce thread usage to avoid heavy resource usage on some hosts
+      OPENBLAS_NUM_THREADS: "2"
+      OMP_NUM_THREADS: "2"
+      MKL_NUM_THREADS: "2"
+      NUMEXPR_NUM_THREADS: "2"
+    # Uncomment the volume below if you want live-reload style development
+    # volumes:
+    #   - .:/app
