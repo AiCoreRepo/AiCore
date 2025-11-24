@@ -1,0 +1,120 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  user_id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email              String   @unique
+  password_hash      String?
+  phone              String?
+  role               String   @default("buyer") // 'buyer' | 'creator' | 'admin'
+  refresh_token_hash String?
+  is_creator         Boolean  @default(false)
+  is_admin           Boolean  @default(false)
+  status             String   @default("active")
+  created_at         DateTime @default(now())
+  last_login         DateTime?
+
+  creatorProfile     Creator?
+  approvals_submitted ProductApproval[] @relation("SubmittedBy")
+  approvals_actioned  ProductApproval[] @relation("ActionedBy")
+}
+
+model Creator {
+  creator_id   String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id      String   @unique @db.Uuid
+  store_name   String
+  store_slug   String   @unique
+  about        String?
+  verified     Boolean  @default(false)
+  verification_data Json?
+  created_at   DateTime @default(now())
+
+  user         User     @relation(fields: [user_id], references: [user_id])
+  limits       CreatorLimit?
+  products     Product[]
+}
+
+model CreatorLimit {
+  creator_id             String @id @db.Uuid
+  max_products           Int    @default(100)
+  max_images_per_product Int    @default(20)
+  created_at             DateTime @default(now())
+
+  creator Creator @relation(fields: [creator_id], references: [creator_id])
+}
+
+model Product {
+  product_id      String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  creator_id      String  @db.Uuid
+  title           String
+  slug            String   @unique
+  description     String?
+  price_cents     Int
+  currency        String   @default("INR")
+  inventory_count Int      @default(0)
+  status          String   @default("draft") // draft, pending_review, approved, rejected, archived
+  is_deleted      Boolean  @default(false)
+  max_images      Int      @default(20)
+  created_at      DateTime @default(now())
+  updated_at      DateTime?
+
+  creator         Creator  @relation(fields: [creator_id], references: [creator_id])
+  images          ProductImage[]
+  approvals       ProductApproval[]
+  stats           ProductStat?
+}
+
+model ProductImage {
+  image_id     String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  product_id   String  @db.Uuid
+  url          String
+  order_index  Int     @default(0)
+  is_primary   Boolean @default(false)
+  uploaded_at  DateTime @default(now())
+
+  product      Product @relation(fields: [product_id], references: [product_id])
+}
+
+model ProductApproval {
+  approval_id    String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  product_id     String   @db.Uuid
+  submitted_by   String?  @db.Uuid // user.user_id
+  admin_user_id  String?  @db.Uuid // user.user_id
+  status         String   @default("pending")
+  comment        String?
+  created_at     DateTime @default(now())
+  actioned_at    DateTime?
+
+  product        Product @relation(fields: [product_id], references: [product_id])
+  submittedBy    User?   @relation("SubmittedBy", fields: [submitted_by], references: [user_id])
+  actionedBy     User?   @relation("ActionedBy", fields: [admin_user_id], references: [user_id])
+  logs           ApprovalLog[]
+}
+
+model ApprovalLog {
+  log_id         String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  approval_id    String  @db.Uuid
+  actor_user_id  String? @db.Uuid
+  action         String
+  comment        String?
+  created_at     DateTime @default(now())
+
+  approval       ProductApproval @relation(fields: [approval_id], references: [approval_id])
+}
+
+model ProductStat {
+  product_id      String  @id @db.Uuid
+  views           Int     @default(0)
+  likes_count     Int     @default(0)
+  comments_count  Int     @default(0)
+  last_updated    DateTime?
+
+  product         Product @relation(fields: [product_id], references: [product_id])
+}
+
