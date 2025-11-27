@@ -19,6 +19,14 @@ export declare class AuthController {
             role: string;
         };
     }>;
+    creatorLogin(email: string, res: Response): Promise<{
+        access_token: string;
+        user: {
+            user_id: string;
+            email: string;
+            role: string;
+        };
+    }>;
     refresh(dto: RefreshTokenDto, req: Request, res: Response): Promise<{
         access_token: string;
         user: {

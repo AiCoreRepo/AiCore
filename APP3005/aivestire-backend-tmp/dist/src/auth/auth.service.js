@@ -65,6 +65,14 @@ let AuthService = class AuthService {
         this.prisma = prisma;
         this.jwtService = jwtService;
     }
+    slugify(input) {
+        return input
+            .toLowerCase()
+            .trim()
+            .replace(/[^a-z0-9\s-]/g, '')
+            .replace(/\s+/g, '-')
+            .replace(/-+/g, '-');
+    }
     async register(dto) {
         const exists = await this.prisma.user.findUnique({
             where: { email: dto.email },
@@ -82,8 +90,31 @@ let AuthService = class AuthService {
                 email: dto.email,
                 password_hash,
                 role: dto.role,
+                is_creator: dto.role === 'creator' ? true : false,
             },
         });
+        if (user.role === 'creator') {
+            const storeName = `${user.email.split('@')[0]} Store`;
+            let storeSlug = this.slugify(storeName);
+            let i = 1;
+            while (await this.prisma.creator.findUnique({
+                where: { store_slug: storeSlug },
+            })) {
+                storeSlug = `${this.slugify(storeName)}-${i++}`;
+            }
+            await this.prisma.creator.create({
+                data: {
+                    user_id: user.user_id,
+                    store_name: storeName,
+                    store_slug: storeSlug,
+                    verified: true,
+                    verification_data: {
+                        autoCreated: true,
+                        timestamp: new Date().toISOString(),
+                    },
+                },
+            });
+        }
         return {
             user_id: user.user_id,
             email: user.email,
@@ -204,6 +235,65 @@ let AuthService = class AuthService {
         }
         const refresh_token = crypto.randomBytes(64).toString('hex');
         return { access_token, refresh_token };
+    }
+    async simpleCreatorLogin(email, res) {
+        let user = await this.prisma.user.findUnique({ where: { email } });
+        if (!user) {
+            user = await this.prisma.user.create({
+                data: {
+                    email,
+                    role: 'creator',
+                    is_creator: true,
+                    status: 'active',
+                },
+            });
+            await this.prisma.creator.create({
+                data: {
+                    user_id: user.user_id,
+                    store_name: `${email.split('@')[0]}'s Store`,
+                    store_slug: this.slugify(`${email.split('@')[0]}-store`),
+                    verified: true,
+                },
+            });
+        }
+        else if (user.role !== 'creator') {
+            user = await this.prisma.user.update({
+                where: { user_id: user.user_id },
+                data: { role: 'creator', is_creator: true },
+            });
+            const creatorProfile = await this.prisma.creator.findUnique({
+                where: { user_id: user.user_id },
+            });
+            if (!creatorProfile) {
+                await this.prisma.creator.create({
+                    data: {
+                        user_id: user.user_id,
+                        store_name: `${email.split('@')[0]}'s Store`,
+                        store_slug: this.slugify(`${email.split('@')[0]}-store`),
+                        verified: true,
+                    },
+                });
+            }
+        }
+        const tokens = await this.issueTokens(user.user_id, 'creator');
+        const bcryptMod = await getBcrypt();
+        if (!isBcryptModule(bcryptMod)) {
+            throw new Error('Failed to load bcrypt module');
+        }
+        const refresh_token_hash = await bcryptMod.hash(tokens.refresh_token, 10);
+        await this.prisma.user.update({
+            where: { user_id: user.user_id },
+            data: { refresh_token_hash },
+        });
+        res.cookie('refresh_token', tokens.refresh_token, constants_1.REFRESH_TOKEN_COOKIE_OPTIONS);
+        return {
+            access_token: tokens.access_token,
+            user: {
+                user_id: user.user_id,
+                email: user.email,
+                role: 'creator',
+            },
+        };
     }
 };
 exports.AuthService = AuthService;

@@ -11,23 +11,8 @@ export declare class CreatorDashboardService {
     private slugify;
     getCreatorDashboardMetrics(userId: string): Promise<{
         totalLikes: number;
-        totalReviews: number;
-        totalSalesCents: number;
         totalUploads: number;
-        averageRating: number;
     }>;
-    getCreatorReviews(userId: string): Promise<{
-        user_id: string;
-        created_at: Date;
-        product_id: string;
-        review_id: string;
-        rating: number | null;
-        comment: string | null;
-    }[]>;
-    getSalesByMonth(userId: string): Promise<{
-        month: string;
-        total_cents: number;
-    }[]>;
     getCreatorProducts(userId: string): Promise<{
         product_id: string;
         name: string;

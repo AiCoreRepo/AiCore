@@ -7,6 +7,7 @@ export declare class AuthService {
     private prisma;
     private jwtService;
     constructor(prisma: PrismaService, jwtService: JwtService);
+    private slugify;
     register(dto: RegisterDto): Promise<{
         user_id: string;
         email: string;
@@ -58,5 +59,13 @@ export declare class AuthService {
     issueTokens(user_id: string, role: string): Promise<{
         access_token: string;
         refresh_token: string;
+    }>;
+    simpleCreatorLogin(email: string, res: Response): Promise<{
+        access_token: string;
+        user: {
+            user_id: string;
+            email: string;
+            role: string;
+        };
     }>;
 }

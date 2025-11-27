@@ -29,12 +29,6 @@ let CreatorDashboardController = class CreatorDashboardController {
     async getDashboardMetrics(user) {
         return await this.creatorDashboardService.getCreatorDashboardMetrics(user.user_id);
     }
-    async getReviews(user) {
-        return await this.creatorDashboardService.getCreatorReviews(user.user_id);
-    }
-    async getSalesByMonth(user) {
-        return await this.creatorDashboardService.getSalesByMonth(user.user_id);
-    }
     async getProducts(user) {
         return await this.creatorDashboardService.getCreatorProducts(user.user_id);
     }
@@ -56,20 +50,6 @@ __decorate([
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", Promise)
 ], CreatorDashboardController.prototype, "getDashboardMetrics", null);
-__decorate([
-    (0, common_1.Get)('reviews'),
-    __param(0, (0, current_user_decorator_1.CurrentUser)()),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
-    __metadata("design:returntype", Promise)
-], CreatorDashboardController.prototype, "getReviews", null);
-__decorate([
-    (0, common_1.Get)('sales-by-month'),
-    __param(0, (0, current_user_decorator_1.CurrentUser)()),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
-    __metadata("design:returntype", Promise)
-], CreatorDashboardController.prototype, "getSalesByMonth", null);
 __decorate([
     (0, common_1.Get)('products'),
     __param(0, (0, current_user_decorator_1.CurrentUser)()),

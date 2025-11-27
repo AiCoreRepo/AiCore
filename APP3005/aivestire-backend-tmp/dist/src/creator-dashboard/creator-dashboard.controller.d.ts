@@ -8,27 +8,8 @@ export declare class CreatorDashboardController {
         user_id: string;
     }): Promise<{
         totalLikes: number;
-        totalReviews: number;
-        totalSalesCents: number;
         totalUploads: number;
-        averageRating: number;
     }>;
-    getReviews(user: {
-        user_id: string;
-    }): Promise<{
-        user_id: string;
-        created_at: Date;
-        product_id: string;
-        review_id: string;
-        rating: number | null;
-        comment: string | null;
-    }[]>;
-    getSalesByMonth(user: {
-        user_id: string;
-    }): Promise<{
-        month: string;
-        total_cents: number;
-    }[]>;
     getProducts(user: {
         user_id: string;
     }): Promise<{
