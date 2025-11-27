@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Inter:wght@300;400;500;600&display=swap');
+@import './components/common/fonts.css';
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -8,7 +8,7 @@ All colors MUST be HSL.
 */
 
 @layer base {
-     :root {
+    :root {
         /* Luxury Fashion Brand Colors - AiVestire */
         --background: 30 20% 97%;
         /* Warm cream background */
@@ -69,6 +69,7 @@ All colors MUST be HSL.
         --sidebar-border: 220 13% 91%;
         --sidebar-ring: 217.2 91.2% 59.8%;
     }
+
     .dark {
         /* Dark mode uses the same luxury aesthetic */
         --background: 0 0% 4%;
@@ -109,9 +110,11 @@ All colors MUST be HSL.
     * {
         @apply border-border;
     }
+
     body {
         @apply bg-background text-foreground;
     }
+
     /* Luxury Typography */
     h1,
     h2,
@@ -121,30 +124,90 @@ All colors MUST be HSL.
     h6 {
         @apply font-serif;
     }
+
     /* Custom animations */
     @keyframes fade-in-up {
         from {
             opacity: 0;
             transform: translateY(20px);
         }
+
         to {
             opacity: 1;
             transform: translateY(0);
         }
     }
+
     @keyframes glow-pulse {
+
         0%,
         100% {
             box-shadow: 0 0 20px hsl(40 100% 65% / 0.3);
         }
+
         50% {
             box-shadow: 0 0 40px hsl(40 100% 65% / 0.6);
         }
     }
+
     .animate-fade-in-up {
         animation: fade-in-up 0.6s ease-out;
     }
+
     .animate-glow-pulse {
         animation: glow-pulse 2s ease-in-out infinite;
     }
+}
+
+/* Custom gradient background */
+.dashboard-gradient {
+    background: linear-gradient(135deg, hsl(40, 35%, 88%) 0%, hsl(45, 40%, 92%) 50%, hsl(38, 30%, 85%) 100%);
+}
+
+/* Dashboard Theme - Scoped to avoid breaking global styles */
+.dashboard-theme {
+    --background: 40 30% 92%;
+    --foreground: 30 20% 15%;
+
+    --card: 40 30% 98%;
+    --card-foreground: 30 20% 15%;
+
+    --popover: 40 30% 98%;
+    --popover-foreground: 30 20% 15%;
+
+    --primary: 38 45% 55%;
+    --primary-foreground: 40 30% 98%;
+
+    --secondary: 40 25% 90%;
+    --secondary-foreground: 30 20% 25%;
+
+    --muted: 40 20% 88%;
+    --muted-foreground: 30 15% 45%;
+
+    --accent: 38 50% 60%;
+    --accent-foreground: 30 20% 15%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 40 20% 85%;
+    --input: 40 20% 85%;
+    --ring: 38 45% 55%;
+
+    --radius: 0.75rem;
+
+    --gold: 38 45% 55%;
+    --gold-light: 40 40% 75%;
+    --gold-dark: 35 50% 40%;
+    --cream: 40 30% 96%;
+    --beige: 40 25% 88%;
+}
+
+/* Common Hover Effects */
+.hover-danger {
+    @apply transition-colors duration-300;
+}
+
+.hover-danger:hover {
+    @apply bg-red-50 text-red-600;
 }

@@ -64,10 +64,17 @@ export default {
           cream: "hsl(var(--luxury-cream))",
           charcoal: "hsl(var(--luxury-charcoal))",
         },
+        gold: {
+          DEFAULT: "hsl(var(--gold))",
+          light: "hsl(var(--gold-light))",
+          dark: "hsl(var(--gold-dark))",
+        },
+        cream: "hsl(var(--cream))",
+        beige: "hsl(var(--beige))",
       },
       fontFamily: {
-        serif: ['"Playfair Display"', 'serif'],
-        sans: ['Inter', 'sans-serif'],
+        serif: ['"Cinzel"', 'serif'],
+        sans: ['"Montserrat"', 'sans-serif'],
       },
       borderRadius: {
         lg: "var(--radius)",

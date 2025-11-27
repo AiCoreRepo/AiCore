@@ -1,4 +1,4 @@
-const BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000"; 
+const BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
 
 export async function login(data: { email: string; password: string }) {
   // Hardcode endpoint to avoid any accidental whitespace
@@ -252,6 +252,33 @@ export async function creatorLogin(email: string) {
       throw new Error(parsed.message || "Creator login failed");
     } catch {
       throw new Error(bodyText || "Creator login failed");
+    }
+  }
+  return res.json();
+}
+
+export async function updateProfile(data: { name?: string; subtitle?: string; avatar?: string }) {
+  const token = localStorage.getItem('access_token');
+  if (!token) {
+    throw new Error('No access token found');
+  }
+
+  const res = await fetch(`${BASE_URL}/auth/me`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!res.ok) {
+    const bodyText = await res.text();
+    try {
+      const err = JSON.parse(bodyText);
+      throw new Error(err.message || 'Failed to update profile');
+    } catch {
+      throw new Error(bodyText || 'Failed to update profile');
     }
   }
   return res.json();
