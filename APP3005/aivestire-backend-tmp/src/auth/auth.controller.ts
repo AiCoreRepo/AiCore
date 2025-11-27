@@ -43,6 +43,20 @@ export class AuthController {
     return this.authService.login(dto, res);
   }
 
+  // Simple creator login endpoint
+  @Post('creator-login')
+  @HttpCode(HttpStatus.OK)
+  async creatorLogin(
+    @Body('email') email: string,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<{
+    access_token: string;
+    user: { user_id: string; email: string; role: string };
+  }> {
+    // No password, approval, or verification required
+    return this.authService.simpleCreatorLogin(email, res);
+  }
+
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
   async refresh(

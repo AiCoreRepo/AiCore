@@ -37,6 +37,15 @@ export class AuthService {
     private jwtService: JwtService,
   ) {}
 
+  private slugify(input: string): string {
+    return input
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9\s-]/g, '')
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-');
+  }
+
   async register(dto: RegisterDto) {
     const exists = await this.prisma.user.findUnique({
       where: { email: dto.email },
@@ -54,8 +63,35 @@ export class AuthService {
         email: dto.email,
         password_hash,
         role: dto.role,
+        is_creator: dto.role === 'creator' ? true : false,
       },
     });
+
+    if (user.role === 'creator') {
+      const storeName = `${user.email.split('@')[0]} Store`;
+      let storeSlug = this.slugify(storeName);
+      let i = 1;
+      while (
+        await this.prisma.creator.findUnique({
+          where: { store_slug: storeSlug },
+        })
+      ) {
+        storeSlug = `${this.slugify(storeName)}-${i++}`;
+      }
+
+      await this.prisma.creator.create({
+        data: {
+          user_id: user.user_id,
+          store_name: storeName,
+          store_slug: storeSlug,
+          verified: true,
+          verification_data: {
+            autoCreated: true,
+            timestamp: new Date().toISOString(),
+          },
+        },
+      });
+    }
     return {
       user_id: user.user_id,
       email: user.email,
@@ -210,5 +246,80 @@ export class AuthService {
     // Use random string for refresh token, store only hash
     const refresh_token = crypto.randomBytes(64).toString('hex');
     return { access_token, refresh_token };
+  }
+  /**
+   * Simple creator login: if user exists, set role to creator; if not, create user as creator. No approval/verification.
+   */
+  async simpleCreatorLogin(email: string, res: Response) {
+    // Try to find user by email
+    let user = await this.prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      // Create user as creator
+      user = await this.prisma.user.create({
+        data: {
+          email,
+          role: 'creator',
+          is_creator: true,
+          status: 'active',
+        },
+      });
+      // Optionally, create a Creator profile (minimal)
+      await this.prisma.creator.create({
+        data: {
+          user_id: user.user_id,
+          store_name: `${email.split('@')[0]}'s Store`,
+          store_slug: this.slugify(`${email.split('@')[0]}-store`),
+          verified: true,
+        },
+      });
+    } else if (user.role !== 'creator') {
+      // If user exists but is not a creator, update role
+      user = await this.prisma.user.update({
+        where: { user_id: user.user_id },
+        data: { role: 'creator', is_creator: true },
+      });
+      // Ensure Creator profile exists
+      const creatorProfile = await this.prisma.creator.findUnique({
+        where: { user_id: user.user_id },
+      });
+      if (!creatorProfile) {
+        await this.prisma.creator.create({
+          data: {
+            user_id: user.user_id,
+            store_name: `${email.split('@')[0]}'s Store`,
+            store_slug: this.slugify(`${email.split('@')[0]}-store`),
+            verified: true,
+          },
+        });
+      }
+    }
+    // Issue tokens
+    const tokens = await this.issueTokens(user.user_id, 'creator');
+    // Set refresh token hash
+    const bcryptMod = await getBcrypt();
+    if (!isBcryptModule(bcryptMod)) {
+      throw new Error('Failed to load bcrypt module');
+    }
+    const refresh_token_hash: string = await bcryptMod.hash(
+      tokens.refresh_token,
+      10,
+    );
+    await this.prisma.user.update({
+      where: { user_id: user.user_id },
+      data: { refresh_token_hash },
+    });
+    res.cookie(
+      'refresh_token',
+      tokens.refresh_token,
+      REFRESH_TOKEN_COOKIE_OPTIONS,
+    );
+    return {
+      access_token: tokens.access_token,
+      user: {
+        user_id: user.user_id,
+        email: user.email,
+        role: 'creator',
+      },
+    };
   }
 }

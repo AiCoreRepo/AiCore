@@ -31,16 +31,6 @@ export class CreatorDashboardController {
     );
   }
 
-  @Get('reviews')
-  async getReviews(@CurrentUser() user: { user_id: string }) {
-    return await this.creatorDashboardService.getCreatorReviews(user.user_id);
-  }
-
-  @Get('sales-by-month')
-  async getSalesByMonth(@CurrentUser() user: { user_id: string }) {
-    return await this.creatorDashboardService.getSalesByMonth(user.user_id);
-  }
-
   @Get('products')
   async getProducts(@CurrentUser() user: { user_id: string }) {
     return await this.creatorDashboardService.getCreatorProducts(user.user_id);

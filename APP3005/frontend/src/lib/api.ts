@@ -236,4 +236,25 @@ export async function deleteProduct(productId: string) {
   return res.json();
 }
 
+// Simple creator login API
+export async function creatorLogin(email: string) {
+  const endpoint = BASE_URL + "/auth/creator-login";
+  const res = await fetch(endpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email }),
+    credentials: "include",
+  });
+  if (!res.ok) {
+    const bodyText = await res.text();
+    try {
+      const parsed = JSON.parse(bodyText);
+      throw new Error(parsed.message || "Creator login failed");
+    } catch {
+      throw new Error(bodyText || "Creator login failed");
+    }
+  }
+  return res.json();
+}
+
 

@@ -29,9 +29,37 @@ export class CreatorDashboardService {
       where: { user_id: userId },
       select: { creator_id: true },
     });
+
     if (!creator) {
-      throw new NotFoundException('Creator profile not found');
+      const user = await this.prisma.user.findUnique({
+        where: { user_id: userId },
+        select: { email: true, role: true, is_creator: true },
+      });
+
+      if (!user) {
+        throw new NotFoundException('User not found');
+      }
+
+      if (user.role !== 'creator') {
+        throw new ForbiddenException('User is not a creator');
+      }
+
+      // If user is a creator but is_creator is false, update it
+      if (user.role === 'creator' && !user.is_creator) {
+        await this.prisma.user.update({
+          where: { user_id: userId },
+          data: { is_creator: true },
+        });
+        this.logger.log(`Updated user ${userId} is_creator to true.`);
+      }
+
+      // If creator profile still not found after checks, it means it should have been created during registration
+      // This indicates an inconsistency or a user trying to access creator features without a profile
+      throw new NotFoundException(
+        'Creator profile not found for this user. Please ensure your creator profile is set up.',
+      );
     }
+
     return creator.creator_id;
   }
 
@@ -53,81 +81,22 @@ export class CreatorDashboardService {
       where: { creator_id: creatorId },
       include: {
         stats: true,
-        reviews: true,
-        orders: true,
       },
     });
 
     let totalLikes = 0;
-    let totalReviews = 0;
-    let totalSalesCents = 0;
-    let totalRating = 0;
-    let ratedReviewsCount = 0;
+    const totalUploads = products.length;
 
     for (const product of products) {
       if (product.stats) {
         totalLikes += product.stats.likes_count;
       }
-      totalReviews += product.reviews.length;
-      totalSalesCents += product.orders.reduce(
-        (sum, order) => sum + order.total_price_cents,
-        0,
-      );
-
-      const ratings = product.reviews
-        .map((r) => r.rating)
-        .filter((r): r is number => r !== null);
-      if (ratings.length > 0) {
-        totalRating += ratings.reduce((sum, r) => sum + r, 0);
-        ratedReviewsCount += ratings.length;
-      }
     }
-
-    const averageRating =
-      ratedReviewsCount > 0 ? totalRating / ratedReviewsCount : 0;
-    const totalUploads = products.length;
-
-    // For ranking, we'll need to calculate total sales for all creators and then rank them.
-    // This can be a separate, more complex query or a cached value.
-    // For now, we'll just return the individual creator's metrics.
 
     return {
       totalLikes,
-      totalReviews,
-      totalSalesCents,
       totalUploads,
-      averageRating,
-      // ranking: calculated separately
     };
-  }
-
-  async getCreatorReviews(userId: string) {
-    const creatorId = await this.getCreatorIdFromUserId(userId);
-    const products = await this.prisma.product.findMany({
-      where: { creator_id: creatorId },
-      include: { reviews: true },
-    });
-    return products.flatMap((p) => p.reviews);
-  }
-
-  async getSalesByMonth(userId: string) {
-    const creatorId = await this.getCreatorIdFromUserId(userId);
-    const products = await this.prisma.product.findMany({
-      where: { creator_id: creatorId },
-      include: { orders: true },
-    });
-    const totals = new Map<string, number>();
-    for (const p of products) {
-      for (const o of p.orders) {
-        const d = new Date(o.created_at as unknown as string);
-        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-        totals.set(key, (totals.get(key) ?? 0) + o.total_price_cents);
-      }
-    }
-    return Array.from(totals.entries()).map(([month, total_cents]) => ({
-      month,
-      total_cents,
-    }));
   }
 
   async getCreatorProducts(userId: string) {
@@ -204,6 +173,7 @@ export class CreatorDashboardService {
   }
 
   async createProduct(userId: string, dto: CreateProductDto) {
+    const creatorId = await this.getCreatorIdFromUserId(userId);
     const slug = `${dto.title.toLowerCase().replace(/\s+/g, '-')}-${nanoid(6)}`;
 
     const product = await this.prisma.product.create({
@@ -214,7 +184,7 @@ export class CreatorDashboardService {
         price_cents: dto.price_cents,
         currency: dto.currency || 'INR',
         inventory_count: dto.inventory_count || 0,
-        creator_id: userId,
+        creator_id: creatorId,
       },
     });
 
@@ -223,7 +193,11 @@ export class CreatorDashboardService {
       await Promise.all(
         dto.images.map(async (image, index) => {
           try {
-            const uploadedUrl = await this.cloudinaryService.uploadImage(image);
+            const formattedImage = image.startsWith('data:')
+              ? image
+              : `data:image/jpeg;base64,${image}`;
+            const uploadedUrl =
+              await this.cloudinaryService.uploadImage(formattedImage);
             await this.prisma.productImage.create({
               data: {
                 product_id: product.product_id,
