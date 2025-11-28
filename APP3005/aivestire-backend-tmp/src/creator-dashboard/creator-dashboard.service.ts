@@ -19,7 +19,7 @@ export class CreatorDashboardService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly cloudinaryService: CloudinaryService,
-  ) {}
+  ) { }
 
   /**
    * Helper method to get creator_id from user_id
@@ -99,37 +99,43 @@ export class CreatorDashboardService {
     };
   }
 
-  async getCreatorProducts(userId: string) {
+  async getCreatorProducts(userId: string, page: number = 1, limit: number = 10) {
     const creatorId = await this.getCreatorIdFromUserId(userId);
-    const products = await this.prisma.product.findMany({
-      where: {
-        creator_id: creatorId,
-        is_deleted: false,
-      },
-      include: {
-        stats: true,
-        images: {
-          orderBy: [{ is_primary: 'desc' }, { order_index: 'asc' }],
-        },
-      },
-      orderBy: {
-        created_at: 'desc',
-      },
-    });
+    const skip = (page - 1) * limit;
 
-    // Transform products to match frontend expectations
-    return products.map((product) => {
+    const [products, total] = await Promise.all([
+      this.prisma.product.findMany({
+        where: {
+          creator_id: creatorId,
+          is_deleted: false,
+        },
+        include: {
+          stats: true,
+          images: {
+            orderBy: [{ is_primary: 'desc' }, { order_index: 'asc' }],
+          },
+        },
+        orderBy: {
+          created_at: 'desc',
+        },
+        skip,
+        take: Number(limit),
+      }),
+      this.prisma.product.count({
+        where: {
+          creator_id: creatorId,
+          is_deleted: false,
+        },
+      }),
+    ]);
+
+    const mappedProducts = products.map((product) => {
       const primaryImage =
         product.images.find((img) => img.is_primary) || product.images[0];
       const imageUrl = primaryImage?.url || null;
 
-      // Parse tags from description or use empty array
-      // For now, we'll store tags as JSON in a metadata field or use description
-      // Since tags aren't in the schema, we'll extract them from a JSON field in description
-      // or return empty array for now
       let tags: Array<{ name: string }> = [];
       try {
-        // Try to parse tags from description if it's JSON
         if (product.description) {
           const parsed = JSON.parse(product.description);
           if (parsed.tags && Array.isArray(parsed.tags)) {
@@ -140,8 +146,6 @@ export class CreatorDashboardService {
         // Description is not JSON, ignore
       }
 
-      // Calculate conversion rate (tries to purchases ratio)
-      // For now, we'll use a placeholder calculation
       const triesCount = product.stats?.views || 0;
       const conversionRate =
         triesCount > 0
@@ -154,10 +158,11 @@ export class CreatorDashboardService {
         title: product.title,
         description: product.description,
         image_url: imageUrl,
+        images: product.images.map(img => img.url),
         price_cents: product.price_cents,
         currency: product.currency,
         inventory_count: product.inventory_count,
-        status: product.status === 'approved' ? 'Active' : 'Pending',
+        status: product.status?.toLowerCase() === 'approved' ? 'Active' : 'Pending',
         tags: tags,
         stats: {
           likes_count: product.stats?.likes_count || 0,
@@ -170,6 +175,16 @@ export class CreatorDashboardService {
         updated_at: product.updated_at,
       };
     });
+
+    return {
+      data: mappedProducts,
+      meta: {
+        total,
+        page: Number(page),
+        limit: Number(limit),
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
 
   async createProduct(userId: string, dto: CreateProductDto) {
@@ -190,14 +205,20 @@ export class CreatorDashboardService {
 
     // Handle new image uploads (raw/base64)
     if (dto.images && Array.isArray(dto.images)) {
+      this.logger.log(`Received ${dto.images.length} images for product ${product.product_id}`);
       await Promise.all(
         dto.images.map(async (image, index) => {
           try {
             const formattedImage = image.startsWith('data:')
               ? image
               : `data:image/jpeg;base64,${image}`;
+
+            this.logger.log(`Uploading image ${index + 1}/${dto.images?.length || 0} for product ${product.product_id}`);
             const uploadedUrl =
               await this.cloudinaryService.uploadImage(formattedImage);
+
+            this.logger.log(`Image uploaded successfully: ${uploadedUrl}`);
+
             await this.prisma.productImage.create({
               data: {
                 product_id: product.product_id,
@@ -205,11 +226,15 @@ export class CreatorDashboardService {
                 order_index: index,
               },
             });
-          } catch {
+            this.logger.log(`Product image record created for ${uploadedUrl}`);
+          } catch (error) {
+            this.logger.error(`Failed to upload image ${index}: ${error.message}`, error.stack);
             throw new BadRequestException(`Failed to upload image`);
           }
         }),
       );
+    } else {
+      this.logger.warn(`No images received for product ${product.product_id}`);
     }
 
     return product;
@@ -297,6 +322,44 @@ export class CreatorDashboardService {
       updateData.description = description;
     }
 
+    // Handle image updates
+    if (dto.images && Array.isArray(dto.images)) {
+      this.logger.log(`Updating images for product ${productId}. Received ${dto.images.length} images.`);
+
+      // 1. Delete existing images
+      await this.prisma.productImage.deleteMany({
+        where: { product_id: productId },
+      });
+
+      // 2. Upload/Process new images
+      await Promise.all(
+        dto.images.map(async (image, index) => {
+          try {
+            let imageUrl = image;
+
+            // If it's a base64 string, upload to Cloudinary
+            if (image.startsWith('data:')) {
+              this.logger.log(`Uploading new image ${index + 1}/${dto.images?.length} for product ${productId}`);
+              imageUrl = await this.cloudinaryService.uploadImage(image);
+            }
+
+            // Create new image record
+            await this.prisma.productImage.create({
+              data: {
+                product_id: productId,
+                url: imageUrl,
+                order_index: index,
+              },
+            });
+          } catch (error) {
+            this.logger.error(`Failed to process image ${index} during update: ${error.message}`, error.stack);
+            // Continue with other images even if one fails? Or throw? 
+            // For now, let's log and continue to avoid breaking the whole update
+          }
+        }),
+      );
+    }
+
     // Update product
     const updatedProduct = await this.prisma.product.update({
       where: { product_id: productId },
@@ -334,6 +397,75 @@ export class CreatorDashboardService {
     });
 
     return { message: 'Product deleted successfully' };
+  }
+
+  async updateCreatorProfile(userId: string, dto: any) {
+    const creatorId = await this.getCreatorIdFromUserId(userId);
+
+    const creator = await this.prisma.creator.findUnique({
+      where: { creator_id: creatorId },
+    });
+
+    if (!creator) {
+      throw new NotFoundException('Creator profile not found');
+    }
+
+    let avatarUrl = dto.avatar;
+    // Handle avatar upload if base64
+    if (dto.avatar && dto.avatar.startsWith('data:')) {
+      this.logger.log(`Uploading avatar for creator ${creatorId}`);
+      try {
+        avatarUrl = await this.cloudinaryService.uploadImage(dto.avatar);
+      } catch (error) {
+        this.logger.error(`Failed to upload avatar: ${error.message}`);
+        throw new BadRequestException('Failed to upload avatar');
+      }
+    }
+
+    // Prepare update data
+    const currentVerificationData = (creator.verification_data as any) || {};
+    const newVerificationData = {
+      ...currentVerificationData,
+      ...(dto.subtitle !== undefined ? { subtitle: dto.subtitle } : {}),
+      ...(avatarUrl !== undefined ? { avatar: avatarUrl } : {}),
+    };
+
+    const updateData: Prisma.CreatorUpdateInput = {
+      ...(dto.name ? { store_name: dto.name } : {}),
+      verification_data: newVerificationData,
+    };
+
+    const updatedCreator = await this.prisma.creator.update({
+      where: { creator_id: creatorId },
+      data: updateData,
+    });
+
+    return {
+      name: updatedCreator.store_name,
+      subtitle: newVerificationData.subtitle,
+      avatar: newVerificationData.avatar,
+    };
+  }
+
+  async getCreatorProfile(userId: string) {
+    const creatorId = await this.getCreatorIdFromUserId(userId);
+    const creator = await this.prisma.creator.findUnique({
+      where: { creator_id: creatorId },
+      include: { user: true },
+    });
+
+    if (!creator) {
+      throw new NotFoundException('Creator profile not found');
+    }
+
+    const verificationData = (creator.verification_data as any) || {};
+
+    return {
+      name: creator.store_name,
+      subtitle: verificationData.subtitle || creator.about || 'Creator',
+      avatar: verificationData.avatar || 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&h=200&fit=crop&crop=face',
+      role: creator.user.role,
+    };
   }
 
   private async getProductById(productId: string, creatorId: string) {

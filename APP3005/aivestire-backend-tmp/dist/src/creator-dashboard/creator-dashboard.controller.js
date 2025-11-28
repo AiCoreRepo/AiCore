@@ -20,17 +20,24 @@ const roles_guard_1 = require("../common/guards/roles.guard");
 const roles_decorator_1 = require("../auth/decorators/roles.decorator");
 const current_user_decorator_1 = require("../auth/decorators/current-user.decorator");
 const create_product_dto_1 = require("./dto/create-product.dto");
+const update_profile_dto_1 = require("./dto/update-profile.dto");
 const update_product_dto_1 = require("./dto/update-product.dto");
 let CreatorDashboardController = class CreatorDashboardController {
     creatorDashboardService;
     constructor(creatorDashboardService) {
         this.creatorDashboardService = creatorDashboardService;
     }
+    async getProfile(user) {
+        return await this.creatorDashboardService.getCreatorProfile(user.user_id);
+    }
+    async updateProfile(user, dto) {
+        return await this.creatorDashboardService.updateCreatorProfile(user.user_id, dto);
+    }
     async getDashboardMetrics(user) {
         return await this.creatorDashboardService.getCreatorDashboardMetrics(user.user_id);
     }
-    async getProducts(user) {
-        return await this.creatorDashboardService.getCreatorProducts(user.user_id);
+    async getProducts(user, page = 1, limit = 10) {
+        return await this.creatorDashboardService.getCreatorProducts(user.user_id, page, limit);
     }
     async createProduct(user, dto) {
         return await this.creatorDashboardService.createProduct(user.user_id, dto);
@@ -44,6 +51,21 @@ let CreatorDashboardController = class CreatorDashboardController {
 };
 exports.CreatorDashboardController = CreatorDashboardController;
 __decorate([
+    (0, common_1.Get)('profile'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], CreatorDashboardController.prototype, "getProfile", null);
+__decorate([
+    (0, common_1.Put)('profile'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, update_profile_dto_1.UpdateProfileDto]),
+    __metadata("design:returntype", Promise)
+], CreatorDashboardController.prototype, "updateProfile", null);
+__decorate([
     (0, common_1.Get)('metrics'),
     __param(0, (0, current_user_decorator_1.CurrentUser)()),
     __metadata("design:type", Function),
@@ -53,8 +75,10 @@ __decorate([
 __decorate([
     (0, common_1.Get)('products'),
     __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Query)('page')),
+    __param(2, (0, common_1.Query)('limit')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
+    __metadata("design:paramtypes", [Object, Number, Number]),
     __metadata("design:returntype", Promise)
 ], CreatorDashboardController.prototype, "getProducts", null);
 __decorate([

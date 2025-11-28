@@ -9,24 +9,27 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.UpdateProductDto = void 0;
-const mapped_types_1 = require("@nestjs/mapped-types");
-const create_product_dto_1 = require("./create-product.dto");
+exports.UpdateProfileDto = void 0;
 const class_validator_1 = require("class-validator");
-class UpdateProductDto extends (0, mapped_types_1.PartialType)(create_product_dto_1.CreateProductDto) {
-    status;
-    images;
+class UpdateProfileDto {
+    name;
+    subtitle;
+    avatar;
 }
-exports.UpdateProductDto = UpdateProductDto;
+exports.UpdateProfileDto = UpdateProfileDto;
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
-], UpdateProductDto.prototype, "status", void 0);
+], UpdateProfileDto.prototype, "name", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsArray)(),
-    (0, class_validator_1.IsString)({ each: true }),
-    __metadata("design:type", Array)
-], UpdateProductDto.prototype, "images", void 0);
-//# sourceMappingURL=update-product.dto.js.map
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], UpdateProfileDto.prototype, "subtitle", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], UpdateProfileDto.prototype, "avatar", void 0);
+//# sourceMappingURL=update-profile.dto.js.map

@@ -13,29 +13,38 @@ export declare class CreatorDashboardService {
         totalLikes: number;
         totalUploads: number;
     }>;
-    getCreatorProducts(userId: string): Promise<{
-        product_id: string;
-        name: string;
-        title: string;
-        description: string | null;
-        image_url: string | null;
-        price_cents: number;
-        currency: string;
-        inventory_count: number;
-        status: string;
-        tags: {
+    getCreatorProducts(userId: string, page?: number, limit?: number): Promise<{
+        data: {
+            product_id: string;
             name: string;
+            title: string;
+            description: string | null;
+            image_url: string | null;
+            images: string[];
+            price_cents: number;
+            currency: string;
+            inventory_count: number;
+            status: string;
+            tags: {
+                name: string;
+            }[];
+            stats: {
+                likes_count: number;
+                tries_count: number;
+                conversion_rate: number;
+                views: number;
+                comments_count: number;
+            };
+            created_at: Date;
+            updated_at: Date | null;
         }[];
-        stats: {
-            likes_count: number;
-            tries_count: number;
-            conversion_rate: number;
-            views: number;
-            comments_count: number;
+        meta: {
+            total: number;
+            page: number;
+            limit: number;
+            totalPages: number;
         };
-        created_at: Date;
-        updated_at: Date | null;
-    }[]>;
+    }>;
     createProduct(userId: string, dto: CreateProductDto): Promise<{
         status: string;
         created_at: Date;
@@ -76,6 +85,17 @@ export declare class CreatorDashboardService {
     }>;
     deleteProduct(userId: string, productId: string): Promise<{
         message: string;
+    }>;
+    updateCreatorProfile(userId: string, dto: any): Promise<{
+        name: string;
+        subtitle: any;
+        avatar: any;
+    }>;
+    getCreatorProfile(userId: string): Promise<{
+        name: string;
+        subtitle: any;
+        avatar: any;
+        role: string;
     }>;
     private getProductById;
 }

@@ -7,6 +7,7 @@ import {
   Body,
   Param,
   UseGuards,
+  Query,
 } from '@nestjs/common';
 import { CreatorDashboardService } from './creator-dashboard.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -14,6 +15,7 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { CreateProductDto } from './dto/create-product.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 
 @Controller('creator-dashboard')
@@ -22,7 +24,23 @@ import { UpdateProductDto } from './dto/update-product.dto';
 export class CreatorDashboardController {
   constructor(
     private readonly creatorDashboardService: CreatorDashboardService,
-  ) {}
+  ) { }
+
+  @Get('profile')
+  async getProfile(@CurrentUser() user: { user_id: string }) {
+    return await this.creatorDashboardService.getCreatorProfile(user.user_id);
+  }
+
+  @Put('profile')
+  async updateProfile(
+    @CurrentUser() user: { user_id: string },
+    @Body() dto: UpdateProfileDto,
+  ) {
+    return await this.creatorDashboardService.updateCreatorProfile(
+      user.user_id,
+      dto,
+    );
+  }
 
   @Get('metrics')
   async getDashboardMetrics(@CurrentUser() user: { user_id: string }) {
@@ -32,8 +50,12 @@ export class CreatorDashboardController {
   }
 
   @Get('products')
-  async getProducts(@CurrentUser() user: { user_id: string }) {
-    return await this.creatorDashboardService.getCreatorProducts(user.user_id);
+  async getProducts(
+    @CurrentUser() user: { user_id: string },
+    @Query('page') page: number = 1,
+    @Query('limit') limit: number = 10,
+  ) {
+    return await this.creatorDashboardService.getCreatorProducts(user.user_id, page, limit);
   }
 
   @Post('products')

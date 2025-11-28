@@ -84,13 +84,13 @@ export async function getDashboardMetrics() {
   return res.json();
 }
 
-export async function getCreatorProducts() {
+export async function getCreatorProducts(page: number = 1, limit: number = 10) {
   const token = localStorage.getItem('access_token');
   if (!token) {
     throw new Error('No access token found');
   }
 
-  const res = await fetch(`${BASE_URL}/creator-dashboard/products`, {
+  const res = await fetch(`${BASE_URL}/creator-dashboard/products?page=${page}&limit=${limit}`, {
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',
@@ -116,7 +116,7 @@ export async function getProfile() {
     throw new Error('No access token found');
   }
 
-  const res = await fetch(`${BASE_URL}/auth/me`, {
+  const res = await fetch(`${BASE_URL}/creator-dashboard/profile`, {
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',
@@ -136,13 +136,40 @@ export async function getProfile() {
   return res.json();
 }
 
+export async function updateProfile(data: { name?: string; subtitle?: string; avatar?: string }) {
+  const token = localStorage.getItem('access_token');
+  if (!token) {
+    throw new Error('No access token found');
+  }
+
+  const res = await fetch(`${BASE_URL}/creator-dashboard/profile`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!res.ok) {
+    const bodyText = await res.text();
+    try {
+      const err = JSON.parse(bodyText);
+      throw new Error(err.message || 'Failed to update profile');
+    } catch {
+      throw new Error(bodyText || 'Failed to update profile');
+    }
+  }
+  return res.json();
+}
+
 export async function createProduct(data: {
   title: string;
   description?: string;
   price_cents: number;
   currency?: string;
   inventory_count?: number;
-  image_urls: string[];
+  images: string[];
   tags?: Array<{ name: string }>;
 }) {
   const token = localStorage.getItem('access_token');
@@ -179,7 +206,7 @@ export async function updateProduct(
     price_cents?: number;
     currency?: string;
     inventory_count?: number;
-    image_urls?: string[];
+    images?: string[];
     tags?: Array<{ name: string }>;
     status?: string;
   }
@@ -257,31 +284,6 @@ export async function creatorLogin(email: string) {
   return res.json();
 }
 
-export async function updateProfile(data: { name?: string; subtitle?: string; avatar?: string }) {
-  const token = localStorage.getItem('access_token');
-  if (!token) {
-    throw new Error('No access token found');
-  }
 
-  const res = await fetch(`${BASE_URL}/auth/me`, {
-    method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
-    },
-    body: JSON.stringify(data),
-  });
-
-  if (!res.ok) {
-    const bodyText = await res.text();
-    try {
-      const err = JSON.parse(bodyText);
-      throw new Error(err.message || 'Failed to update profile');
-    } catch {
-      throw new Error(bodyText || 'Failed to update profile');
-    }
-  }
-  return res.json();
-}
 
 

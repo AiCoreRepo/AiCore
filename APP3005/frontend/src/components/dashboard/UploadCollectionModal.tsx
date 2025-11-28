@@ -6,17 +6,20 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
-import { createProduct } from "@/lib/api";
+import { createProduct, updateProduct } from "@/lib/api";
+import { useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { LuxeButton } from "@/components/common/Buttons/LuxeButton";
+import { compressImage } from "@/lib/utils";
 
 interface UploadCollectionModalProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     onSuccess?: () => void;
+    initialData?: any;
 }
 
-const UploadCollectionModal = ({ open, onOpenChange, onSuccess }: UploadCollectionModalProps) => {
+const UploadCollectionModal = ({ open, onOpenChange, onSuccess, initialData }: UploadCollectionModalProps) => {
     const { toast } = useToast();
     const [isLoading, setIsLoading] = useState(false);
     const [formData, setFormData] = useState({
@@ -29,6 +32,39 @@ const UploadCollectionModal = ({ open, onOpenChange, onSuccess }: UploadCollecti
     });
     const [images, setImages] = useState<string[]>([]);
     const [imageFiles, setImageFiles] = useState<File[]>([]);
+
+    useEffect(() => {
+        if (initialData && open) {
+            setFormData({
+                title: initialData.title || "",
+                description: initialData.description || "",
+                price: initialData.price_cents ? (initialData.price_cents / 100).toFixed(2) : "0.00",
+                currency: initialData.currency || "INR",
+                inventory: initialData.inventory_count?.toString() || "0",
+                tags: initialData.tags ? initialData.tags.map((t: any) => t.name || t).join(", ") : "",
+            });
+
+            // Robust image population: use images array if available, otherwise fallback to single image
+            // Filter out placeholder images if possible, though checking for "placehold.co" is a simple heuristic
+            let imgs = initialData.images || [];
+            if (imgs.length === 0 && initialData.image && !initialData.image.includes("placehold.co")) {
+                imgs = [initialData.image];
+            }
+            setImages(imgs);
+        } else if (!initialData && open) {
+            // Reset form for new upload
+            setFormData({
+                title: "",
+                description: "",
+                price: "0.00",
+                currency: "INR",
+                inventory: "0",
+                tags: "",
+            });
+            setImages([]);
+            setImageFiles([]);
+        }
+    }, [initialData, open]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -53,19 +89,28 @@ const UploadCollectionModal = ({ open, onOpenChange, onSuccess }: UploadCollecti
                     .map((tag) => ({ name: tag }))
                 : [];
 
-            await createProduct({
+            const productData = {
                 title: formData.title,
                 description: formData.description || undefined,
                 price_cents: Math.round(parseFloat(formData.price) * 100),
                 currency: formData.currency,
                 inventory_count: parseInt(formData.inventory) || 0,
-                image_urls: images, // Using base64 for now as per existing logic
+                images: images,
                 tags: tags.length > 0 ? tags : undefined,
-            });
+            };
+
+            console.log("Submitting product data:", productData);
+
+            if (initialData) {
+                console.log("Updating product with ID:", initialData.product_id);
+                await updateProduct(initialData.product_id, productData);
+            } else {
+                await createProduct(productData);
+            }
 
             toast({
                 title: "Success",
-                description: "Product uploaded successfully",
+                description: `Product ${initialData ? "updated" : "uploaded"} successfully`,
             });
 
             // Reset form
@@ -84,7 +129,7 @@ const UploadCollectionModal = ({ open, onOpenChange, onSuccess }: UploadCollecti
         } catch (error: any) {
             toast({
                 title: "Error",
-                description: error.message || "Failed to upload product",
+                description: error.message || `Failed to ${initialData ? "update" : "upload"} product`,
                 variant: "destructive",
             });
         } finally {
@@ -92,21 +137,55 @@ const UploadCollectionModal = ({ open, onOpenChange, onSuccess }: UploadCollecti
         }
     };
 
-    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const files = e.target.files;
-        if (!files) return;
+    const [isDragging, setIsDragging] = useState(false);
 
-        Array.from(files).forEach((file) => {
+    const processFiles = async (files: File[]) => {
+        // Process files sequentially to avoid freezing UI
+        for (const file of files) {
             if (file.type.startsWith("image/")) {
-                const reader = new FileReader();
-                reader.onloadend = () => {
-                    const result = reader.result as string;
-                    setImages((prev) => [...prev, result]);
+                try {
+                    const compressedBase64 = await compressImage(file);
+                    setImages((prev) => [...prev, compressedBase64]);
                     setImageFiles((prev) => [...prev, file]);
-                };
-                reader.readAsDataURL(file);
+                } catch (error) {
+                    console.error("Error compressing image:", error);
+                    // Fallback to original if compression fails
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                        setImages((prev) => [...prev, reader.result as string]);
+                        setImageFiles((prev) => [...prev, file]);
+                    };
+                    reader.readAsDataURL(file);
+                }
             }
-        });
+        }
+    };
+
+    const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files) {
+            const filesArray = Array.from(e.target.files);
+            await processFiles(filesArray);
+        }
+    };
+
+    const handleDragOver = (e: React.DragEvent) => {
+        e.preventDefault();
+        setIsDragging(true);
+    };
+
+    const handleDragLeave = (e: React.DragEvent) => {
+        e.preventDefault();
+        setIsDragging(false);
+    };
+
+    const handleDrop = async (e: React.DragEvent) => {
+        e.preventDefault();
+        setIsDragging(false);
+
+        if (e.dataTransfer.files) {
+            const filesArray = Array.from(e.dataTransfer.files);
+            await processFiles(filesArray);
+        }
     };
 
     const removeImage = (index: number) => {
@@ -119,7 +198,7 @@ const UploadCollectionModal = ({ open, onOpenChange, onSuccess }: UploadCollecti
             <DialogContent className="dashboard-theme bg-foreground text-primary-foreground max-w-2xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle className="text-xl font-semibold text-primary-foreground">
-                        Upload New Collection
+                        {initialData ? "Edit Collection" : "Upload New Collection"}
                     </DialogTitle>
                 </DialogHeader>
 
@@ -148,6 +227,18 @@ const UploadCollectionModal = ({ open, onOpenChange, onSuccess }: UploadCollecti
                             value={formData.description}
                             onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                             className="w-full px-4 py-3 bg-muted-foreground/20 border border-muted-foreground/30 rounded-lg text-primary-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-gold resize-none"
+                        />
+                    </div>
+
+                    {/* Inventory Count - Moved up as requested */}
+                    <div>
+                        <label className="block text-sm font-medium mb-2">Inventory Count</label>
+                        <input
+                            type="number"
+                            min="0"
+                            value={formData.inventory}
+                            onChange={(e) => setFormData({ ...formData, inventory: e.target.value })}
+                            className="w-full px-4 py-3 bg-muted-foreground/20 border border-muted-foreground/30 rounded-lg text-primary-foreground focus:outline-none focus:border-gold"
                         />
                     </div>
 
@@ -182,18 +273,6 @@ const UploadCollectionModal = ({ open, onOpenChange, onSuccess }: UploadCollecti
                         </div>
                     </div>
 
-                    {/* Inventory Count */}
-                    <div>
-                        <label className="block text-sm font-medium mb-2">Inventory Count</label>
-                        <input
-                            type="number"
-                            min="0"
-                            value={formData.inventory}
-                            onChange={(e) => setFormData({ ...formData, inventory: e.target.value })}
-                            className="w-full px-4 py-3 bg-muted-foreground/20 border border-muted-foreground/30 rounded-lg text-primary-foreground focus:outline-none focus:border-gold"
-                        />
-                    </div>
-
                     {/* Tags */}
                     <div>
                         <label className="block text-sm font-medium mb-2">Tags (comma-separated)</label>
@@ -212,19 +291,32 @@ const UploadCollectionModal = ({ open, onOpenChange, onSuccess }: UploadCollecti
                         <label className="block text-sm font-medium mb-2">
                             Product Images <span className="text-gold">*</span>
                         </label>
-                        <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-muted-foreground/40 rounded-lg cursor-pointer hover:border-gold transition-colors">
-                            <Upload className="w-8 h-8 text-muted-foreground/60 mb-2" />
-                            <span className="text-sm text-muted-foreground/60">
-                                {images.length > 0 ? `${images.length} file(s) selected` : "Click to upload images"}
-                            </span>
-                            <input
-                                type="file"
-                                multiple
-                                accept="image/*"
-                                onChange={handleImageUpload}
-                                className="hidden"
-                            />
-                        </label>
+                        <div
+                            onDragOver={handleDragOver}
+                            onDragLeave={handleDragLeave}
+                            onDrop={handleDrop}
+                        >
+                            <label
+                                className={`flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${isDragging
+                                    ? "border-gold bg-gold/10"
+                                    : "border-muted-foreground/40 hover:border-gold"
+                                    }`}
+                            >
+                                <Upload className={`w-8 h-8 mb-2 ${isDragging ? "text-gold" : "text-muted-foreground/60"}`} />
+                                <span className={`text-sm ${isDragging ? "text-gold" : "text-muted-foreground/60"}`}>
+                                    {images.length > 0
+                                        ? `${images.length} file(s) selected`
+                                        : "Click or Drag to upload images"}
+                                </span>
+                                <input
+                                    type="file"
+                                    multiple
+                                    accept="image/*"
+                                    onChange={handleImageUpload}
+                                    className="hidden"
+                                />
+                            </label>
+                        </div>
                         {/* Image Preview */}
                         {images.length > 0 && (
                             <div className="grid grid-cols-3 gap-4 mt-4">
@@ -255,7 +347,7 @@ const UploadCollectionModal = ({ open, onOpenChange, onSuccess }: UploadCollecti
                     <div className="flex gap-3 pt-4">
                         <LuxeButton
                             type="button"
-                            variant="outline"
+                            variant="luxury-outline"
                             onClick={() => onOpenChange(false)}
                             className="flex-1"
                         >
@@ -267,12 +359,12 @@ const UploadCollectionModal = ({ open, onOpenChange, onSuccess }: UploadCollecti
                             disabled={isLoading}
                             className="flex-1"
                         >
-                            {isLoading ? "Uploading..." : "Upload Collection"}
+                            {isLoading ? (initialData ? "Updating..." : "Uploading...") : (initialData ? "Update Collection" : "Upload Collection")}
                         </LuxeButton>
                     </div>
                 </form>
-            </DialogContent>
-        </Dialog>
+            </DialogContent >
+        </Dialog >
     );
 };
 

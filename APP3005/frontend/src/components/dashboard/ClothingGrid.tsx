@@ -20,7 +20,7 @@ const ClothingCard: React.FC<ClothingCardProps> = ({ item, onEdit, onDelete }) =
     {/* Image Section */}
     <div className="aspect-[3/4] w-full bg-[#F5F2EB]">
       <img
-        src={item.image || 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=500'}
+        src={item.image_url || 'https://placehold.co/400x600/F5F2EB/8B7355?text=No+Image'}
         alt={item.name}
         className="object-cover w-full h-full"
       />

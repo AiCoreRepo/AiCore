@@ -22,10 +22,13 @@ export class CloudinaryService {
 
   async uploadImage(file: string): Promise<string> {
     return new Promise((resolve, reject) => {
+      console.log('Starting Cloudinary upload...');
       cloudinary.uploader.upload(file, (error, result) => {
         if (error || !result) {
+          console.error('Cloudinary upload failed:', error);
           reject(new Error('Failed to upload image to Cloudinary'));
         } else {
+          console.log('Cloudinary upload success:', result.secure_url);
           resolve(result.secure_url);
         }
       });

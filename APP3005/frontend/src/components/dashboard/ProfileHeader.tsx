@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { ChevronDown, Plus } from "lucide-react";
+import { ChevronDown, Plus, X } from "lucide-react";
 import { LuxeButton } from "@/components/common/Buttons/LuxeButton";
 import EditProfileModal from "./EditProfileModal";
+import { Dialog, DialogContent, DialogClose } from "@/components/ui/dialog";
 
 interface ProfileHeaderProps {
     user: {
@@ -11,10 +12,12 @@ interface ProfileHeaderProps {
         subtitle: string;
     };
     onUploadClick: () => void;
+    onProfileUpdate?: () => void;
 }
 
-const ProfileHeader = ({ user, onUploadClick }: ProfileHeaderProps) => {
+const ProfileHeader = ({ user, onUploadClick, onProfileUpdate }: ProfileHeaderProps) => {
     const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
+    const [isLightboxOpen, setIsLightboxOpen] = useState(false);
 
     return (
         <div className="flex items-start justify-between mb-6">
@@ -25,13 +28,16 @@ const ProfileHeader = ({ user, onUploadClick }: ProfileHeaderProps) => {
                 </h1>
 
                 <div className="flex items-center gap-4">
-                    <div className="w-20 h-20 rounded-full overflow-hidden bg-muted">
+                    <button
+                        onClick={() => setIsLightboxOpen(true)}
+                        className="w-20 h-20 rounded-full overflow-hidden bg-muted cursor-zoom-in hover:opacity-90 transition-opacity"
+                    >
                         <img
                             src={user.avatar}
                             alt={user.name}
                             className="w-full h-full object-cover"
                         />
-                    </div>
+                    </button>
 
                     <div>
                         <div className="flex items-center gap-3">
@@ -81,8 +87,26 @@ const ProfileHeader = ({ user, onUploadClick }: ProfileHeaderProps) => {
                 open={isEditProfileOpen}
                 onOpenChange={setIsEditProfileOpen}
                 user={user}
-                onSuccess={() => window.location.reload()} // Simple reload to refresh data for now
+                onSuccess={() => {
+                    if (onProfileUpdate) onProfileUpdate();
+                    else window.location.reload();
+                }}
             />
+
+            <Dialog open={isLightboxOpen} onOpenChange={setIsLightboxOpen}>
+                <DialogContent className="max-w-3xl bg-transparent border-none shadow-none p-0 flex items-center justify-center">
+                    <div className="relative">
+                        <img
+                            src={user.avatar}
+                            alt={user.name}
+                            className="max-w-full max-h-[80vh] rounded-lg shadow-2xl"
+                        />
+                        <DialogClose className="absolute -top-10 right-0 text-white hover:text-gold transition-colors">
+                            <X size={32} />
+                        </DialogClose>
+                    </div>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 };

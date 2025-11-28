@@ -31,11 +31,14 @@ let CloudinaryService = class CloudinaryService {
     }
     async uploadImage(file) {
         return new Promise((resolve, reject) => {
+            console.log('Starting Cloudinary upload...');
             cloudinary_1.v2.uploader.upload(file, (error, result) => {
                 if (error || !result) {
+                    console.error('Cloudinary upload failed:', error);
                     reject(new Error('Failed to upload image to Cloudinary'));
                 }
                 else {
+                    console.log('Cloudinary upload success:', result.secure_url);
                     resolve(result.secure_url);
                 }
             });

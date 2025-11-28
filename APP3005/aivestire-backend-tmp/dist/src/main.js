@@ -51,14 +51,14 @@ async function bootstrap() {
         .map((o) => o.trim())
         .filter((o) => o.length > 0);
     app.enableCors({
-        origin: allowedOrigins.length > 0 ? allowedOrigins : true,
+        origin: allowedOrigins.length > 0 ? allowedOrigins : ["http://localhost:8080", "http://192.168.29.181:8080"],
         credentials: true,
         methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
         allowedHeaders: ['Content-Type', 'Authorization'],
         preflightContinue: false,
         optionsSuccessStatus: 204,
     });
-    app.useGlobalPipes(new common_1.ValidationPipe({ whitelist: true }));
+    app.useGlobalPipes(new common_1.ValidationPipe({ whitelist: true, transform: true }));
     await app.listen(process.env.PORT ?? 3000);
 }
 void bootstrap();
