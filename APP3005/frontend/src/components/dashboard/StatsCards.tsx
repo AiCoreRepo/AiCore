@@ -7,6 +7,7 @@ interface StatsCardsProps {
         likes: number;
         uploads: number;
         revenueLastMonthCents: number;
+        latestImages?: string[];
     };
 }
 
@@ -17,11 +18,13 @@ const StatsCards = ({ stats }: StatsCardsProps) => {
         { rank: 3, name: "Pernser", avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=50&h=50&fit=crop&crop=face", score: "#12" },
     ];
 
-    const outfitImages = [
-        "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=80&h=100&fit=crop",
-        "https://images.unsplash.com/photo-1496747611176-843222e1e57c?w=80&h=100&fit=crop",
-        "https://images.unsplash.com/photo-1509631179647-0177331693ae?w=80&h=100&fit=crop",
-    ];
+    const outfitImages = stats.latestImages && stats.latestImages.length > 0
+        ? stats.latestImages
+        : [
+            "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=80&h=100&fit=crop",
+            "https://images.unsplash.com/photo-1496747611176-843222e1e57c?w=80&h=100&fit=crop",
+            "https://images.unsplash.com/photo-1509631179647-0177331693ae?w=80&h=100&fit=crop",
+        ];
 
     const revenue = (stats.revenueLastMonthCents / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD' });
 

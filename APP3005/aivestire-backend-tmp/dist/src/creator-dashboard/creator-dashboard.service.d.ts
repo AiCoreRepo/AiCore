@@ -12,6 +12,7 @@ export declare class CreatorDashboardService {
     getCreatorDashboardMetrics(userId: string): Promise<{
         totalLikes: number;
         totalUploads: number;
+        latestImages: string[];
     }>;
     getCreatorProducts(userId: string, page?: number, limit?: number): Promise<{
         data: {
@@ -85,6 +86,8 @@ export declare class CreatorDashboardService {
     }>;
     deleteProduct(userId: string, productId: string): Promise<{
         message: string;
+        totalUploads: number;
+        latestImages: string[];
     }>;
     updateCreatorProfile(userId: string, dto: any): Promise<{
         name: string;

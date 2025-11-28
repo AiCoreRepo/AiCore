@@ -1,18 +1,9 @@
 import React from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { LuxeColors } from "@/lib/luxe-theme";
-import { LogOut } from "lucide-react";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+import { LogOut, ChevronLeft, ChevronRight } from "lucide-react";
+import { LuxeAlertDialog } from "@/components/common/dialog/LuxeAlertDialog";
+import { useSidebar } from "@/context/SidebarContext";
 
 const LuxeSidebar: React.FC<{
   user: { name: string; avatar: string; role: string };
@@ -20,6 +11,7 @@ const LuxeSidebar: React.FC<{
 }> = ({ user, navLinks }) => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { isCollapsed, toggleSidebar } = useSidebar();
 
   const handleLogout = () => {
     localStorage.removeItem("access_token");
@@ -28,13 +20,33 @@ const LuxeSidebar: React.FC<{
 
   return (
     <aside
-      className="fixed left-0 top-0 h-full w-[300px] bg-[#F5F2EB] bg-opacity-80 backdrop-blur-lg border-r border-[#E5E0D8] flex flex-col shadow-[0_4px_20px_-5px_rgba(212,175,55,0.10)]"
+      className={`fixed left-0 top-0 h-full bg-stone-900 border-r border-stone-800 flex flex-col shadow-2xl z-50 transition-all duration-300 ease-in-out ${isCollapsed ? "w-[80px]" : "w-[300px]"
+        }`}
     >
-      <div className="flex flex-col items-center py-10 border-b border-[#E5E0D8]">
-        <h1 className="font-serif text-3xl font-bold text-gold tracking-wider">AiVestire</h1>
-        <span className="text-[10px] font-sans text-muted-foreground uppercase tracking-[0.2em] mt-2">Luxury Fashion AI</span>
+      <div className="flex flex-col items-center py-8 border-b border-stone-800 bg-stone-950/50 backdrop-blur-sm relative">
+        <button
+          onClick={toggleSidebar}
+          className="absolute -right-4 top-8 h-8 w-8 bg-luxury-gold text-luxury-black rounded-full flex items-center justify-center shadow-[0_4px_12px_rgba(0,0,0,0.3)] hover:scale-110 hover:bg-white transition-all duration-300 z-50 border-[3px] border-stone-900 group"
+          aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+        >
+          {isCollapsed ? (
+            <ChevronRight size={14} className="group-hover:translate-x-0.5 transition-transform" />
+          ) : (
+            <ChevronLeft size={14} className="group-hover:-translate-x-0.5 transition-transform" />
+          )}
+        </button>
+
+        {isCollapsed ? (
+          <h1 className="font-serif text-xl font-bold text-luxury-gold tracking-widest drop-shadow-sm">AV</h1>
+        ) : (
+          <>
+            <h1 className="font-serif text-3xl font-bold text-luxury-gold tracking-widest drop-shadow-sm">AIVESTIRE</h1>
+            <span className="text-[10px] font-sans text-stone-400 uppercase tracking-[0.3em] mt-3 font-medium">Luxury Fashion AI</span>
+          </>
+        )}
       </div>
-      <nav className="flex-1 mt-10 space-y-2 px-6">
+
+      <nav className="flex-1 mt-10 space-y-2 px-4">
         {navLinks.map((link) => {
           const isActive = location.pathname === link.href;
           return (
@@ -42,43 +54,38 @@ const LuxeSidebar: React.FC<{
               key={link.label}
               to={link.href}
               className={
-                `flex items-center gap-3 py-2 px-4 rounded-lg font-sans transition-all duration-300 relative group ` +
+                `flex items-center gap-4 py-3.5 px-4 rounded-xl font-sans text-sm transition-all duration-300 relative group ` +
                 (isActive
-                  ? 'bg-gold/10 text-gold font-semibold'
-                  : 'text-muted-foreground hover:bg-gold/5 hover:text-foreground')
+                  ? 'bg-luxury-gold/10 text-luxury-gold font-medium border border-luxury-gold/20 shadow-[0_0_15px_-3px_rgba(212,175,55,0.15)]'
+                  : 'text-stone-400 hover:bg-stone-900 hover:text-stone-200 border border-transparent') +
+                (isCollapsed ? ' justify-center' : '')
               }
             >
               {isActive && (
-                <span className="absolute left-0 top-1/2 -translate-y-1/2 h-6 w-1 rounded bg-gold" />
+                <span className="absolute left-0 top-1/2 -translate-y-1/2 h-8 w-1 rounded-r-full bg-luxury-gold shadow-[0_0_10px_rgba(212,175,55,0.5)]" />
               )}
-              {link.icon}
-              <span>{link.label}</span>
+              <span className={`transition-transform duration-300 group-hover:scale-110 ${isActive ? 'text-luxury-gold' : 'text-stone-500 group-hover:text-stone-300'}`}>
+                {link.icon}
+              </span>
+              {!isCollapsed && <span className="tracking-wide whitespace-nowrap overflow-hidden">{link.label}</span>}
             </Link>
           );
         })}
       </nav>
 
-      <div className="p-6 border-t border-[#E5E0D8]">
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <button className="flex items-center gap-3 w-full py-2 px-4 rounded-lg font-sans text-red-500 hover-danger group">
-              <LogOut size={20} />
-              <span className="font-medium">Logout</span>
+      <div className="p-4 border-t border-stone-800 bg-stone-950/50">
+        <LuxeAlertDialog
+          trigger={
+            <button className={`flex items-center gap-4 w-full py-3.5 px-4 rounded-xl font-sans text-sm text-stone-400 hover:bg-red-950/20 hover:text-red-400 hover:border-red-900/30 border border-transparent transition-all duration-300 group ${isCollapsed ? 'justify-center' : ''}`}>
+              <LogOut size={18} className="group-hover:scale-110 transition-transform duration-300" />
+              {!isCollapsed && <span className="font-medium tracking-wide">Logout</span>}
             </button>
-          </AlertDialogTrigger>
-          <AlertDialogContent className="dashboard-theme bg-foreground text-primary-foreground border-gold/20">
-            <AlertDialogHeader>
-              <AlertDialogTitle className="text-primary-foreground">Are you sure you want to logout?</AlertDialogTitle>
-              <AlertDialogDescription className="text-muted-foreground">
-                You will be redirected to the login page.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel className="bg-transparent border-muted-foreground/30 text-primary-foreground hover:bg-muted-foreground/10 hover:text-primary-foreground">Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={handleLogout} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Logout</AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+          }
+          title="Sign out of AiVestire?"
+          description="You will be returned to the login screen."
+          actionLabel="Logout"
+          onAction={handleLogout}
+        />
       </div>
     </aside>
   );

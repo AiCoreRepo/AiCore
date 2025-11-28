@@ -65,13 +65,7 @@ const Signup = () => {
       quote="Create. Design. Inspire."
       quoteAuthor="Your Journey Begins"
     >
-      <div className="flex items-center mb-4">
-        <Link to="/" className="mr-auto">
-          <Button variant="ghost" size="sm">
-            &#8592; Back
-          </Button>
-        </Link>
-      </div>
+
       <div className="space-y-8">
         <div className="space-y-2 text-center">
           <h2 className="text-4xl font-serif text-luxury-cream">Join AiVestire</h2>

@@ -5,6 +5,7 @@ import ProfileHeader from "../../components/dashboard/ProfileHeader";
 import StatsCards from "../../components/dashboard/StatsCards";
 import UploadsGrid from "../../components/dashboard/UploadsGrid";
 import UploadCollectionModal from "../../components/dashboard/UploadCollectionModal";
+import CustomizeDashboardModal from "../../components/dashboard/CustomizeDashboardModal";
 import { Pagination } from "../../components/common/Pagination";
 import { getDashboardMetrics, getCreatorProducts, deleteProduct, getProfile } from "../../lib/api";
 import {
@@ -17,8 +18,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { LayoutDashboard, Shirt, BarChart3, Settings } from "lucide-react";
+import { useSidebar } from "@/context/SidebarContext";
 
 const DashboardPage: React.FC = () => {
+  const { sidebarWidth } = useSidebar();
   const [stats, setStats] = useState<any>({
     rating: "NA",
     ranking: "NA",
@@ -42,11 +46,15 @@ const DashboardPage: React.FC = () => {
     subtitle: "",
   });
 
+
+
+  // ... existing imports ...
+
   const navLinks = [
-    { label: "Dashboard", icon: <span>🏠</span>, href: "/creator-dashboard" },
-    { label: "My Wardrobe", icon: <span>👗</span>, href: "/wardrobe" },
-    { label: "Analytics", icon: <span>📊</span>, href: "/analytics" },
-    { label: "Settings", icon: <span>⚙️</span>, href: "/settings" },
+    { label: "Dashboard", icon: <LayoutDashboard size={20} />, href: "/creator-dashboard" },
+    { label: "My Wardrobe", icon: <Shirt size={20} />, href: "/wardrobe" },
+    { label: "Analytics", icon: <BarChart3 size={20} />, href: "/analytics" },
+    { label: "Settings", icon: <Settings size={20} />, href: "/settings" },
   ];
 
   const fetchData = async () => {
@@ -73,6 +81,7 @@ const DashboardPage: React.FC = () => {
         likes: metrics.likes ?? metrics.totalLikes ?? 0,
         uploads: metrics.uploads ?? metrics.totalUploads ?? 0,
         revenueLastMonthCents: metrics.revenueLastMonthCents ?? metrics.earnings ?? 0,
+        latestImages: metrics.latestImages || [],
       });
 
       const response = await getCreatorProducts(currentPage);
@@ -130,7 +139,17 @@ const DashboardPage: React.FC = () => {
     if (!deletingProduct) return;
 
     try {
-      await deleteProduct(deletingProduct.product_id);
+      const response = await deleteProduct(deletingProduct.product_id);
+
+      // Update stats immediately from response
+      if (response.totalUploads !== undefined) {
+        setStats((prev: any) => ({
+          ...prev,
+          uploads: response.totalUploads,
+          latestImages: response.latestImages || prev.latestImages
+        }));
+      }
+
       setIsDeleteDialogOpen(false);
       setDeletingProduct(null);
       fetchData(); // Refresh list
@@ -139,11 +158,26 @@ const DashboardPage: React.FC = () => {
     }
   };
 
+  const [isCustomizeModalOpen, setIsCustomizeModalOpen] = useState(false);
+  const [dashboardConfig, setDashboardConfig] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('dashboardConfig');
+      if (saved) {
+        return JSON.parse(saved);
+      }
+    }
+    return { showStats: true, showUploads: true };
+  });
+
+  useEffect(() => {
+    localStorage.setItem('dashboardConfig', JSON.stringify(dashboardConfig));
+  }, [dashboardConfig]);
+
   return (
     <div>
       <div className="min-h-screen flex" style={{ background: LuxeColors.background }}>
         <LuxeSidebar user={user} navLinks={navLinks} />
-        <div className="flex-1 ml-[300px] dashboard-theme">
+        <div className="flex-1 dashboard-theme transition-all duration-300 ease-in-out" style={{ marginLeft: sidebarWidth }}>
           <div className="min-h-screen dashboard-gradient p-8">
             <div className="max-w-7xl mx-auto">
               <ProfileHeader
@@ -152,14 +186,19 @@ const DashboardPage: React.FC = () => {
                   setEditingProduct(null);
                   setIsUploadFormOpen(true);
                 }}
+                onCustomizeClick={() => setIsCustomizeModalOpen(true)}
                 onProfileUpdate={fetchData}
               />
-              <StatsCards stats={stats} />
-              <UploadsGrid
-                uploads={uploads}
-                onEdit={handleEditProduct}
-                onDelete={handleDeleteProduct}
-              />
+
+              {dashboardConfig.showStats && <StatsCards stats={stats} />}
+
+              {dashboardConfig.showUploads && (
+                <UploadsGrid
+                  uploads={uploads}
+                  onEdit={handleEditProduct}
+                  onDelete={handleDeleteProduct}
+                />
+              )}
 
               <Pagination
                 currentPage={currentPage}
@@ -176,6 +215,13 @@ const DashboardPage: React.FC = () => {
         onOpenChange={setIsUploadFormOpen}
         onSuccess={fetchData}
         initialData={editingProduct}
+      />
+
+      <CustomizeDashboardModal
+        open={isCustomizeModalOpen}
+        onOpenChange={setIsCustomizeModalOpen}
+        config={dashboardConfig}
+        onConfigChange={setDashboardConfig}
       />
 
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>

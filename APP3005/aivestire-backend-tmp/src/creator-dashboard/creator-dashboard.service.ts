@@ -78,14 +78,28 @@ export class CreatorDashboardService {
   async getCreatorDashboardMetrics(userId: string) {
     const creatorId = await this.getCreatorIdFromUserId(userId);
     const products = await this.prisma.product.findMany({
-      where: { creator_id: creatorId },
+      where: {
+        creator_id: creatorId,
+        is_deleted: false
+      },
       include: {
         stats: true,
+        images: {
+          where: { is_primary: true },
+          take: 1
+        }
       },
+      orderBy: { created_at: 'desc' }
     });
 
     let totalLikes = 0;
     const totalUploads = products.length;
+
+    // Get latest 3 images
+    const latestImages = products
+      .slice(0, 3)
+      .map(p => p.images[0]?.url)
+      .filter(url => url !== undefined);
 
     for (const product of products) {
       if (product.stats) {
@@ -96,6 +110,7 @@ export class CreatorDashboardService {
     return {
       totalLikes,
       totalUploads,
+      latestImages
     };
   }
 
@@ -396,7 +411,14 @@ export class CreatorDashboardService {
       },
     });
 
-    return { message: 'Product deleted successfully' };
+    // Get updated metrics
+    const metrics = await this.getCreatorDashboardMetrics(userId);
+
+    return {
+      message: 'Product deleted successfully',
+      totalUploads: metrics.totalUploads,
+      latestImages: metrics.latestImages
+    };
   }
 
   async updateCreatorProfile(userId: string, dto: any) {

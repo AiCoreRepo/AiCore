@@ -1,7 +1,9 @@
 import { useState } from "react";
-import { Heart, Repeat, Share2, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { Heart, MessageCircle, Share2, ChevronLeft, ChevronRight, X, CheckCircle2, Clock, Eye } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { ActionMenu } from "@/components/common/ActionMenu";
+import ReviewsModal from "./ReviewsModal";
+import { useToast } from "@/hooks/use-toast";
 
 interface ProductCardProps {
     image: string;
@@ -13,11 +15,19 @@ interface ProductCardProps {
     isNew?: boolean;
     onEdit?: () => void;
     onDelete?: () => void;
+    stats?: {
+        likes_count: number;
+        comments_count: number;
+        shares_count?: number;
+        tries_count?: number;
+    };
 }
 
-const ProductCard = ({ image, images = [], title, tags, revenue, status, isNew, onEdit, onDelete }: ProductCardProps) => {
+const ProductCard = ({ image, images = [], title, tags, revenue, status, isNew, onEdit, onDelete, stats }: ProductCardProps) => {
     const [isGalleryOpen, setIsGalleryOpen] = useState(false);
+    const [isReviewsOpen, setIsReviewsOpen] = useState(false);
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
+    const { toast } = useToast();
 
     // Ensure we have a valid list of images to show
     const displayImages = images.length > 0 ? images : [image];
@@ -38,71 +48,123 @@ const ProductCard = ({ image, images = [], title, tags, revenue, status, isNew, 
         setCurrentImageIndex((prev) => (prev - 1 + displayImages.length) % displayImages.length);
     };
 
+    const handleShare = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        toast({
+            title: "Shared!",
+            description: "Product link copied to clipboard.",
+        });
+    };
+
+    const handleReviewsClick = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        setIsReviewsOpen(true);
+    };
+
     return (
         <>
             <div
-                className="bg-card rounded-xl overflow-hidden hover:shadow-lg hover:scale-[1.02] transition-all duration-300 cursor-pointer border border-transparent hover:border-gold/20 group"
+                className="group relative bg-white rounded-2xl overflow-hidden transition-all duration-500 hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-stone-100 hover:border-luxury-gold/30"
                 onClick={openGallery}
             >
-                <div className="relative aspect-[3/4] w-full overflow-hidden">
+                {/* Image Section */}
+                <div className="relative aspect-[3/4] w-full overflow-hidden bg-stone-50">
                     <img
                         src={image}
                         alt={title}
-                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                     />
-                    {isNew && (
-                        <span className="absolute top-2 left-2 px-2 py-1 bg-gold text-primary-foreground text-xs font-medium rounded z-10">
-                            NEW
-                        </span>
-                    )}
+
+                    {/* Overlay Gradient */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+
+                    {/* Badges */}
+                    <div className="absolute top-3 left-3 flex flex-col gap-2">
+                        {isNew && (
+                            <span className="px-2.5 py-1 bg-white/90 backdrop-blur-md text-luxury-black text-[10px] font-bold tracking-wider uppercase rounded-sm shadow-sm">
+                                New Arrival
+                            </span>
+                        )}
+                    </div>
+
+                    {/* Quick Actions Overlay */}
+                    <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-3 opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300">
+                        <button
+                            className="p-2 bg-white text-luxury-black rounded-full shadow-lg hover:bg-luxury-gold hover:text-white transition-colors"
+                            onClick={(e) => { e.stopPropagation(); openGallery(); }}
+                            title="Quick View"
+                        >
+                            <Eye size={16} />
+                        </button>
+                        <button
+                            className="p-2 bg-white text-luxury-black rounded-full shadow-lg hover:bg-luxury-gold hover:text-white transition-colors"
+                            onClick={handleShare}
+                            title="Share"
+                        >
+                            <Share2 size={16} />
+                        </button>
+                    </div>
+
+                    {/* Image Counter */}
                     {additionalImagesCount > 0 && (
-                        <div className="absolute bottom-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded-full backdrop-blur-sm z-10">
+                        <div className="absolute top-3 right-3 bg-black/40 backdrop-blur-md text-white text-[10px] font-medium px-2 py-1 rounded-full">
                             +{additionalImagesCount}
                         </div>
                     )}
                 </div>
 
-                <div className="p-3">
-                    <h4 className="font-medium text-foreground mb-2 line-clamp-1">{title}</h4>
-
-                    <div className="flex flex-wrap gap-1 mb-3">
-                        {tags.slice(0, 3).map((tag) => (
-                            <span
-                                key={tag}
-                                className="px-2 py-0.5 bg-muted text-muted-foreground text-xs rounded"
-                            >
-                                {tag}
-                            </span>
-                        ))}
-                    </div>
-
-                    <div className="flex items-center gap-3 text-xs text-muted-foreground mb-3">
-                        <div className="flex items-center gap-1">
-                            <Heart size={12} />
-                            <span>Likes</span>
+                {/* Content Section */}
+                <div className="p-4">
+                    <div className="flex justify-between items-start mb-2">
+                        <div>
+                            <h4 className="font-serif text-lg text-luxury-black leading-tight mb-1 group-hover:text-luxury-gold transition-colors">
+                                {title}
+                            </h4>
+                            <div className="flex flex-wrap gap-1.5">
+                                {tags.slice(0, 2).map((tag) => (
+                                    <span key={tag} className="text-[10px] text-stone-500 uppercase tracking-wide">
+                                        {tag}
+                                    </span>
+                                ))}
+                            </div>
                         </div>
-                        <div className="flex items-center gap-1">
-                            <Repeat size={12} />
-                            <span>Tries</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                            <Share2 size={12} />
-                            <span>Shares</span>
-                        </div>
-                        <span className="ml-auto font-medium text-foreground">{revenue}</span>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                        <button
-                            className={`px-6 py-1.5 rounded-full text-sm font-medium ${status === "Active"
-                                ? "bg-gold text-primary-foreground"
-                                : "bg-muted text-muted-foreground"
-                                }`}
-                        >
-                            {status}
-                        </button>
-
                         <ActionMenu onEdit={onEdit} onDelete={onDelete} />
+                    </div>
+
+                    {/* Stats Row */}
+                    <div className="flex items-center gap-4 py-3 border-b border-stone-100 mb-3">
+                        <div className="flex items-center gap-1.5 text-stone-400 group-hover:text-luxury-gold/80 transition-colors">
+                            <Heart size={14} className={stats?.likes_count ? "fill-luxury-gold text-luxury-gold" : ""} />
+                            <span className="text-xs font-medium">{stats?.likes_count || 0}</span>
+                        </div>
+                        <div
+                            className="flex items-center gap-1.5 text-stone-400 hover:text-luxury-gold cursor-pointer transition-colors"
+                            onClick={handleReviewsClick}
+                        >
+                            <MessageCircle size={14} />
+                            <span className="text-xs font-medium">{stats?.comments_count || 0}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 text-stone-400">
+                            <Share2 size={14} />
+                            <span className="text-xs font-medium">{stats?.shares_count || stats?.tries_count || 0}</span>
+                        </div>
+                    </div>
+
+                    {/* Footer */}
+                    <div className="flex items-center justify-between">
+                        {/* Status Badge - Left Aligned */}
+                        <span className={`flex items-center gap-1.5 pl-2.5 pr-3 py-1 rounded-full text-[10px] font-medium tracking-wide uppercase ${status === "Active"
+                            ? "bg-emerald-50 text-emerald-700 border border-emerald-100"
+                            : "bg-stone-100 text-stone-500 border border-stone-200"
+                            }`}>
+                            {status === "Active" ? <CheckCircle2 size={10} /> : <Clock size={10} />}
+                            {status}
+                        </span>
+
+                        {/* Revenue - Right Aligned */}
+                        <span className="font-serif text-lg text-luxury-black">
+                            {revenue}
+                        </span>
                     </div>
                 </div>
             </div>
@@ -154,6 +216,12 @@ const ProductCard = ({ image, images = [], title, tags, revenue, status, isNew, 
                     </div>
                 </DialogContent>
             </Dialog>
+
+            <ReviewsModal
+                open={isReviewsOpen}
+                onOpenChange={setIsReviewsOpen}
+                productTitle={title}
+            />
         </>
     );
 };

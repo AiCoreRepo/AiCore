@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronDown, Plus, X } from "lucide-react";
+import { ChevronDown, Plus, X, Settings } from "lucide-react";
 import { LuxeButton } from "@/components/common/Buttons/LuxeButton";
 import EditProfileModal from "./EditProfileModal";
 import { Dialog, DialogContent, DialogClose } from "@/components/ui/dialog";
@@ -12,10 +12,11 @@ interface ProfileHeaderProps {
         subtitle: string;
     };
     onUploadClick: () => void;
+    onCustomizeClick?: () => void;
     onProfileUpdate?: () => void;
 }
 
-const ProfileHeader = ({ user, onUploadClick, onProfileUpdate }: ProfileHeaderProps) => {
+const ProfileHeader = ({ user, onUploadClick, onCustomizeClick, onProfileUpdate }: ProfileHeaderProps) => {
     const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
     const [isLightboxOpen, setIsLightboxOpen] = useState(false);
 
@@ -73,12 +74,15 @@ const ProfileHeader = ({ user, onUploadClick, onProfileUpdate }: ProfileHeaderPr
                         <ChevronDown size={18} className="text-muted-foreground group-hover:text-gold transition-colors" />
                     </LuxeButton>
 
+
+
                     <LuxeButton
+                        onClick={onCustomizeClick}
                         variant="ghost"
                         className="w-full flex items-center justify-between px-4 py-3 bg-white/50 hover:bg-gold/10 border border-transparent hover:border-gold/20 rounded-xl text-foreground transition-all duration-300 group"
                     >
-                        <span className="font-medium">Portfolio Settings</span>
-                        <ChevronDown size={18} className="text-muted-foreground group-hover:text-gold transition-colors" />
+                        <span className="font-medium">Customize Dashboard</span>
+                        <Settings size={18} className="text-muted-foreground group-hover:text-gold transition-colors" />
                     </LuxeButton>
                 </div>
             </div>

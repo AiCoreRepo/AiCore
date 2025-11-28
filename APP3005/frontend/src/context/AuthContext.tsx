@@ -6,6 +6,8 @@ interface User {
   email: string;
   role: string;
   store_name?: string;
+  avatar?: string;
+  subtitle?: string;
 }
 
 interface AuthContextType {
@@ -24,7 +26,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setLoading(true);
     try {
       const userData = await fetchProfile();
-      setUser(userData);
+      // Map backend 'name' to 'store_name' if needed
+      setUser({
+        ...userData,
+        store_name: userData.name || userData.store_name
+      });
     } catch (error) {
       console.error('Failed to fetch user profile:', error);
       setUser(null);

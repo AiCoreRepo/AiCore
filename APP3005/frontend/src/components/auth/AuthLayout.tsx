@@ -24,7 +24,7 @@ export const AuthLayout = ({ children, heroImage, quote, quoteAuthor }: AuthLayo
           style={{ backgroundImage: `url(${heroImage})` }}
         />
         <div className="absolute inset-0 bg-gradient-to-br from-luxury-black/80 via-luxury-black/60 to-luxury-black/40" />
-        
+
         <div className="relative z-10 flex flex-col justify-center items-start px-16 text-luxury-cream">
           <motion.blockquote
             initial={{ opacity: 0, y: 30 }}
@@ -54,10 +54,15 @@ export const AuthLayout = ({ children, heroImage, quote, quoteAuthor }: AuthLayo
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
-          className="p-8"
+          className="p-8 flex justify-between items-center"
         >
           <Link to="/" className="inline-block">
             <h1 className="text-3xl font-serif text-luxury-gold">AiVestire</h1>
+          </Link>
+          <Link to="/">
+            <button className="text-sm text-luxury-cream hover:text-luxury-gold transition-colors font-medium flex items-center gap-2">
+              <span>Back to Home</span>
+            </button>
           </Link>
         </motion.div>
 

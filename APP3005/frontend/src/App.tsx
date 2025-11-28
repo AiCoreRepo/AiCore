@@ -12,6 +12,11 @@ import NotFound from "./pages/NotFound";
 import CreatorLogin from "./pages/CreatorLogin";
 import AiTryOn from "./pages/AiTryOn";
 import DashboardPage from "./app/dashboard/page";
+import SettingsPage from "./app/settings/page";
+import WardrobePage from "./app/wardrobe/page";
+import AnalyticsPage from "./app/analytics/page";
+import { PopupProvider } from "./components/common/popups/PopupTime";
+import { SidebarProvider } from "./context/SidebarContext";
 
 const queryClient = new QueryClient();
 
@@ -22,17 +27,24 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
-          <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/signup" element={<Signup />} />
-          <Route path="/forgot-password" element={<ForgotPassword />} />
-          <Route path="/creator-login" element={<CreatorLogin />} />
-          <Route path="/ai-try-on" element={<AiTryOn />} />
-          <Route path="/creator-dashboard" element={<DashboardPage />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+          <PopupProvider>
+            <SidebarProvider>
+              <Routes>
+                <Route path="/" element={<Index />} />
+                <Route path="/login" element={<Login />} />
+                <Route path="/signup" element={<Signup />} />
+                <Route path="/forgot-password" element={<ForgotPassword />} />
+                <Route path="/creator-login" element={<CreatorLogin />} />
+                <Route path="/ai-try-on" element={<AiTryOn />} />
+                <Route path="/creator-dashboard" element={<DashboardPage />} />
+                <Route path="/settings" element={<SettingsPage />} />
+                <Route path="/wardrobe" element={<WardrobePage />} />
+                <Route path="/analytics" element={<AnalyticsPage />} />
+                {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </SidebarProvider>
+          </PopupProvider>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>

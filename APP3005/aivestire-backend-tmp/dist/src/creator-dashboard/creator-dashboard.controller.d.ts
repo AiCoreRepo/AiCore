@@ -25,6 +25,7 @@ export declare class CreatorDashboardController {
     }): Promise<{
         totalLikes: number;
         totalUploads: number;
+        latestImages: string[];
     }>;
     getProducts(user: {
         user_id: string;
@@ -106,5 +107,7 @@ export declare class CreatorDashboardController {
         user_id: string;
     }, productId: string): Promise<{
         message: string;
+        totalUploads: number;
+        latestImages: string[];
     }>;
 }

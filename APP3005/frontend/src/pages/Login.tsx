@@ -10,12 +10,14 @@ import { Label } from "@/components/ui/label";
 import { loginSchema, type LoginFormData } from "@/lib/validation";
 import { useToast } from "@/hooks/use-toast";
 import { login as loginApi } from "@/lib/api";
+import { usePopup } from "@/components/common/popups/PopupTime";
 import heroImage from "@/assets/auth-hero-login.jpg";
 
 const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const { showPopup } = usePopup();
   const navigate = useNavigate();
 
   const {
@@ -34,10 +36,11 @@ const Login = () => {
       if (result.access_token) {
         localStorage.setItem("access_token", result.access_token);
       }
-      toast({
-        title: "Welcome back!",
-        description: "You've successfully signed in.",
-      });
+      // toast({
+      //   title: "Welcome back!",
+      //   description: "You've successfully signed in.",
+      // });
+      showPopup("Welcome back!", "You've successfully signed in.", "success");
       navigate("/creator-dashboard");
     } catch (error: unknown) {
       toast({
@@ -63,13 +66,7 @@ const Login = () => {
       quote="Luxury isn't worn. It's owned."
       quoteAuthor="AiVestire Philosophy"
     >
-      <div className="flex items-center mb-4">
-        <Link to="/" className="mr-auto">
-          <Button variant="ghost" size="sm">
-            &#8592; Back
-          </Button>
-        </Link>
-      </div>
+
       <div className="space-y-8">
         <div className="space-y-2 text-center">
           <h2 className="text-4xl font-serif text-luxury-cream">Welcome Back</h2>

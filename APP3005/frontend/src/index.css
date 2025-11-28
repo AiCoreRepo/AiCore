@@ -48,7 +48,7 @@ All colors MUST be HSL.
         /* Primary gold */
         --luxury-gold-glow: 40 100% 65%;
         /* Brighter gold for glows */
-        --luxury-black: 0 0% 4%;
+        --luxury-black: 0 0% 10%;
         /* Deep black */
         --luxury-cream: 30 20% 97%;
         /* Warm cream */

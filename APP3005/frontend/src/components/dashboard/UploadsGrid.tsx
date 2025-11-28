@@ -1,4 +1,4 @@
-import { Settings2, Filter } from "lucide-react";
+import { Filter } from "lucide-react";
 import ProductCard from "./ProductCard";
 
 interface UploadsGridProps {
@@ -18,7 +18,7 @@ const UploadsGrid = ({ uploads, onEdit, onDelete }: UploadsGridProps) => {
                 </div>
             </div>
 
-            <div className="grid grid-cols-6 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
                 {uploads.length === 0 ? (
                     <div className="col-span-full text-center py-10 text-muted-foreground">
                         No products uploaded yet.
@@ -34,6 +34,7 @@ const UploadsGrid = ({ uploads, onEdit, onDelete }: UploadsGridProps) => {
                             revenue={product.price} // Using price as revenue placeholder as per original design
                             status={product.status}
                             isNew={product.isNew}
+                            stats={product.stats}
                             onEdit={() => onEdit(product)}
                             onDelete={() => onDelete(product)}
                         />
@@ -41,12 +42,7 @@ const UploadsGrid = ({ uploads, onEdit, onDelete }: UploadsGridProps) => {
                 )}
             </div>
 
-            <div className="flex justify-end mt-4">
-                <button className="flex items-center gap-2 px-4 py-2 bg-card rounded-lg text-muted-foreground hover:text-foreground transition-colors">
-                    <Settings2 size={18} />
-                    <span>Customize Dashboard</span>
-                </button>
-            </div>
+
         </div>
     );
 };
