@@ -9,13 +9,23 @@ services:
     startCommand: npm run start:prod
     envVars:
       - key: DATABASE_URL
-        fromDatabase:
-          name: aivestire-db
-          property: connectionString
+        sync: false
       - key: JWT_SECRET
         generateValue: true
       - key: PORT
         value: 3000
+      - key: JWT_EXPIRATION_TIME
+        value: 1h
+      - key: JWT_REFRESH_EXPIRATION_TIME
+        value: 7d
+      - key: CLOUDINARY_CLOUD_NAME
+        value: dxfxicebq
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      - key: CORS_ORIGIN
+        sync: false
 
   # Frontend Service
   - type: web
@@ -35,8 +45,3 @@ services:
           type: web
           name: aivestire-backend
           property: url
-
-databases:
-  - name: aivestire-db
-    databaseName: aivestire
-    user: aivestire_user
