@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Heart, MessageCircle, Share2, ChevronLeft, ChevronRight, X, CheckCircle2, Clock, Eye } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { ActionMenu } from "@/components/common/ActionMenu";
+import ProductDetailsModal from "./ProductDetailsModal";
 import ReviewsModal from "./ReviewsModal";
 import { useToast } from "@/hooks/use-toast";
 
@@ -9,6 +10,7 @@ interface ProductCardProps {
     image: string;
     images?: string[];
     title: string;
+    description?: string;
     tags: string[];
     revenue: string;
     status: "Active" | "Pending";
@@ -23,9 +25,10 @@ interface ProductCardProps {
     };
 }
 
-const ProductCard = ({ image, images = [], title, tags, revenue, status, isNew, onEdit, onDelete, stats }: ProductCardProps) => {
+const ProductCard = ({ image, images = [], title, description, tags, revenue, status, isNew, onEdit, onDelete, stats }: ProductCardProps) => {
     const [isGalleryOpen, setIsGalleryOpen] = useState(false);
     const [isReviewsOpen, setIsReviewsOpen] = useState(false);
+    const [isDetailsOpen, setIsDetailsOpen] = useState(false);
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
     const { toast } = useToast();
 
@@ -128,7 +131,11 @@ const ProductCard = ({ image, images = [], title, tags, revenue, status, isNew, 
                                 ))}
                             </div>
                         </div>
-                        <ActionMenu onEdit={onEdit} onDelete={onDelete} />
+                        <ActionMenu
+                            onEdit={onEdit}
+                            onDelete={onDelete}
+                            onViewDetails={() => setIsDetailsOpen(true)}
+                        />
                     </div>
 
                     {/* Stats Row */}
@@ -162,7 +169,7 @@ const ProductCard = ({ image, images = [], title, tags, revenue, status, isNew, 
                         </span>
 
                         {/* Revenue - Right Aligned */}
-                        <span className="font-serif text-lg text-luxury-black">
+                        <span className="font-serif text-sm font-medium text-luxury-gold tracking-wide">
                             {revenue}
                         </span>
                     </div>
@@ -221,6 +228,21 @@ const ProductCard = ({ image, images = [], title, tags, revenue, status, isNew, 
                 open={isReviewsOpen}
                 onOpenChange={setIsReviewsOpen}
                 productTitle={title}
+            />
+
+            <ProductDetailsModal
+                open={isDetailsOpen}
+                onOpenChange={setIsDetailsOpen}
+                product={{
+                    image,
+                    images,
+                    title,
+                    description,
+                    tags,
+                    revenue,
+                    status,
+                    stats
+                }}
             />
         </>
     );

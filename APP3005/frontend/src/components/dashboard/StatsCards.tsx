@@ -29,7 +29,7 @@ const StatsCards = ({ stats }: StatsCardsProps) => {
     const revenue = (stats.revenueLastMonthCents / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD' });
 
     return (
-        <div className="grid grid-cols-5 gap-4 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
             {/* Rating Card */}
             <div className="bg-card rounded-xl p-4 hover:shadow-lg hover:scale-[1.02] transition-all duration-300 cursor-pointer border border-transparent hover:border-gold/20">
                 <h3 className="text-sm text-muted-foreground mb-2">Rating</h3>

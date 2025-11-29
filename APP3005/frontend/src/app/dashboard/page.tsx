@@ -18,11 +18,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { LayoutDashboard, Shirt, BarChart3, Settings } from "lucide-react";
+import { LayoutDashboard, Shirt, BarChart3, Settings, Menu } from "lucide-react";
 import { useSidebar } from "@/context/SidebarContext";
 
 const DashboardPage: React.FC = () => {
-  const { sidebarWidth } = useSidebar();
+  const { sidebarWidth, toggleSidebar, isMobile } = useSidebar();
   const [stats, setStats] = useState<any>({
     rating: "NA",
     ranking: "NA",
@@ -99,16 +99,26 @@ const DashboardPage: React.FC = () => {
 
       setTotalPages(meta?.totalPages || 1);
 
-      setUploads(products.map((p: any) => ({
-        ...p,
-        price: p.price ? `$${p.price}` : '',
-        status: p.status === 'approved' ? 'Active' : 'Pending',
-        image: p.image_url ?? 'https://placehold.co/400x600/F5F2EB/8B7355?text=No+Image',
-        images: p.images && p.images.length > 0 ? p.images : (p.image_url ? [p.image_url] : []),
-        name: p.name ?? 'Unnamed',
-        tags: p.tags?.map((t: any) => t.name) ?? [],
-        isNew: p.is_new ?? false, // Assuming backend might send this or default false
-      })));
+      setUploads(products.map((p: any) => {
+        const currency = p.currency || 'INR';
+        const priceValue = p.price_cents ? p.price_cents / 100 : (p.price || 0);
+        const formattedPrice = new Intl.NumberFormat('en-US', {
+          style: 'currency',
+          currency: currency,
+          minimumFractionDigits: 2
+        }).format(priceValue);
+
+        return {
+          ...p,
+          price: formattedPrice,
+          status: p.status === 'approved' ? 'Active' : 'Pending',
+          image: p.image_url ?? 'https://placehold.co/400x600/F5F2EB/8B7355?text=No+Image',
+          images: p.images && p.images.length > 0 ? p.images : (p.image_url ? [p.image_url] : []),
+          name: p.name ?? 'Unnamed',
+          tags: p.tags?.map((t: any) => t.name) ?? [],
+          isNew: p.is_new ?? false,
+        };
+      }));
     } catch (error) {
       console.error("Failed to fetch dashboard data", error);
     } finally {
@@ -178,7 +188,16 @@ const DashboardPage: React.FC = () => {
       <div className="min-h-screen flex" style={{ background: LuxeColors.background }}>
         <LuxeSidebar user={user} navLinks={navLinks} />
         <div className="flex-1 dashboard-theme transition-all duration-300 ease-in-out" style={{ marginLeft: sidebarWidth }}>
-          <div className="min-h-screen dashboard-gradient p-8">
+          <div className="min-h-screen dashboard-gradient p-4 md:p-8">
+            {isMobile && (
+              <button
+                onClick={toggleSidebar}
+                className="mb-6 p-2 text-foreground hover:bg-white/10 rounded-lg transition-colors"
+                aria-label="Open menu"
+              >
+                <Menu size={24} />
+              </button>
+            )}
             <div className="max-w-7xl mx-auto">
               <ProfileHeader
                 user={user}

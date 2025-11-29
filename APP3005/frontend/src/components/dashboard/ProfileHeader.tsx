@@ -21,7 +21,7 @@ const ProfileHeader = ({ user, onUploadClick, onCustomizeClick, onProfileUpdate 
     const [isLightboxOpen, setIsLightboxOpen] = useState(false);
 
     return (
-        <div className="flex items-start justify-between mb-6">
+        <div className="flex flex-col md:flex-row items-start justify-between mb-6 gap-6 md:gap-0">
             <div>
                 <h1 className="text-3xl font-light mb-6">
                     <span className="text-muted-foreground">Creator</span>{" "}
@@ -54,7 +54,7 @@ const ProfileHeader = ({ user, onUploadClick, onCustomizeClick, onProfileUpdate 
                 </div>
             </div>
 
-            <div className="flex flex-col gap-3 items-end w-64">
+            <div className="flex flex-col gap-3 items-end w-full md:w-64">
                 <LuxeButton
                     onClick={onUploadClick}
                     variant="luxury-outline"

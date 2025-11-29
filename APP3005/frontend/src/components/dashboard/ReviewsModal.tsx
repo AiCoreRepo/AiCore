@@ -47,9 +47,9 @@ const ReviewsModal: React.FC<ReviewsModalProps> = ({ open, onOpenChange, product
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="dashboard-theme bg-foreground text-primary-foreground sm:max-w-[500px] border-muted-foreground/20 max-h-[80vh] overflow-hidden flex flex-col">
+            <DialogContent className="dashboard-theme bg-foreground text-primary-foreground sm:max-w-[500px] max-h-[80vh] overflow-hidden flex flex-col">
                 <DialogHeader className="pb-4 border-b border-muted-foreground/10">
-                    <DialogTitle className="text-xl font-serif text-luxury-gold">
+                    <DialogTitle className="text-xl font-semibold text-primary-foreground">
                         Reviews for {productTitle}
                     </DialogTitle>
                 </DialogHeader>
