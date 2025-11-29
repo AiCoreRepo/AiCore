@@ -18,7 +18,7 @@ services:
         value: 3000
 
   # Frontend Service
-  - type: static
+  - type: web
     name: aivestire-frontend
     env: static
     # Path relative to the repository root
