@@ -4,7 +4,7 @@ services:
     name: aivestire-backend
     env: node
     # Path relative to the repository root
-    root: APP3005/aivestire-backend-tmp
+    rootDir: APP3005/aivestire-backend-tmp
     buildCommand: npm install && npm run build
     startCommand: npm run start:prod
     envVars:
@@ -32,7 +32,7 @@ services:
     name: aivestire-frontend
     env: static
     # Path relative to the repository root
-    root: APP3005/frontend
+    rootDir: APP3005/frontend
     buildCommand: npm install && npm run build
     staticPublishPath: dist
     routes:
