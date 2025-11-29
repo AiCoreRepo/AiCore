@@ -24,7 +24,7 @@ services:
     # Path relative to the repository root
     root: APP3005/frontend
     buildCommand: npm install && npm run build
-    publishDir: dist
+    staticPublishPath: dist
     routes:
       - type: rewrite
         source: /*
@@ -40,4 +40,3 @@ databases:
   - name: aivestire-db
     databaseName: aivestire
     user: aivestire_user
-    plan: free # Optional: specify plan
