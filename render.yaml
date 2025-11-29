@@ -41,7 +41,4 @@ services:
         destination: /index.html
     envVars:
       - key: VITE_API_URL
-        fromService:
-          type: web
-          name: aivestire-backend
-          property: url
+        sync: false
