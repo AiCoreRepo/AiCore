@@ -15,6 +15,9 @@ import DashboardPage from "./app/dashboard/page";
 import SettingsPage from "./app/settings/page";
 import WardrobePage from "./app/wardrobe/page";
 import AnalyticsPage from "./app/analytics/page";
+import UserLogin from "./pages/UserLogin";
+import UserSignup from "./pages/UserSignup";
+import UserForgotPassword from "./pages/UserForgotPassword";
 import { PopupProvider } from "./components/common/popups/PopupTime";
 import { SidebarProvider } from "./context/SidebarContext";
 
@@ -39,7 +42,14 @@ const App = () => (
                 <Route path="/creator-dashboard" element={<DashboardPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
                 <Route path="/wardrobe" element={<WardrobePage />} />
+
                 <Route path="/analytics" element={<AnalyticsPage />} />
+
+                {/* User Auth Routes */}
+                <Route path="/user-login" element={<UserLogin />} />
+                <Route path="/user-signup" element={<UserSignup />} />
+                <Route path="/user-forgot-password" element={<UserForgotPassword />} />
+
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>
