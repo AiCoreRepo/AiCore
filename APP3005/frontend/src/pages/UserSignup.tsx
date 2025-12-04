@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { signupSchema, type SignupFormData } from "@/lib/validation";
 import { useToast } from "@/hooks/use-toast";
+import { userSignup } from "@/lib/api";
 import heroImage from "@/assets/auth-hero-signup.jpg"; // Reusing existing asset
 
 const UserSignup = () => {
@@ -29,14 +30,19 @@ const UserSignup = () => {
     const onSubmit = async (data: SignupFormData) => {
         setIsLoading(true);
         try {
-            // TODO: Implement actual user signup API call here
-            // For now, simulate success
-            await new Promise((resolve) => setTimeout(resolve, 1000));
+            // Call the actual user signup API
+            await userSignup({
+                email: data.email,
+                password: data.password,
+                name: data.brandName
+            });
 
             toast({
                 title: "Welcome to AiVestire!",
-                description: "Your account has been created successfully.",
+                description: "Your account has been created successfully. Please login to continue.",
             });
+
+            // Redirect to login page
             navigate("/user-login");
         } catch (error: unknown) {
             const message = (error as Error).message || "Something went wrong. Please try again.";

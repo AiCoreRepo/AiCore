@@ -41,8 +41,33 @@ export async function signup(data: { email: string; password: string; brandName:
     body: JSON.stringify({
       email: data.email,
       password: data.password,
-      role: "creator",
+      role: "CREATOR",
       store_name: data.brandName,
+    }),
+    credentials: "include",
+  });
+  if (!res.ok) {
+    const bodyText = await res.text();
+    try {
+      const err = JSON.parse(bodyText);
+      throw new Error(err.message || "Signup failed");
+    } catch {
+      throw new Error(bodyText || "Signup failed");
+    }
+  }
+  return res.json();
+}
+
+// User signup for regular users (buyers)
+export async function userSignup(data: { email: string; password: string; name?: string }) {
+  const res = await fetch(`${BASE_URL}/auth/register`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      email: data.email,
+      password: data.password,
+      role: "BUYER",
+      name: data.name,
     }),
     credentials: "include",
   });
@@ -282,8 +307,32 @@ export async function creatorLogin(email: string) {
     }
   }
   return res.json();
+
+
 }
 
+// Get user's Aura status
+export async function getAuraStatus() {
+  const token = localStorage.getItem('access_token');
+  if (!token) {
+    return { hasAura: false, aura: null };
+  }
 
+  try {
+    const res = await fetch(`${BASE_URL}/aura/status`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
 
+    if (!res.ok) {
+      return { hasAura: false, aura: null };
+    }
 
+    return res.json();
+  } catch (error) {
+    console.error('Error fetching Aura status:', error);
+    return { hasAura: false, aura: null };
+  }
+}

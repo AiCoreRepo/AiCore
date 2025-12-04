@@ -18,6 +18,8 @@ import AnalyticsPage from "./app/analytics/page";
 import UserLogin from "./pages/UserLogin";
 import UserSignup from "./pages/UserSignup";
 import UserForgotPassword from "./pages/UserForgotPassword";
+import AuraDashboard from "./pages/AuraDashboard";
+import AuraProfile from "./pages/AuraProfile";
 import { PopupProvider } from "./components/common/popups/PopupTime";
 import { SidebarProvider } from "./context/SidebarContext";
 
@@ -49,6 +51,10 @@ const App = () => (
                 <Route path="/user-login" element={<UserLogin />} />
                 <Route path="/user-signup" element={<UserSignup />} />
                 <Route path="/user-forgot-password" element={<UserForgotPassword />} />
+
+                {/* Aura Dashboard Route */}
+                <Route path="/aura-dashboard" element={<AuraDashboard />} />
+                <Route path="/aura-profile" element={<AuraProfile />} />
 
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
