@@ -7,9 +7,9 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 
 @Controller('approvals')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('admin')
+@Roles('ADMIN')
 export class ApprovalsController {
-  constructor(private readonly approvalsService: ApprovalsService) {}
+  constructor(private readonly approvalsService: ApprovalsService) { }
 
   @Post(':productId/approve')
   approve(

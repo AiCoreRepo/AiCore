@@ -4,22 +4,23 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { ApprovalStatus, ProductStatus } from '@prisma/client';
 
 @Injectable()
 export class ApprovalsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   async approve(productId: string, adminUserId: string, comment?: string) {
     return this.prisma.$transaction(async (tx) => {
       const approval = await tx.productApproval.findFirst({
-        where: { product_id: productId, status: 'pending' },
+        where: { product_id: productId, status: ApprovalStatus.PENDING },
       });
       if (!approval) throw new NotFoundException('No pending approval found');
 
       await tx.productApproval.update({
         where: { approval_id: approval.approval_id },
         data: {
-          status: 'approved',
+          status: ApprovalStatus.APPROVED,
           admin_user_id: adminUserId,
           actioned_at: new Date(),
           comment,
@@ -28,7 +29,7 @@ export class ApprovalsService {
 
       await tx.product.update({
         where: { product_id: productId },
-        data: { status: 'approved' },
+        data: { status: ProductStatus.APPROVED },
       });
 
       await tx.approvalLog.create({
@@ -47,14 +48,14 @@ export class ApprovalsService {
   async reject(productId: string, adminUserId: string, comment?: string) {
     return this.prisma.$transaction(async (tx) => {
       const approval = await tx.productApproval.findFirst({
-        where: { product_id: productId, status: 'pending' },
+        where: { product_id: productId, status: ApprovalStatus.PENDING },
       });
       if (!approval) throw new NotFoundException('No pending approval found');
 
       await tx.productApproval.update({
         where: { approval_id: approval.approval_id },
         data: {
-          status: 'rejected',
+          status: ApprovalStatus.REJECTED,
           admin_user_id: adminUserId,
           actioned_at: new Date(),
           comment,
@@ -63,7 +64,7 @@ export class ApprovalsService {
 
       await tx.product.update({
         where: { product_id: productId },
-        data: { status: 'rejected' },
+        data: { status: ProductStatus.REJECTED },
       });
 
       await tx.approvalLog.create({

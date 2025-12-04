@@ -13,6 +13,7 @@ import {
 } from '@nestjs/common';
 import type { Response } from 'express';
 import { PrismaService } from '../prisma/prisma.service';
+import { UserRole } from '@prisma/client';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import * as crypto from 'crypto';
@@ -35,7 +36,7 @@ export class AuthService {
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
-  ) {}
+  ) { }
 
   private slugify(input: string): string {
     return input
@@ -63,11 +64,10 @@ export class AuthService {
         email: dto.email,
         password_hash,
         role: dto.role,
-        is_creator: dto.role === 'creator' ? true : false,
       },
     });
 
-    if (user.role === 'creator') {
+    if (user.role === UserRole.CREATOR) {
       const storeName = `${user.email.split('@')[0]} Store`;
       let storeSlug = this.slugify(storeName);
       let i = 1;
@@ -215,7 +215,7 @@ export class AuthService {
     }
 
     // If the user is a creator, return their creator profile details
-    if (user.role === 'creator' && user.creatorProfile) {
+    if (user.role === UserRole.CREATOR && user.creatorProfile) {
       return {
         user_id: user.user_id,
         email: user.email,
@@ -258,8 +258,7 @@ export class AuthService {
       user = await this.prisma.user.create({
         data: {
           email,
-          role: 'creator',
-          is_creator: true,
+          role: UserRole.CREATOR,
           status: 'active',
         },
       });
@@ -272,11 +271,11 @@ export class AuthService {
           verified: true,
         },
       });
-    } else if (user.role !== 'creator') {
+    } else if (user.role !== UserRole.CREATOR) {
       // If user exists but is not a creator, update role
       user = await this.prisma.user.update({
         where: { user_id: user.user_id },
-        data: { role: 'creator', is_creator: true },
+        data: { role: UserRole.CREATOR },
       });
       // Ensure Creator profile exists
       const creatorProfile = await this.prisma.creator.findUnique({
@@ -294,7 +293,7 @@ export class AuthService {
       }
     }
     // Issue tokens
-    const tokens = await this.issueTokens(user.user_id, 'creator');
+    const tokens = await this.issueTokens(user.user_id, UserRole.CREATOR);
     // Set refresh token hash
     const bcryptMod = await getBcrypt();
     if (!isBcryptModule(bcryptMod)) {

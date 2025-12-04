@@ -7,10 +7,10 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 
 @Controller('creators')
 export class CreatorsController {
-  constructor(private readonly creatorsService: CreatorsService) {}
+  constructor(private readonly creatorsService: CreatorsService) { }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin')
+  @Roles('ADMIN')
   @Post(':creatorId/verify')
   async verify(
     @Param('creatorId') creatorId: string,

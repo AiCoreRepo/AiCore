@@ -20,7 +20,7 @@ import { UpdateProductDto } from './dto/update-product.dto';
 
 @Controller('creator-dashboard')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('creator')
+@Roles('CREATOR')
 export class CreatorDashboardController {
   constructor(
     private readonly creatorDashboardService: CreatorDashboardService,

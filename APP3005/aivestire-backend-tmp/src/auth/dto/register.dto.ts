@@ -6,6 +6,8 @@ import {
   IsOptional,
   MaxLength,
 } from 'class-validator';
+import { Transform } from 'class-transformer';
+import { UserRole } from '@prisma/client';
 
 export class RegisterDto {
   @IsEmail()
@@ -15,8 +17,11 @@ export class RegisterDto {
   @MinLength(6)
   password!: string;
 
-  @IsIn(['buyer', 'creator', 'admin'])
-  role!: 'buyer' | 'creator' | 'admin';
+  @Transform(({ value }) => value as UserRole)
+  @IsIn([UserRole.BUYER, UserRole.CREATOR, UserRole.ADMIN], {
+    message: 'role must be one of the following values: BUYER, CREATOR, ADMIN'
+  })
+  role!: UserRole;
 
   @IsOptional()
   @IsString()

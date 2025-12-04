@@ -6,7 +6,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
-import { Prisma } from '@prisma/client';
+import { Prisma, ProductStatus, ApprovalStatus } from '@prisma/client';
 import { CloudinaryService } from '../common/cloudinary.service';
 
 function slugify(input: string): string {
@@ -23,7 +23,7 @@ export class ProductsService {
   constructor(
     private prisma: PrismaService,
     private cloudinaryService: CloudinaryService,
-  ) {}
+  ) { }
 
   async create(dto: CreateProductDto) {
     try {
@@ -118,18 +118,18 @@ export class ProductsService {
         where: { product_id: id },
       });
       if (!product) throw new NotFoundException('Product not found');
-      if (product.status !== 'draft')
+      if (product.status !== ProductStatus.DRAFT)
         throw new BadRequestException('Only draft products can be submitted');
 
       await tx.product.update({
         where: { product_id: id },
-        data: { status: 'pending_review' },
+        data: { status: ProductStatus.PENDING },
       });
 
       await tx.productApproval.create({
         data: {
           product_id: id,
-          status: 'pending',
+          status: ApprovalStatus.PENDING,
         },
       });
 

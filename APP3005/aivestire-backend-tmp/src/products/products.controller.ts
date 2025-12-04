@@ -15,11 +15,11 @@ import { Roles } from '../auth/roles.decorator';
 
 @Controller('products')
 export class ProductsController {
-  constructor(private readonly productsService: ProductsService) {}
+  constructor(private readonly productsService: ProductsService) { }
 
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('creator')
+  @Roles('CREATOR')
   create(@Body() dto: CreateProductDto) {
     return this.productsService.create(dto);
   }

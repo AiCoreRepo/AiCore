@@ -8,7 +8,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
-import { Prisma } from '@prisma/client';
+import { Prisma, UserRole, ProductStatus } from '@prisma/client';
 import { CloudinaryService } from '../common/cloudinary.service';
 import { nanoid } from 'nanoid';
 
@@ -33,25 +33,25 @@ export class CreatorDashboardService {
     if (!creator) {
       const user = await this.prisma.user.findUnique({
         where: { user_id: userId },
-        select: { email: true, role: true, is_creator: true },
+        select: { email: true, role: true },
       });
 
       if (!user) {
         throw new NotFoundException('User not found');
       }
 
-      if (user.role !== 'creator') {
+      if (user.role !== UserRole.CREATOR) {
         throw new ForbiddenException('User is not a creator');
       }
 
       // If user is a creator but is_creator is false, update it
-      if (user.role === 'creator' && !user.is_creator) {
-        await this.prisma.user.update({
-          where: { user_id: userId },
-          data: { is_creator: true },
-        });
-        this.logger.log(`Updated user ${userId} is_creator to true.`);
-      }
+      // if (user.role === 'creator' && !user.is_creator) {
+      //   await this.prisma.user.update({
+      //     where: { user_id: userId },
+      //     data: { is_creator: true },
+      //   });
+      //   this.logger.log(`Updated user ${userId} is_creator to true.`);
+      // }
 
       // If creator profile still not found after checks, it means it should have been created during registration
       // This indicates an inconsistency or a user trying to access creator features without a profile
@@ -177,7 +177,7 @@ export class CreatorDashboardService {
         price_cents: product.price_cents,
         currency: product.currency,
         inventory_count: product.inventory_count,
-        status: product.status?.toLowerCase() === 'approved' ? 'Active' : 'Pending',
+        status: product.status === ProductStatus.APPROVED ? 'Active' : 'Pending',
         tags: tags,
         stats: {
           likes_count: product.stats?.likes_count || 0,
@@ -539,7 +539,7 @@ export class CreatorDashboardService {
       price_cents: product.price_cents,
       currency: product.currency,
       inventory_count: product.inventory_count,
-      status: product.status === 'approved' ? 'Active' : 'Pending',
+      status: product.status === ProductStatus.APPROVED ? 'Active' : 'Pending',
       tags: tags,
       stats: {
         likes_count: product.stats?.likes_count || 0,
