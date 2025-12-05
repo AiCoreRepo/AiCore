@@ -20,6 +20,8 @@ import UserSignup from "./pages/UserSignup";
 import UserForgotPassword from "./pages/UserForgotPassword";
 import AuraDashboard from "./pages/AuraDashboard";
 import AuraProfile from "./pages/AuraProfile";
+import AdminDashboardPage from "./app/admin-dashboard/page";
+import AdminLogin from "./pages/AdminLogin";
 import { PopupProvider } from "./components/common/popups/PopupTime";
 import { SidebarProvider } from "./context/SidebarContext";
 
@@ -56,6 +58,10 @@ const App = () => (
                 <Route path="/aura-dashboard" element={<AuraDashboard />} />
                 <Route path="/aura-profile" element={<AuraProfile />} />
 
+                {/* Admin Routes */}
+                <Route path="/admin-login" element={<AdminLogin />} />
+                <Route path="/admin-dashboard" element={<AdminDashboardPage />} />
+
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>
@@ -68,3 +74,4 @@ const App = () => (
 );
 
 export default App;
+

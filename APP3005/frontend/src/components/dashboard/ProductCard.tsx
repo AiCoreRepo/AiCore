@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Heart, MessageCircle, Share2, ChevronLeft, ChevronRight, X, CheckCircle2, Clock, Eye } from "lucide-react";
+import { Heart, MessageCircle, Share2, ChevronLeft, ChevronRight, X, CheckCircle2, Clock, Eye, Send, FileText } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { ActionMenu } from "@/components/common/ActionMenu";
 import ProductDetailsModal from "./ProductDetailsModal";
@@ -13,10 +13,12 @@ interface ProductCardProps {
     description?: string;
     tags: string[];
     revenue: string;
-    status: "Active" | "Pending";
+    status: "Active" | "Pending" | "Draft";
     isNew?: boolean;
     onEdit?: () => void;
     onDelete?: () => void;
+    onPublish?: () => void;
+    product_id?: string;
     stats?: {
         likes_count: number;
         comments_count: number;
@@ -25,7 +27,7 @@ interface ProductCardProps {
     };
 }
 
-const ProductCard = ({ image, images = [], title, description, tags, revenue, status, isNew, onEdit, onDelete, stats }: ProductCardProps) => {
+const ProductCard = ({ image, images = [], title, description, tags, revenue, status, isNew, onEdit, onDelete, onPublish, product_id, stats }: ProductCardProps) => {
     const [isGalleryOpen, setIsGalleryOpen] = useState(false);
     const [isReviewsOpen, setIsReviewsOpen] = useState(false);
     const [isDetailsOpen, setIsDetailsOpen] = useState(false);
@@ -162,9 +164,11 @@ const ProductCard = ({ image, images = [], title, description, tags, revenue, st
                         {/* Status Badge - Left Aligned */}
                         <span className={`flex items-center gap-1.5 pl-2.5 pr-3 py-1 rounded-full text-[10px] font-medium tracking-wide uppercase ${status === "Active"
                             ? "bg-emerald-50 text-emerald-700 border border-emerald-100"
-                            : "bg-stone-100 text-stone-500 border border-stone-200"
+                            : status === "Draft"
+                                ? "bg-blue-50 text-blue-700 border border-blue-100"
+                                : "bg-amber-50 text-amber-700 border border-amber-100"
                             }`}>
-                            {status === "Active" ? <CheckCircle2 size={10} /> : <Clock size={10} />}
+                            {status === "Active" ? <CheckCircle2 size={10} /> : status === "Draft" ? <FileText size={10} /> : <Clock size={10} />}
                             {status}
                         </span>
 
@@ -173,6 +177,20 @@ const ProductCard = ({ image, images = [], title, description, tags, revenue, st
                             {revenue}
                         </span>
                     </div>
+
+                    {/* Publish Button for Draft Products */}
+                    {status === "Draft" && onPublish && (
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onPublish();
+                            }}
+                            className="mt-3 w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-luxury-gold text-white rounded-lg hover:bg-luxury-gold/90 transition-all duration-300 shadow-sm hover:shadow-md font-medium text-sm"
+                        >
+                            <Send size={16} />
+                            Publish for Approval
+                        </button>
+                    )}
                 </div>
             </div>
 

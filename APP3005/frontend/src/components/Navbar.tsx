@@ -145,14 +145,17 @@ export const Navbar = () => {
 
                             {/* Right Icons */}
                             <div className="flex items-center space-x-2 md:space-x-3">
-                                <Link to="/login">
-                                    <button
-                                        className="hidden md:inline-flex items-center px-6 py-2.5 text-sm font-medium text-charcoal bg-gradient-to-r from-gold/20 to-gold/30 rounded-full border border-gold/40 transition-all duration-300 hover:shadow-lg hover:shadow-gold/30 hover:scale-105 hover:border-gold"
-                                        aria-label="Join as a Creator"
-                                    >
-                                        Join as Creator
-                                    </button>
-                                </Link>
+                                {/* Only show Join as Creator button if user is NOT logged in */}
+                                {!isLoggedIn && (
+                                    <Link to="/login">
+                                        <button
+                                            className="hidden md:inline-flex items-center px-6 py-2.5 text-sm font-medium text-charcoal bg-gradient-to-r from-gold/20 to-gold/30 rounded-full border border-gold/40 transition-all duration-300 hover:shadow-lg hover:shadow-gold/30 hover:scale-105 hover:border-gold"
+                                            aria-label="Join as a Creator"
+                                        >
+                                            Join as Creator
+                                        </button>
+                                    </Link>
+                                )}
 
                                 <button
                                     className="p-2.5 rounded-full bg-ivory/50 border border-gold/20 hover:bg-gold/20 hover:border-gold/40 hover:shadow-md hover:shadow-gold/20 transition-all duration-300 hover:scale-110"
@@ -270,13 +273,16 @@ export const Navbar = () => {
                                         {link.name}
                                     </a>
                                 ))}
-                                <Link
-                                    to="/login"
-                                    className="px-4 py-3 text-center text-charcoal font-medium tracking-wide rounded-2xl bg-gradient-to-r from-gold/20 to-gold/30 border border-gold/40 hover:shadow-md transition-all duration-300"
-                                    onClick={() => setIsMobileMenuOpen(false)}
-                                >
-                                    Join as Creator
-                                </Link>
+                                {/* Only show Join as Creator button if user is NOT logged in */}
+                                {!isLoggedIn && (
+                                    <Link
+                                        to="/login"
+                                        className="px-4 py-3 text-center text-charcoal font-medium tracking-wide rounded-2xl bg-gradient-to-r from-gold/20 to-gold/30 border border-gold/40 hover:shadow-md transition-all duration-300"
+                                        onClick={() => setIsMobileMenuOpen(false)}
+                                    >
+                                        Join as Creator
+                                    </Link>
+                                )}
                             </div>
                         </div>
                     </div>

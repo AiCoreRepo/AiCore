@@ -16,12 +16,13 @@ interface UploadsGridProps {
     uploads: any[];
     onEdit: (product: any) => void;
     onDelete: (product: any) => void;
+    onPublish?: (productId: string) => void;
 }
 
 type FilterStatus = 'all' | 'active' | 'pending';
 type SortOrder = 'newest' | 'oldest' | 'price-high' | 'price-low';
 
-const UploadsGrid = ({ uploads, onEdit, onDelete }: UploadsGridProps) => {
+const UploadsGrid = ({ uploads, onEdit, onDelete, onPublish }: UploadsGridProps) => {
     const [filterStatus, setFilterStatus] = useState<FilterStatus>('all');
     const [sortOrder, setSortOrder] = useState<SortOrder>('newest');
 
@@ -161,6 +162,7 @@ const UploadsGrid = ({ uploads, onEdit, onDelete }: UploadsGridProps) => {
                     filteredAndSortedUploads.map((product, index) => (
                         <ProductCard
                             key={index}
+                            product_id={product.product_id}
                             image={product.image}
                             images={product.images}
                             title={product.name}
@@ -172,6 +174,7 @@ const UploadsGrid = ({ uploads, onEdit, onDelete }: UploadsGridProps) => {
                             stats={product.stats}
                             onEdit={() => onEdit(product)}
                             onDelete={() => onDelete(product)}
+                            onPublish={onPublish ? () => onPublish(product.product_id) : undefined}
                         />
                     ))
                 )}

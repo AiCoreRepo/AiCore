@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { LuxeButton } from "@/components/common/Buttons/LuxeButton";
-import { Heart, MessageCircle, Share2, CheckCircle2, Clock, Tag } from "lucide-react";
+import { Heart, MessageCircle, Share2, CheckCircle2, Clock, Tag, FileText } from "lucide-react";
 
 interface ProductDetailsModalProps {
     open: boolean;
@@ -13,7 +13,7 @@ interface ProductDetailsModalProps {
         description?: string;
         tags: string[];
         revenue: string;
-        status: "Active" | "Pending";
+        status: "Active" | "Pending" | "Draft";
         stats?: {
             likes_count: number;
             comments_count: number;
@@ -82,10 +82,12 @@ const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({ open, onOpenC
                             {/* Status */}
                             <div className="flex items-center gap-2">
                                 <span className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium tracking-wide uppercase ${product.status === "Active"
-                                    ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-                                    : "bg-yellow-500/10 text-yellow-400 border border-yellow-500/20"
+                                        ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                                        : product.status === "Draft"
+                                            ? "bg-blue-500/10 text-blue-400 border border-blue-500/20"
+                                            : "bg-yellow-500/10 text-yellow-400 border border-yellow-500/20"
                                     }`}>
-                                    {product.status === "Active" ? <CheckCircle2 size={12} /> : <Clock size={12} />}
+                                    {product.status === "Active" ? <CheckCircle2 size={12} /> : product.status === "Draft" ? <FileText size={12} /> : <Clock size={12} />}
                                     {product.status}
                                 </span>
                             </div>

@@ -43,7 +43,7 @@ const WardrobeContent: React.FC = () => {
                 images: p.images || [],
                 tags: p.tags?.map((t: any) => t.name) || [],
                 category: p.tags?.[0]?.name || "Uncategorized",
-                status: p.status === 'approved' ? 'Active' : 'Pending',
+                status: p.status, // Use backend status directly (Draft, Pending, Active)
                 revenue: new Intl.NumberFormat('en-IN', {
                     style: 'currency',
                     currency: p.currency || 'INR',

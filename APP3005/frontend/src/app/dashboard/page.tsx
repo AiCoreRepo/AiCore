@@ -108,10 +108,26 @@ const DashboardPage: React.FC = () => {
           minimumFractionDigits: 2
         }).format(priceValue);
 
+        // Map backend status (DRAFT, PENDING, APPROVED) to frontend status (Draft, Pending, Active)
+        const statusMap: Record<string, "Draft" | "Pending" | "Active"> = {
+          'DRAFT': 'Draft',
+          'PENDING': 'Pending',
+          'APPROVED': 'Active',
+          'REJECTED': 'Pending', // Fallback for rejected
+          // Backend returns title case, so handle both
+          'Draft': 'Draft',
+          'Pending': 'Pending',
+          'Active': 'Active',
+        };
+        const mappedStatus = statusMap[p.status] || 'Pending';
+
+        // Debug logging
+        console.log('Product:', p.title, 'Backend Status:', p.status, 'Mapped Status:', mappedStatus);
+
         return {
           ...p,
           price: formattedPrice,
-          status: p.status === 'approved' ? 'Active' : 'Pending',
+          status: mappedStatus,
           image: p.image_url ?? 'https://placehold.co/400x600/F5F2EB/8B7355?text=No+Image',
           images: p.images && p.images.length > 0 ? p.images : (p.image_url ? [p.image_url] : []),
           name: p.name ?? 'Unnamed',
@@ -168,6 +184,30 @@ const DashboardPage: React.FC = () => {
     }
   };
 
+  const handlePublishProduct = async (productId: string) => {
+    try {
+      const token = localStorage.getItem('access_token');
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/creator-dashboard/products/${productId}/publish`,
+        {
+          method: 'PATCH',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (response.ok) {
+        // Refresh the products list
+        fetchData();
+      } else {
+        console.error('Failed to publish product');
+      }
+    } catch (error) {
+      console.error('Error publishing product:', error);
+    }
+  };
+
   const [isCustomizeModalOpen, setIsCustomizeModalOpen] = useState(false);
   const [dashboardConfig, setDashboardConfig] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -216,6 +256,7 @@ const DashboardPage: React.FC = () => {
                   uploads={uploads}
                   onEdit={handleEditProduct}
                   onDelete={handleDeleteProduct}
+                  onPublish={handlePublishProduct}
                 />
               )}
 
