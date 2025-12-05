@@ -10,6 +10,7 @@ import { ProductsModule } from './products/products.module';
 import { ApprovalsModule } from './approvals/approvals.module';
 import { CreatorDashboardModule } from './creator-dashboard/creator-dashboard.module';
 import { AuraModule } from './aura/aura.module';
+import { AdminModule } from './admin/admin.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { AuraModule } from './aura/aura.module';
     ApprovalsModule,
     CreatorDashboardModule,
     AuraModule,
+    AdminModule,
   ],
   controllers: [AppController],
   providers: [AppService],

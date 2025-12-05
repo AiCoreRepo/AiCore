@@ -21,7 +21,7 @@ import { CurrentUser } from './decorators/current-user.decorator';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(private readonly authService: AuthService) { }
 
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
@@ -71,18 +71,18 @@ export class AuthController {
     const tokenFromCookie: string | undefined =
       typeof cookieHeader === 'string'
         ? (() => {
-            const parts = cookieHeader.split(';');
-            for (const p of parts) {
-              const idx = p.indexOf('=');
-              if (idx === -1) continue;
-              const key = decodeURIComponent(p.slice(0, idx).trim());
-              if (key === 'refresh_token') {
-                const val = p.slice(idx + 1).trim();
-                return decodeURIComponent(val);
-              }
+          const parts = cookieHeader.split(';');
+          for (const p of parts) {
+            const idx = p.indexOf('=');
+            if (idx === -1) continue;
+            const key = decodeURIComponent(p.slice(0, idx).trim());
+            if (key === 'refresh_token') {
+              const val = p.slice(idx + 1).trim();
+              return decodeURIComponent(val);
             }
-            return undefined;
-          })()
+          }
+          return undefined;
+        })()
         : undefined;
     return this.authService.refresh(
       dto.user_id,
@@ -102,7 +102,7 @@ export class AuthController {
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin', 'creator', 'buyer')
+  @Roles('ADMIN', 'CREATOR', 'BUYER')
   @Get('me')
   async getMe(
     @CurrentUser() user: { user_id: string; email: string; role: string },

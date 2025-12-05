@@ -8,6 +8,7 @@ import {
   Param,
   UseGuards,
   Query,
+  Patch,
 } from '@nestjs/common';
 import { CreatorDashboardService } from './creator-dashboard.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -85,6 +86,17 @@ export class CreatorDashboardController {
     @Param('id') productId: string,
   ) {
     return await this.creatorDashboardService.deleteProduct(
+      user.user_id,
+      productId,
+    );
+  }
+
+  @Patch('products/:id/publish')
+  async publishProduct(
+    @CurrentUser() user: { user_id: string },
+    @Param('id') productId: string,
+  ) {
+    return await this.creatorDashboardService.publishProduct(
       user.user_id,
       productId,
     );

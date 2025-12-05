@@ -129,6 +129,17 @@ export class CreatorDashboardService {
           images: {
             orderBy: [{ is_primary: 'desc' }, { order_index: 'asc' }],
           },
+          approvals: {
+            orderBy: { created_at: 'desc' },
+            take: 1,
+            select: {
+              approval_id: true,
+              status: true,
+              comment: true,
+              actioned_at: true,
+              // SECURITY: Never expose admin_user_id to creators
+            },
+          },
         },
         orderBy: {
           created_at: 'desc',
@@ -167,6 +178,13 @@ export class CreatorDashboardService {
           ? ((product.stats?.likes_count || 0) / triesCount) * 100
           : 0;
 
+      // Get latest approval feedback (if any)
+      const latestApproval = product.approvals[0];
+      const isRejected = product.status === ProductStatus.REJECTED;
+      const rejectionReason = isRejected && latestApproval?.comment
+        ? latestApproval.comment
+        : undefined;
+
       return {
         product_id: product.product_id,
         name: product.title,
@@ -177,7 +195,14 @@ export class CreatorDashboardService {
         price_cents: product.price_cents,
         currency: product.currency,
         inventory_count: product.inventory_count,
-        status: product.status === ProductStatus.APPROVED ? 'Active' : 'Pending',
+        status: product.status === ProductStatus.APPROVED
+          ? 'Active'
+          : product.status === ProductStatus.REJECTED
+            ? 'Rejected'
+            : product.status === ProductStatus.DRAFT
+              ? 'Draft'
+              : 'Pending',
+        rejectionReason, // Only present if status is REJECTED
         tags: tags,
         stats: {
           likes_count: product.stats?.likes_count || 0,
@@ -215,6 +240,7 @@ export class CreatorDashboardService {
         currency: dto.currency || 'INR',
         inventory_count: dto.inventory_count || 0,
         creator_id: creatorId,
+        status: ProductStatus.DRAFT, // Start as DRAFT
       },
     });
 
@@ -539,7 +565,7 @@ export class CreatorDashboardService {
       price_cents: product.price_cents,
       currency: product.currency,
       inventory_count: product.inventory_count,
-      status: product.status === ProductStatus.APPROVED ? 'Active' : 'Pending',
+      status: product.status === ProductStatus.APPROVED ? 'Active' : product.status === ProductStatus.DRAFT ? 'Draft' : 'Pending',
       tags: tags,
       stats: {
         likes_count: product.stats?.likes_count || 0,
@@ -550,6 +576,53 @@ export class CreatorDashboardService {
       },
       created_at: product.created_at,
       updated_at: product.updated_at,
+    };
+  }
+
+  /**
+   * Publish a product (DRAFT → PENDING)
+   * Submits product for admin approval
+   */
+  async publishProduct(userId: string, productId: string) {
+    const creatorId = await this.getCreatorIdFromUserId(userId);
+
+    // Find the product
+    const product = await this.prisma.product.findFirst({
+      where: {
+        product_id: productId,
+        creator_id: creatorId,
+        is_deleted: false,
+      },
+    });
+
+    if (!product) {
+      throw new NotFoundException('Product not found');
+    }
+
+    // Check if product is in DRAFT status
+    if (product.status !== ProductStatus.DRAFT) {
+      throw new BadRequestException(
+        `Product cannot be published. Current status: ${product.status}`,
+      );
+    }
+
+    // Update status to PENDING
+    const updatedProduct = await this.prisma.product.update({
+      where: { product_id: productId },
+      data: {
+        status: ProductStatus.PENDING,
+        updated_at: new Date(),
+      },
+    });
+
+    this.logger.log(
+      `Product ${productId} published by creator ${creatorId}. Status: DRAFT → PENDING`,
+    );
+
+    return {
+      product_id: updatedProduct.product_id,
+      status: updatedProduct.status,
+      message: 'Product submitted for approval',
     };
   }
 }
