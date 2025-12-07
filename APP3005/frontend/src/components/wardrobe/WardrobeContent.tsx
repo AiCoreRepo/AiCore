@@ -178,7 +178,15 @@ const WardrobeContent: React.FC = () => {
                                 </div>
                                 <div className="p-4 text-center">
                                     <h3 className="font-serif text-lg text-luxury-black truncate">{product.title}</h3>
-                                    <p className={`text-xs uppercase tracking-wider mt-1 font-medium ${product.category === "Uncategorized" ? "text-amber-600" : "text-stone-500"
+                                    <p className={`text-xs uppercase tracking-wider mt-1 font-medium ${product.category === "Uncategorized"
+                                            ? product.status === "Active"
+                                                ? "text-green-600"
+                                                : product.status === "Draft"
+                                                    ? "text-yellow-600"
+                                                    : product.status === "Pending"
+                                                        ? "text-amber-600"
+                                                        : "text-red-600"
+                                            : "text-stone-500"
                                         }`}>
                                         {product.category === "Uncategorized" ? product.status : product.category}
                                     </p>

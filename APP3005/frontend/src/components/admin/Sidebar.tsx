@@ -5,6 +5,7 @@ import { LogOut } from 'lucide-react';
 import { menuItems, colors, typography } from '@/constants/theme';
 import { cn } from '@/utils/cn';
 import { LogoutConfirmDialog } from '@/components/LogoutConfirmDialog';
+import { usePendingProducts } from '@/hooks/useApprovals';
 
 /**
  * Sidebar - Admin navigation with beta feature handling
@@ -14,6 +15,7 @@ export const Sidebar: React.FC = () => {
     const location = useLocation();
     const navigate = useNavigate();
     const [showLogoutDialog, setShowLogoutDialog] = useState(false);
+    const { data: pendingProducts } = usePendingProducts();
 
     const handleMenuClick = (item: typeof menuItems[0], e: React.MouseEvent) => {
         if (item.isBeta) {
@@ -30,7 +32,7 @@ export const Sidebar: React.FC = () => {
     return (
         <>
             <aside
-                className="fixed left-0 top-0 h-screen w-[280px] bg-neutral-950 border-r border-white/10 flex flex-col"
+                className="fixed left-0 top-0 h-screen w-[280px] bg-neutral-900 border-r border-white/10 flex flex-col"
                 style={{ fontFamily: typography.fontSans }}
             >
                 {/* Logo */}
@@ -101,6 +103,13 @@ export const Sidebar: React.FC = () => {
                                     {item.isBeta && (
                                         <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-[#D4AF37]/20 text-[#D4AF37] rounded-full border border-[#D4AF37]/30">
                                             Beta
+                                        </span>
+                                    )}
+
+                                    {/* Notification Badge for Settings */}
+                                    {item.id === 'settings' && pendingProducts && pendingProducts.length > 0 && (
+                                        <span className="flex items-center justify-center min-w-[20px] h-5 px-1.5 text-[10px] font-bold bg-red-500 text-white rounded-full animate-pulse">
+                                            {pendingProducts.length}
                                         </span>
                                     )}
                                 </motion.div>

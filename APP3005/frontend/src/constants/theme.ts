@@ -1,5 +1,5 @@
 import { Variants } from 'framer-motion';
-import { LayoutDashboard, CheckCircle, Users, DollarSign, BarChart3, Settings } from 'lucide-react';
+import { LayoutDashboard, CheckSquare, ShoppingBag, Palette, Users, Settings } from 'lucide-react';
 
 /**
  * Midnight Luxury Design Tokens
@@ -65,7 +65,12 @@ export const animations = {
     },
 } as const;
 
-// Sidebar Menu Configuration
+/**
+ * Sidebar Menu Configuration
+ * Reflects two main microservices:
+ * - Consumer Service: Buyers creating Auras, using AI Stylist, buying clothes
+ * - Creator Service: Designers uploading collections for verification
+ */
 export interface MenuItem {
     id: string;
     label: string;
@@ -81,41 +86,47 @@ export const menuItems: MenuItem[] = [
         icon: LayoutDashboard,
         href: '/admin-dashboard',
         isBeta: false,
+        // High-level pulse check: Revenue + Aura Counts + Creator Activity (Both Microservices)
     },
     {
         id: 'approvals',
         label: 'Atelier Approval',
-        icon: CheckCircle,
-        href: '/admin-dashboard/approvals',
+        icon: CheckSquare,
+        href: '/admin-approvals',
         isBeta: false,
+        // Microservice 2 (Creator): The Gatekeeper - Review pending 20-item uploads from creators
     },
     {
-        id: 'creators',
-        label: 'Creator Artisans',
+        id: 'collection',
+        label: 'The Collection',
+        icon: ShoppingBag,
+        href: '/admin-collection',
+        isBeta: false,
+        // Microservice 1 (Consumer): The Showroom - Manage LIVE inventory that buyers see
+    },
+    {
+        id: 'artisans',
+        label: 'Artisans',
+        icon: Palette,
+        href: '/admin-artisans',
+        isBeta: true,
+        // Microservice 2 (Creator): Creator Management - Designer directory, verify profiles, monitor upload limits
+    },
+    {
+        id: 'clientele',
+        label: 'Clientele',
         icon: Users,
-        href: '/admin-dashboard/creators',
+        href: '/admin-clientele',
         isBeta: true,
-    },
-    {
-        id: 'analytics',
-        label: 'Collection Analytics',
-        icon: BarChart3,
-        href: '/admin-dashboard/analytics',
-        isBeta: true,
-    },
-    {
-        id: 'financial',
-        label: 'Financial Suite',
-        icon: DollarSign,
-        href: '/admin-dashboard/financial',
-        isBeta: true,
+        // Microservice 1 (Consumer): Buyer Management - User list, check Aura status, help stuck users
     },
     {
         id: 'settings',
         label: 'Settings',
         icon: Settings,
-        href: '/admin-dashboard/settings',
-        isBeta: true,
+        href: '/admin-settings',
+        isBeta: false,
+        // Global configuration: Admin accounts, system settings
     },
 ];
 

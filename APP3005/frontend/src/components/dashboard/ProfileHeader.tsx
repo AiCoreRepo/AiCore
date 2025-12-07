@@ -31,13 +31,11 @@ const ProfileHeader = ({ user, onUploadClick, onCustomizeClick, onProfileUpdate 
                 <div className="flex items-center gap-4">
                     <button
                         onClick={() => setIsLightboxOpen(true)}
-                        className="w-20 h-20 rounded-full overflow-hidden bg-muted cursor-zoom-in hover:opacity-90 transition-opacity"
+                        className="w-20 h-20 rounded-full overflow-hidden cursor-zoom-in hover:opacity-90 transition-opacity bg-gradient-to-br from-[#D4AF37] to-[#F4D03F] flex items-center justify-center"
                     >
-                        <img
-                            src={user.avatar}
-                            alt={user.name}
-                            className="w-full h-full object-cover"
-                        />
+                        <span className="text-2xl font-bold text-neutral-950">
+                            {user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                        </span>
                     </button>
 
                     <div>
@@ -100,11 +98,11 @@ const ProfileHeader = ({ user, onUploadClick, onCustomizeClick, onProfileUpdate 
             <Dialog open={isLightboxOpen} onOpenChange={setIsLightboxOpen}>
                 <DialogContent className="max-w-3xl bg-transparent border-none shadow-none p-0 flex items-center justify-center">
                     <div className="relative">
-                        <img
-                            src={user.avatar}
-                            alt={user.name}
-                            className="max-w-full max-h-[80vh] rounded-lg shadow-2xl"
-                        />
+                        <div className="w-96 h-96 rounded-lg shadow-2xl bg-gradient-to-br from-[#D4AF37] to-[#F4D03F] flex items-center justify-center">
+                            <span className="text-9xl font-bold text-neutral-950">
+                                {user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                            </span>
+                        </div>
                         <DialogClose className="absolute -top-10 right-0 text-white hover:text-gold transition-colors">
                             <X size={32} />
                         </DialogClose>

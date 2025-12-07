@@ -3,6 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { lazy, Suspense } from "react";
 import Index from "./pages/Index";
 import { AuthProvider } from "./context/AuthContext";
 import Login from "./pages/Login";
@@ -21,6 +22,11 @@ import UserForgotPassword from "./pages/UserForgotPassword";
 import AuraDashboard from "./pages/AuraDashboard";
 import AuraProfile from "./pages/AuraProfile";
 import AdminDashboardPage from "./app/admin-dashboard/page";
+const AtelierApprovalPage = lazy(() => import("./app/admin-approvals/page"));
+import CollectionPage from "./app/admin-collection/page";
+import ArtisansPage from "./app/admin-artisans/page";
+import ClientelePage from "./app/admin-clientele/page";
+import AdminSettingsPage from "./app/admin-settings/page";
 import AdminLogin from "./pages/AdminLogin";
 import { PopupProvider } from "./components/common/popups/PopupTime";
 import { SidebarProvider } from "./context/SidebarContext";
@@ -61,6 +67,15 @@ const App = () => (
                 {/* Admin Routes */}
                 <Route path="/admin-login" element={<AdminLogin />} />
                 <Route path="/admin-dashboard" element={<AdminDashboardPage />} />
+                <Route path="/admin-approvals" element={
+                  <Suspense fallback={<div className="min-h-screen bg-neutral-950 flex items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-2 border-[#D4AF37] border-t-transparent"></div></div>}>
+                    <AtelierApprovalPage />
+                  </Suspense>
+                } />
+                <Route path="/admin-collection" element={<CollectionPage />} />
+                <Route path="/admin-artisans" element={<ArtisansPage />} />
+                <Route path="/admin-clientele" element={<ClientelePage />} />
+                <Route path="/admin-settings" element={<AdminSettingsPage />} />
 
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
@@ -74,4 +89,3 @@ const App = () => (
 );
 
 export default App;
-

@@ -112,7 +112,7 @@ const ProductCard = ({ image, images = [], title, description, tags, revenue, st
 
                     {/* Image Counter */}
                     {additionalImagesCount > 0 && (
-                        <div className="absolute top-3 right-3 bg-black/40 backdrop-blur-md text-white text-[10px] font-medium px-2 py-1 rounded-full">
+                        <div className="absolute top-3 right-3 bg-neutral-800/60 backdrop-blur-md text-white text-[10px] font-medium px-2 py-1 rounded-full">
                             +{additionalImagesCount}
                         </div>
                     )}

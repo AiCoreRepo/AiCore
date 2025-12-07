@@ -6,7 +6,10 @@ import { animations } from '@/constants/theme';
 
 type ButtonVariant = 'primary' | 'gold' | 'destructive' | 'ghost';
 
-interface LuxuryButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+interface LuxuryButtonProps extends Omit<
+    React.ButtonHTMLAttributes<HTMLButtonElement>,
+    'onDrag' | 'onDragStart' | 'onDragEnd' | 'onAnimationStart' | 'onAnimationEnd'
+> {
     variant?: ButtonVariant;
     isLoading?: boolean;
     icon?: React.ReactNode;
@@ -69,7 +72,7 @@ export const LuxuryButton: React.FC<LuxuryButtonProps> = ({
             whileHover={!disabled && !isLoading ? animations.hoverScale : undefined}
             whileTap={!disabled && !isLoading ? animations.tapScale : undefined}
             disabled={disabled || isLoading}
-            {...props}
+            {...(props as any)}
         >
             {isLoading ? (
                 <>

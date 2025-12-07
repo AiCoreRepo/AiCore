@@ -23,7 +23,7 @@ export const GlassCard: React.FC<GlassCardProps> = ({
         <motion.div
             className={cn(
                 // Glassmorphism base
-                'bg-black/40 backdrop-blur-md',
+                'bg-neutral-800/50 backdrop-blur-md',
                 // Border and shadow
                 'border border-white/10',
                 'shadow-xl shadow-black/20',

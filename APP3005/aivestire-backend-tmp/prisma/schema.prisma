@@ -87,6 +87,8 @@ model Product {
   price_cents     Int
   currency        String   @default("INR")
   inventory_count Int      @default(0)
+  category        String?  // Product category (Dress, Top, Bottom, etc.)
+  is_featured     Boolean  @default(false) // Featured on homepage
   status          ProductStatus @default(PENDING)
   is_deleted      Boolean  @default(false)
   max_images      Int      @default(20)

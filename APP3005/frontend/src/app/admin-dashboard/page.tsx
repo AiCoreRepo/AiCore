@@ -119,7 +119,7 @@ const AdminDashboardPage: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen bg-neutral-950 flex">
+        <div className="min-h-screen bg-neutral-900 flex">
             {/* Sidebar */}
             <Sidebar />
 
