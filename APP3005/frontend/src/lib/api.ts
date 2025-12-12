@@ -4,7 +4,8 @@ export async function login(data: { email: string; password: string }) {
   // Hardcode endpoint to avoid any accidental whitespace
   const endpoint = BASE_URL + "/auth/login";
   console.log("Sending request to endpoint:", endpoint);
-  console.log("Payload:", data);
+  // SECURITY: Do not log password or full payload in production
+  console.log("Login attempt for email:", data.email);
 
   const res = await fetch(endpoint, {
     method: "POST",
@@ -14,7 +15,10 @@ export async function login(data: { email: string; password: string }) {
   });
 
   console.log("Response status:", res.status);
-  console.log("Response headers:", res.headers);
+  // SECURITY: Only log headers in development, not response data with tokens
+  if (import.meta.env.DEV) {
+    console.log("Response headers:", res.headers);
+  }
 
   if (!res.ok) {
     const bodyText = await res.text();
@@ -29,7 +33,8 @@ export async function login(data: { email: string; password: string }) {
   }
 
   const responseData = await res.json();
-  console.log("Response data:", responseData);
+  // SECURITY: Do not log tokens or sensitive data
+  console.log("Login successful");
   return responseData;
 }
 
@@ -335,4 +340,130 @@ export async function getAuraStatus() {
     console.error('Error fetching Aura status:', error);
     return { hasAura: false, aura: null };
   }
+}
+
+// Like or unlike a product
+export async function likeProduct(productId: string) {
+  const token = localStorage.getItem('access_token');
+  if (!token) {
+    throw new Error('Please login to like products');
+  }
+
+  const res = await fetch(`${BASE_URL}/products/like`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify({ product_id: productId }),
+  });
+
+  if (!res.ok) {
+    const bodyText = await res.text();
+    try {
+      const err = JSON.parse(bodyText);
+      throw new Error(err.message || 'Failed to like product');
+    } catch {
+      throw new Error(bodyText || 'Failed to like product');
+    }
+  }
+  return res.json();
+}
+
+// Add a comment to a product
+export async function addComment(productId: string, commentText: string) {
+  const token = localStorage.getItem('access_token');
+  if (!token) {
+    throw new Error('Please login to comment');
+  }
+
+  const res = await fetch(`${BASE_URL}/products/comment`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify({ product_id: productId, comment_text: commentText }),
+  });
+
+  if (!res.ok) {
+    const bodyText = await res.text();
+    try {
+      const err = JSON.parse(bodyText);
+      throw new Error(err.message || 'Failed to add comment');
+    } catch {
+      throw new Error(bodyText || 'Failed to add comment');
+    }
+  }
+  return res.json();
+}
+
+// Get product likes count and user's like status
+export async function getProductLikes(productId: string) {
+  const token = localStorage.getItem('access_token');
+  const headers: HeadersInit = { 'Content-Type': 'application/json' };
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  const res = await fetch(`${BASE_URL}/products/${productId}/likes`, {
+    method: 'GET',
+    headers,
+  });
+
+  if (!res.ok) {
+    const bodyText = await res.text();
+    try {
+      const err = JSON.parse(bodyText);
+      throw new Error(err.message || 'Failed to get likes');
+    } catch {
+      throw new Error(bodyText || 'Failed to get likes');
+    }
+  }
+  return res.json();
+}
+
+// Get product comments
+export async function getProductComments(productId: string) {
+  const res = await fetch(`${BASE_URL}/products/${productId}/comments`, {
+    method: 'GET',
+    headers: { 'Content-Type': 'application/json' },
+  });
+
+  if (!res.ok) {
+    const bodyText = await res.text();
+    try {
+      const err = JSON.parse(bodyText);
+      throw new Error(err.message || 'Failed to get comments');
+    } catch {
+      throw new Error(bodyText || 'Failed to get comments');
+    }
+  }
+  return res.json();
+}
+
+// Delete a comment
+export async function deleteComment(commentId: string) {
+  const token = localStorage.getItem('access_token');
+  if (!token) {
+    throw new Error('Please login to delete comments');
+  }
+
+  const res = await fetch(`${BASE_URL}/products/comment/${commentId}`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+  });
+
+  if (!res.ok) {
+    const bodyText = await res.text();
+    try {
+      const err = JSON.parse(bodyText);
+      throw new Error(err.message || 'Failed to delete comment');
+    } catch {
+      throw new Error(bodyText || 'Failed to delete comment');
+    }
+  }
+  return res.json();
 }

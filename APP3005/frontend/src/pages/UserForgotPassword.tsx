@@ -71,7 +71,7 @@ const UserForgotPassword = () => {
                                     type="email"
                                     placeholder="user@example.com"
                                     {...register("email")}
-                                    className="bg-luxury-charcoal border-luxury-charcoal text-luxury-cream placeholder:text-muted-foreground focus:border-luxury-gold focus:ring-luxury-gold transition-all duration-300"
+                                    className="bg-white border-luxury-charcoal text-charcoal placeholder:text-gray-400 focus:border-luxury-gold focus:ring-luxury-gold transition-all duration-300"
                                 />
                                 {errors.email && (
                                     <p className="text-sm text-destructive">{errors.email.message}</p>

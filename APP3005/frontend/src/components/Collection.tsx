@@ -1,26 +1,15 @@
 import { useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, ShoppingCart } from "lucide-react";
-import product1 from "@/assets/product-1.jpg";
-import product2 from "@/assets/product-2.jpg";
-import product3 from "@/assets/product-3.jpg";
-import product4 from "@/assets/product-4.jpg";
-import product5 from "@/assets/product-5.jpg";
-import product6 from "@/assets/product-6.jpg";
+import { ChevronLeft, ChevronRight, Heart, MessageCircle, Eye } from "lucide-react";
+import { usePublicProducts } from "@/hooks/usePublicProducts";
 
-const products = [
-    { id: 1, name: "Gold Silk Evening Gown", price: "$125.00", image: product1 },
-    { id: 2, name: "Timeless Cashmere Coat", price: "$55.00", image: product2 },
-    { id: 3, name: "Sculptural Black Top", price: "$25.00", image: product3 },
-    { id: 4, name: "Tailored Trousers", price: "$125.00", image: product4 },
-    { id: 5, name: "Statement Necklace", price: "$78.00", image: product5 },
-    { id: 6, name: "Clutch Bag", price: "$78.00", image: product6 },
-];
-
-const filters = ["All", "Dresses", "Outerwear", "Accessories"];
+const filters = ["All", "Dresses", "Outerwear", "Accessories", "Tops", "Bottoms"];
 
 export const Collection = () => {
     const scrollRef = useRef<HTMLDivElement>(null);
     const [activeFilter, setActiveFilter] = useState("All");
+
+    // Fetch products from backend
+    const { data, isLoading, error } = usePublicProducts(1, undefined, activeFilter);
 
     const scroll = (direction: "left" | "right") => {
         if (scrollRef.current) {
@@ -30,6 +19,15 @@ export const Collection = () => {
                 behavior: "smooth",
             });
         }
+    };
+
+    // Format price from cents
+    const formatPrice = (priceCents: number, currency: string) => {
+        const price = priceCents / 100;
+        if (currency === "INR") {
+            return `₹${price.toLocaleString('en-IN')}`;
+        }
+        return `$${price.toFixed(2)}`;
     };
 
     return (
@@ -58,8 +56,8 @@ export const Collection = () => {
                             key={filter}
                             onClick={() => setActiveFilter(filter)}
                             className={`px-6 py-2.5 rounded-full font-medium text-sm transition-all duration-300 ${activeFilter === filter
-                                    ? "text-charcoal shadow-md"
-                                    : "text-charcoal/70 hover:text-charcoal"
+                                ? "text-charcoal shadow-md"
+                                : "text-charcoal/70 hover:text-charcoal"
                                 }`}
                             style={{
                                 background: activeFilter === filter
@@ -78,96 +76,206 @@ export const Collection = () => {
                     ))}
                 </div>
 
-                {/* Products Carousel */}
-                <div className="relative">
-                    {/* Navigation Arrows */}
-                    <button
-                        onClick={() => scroll("left")}
-                        className="hidden md:flex absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 z-10 w-12 h-12 items-center justify-center rounded-full backdrop-blur-xl transition-all duration-300 hover:scale-110"
-                        style={{
-                            background: 'linear-gradient(135deg, rgba(232, 220, 200, 0.95) 0%, rgba(242, 234, 216, 0.9) 100%)',
-                            boxShadow: '0 4px 16px rgba(201, 165, 92, 0.2)',
-                            border: '1px solid rgba(201, 165, 92, 0.3)',
-                        }}
-                        aria-label="Scroll left"
-                    >
-                        <ChevronLeft className="w-6 h-6 text-gold" />
-                    </button>
+                {/* Loading State */}
+                {isLoading && (
+                    <div className="text-center py-12">
+                        <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-gold border-t-transparent"></div>
+                        <p className="mt-4 text-charcoal/70">Loading collection...</p>
+                    </div>
+                )}
 
-                    <button
-                        onClick={() => scroll("right")}
-                        className="hidden md:flex absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 z-10 w-12 h-12 items-center justify-center rounded-full backdrop-blur-xl transition-all duration-300 hover:scale-110"
-                        style={{
-                            background: 'linear-gradient(135deg, rgba(232, 220, 200, 0.95) 0%, rgba(242, 234, 216, 0.9) 100%)',
-                            boxShadow: '0 4px 16px rgba(201, 165, 92, 0.2)',
-                            border: '1px solid rgba(201, 165, 92, 0.3)',
-                        }}
-                        aria-label="Scroll right"
-                    >
-                        <ChevronRight className="w-6 h-6 text-gold" />
-                    </button>
-
-                    {/* Products Grid */}
-                    <div
-                        ref={scrollRef}
-                        className="flex gap-6 overflow-x-auto scrollbar-hide scroll-smooth pb-4"
-                        style={{ scrollbarWidth: "none" }}
-                    >
-                        {products.map((product) => (
-                            <div
-                                key={product.id}
-                                className="flex-shrink-0 w-72 group cursor-pointer"
-                            >
-                                <div
-                                    className="relative overflow-hidden rounded-3xl mb-4 backdrop-blur-xl transition-all duration-500 hover:-translate-y-2"
+                {/* Error State */}
+                {error && (
+                    <div className="text-center py-12">
+                        <div
+                            className="max-w-md mx-auto p-6 rounded-2xl"
+                            style={{
+                                background: 'linear-gradient(135deg, rgba(232, 220, 200, 0.9) 0%, rgba(242, 234, 216, 0.85) 100%)',
+                                border: '1px solid rgba(201, 165, 92, 0.3)',
+                            }}
+                        >
+                            <p className="text-charcoal mb-4">
+                                {error.message.includes('401') || error.message.includes('403')
+                                    ? 'Please log in as a buyer to view our collection.'
+                                    : 'Failed to load products. Please try again later.'}
+                            </p>
+                            {(error.message.includes('401') || error.message.includes('403')) && (
+                                <a
+                                    href="/user-login"
+                                    className="inline-block px-6 py-3 rounded-full font-medium text-sm transition-all duration-300 hover:scale-105"
                                     style={{
-                                        background: 'linear-gradient(135deg, rgba(232, 220, 200, 0.9) 0%, rgba(242, 234, 216, 0.85) 100%)',
-                                        boxShadow: '0 4px 20px rgba(201, 165, 92, 0.15)',
-                                        border: '1px solid rgba(201, 165, 92, 0.25)',
+                                        background: 'linear-gradient(135deg, rgba(201, 165, 92, 0.9) 0%, rgba(201, 165, 92, 1) 100%)',
+                                        color: '#212121',
+                                        boxShadow: '0 4px 16px rgba(201, 165, 92, 0.4)',
                                     }}
                                 >
-                                    <img
-                                        src={product.image}
-                                        alt={product.name}
-                                        className="w-full h-96 object-cover transition-transform duration-500 group-hover:scale-110"
-                                    />
-                                    {/* Overlay */}
-                                    <div className="absolute inset-0 bg-gradient-to-t from-charcoal/80 via-charcoal/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end justify-center p-6">
-                                        <button
-                                            className="px-6 py-3 rounded-full font-medium text-sm transition-all duration-300 hover:scale-105"
+                                    Log In
+                                </a>
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                {/* Products Carousel */}
+                {!isLoading && !error && data && (
+                    <div className="relative">
+                        {/* Navigation Arrows */}
+                        <button
+                            onClick={() => scroll("left")}
+                            className="hidden md:flex absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 z-10 w-12 h-12 items-center justify-center rounded-full backdrop-blur-xl transition-all duration-300 hover:scale-110"
+                            style={{
+                                background: 'linear-gradient(135deg, rgba(232, 220, 200, 0.95) 0%, rgba(242, 234, 216, 0.9) 100%)',
+                                boxShadow: '0 4px 16px rgba(201, 165, 92, 0.2)',
+                                border: '1px solid rgba(201, 165, 92, 0.3)',
+                            }}
+                            aria-label="Scroll left"
+                        >
+                            <ChevronLeft className="w-6 h-6 text-gold" />
+                        </button>
+
+                        <button
+                            onClick={() => scroll("right")}
+                            className="hidden md:flex absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 z-10 w-12 h-12 items-center justify-center rounded-full backdrop-blur-xl transition-all duration-300 hover:scale-110"
+                            style={{
+                                background: 'linear-gradient(135deg, rgba(232, 220, 200, 0.95) 0%, rgba(242, 234, 216, 0.9) 100%)',
+                                boxShadow: '0 4px 16px rgba(201, 165, 92, 0.2)',
+                                border: '1px solid rgba(201, 165, 92, 0.3)',
+                            }}
+                            aria-label="Scroll right"
+                        >
+                            <ChevronRight className="w-6 h-6 text-gold" />
+                        </button>
+
+                        {/* Products Grid */}
+                        <div
+                            ref={scrollRef}
+                            className="flex gap-6 overflow-x-auto scrollbar-hide scroll-smooth pb-4"
+                            style={{ scrollbarWidth: "none" }}
+                        >
+                            {data.products.length === 0 ? (
+                                <div className="w-full text-center py-12">
+                                    <p className="text-charcoal/70">No products found in this category.</p>
+                                </div>
+                            ) : (
+                                data.products.slice(0, 6).map((product) => (
+                                    <div
+                                        key={product.product_id}
+                                        className="flex-shrink-0 w-72 group cursor-pointer"
+                                    >
+                                        <div
+                                            className="relative overflow-hidden rounded-3xl mb-4 backdrop-blur-xl transition-all duration-500 hover:-translate-y-2"
                                             style={{
-                                                background: 'linear-gradient(135deg, rgba(201, 165, 92, 0.9) 0%, rgba(201, 165, 92, 1) 100%)',
-                                                color: '#212121',
-                                                boxShadow: '0 4px 16px rgba(201, 165, 92, 0.4)',
+                                                background: 'linear-gradient(135deg, rgba(232, 220, 200, 0.9) 0%, rgba(242, 234, 216, 0.85) 100%)',
+                                                boxShadow: '0 4px 20px rgba(201, 165, 92, 0.15)',
+                                                border: '1px solid rgba(201, 165, 92, 0.25)',
                                             }}
                                         >
-                                            Try on with AI
-                                        </button>
+                                            <img
+                                                src={product.thumbnail || 'https://via.placeholder.com/300x400?text=No+Image'}
+                                                alt={product.title}
+                                                className="w-full h-96 object-cover transition-transform duration-500 group-hover:scale-110"
+                                            />
+                                            {/* Overlay */}
+                                            <div className="absolute inset-0 bg-gradient-to-t from-charcoal/80 via-charcoal/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end justify-center p-6">
+                                                <button
+                                                    className="px-6 py-3 rounded-full font-medium text-sm transition-all duration-300 hover:scale-105"
+                                                    style={{
+                                                        background: 'linear-gradient(135deg, rgba(201, 165, 92, 0.9) 0%, rgba(201, 165, 92, 1) 100%)',
+                                                        color: '#212121',
+                                                        boxShadow: '0 4px 16px rgba(201, 165, 92, 0.4)',
+                                                    }}
+                                                >
+                                                    Try on with AI
+                                                </button>
+                                            </div>
+
+                                            {/* Stats Badge */}
+                                            <div className="absolute top-4 left-4 flex flex-col gap-2">
+                                                {product.is_featured && (
+                                                    <div
+                                                        className="px-3 py-1 rounded-full text-xs font-medium"
+                                                        style={{
+                                                            background: 'linear-gradient(135deg, rgba(201, 165, 92, 0.95) 0%, rgba(201, 165, 92, 1) 100%)',
+                                                            color: '#212121',
+                                                        }}
+                                                    >
+                                                        Featured
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {/* Engagement Stats */}
+                                            <div className="absolute top-4 right-4 flex flex-col gap-2">
+                                                <div
+                                                    className="flex items-center gap-1 px-2 py-1 rounded-full text-xs backdrop-blur-xl"
+                                                    style={{
+                                                        background: 'rgba(232, 220, 200, 0.9)',
+                                                        border: '1px solid rgba(201, 165, 92, 0.3)',
+                                                    }}
+                                                >
+                                                    <Heart className="w-3 h-3 text-gold" fill="currentColor" />
+                                                    <span className="text-charcoal font-medium">{product.likes}</span>
+                                                </div>
+                                                <div
+                                                    className="flex items-center gap-1 px-2 py-1 rounded-full text-xs backdrop-blur-xl"
+                                                    style={{
+                                                        background: 'rgba(232, 220, 200, 0.9)',
+                                                        border: '1px solid rgba(201, 165, 92, 0.3)',
+                                                    }}
+                                                >
+                                                    <MessageCircle className="w-3 h-3 text-gold" />
+                                                    <span className="text-charcoal font-medium">{product.reviews}</span>
+                                                </div>
+                                                <div
+                                                    className="flex items-center gap-1 px-2 py-1 rounded-full text-xs backdrop-blur-xl"
+                                                    style={{
+                                                        background: 'rgba(232, 220, 200, 0.9)',
+                                                        border: '1px solid rgba(201, 165, 92, 0.3)',
+                                                    }}
+                                                >
+                                                    <Eye className="w-3 h-3 text-gold" />
+                                                    <span className="text-charcoal font-medium">{product.views}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {/* Product Info */}
+                                        <div className="text-center">
+                                            <h3 className="font-serif text-lg text-charcoal mb-1 group-hover:text-gold transition-colors duration-300">
+                                                {product.title}
+                                            </h3>
+                                            <p className="text-gold font-medium text-lg mb-1">
+                                                {formatPrice(product.price_cents, product.currency)}
+                                            </p>
+                                            <p className="text-xs text-charcoal/60">
+                                                by {product.creator.store_name}
+                                                {product.creator.verified && (
+                                                    <span className="ml-1 text-gold">✓</span>
+                                                )}
+                                            </p>
+                                        </div>
                                     </div>
-                                    {/* Quick View Icon */}
-                                    <button
-                                        className="absolute top-4 right-4 w-10 h-10 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 hover:scale-110"
-                                        style={{
-                                            background: 'linear-gradient(135deg, rgba(232, 220, 200, 0.95) 0%, rgba(242, 234, 216, 0.9) 100%)',
-                                            boxShadow: '0 4px 12px rgba(201, 165, 92, 0.3)',
-                                            border: '1px solid rgba(201, 165, 92, 0.4)',
-                                        }}
-                                        aria-label="Add to cart"
-                                    >
-                                        <ShoppingCart className="w-5 h-5 text-gold" />
-                                    </button>
-                                </div>
-                                {/* Product Info */}
-                                <div className="text-center">
-                                    <h3 className="font-serif text-lg text-charcoal mb-1 group-hover:text-gold transition-colors duration-300">
-                                        {product.name}
-                                    </h3>
-                                    <p className="text-gold font-medium">{product.price}</p>
-                                </div>
+                                ))
+                            )}
+                        </div>
+
+                        {/* View All Collection Button */}
+                        {data.products.length > 0 && (
+                            <div className="text-center mt-12">
+                                <a
+                                    href="/collection"
+                                    className="inline-block px-10 py-4 rounded-full font-medium text-sm transition-all duration-300 hover:scale-105"
+                                    style={{
+                                        background: 'linear-gradient(135deg, rgba(201, 165, 92, 0.9) 0%, rgba(201, 165, 92, 1) 100%)',
+                                        color: '#212121',
+                                        boxShadow: '0 4px 16px rgba(201, 165, 92, 0.4)',
+                                    }}
+                                >
+                                    View All Collection
+                                </a>
                             </div>
-                        ))}
+                        )}
                     </div>
-                </div>
+                )}
             </div>
         </section>
     );

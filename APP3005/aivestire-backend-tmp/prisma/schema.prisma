@@ -52,6 +52,8 @@ model User {
   approvals_submitted ProductApproval[] @relation("SubmittedBy")
   approvals_actioned  ProductApproval[] @relation("ActionedBy")
   aura                Aura?
+  product_likes       ProductLike[]
+  product_comments    ProductComment[]
 }
 
 model Creator {
@@ -99,6 +101,8 @@ model Product {
   images          ProductImage[]
   approvals       ProductApproval[]
   stats           ProductStat?
+  likes           ProductLike[]
+  comments        ProductComment[]
 }
 
 model ProductImage {
@@ -147,6 +151,33 @@ model ProductStat {
   last_updated    DateTime?
 
   product         Product @relation(fields: [product_id], references: [product_id])
+}
+
+model ProductLike {
+  like_id      String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  product_id   String   @db.Uuid
+  user_id      String   @db.Uuid
+  created_at   DateTime @default(now())
+  
+  product      Product  @relation(fields: [product_id], references: [product_id], onDelete: Cascade)
+  user         User     @relation(fields: [user_id], references: [user_id], onDelete: Cascade)
+  
+  @@unique([product_id, user_id])
+  @@map("product_likes")
+}
+
+model ProductComment {
+  comment_id   String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  product_id   String   @db.Uuid
+  user_id      String   @db.Uuid
+  comment_text String   @db.Text
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+  
+  product      Product  @relation(fields: [product_id], references: [product_id], onDelete: Cascade)
+  user         User     @relation(fields: [user_id], references: [user_id], onDelete: Cascade)
+  
+  @@map("product_comments")
 }
 
 model Aura {

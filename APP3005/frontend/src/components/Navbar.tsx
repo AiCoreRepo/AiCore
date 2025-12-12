@@ -1,17 +1,17 @@
 import { useState, useEffect, useRef } from "react";
 import { Menu, X, ShoppingBag, User, LogOut } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { getAuraStatus } from "@/lib/api";
 import { LogoutConfirmDialog } from "@/components/LogoutConfirmDialog";
 import { useToast } from "@/hooks/use-toast";
 
 const navLinks = [
-    { name: "Home", href: "#hero" },
-    { name: "Collection", href: "#collection" },
-    { name: "AI Try-On", href: "#ai-tryon" },
-    { name: "Let AI Decide", href: "#ai-decide" },
-    { name: "Lookbook", href: "#lookbook" },
-    { name: "About", href: "#about" },
+    { name: "Home", href: "/", isRoute: true },
+    { name: "Collection", href: "/collection", isRoute: true },
+    { name: "AI Try-On", href: "/#ai-tryon", isRoute: true },
+    { name: "Let AI Decide", href: "/#ai-decide", isRoute: true },
+    { name: "Lookbook", href: "/#lookbook", isRoute: true },
+    { name: "About", href: "/#about", isRoute: true },
 ];
 
 export const Navbar = () => {
@@ -23,6 +23,7 @@ export const Navbar = () => {
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [showLogoutDialog, setShowLogoutDialog] = useState(false);
     const navigate = useNavigate();
+    const location = useLocation();
     const menuRef = useRef<HTMLDivElement>(null);
     const { toast } = useToast();
 
@@ -33,6 +34,18 @@ export const Navbar = () => {
         window.addEventListener("scroll", handleScroll);
         return () => window.removeEventListener("scroll", handleScroll);
     }, []);
+
+    // Handle hash scrolling when location changes
+    useEffect(() => {
+        if (location.hash) {
+            setTimeout(() => {
+                const element = document.querySelector(location.hash);
+                if (element) {
+                    element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            }, 100);
+        }
+    }, [location]);
 
     // Check if user is logged in and has Aura
     useEffect(() => {
@@ -128,19 +141,35 @@ export const Navbar = () => {
 
                             {/* Desktop Navigation */}
                             <div className="hidden lg:flex items-center space-x-1">
-                                {navLinks.map((link) => (
-                                    <a
-                                        key={link.name}
-                                        href={link.href}
-                                        className="relative px-4 py-2 text-sm font-medium text-charcoal tracking-wide uppercase transition-all duration-300 group"
-                                    >
-                                        <span className="relative z-10">{link.name}</span>
-                                        {/* Hover background */}
-                                        <div className="absolute inset-0 rounded-full bg-gradient-to-r from-gold/20 via-gold/30 to-gold/20 opacity-0 group-hover:opacity-100 transition-all duration-300 scale-90 group-hover:scale-100" />
-                                        {/* Bottom border on hover */}
-                                        <div className="absolute bottom-1 left-1/2 -translate-x-1/2 w-0 h-0.5 bg-gold group-hover:w-3/4 transition-all duration-300 rounded-full" />
-                                    </a>
-                                ))}
+                                {navLinks.map((link) => {
+                                    const linkContent = (
+                                        <>
+                                            <span className="relative z-10">{link.name}</span>
+                                            {/* Hover background */}
+                                            <div className="absolute inset-0 rounded-full bg-gradient-to-r from-gold/20 via-gold/30 to-gold/20 opacity-0 group-hover:opacity-100 transition-all duration-300 scale-90 group-hover:scale-100" />
+                                            {/* Bottom border on hover */}
+                                            <div className="absolute bottom-1 left-1/2 -translate-x-1/2 w-0 h-0.5 bg-gold group-hover:w-3/4 transition-all duration-300 rounded-full" />
+                                        </>
+                                    );
+
+                                    return link.isRoute ? (
+                                        <Link
+                                            key={link.name}
+                                            to={link.href}
+                                            className="relative px-4 py-2 text-sm font-medium text-charcoal tracking-wide uppercase transition-all duration-300 group"
+                                        >
+                                            {linkContent}
+                                        </Link>
+                                    ) : (
+                                        <a
+                                            key={link.name}
+                                            href={link.href}
+                                            className="relative px-4 py-2 text-sm font-medium text-charcoal tracking-wide uppercase transition-all duration-300 group"
+                                        >
+                                            {linkContent}
+                                        </a>
+                                    );
+                                })}
                             </div>
 
                             {/* Right Icons */}
@@ -263,16 +292,27 @@ export const Navbar = () => {
                                 }`}
                         >
                             <div className="flex flex-col space-y-2 pt-4 border-t border-gold/20">
-                                {navLinks.map((link) => (
-                                    <a
-                                        key={link.name}
-                                        href={link.href}
-                                        className="px-4 py-3 text-charcoal font-medium tracking-wide rounded-2xl hover:bg-gold/20 transition-all duration-300 border border-transparent hover:border-gold/30"
-                                        onClick={() => setIsMobileMenuOpen(false)}
-                                    >
-                                        {link.name}
-                                    </a>
-                                ))}
+                                {navLinks.map((link) =>
+                                    link.isRoute ? (
+                                        <Link
+                                            key={link.name}
+                                            to={link.href}
+                                            className="px-4 py-3 text-charcoal font-medium tracking-wide rounded-2xl hover:bg-gold/20 transition-all duration-300 border border-transparent hover:border-gold/30"
+                                            onClick={() => setIsMobileMenuOpen(false)}
+                                        >
+                                            {link.name}
+                                        </Link>
+                                    ) : (
+                                        <a
+                                            key={link.name}
+                                            href={link.href}
+                                            className="px-4 py-3 text-charcoal font-medium tracking-wide rounded-2xl hover:bg-gold/20 transition-all duration-300 border border-transparent hover:border-gold/30"
+                                            onClick={() => setIsMobileMenuOpen(false)}
+                                        >
+                                            {link.name}
+                                        </a>
+                                    )
+                                )}
                                 {/* Only show Join as Creator button if user is NOT logged in */}
                                 {!isLoggedIn && (
                                     <Link

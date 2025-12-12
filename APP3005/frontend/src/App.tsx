@@ -23,13 +23,15 @@ import AuraDashboard from "./pages/AuraDashboard";
 import AuraProfile from "./pages/AuraProfile";
 import AdminDashboardPage from "./app/admin-dashboard/page";
 const AtelierApprovalPage = lazy(() => import("./app/admin-approvals/page"));
-import CollectionPage from "./app/admin-collection/page";
+import CollectionPage from "./pages/CollectionPage";
+import AdminCollectionPage from "./app/admin-collection/page";
 import ArtisansPage from "./app/admin-artisans/page";
 import ClientelePage from "./app/admin-clientele/page";
 import AdminSettingsPage from "./app/admin-settings/page";
 import AdminLogin from "./pages/AdminLogin";
 import { PopupProvider } from "./components/common/popups/PopupTime";
 import { SidebarProvider } from "./context/SidebarContext";
+import { ProtectedRoute } from "./components/ProtectedRoute";
 
 const queryClient = new QueryClient();
 
@@ -44,16 +46,34 @@ const App = () => (
             <SidebarProvider>
               <Routes>
                 <Route path="/" element={<Index />} />
+                <Route path="/collection" element={<CollectionPage />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/signup" element={<Signup />} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />
                 <Route path="/creator-login" element={<CreatorLogin />} />
                 <Route path="/ai-try-on" element={<AiTryOn />} />
-                <Route path="/creator-dashboard" element={<DashboardPage />} />
-                <Route path="/settings" element={<SettingsPage />} />
-                <Route path="/wardrobe" element={<WardrobePage />} />
 
-                <Route path="/analytics" element={<AnalyticsPage />} />
+                {/* Protected Creator Routes */}
+                <Route path="/creator-dashboard" element={
+                  <ProtectedRoute requiredRole="CREATOR" redirectTo="/login">
+                    <DashboardPage />
+                  </ProtectedRoute>
+                } />
+                <Route path="/settings" element={
+                  <ProtectedRoute requiredRole="CREATOR" redirectTo="/login">
+                    <SettingsPage />
+                  </ProtectedRoute>
+                } />
+                <Route path="/wardrobe" element={
+                  <ProtectedRoute requiredRole="CREATOR" redirectTo="/login">
+                    <WardrobePage />
+                  </ProtectedRoute>
+                } />
+                <Route path="/analytics" element={
+                  <ProtectedRoute requiredRole="CREATOR" redirectTo="/login">
+                    <AnalyticsPage />
+                  </ProtectedRoute>
+                } />
 
                 {/* User Auth Routes */}
                 <Route path="/user-login" element={<UserLogin />} />
@@ -72,7 +92,7 @@ const App = () => (
                     <AtelierApprovalPage />
                   </Suspense>
                 } />
-                <Route path="/admin-collection" element={<CollectionPage />} />
+                <Route path="/admin-collection" element={<AdminCollectionPage />} />
                 <Route path="/admin-artisans" element={<ArtisansPage />} />
                 <Route path="/admin-clientele" element={<ClientelePage />} />
                 <Route path="/admin-settings" element={<AdminSettingsPage />} />

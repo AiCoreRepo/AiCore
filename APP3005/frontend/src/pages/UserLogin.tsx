@@ -39,6 +39,33 @@ const UserLogin = () => {
                 localStorage.setItem('access_token', result.access_token);
             }
 
+            // Check if user has BUYER role
+            const userRole = result.user?.role;
+
+            if (userRole !== 'BUYER') {
+                // Show error message for non-buyers
+                let errorMessage = "Oops! Wrong door! 🛍️ This entrance is for shoppers only.";
+
+                if (userRole === 'CREATOR') {
+                    errorMessage = "This login is for shoppers only. Please use the 'Join as Creator' button to access the creator login.";
+                } else if (userRole === 'ADMIN') {
+                    errorMessage = "This login is for shoppers only. Admins should use the admin login page.";
+                }
+
+                // Clear the token since they shouldn't be logging in here
+                localStorage.removeItem("access_token");
+
+                toast({
+                    title: "Wrong Login Page",
+                    description: errorMessage,
+                    variant: "destructive",
+                });
+
+                setIsLoading(false);
+                return;
+            }
+
+            // Success - user is a buyer
             toast({
                 title: "Welcome back!",
                 description: "You've successfully signed in.",
@@ -114,7 +141,7 @@ const UserLogin = () => {
                                 type="email"
                                 placeholder="user@example.com"
                                 {...register("email")}
-                                className="bg-luxury-charcoal border-luxury-charcoal text-luxury-cream placeholder:text-muted-foreground focus:border-luxury-gold focus:ring-luxury-gold transition-all duration-300"
+                                className="bg-white border-luxury-charcoal text-charcoal placeholder:text-gray-400 focus:border-luxury-gold focus:ring-luxury-gold transition-all duration-300"
                             />
                             {errors.email && (
                                 <p className="text-sm text-destructive">{errors.email.message}</p>
@@ -131,7 +158,7 @@ const UserLogin = () => {
                                     type={showPassword ? "text" : "password"}
                                     placeholder="Enter your password"
                                     {...register("password")}
-                                    className="bg-luxury-charcoal border-luxury-charcoal text-luxury-cream placeholder:text-muted-foreground focus:border-luxury-gold focus:ring-luxury-gold transition-all duration-300 pr-10"
+                                    className="bg-white border-luxury-charcoal text-charcoal placeholder:text-gray-400 focus:border-luxury-gold focus:ring-luxury-gold transition-all duration-300 pr-10"
                                 />
                                 <button
                                     type="button"

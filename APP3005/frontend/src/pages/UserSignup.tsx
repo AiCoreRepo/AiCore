@@ -85,7 +85,7 @@ const UserSignup = () => {
                             type="text"
                             placeholder="Your Name"
                             {...register("brandName")}
-                            className="bg-luxury-charcoal border-luxury-charcoal text-luxury-cream placeholder:text-muted-foreground focus:border-luxury-gold focus:ring-luxury-gold transition-all duration-300"
+                            className="bg-white border-luxury-charcoal text-charcoal placeholder:text-gray-400 focus:border-luxury-gold focus:ring-luxury-gold transition-all duration-300"
                         />
                         {errors.brandName && (
                             <p className="text-sm text-destructive">{errors.brandName.message}</p>
@@ -101,7 +101,7 @@ const UserSignup = () => {
                             type="email"
                             placeholder="user@example.com"
                             {...register("email")}
-                            className="bg-luxury-charcoal border-luxury-charcoal text-luxury-cream placeholder:text-muted-foreground focus:border-luxury-gold focus:ring-luxury-gold transition-all duration-300"
+                            className="bg-white border-luxury-charcoal text-charcoal placeholder:text-gray-400 focus:border-luxury-gold focus:ring-luxury-gold transition-all duration-300"
                         />
                         {errors.email && (
                             <p className="text-sm text-destructive">{errors.email.message}</p>
@@ -118,7 +118,7 @@ const UserSignup = () => {
                                 type={showPassword ? "text" : "password"}
                                 placeholder="Minimum 8 characters"
                                 {...register("password")}
-                                className="bg-luxury-charcoal border-luxury-charcoal text-luxury-cream placeholder:text-muted-foreground focus:border-luxury-gold focus:ring-luxury-gold transition-all duration-300 pr-10"
+                                className="bg-white border-luxury-charcoal text-charcoal placeholder:text-gray-400 focus:border-luxury-gold focus:ring-luxury-gold transition-all duration-300 pr-10"
                             />
                             <button
                                 type="button"
@@ -143,7 +143,7 @@ const UserSignup = () => {
                                 type={showConfirmPassword ? "text" : "password"}
                                 placeholder="Re-enter your password"
                                 {...register("confirmPassword")}
-                                className="bg-luxury-charcoal border-luxury-charcoal text-luxury-cream placeholder:text-muted-foreground focus:border-luxury-gold focus:ring-luxury-gold transition-all duration-300 pr-10"
+                                className="bg-white border-luxury-charcoal text-charcoal placeholder:text-gray-400 focus:border-luxury-gold focus:ring-luxury-gold transition-all duration-300 pr-10"
                             />
                             <button
                                 type="button"

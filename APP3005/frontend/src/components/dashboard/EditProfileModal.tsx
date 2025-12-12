@@ -210,18 +210,7 @@ const EditProfileModal = ({ open, onOpenChange, user, onSuccess }: EditProfileMo
                                     : "border-muted-foreground/40 hover:border-gold"
                                     }`}
                             >
-                                {formData.avatar && !formData.avatar.startsWith('data:') ? (
-                                    <div className="relative w-full h-full group">
-                                        <div className="w-full h-full bg-gradient-to-br from-[#D4AF37] to-[#F4D03F] flex items-center justify-center">
-                                            <span className="text-4xl font-bold text-neutral-950">
-                                                {user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
-                                            </span>
-                                        </div>
-                                        <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                                            <p className="text-white text-sm font-medium">Click to change</p>
-                                        </div>
-                                    </div>
-                                ) : formData.avatar ? (
+                                {formData.avatar ? (
                                     <div className="relative w-full h-full group">
                                         <img
                                             src={formData.avatar}
@@ -237,7 +226,7 @@ const EditProfileModal = ({ open, onOpenChange, user, onSuccess }: EditProfileMo
                                                 e.stopPropagation();
                                                 setFormData(prev => ({ ...prev, avatar: "" }));
                                             }}
-                                            className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors z-10 pointer-events-auto"
+                                            className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors z-10 pointer-events-auto shadow-lg"
                                         >
                                             <X size={16} />
                                         </button>
