@@ -32,8 +32,15 @@ import AdminLogin from "./pages/AdminLogin";
 import { PopupProvider } from "./components/common/popups/PopupTime";
 import { SidebarProvider } from "./context/SidebarContext";
 import { ProtectedRoute } from "./components/ProtectedRoute";
+import { useActivityTracking } from "./hooks/useActivityTracking";
 
 const queryClient = new QueryClient();
+
+// Activity Tracking Wrapper Component
+const ActivityTracker = () => {
+  useActivityTracking();
+  return null;
+};
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -41,6 +48,7 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
+        <ActivityTracker />
         <AuthProvider>
           <PopupProvider>
             <SidebarProvider>
