@@ -11,6 +11,9 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
                     host: configService.get('REDIS_HOST', 'localhost'),
                     port: configService.get('REDIS_PORT', 6379),
                     password: configService.get('REDIS_PASSWORD') || undefined,
+                    tls: configService.get('REDIS_HOST', 'localhost').includes('upstash.io')
+                        ? {}
+                        : undefined,
                     maxRetriesPerRequest: null,
                     enableReadyCheck: false,
                 },
