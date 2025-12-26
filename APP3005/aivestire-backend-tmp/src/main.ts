@@ -17,11 +17,28 @@ async function bootstrap() {
   const allowedOrigins = (process.env.CORS_ORIGIN?.split(',') ?? [])
     .map((o) => o.trim())
     .filter((o) => o.length > 0);
+  // CORS configuration for production
   app.enableCors({
-    origin: allowedOrigins.length > 0 ? allowedOrigins : true,
+    origin: (origin, callback) => {
+      // Allow requests with no origin (mobile apps, Postman, etc.)
+      if (!origin) return callback(null, true);
+
+      // Check if origin is allowed
+      if (allowedOrigins.length > 0) {
+        if (allowedOrigins.includes(origin)) {
+          callback(null, true);
+        } else {
+          callback(new Error('Not allowed by CORS'));
+        }
+      } else {
+        // Development - allow all
+        callback(null, true);
+      }
+    },
     credentials: true,
     methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+    exposedHeaders: ['Set-Cookie'],
     preflightContinue: false,
     optionsSuccessStatus: 204,
   });
