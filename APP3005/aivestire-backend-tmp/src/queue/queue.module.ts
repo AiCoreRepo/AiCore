@@ -7,22 +7,21 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
         BullModule.forRootAsync({
             imports: [ConfigModule],
             useFactory: async (configService: ConfigService) => {
-                const redisConfig = {
-                    host: configService.get('REDIS_HOST', 'localhost'),
-                    port: configService.get('REDIS_PORT', 6379),
-                    password: configService.get('REDIS_PASSWORD') || undefined,
-                    tls: configService.get('REDIS_HOST', 'localhost').includes('upstash.io')
-                        ? {}
-                        : undefined,
-                    maxRetriesPerRequest: null,
-                    enableReadyCheck: false,
-                };
+                const redisUrl = configService.get('REDIS_URL');
+
+                // Use REDIS_URL if available (production), otherwise use individual credentials (local)
+                const redisConfig = redisUrl
+                    ? redisUrl  // Upstash connection string
+                    : {
+                        host: configService.get('REDIS_HOST', 'localhost'),
+                        port: configService.get('REDIS_PORT', 6379),
+                        password: configService.get('REDIS_PASSWORD') || undefined,
+                    };
 
                 console.log('🔧 Redis Configuration:', {
-                    host: redisConfig.host,
-                    port: redisConfig.port,
-                    hasTLS: !!redisConfig.tls,
-                    hasPassword: !!redisConfig.password,
+                    usingUrl: !!redisUrl,
+                    host: redisUrl ? 'from URL' : configService.get('REDIS_HOST', 'localhost'),
+                    port: redisUrl ? 'from URL' : configService.get('REDIS_PORT', 6379),
                 });
 
                 return {
