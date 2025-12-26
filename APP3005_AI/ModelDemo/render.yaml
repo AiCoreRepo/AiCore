@@ -5,7 +5,7 @@ services:
     env: python
     
     # Render will cd into this folder
-    rootDir: APP3005/ModelDemo
+    rootDir: APP3005_AI/ModelDemo
 
     # requirements.txt is in the same folder as app.py
     buildCommand: pip install -r requirements.txt

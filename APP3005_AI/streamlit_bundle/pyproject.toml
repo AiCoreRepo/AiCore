@@ -1,0 +1,12 @@
+[project]
+name = "streamlit-avatar-tryon"
+version = "0.1.0"
+requires-python = ">=3.10"
+dependencies = [
+    "streamlit>=1.38.0",
+    "google-genai",
+    "google-cloud-aiplatform>=1.66.0",
+]
+
+[dependency-groups]
+dev = []
