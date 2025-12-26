@@ -6,8 +6,8 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
     imports: [
         BullModule.forRootAsync({
             imports: [ConfigModule],
-            useFactory: async (configService: ConfigService) => ({
-                redis: {
+            useFactory: async (configService: ConfigService) => {
+                const redisConfig = {
                     host: configService.get('REDIS_HOST', 'localhost'),
                     port: configService.get('REDIS_PORT', 6379),
                     password: configService.get('REDIS_PASSWORD') || undefined,
@@ -16,17 +16,28 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
                         : undefined,
                     maxRetriesPerRequest: null,
                     enableReadyCheck: false,
-                },
-                defaultJobOptions: {
-                    removeOnComplete: 100, // Keep last 100 completed jobs
-                    removeOnFail: 200,     // Keep last 200 failed jobs
-                    attempts: 3,
-                    backoff: {
-                        type: 'exponential',
-                        delay: 5000,
+                };
+
+                console.log('🔧 Redis Configuration:', {
+                    host: redisConfig.host,
+                    port: redisConfig.port,
+                    hasTLS: !!redisConfig.tls,
+                    hasPassword: !!redisConfig.password,
+                });
+
+                return {
+                    redis: redisConfig,
+                    defaultJobOptions: {
+                        removeOnComplete: 100, // Keep last 100 completed jobs
+                        removeOnFail: 200,     // Keep last 200 failed jobs
+                        attempts: 3,
+                        backoff: {
+                            type: 'exponential',
+                            delay: 5000,
+                        },
                     },
-                },
-            }),
+                };
+            },
             inject: [ConfigService],
         }),
     ],
