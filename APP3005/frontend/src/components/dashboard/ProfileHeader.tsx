@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ChevronDown, Plus, X, Settings } from "lucide-react";
 import EditProfileModal from "./EditProfileModal";
+import TermsModal from "../TermsModal";
 import { Dialog, DialogContent, DialogClose } from "@/components/ui/dialog";
 
 interface ProfileHeaderProps {
@@ -18,6 +19,105 @@ interface ProfileHeaderProps {
 const ProfileHeader = ({ user, onUploadClick, onCustomizeClick, onProfileUpdate }: ProfileHeaderProps) => {
     const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
     const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+    const [isTermsModalOpen, setIsTermsModalOpen] = useState(false);
+    const [hasAcceptedTerms, setHasAcceptedTerms] = useState(false);
+    const [isCheckingTerms, setIsCheckingTerms] = useState(true);
+
+    // Check if creator has accepted terms on mount
+    useEffect(() => {
+        checkTermsStatus();
+    }, []);
+
+    const checkTermsStatus = async () => {
+        try {
+            const token = localStorage.getItem('access_token');
+            const response = await fetch(`${import.meta.env.VITE_API_URL}/creators/terms-status`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                },
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                setHasAcceptedTerms(data.accepted);
+            }
+        } catch (error) {
+            console.error('Error checking terms status:', error);
+        } finally {
+            setIsCheckingTerms(false);
+        }
+    };
+
+    const handleUploadClick = () => {
+        if (hasAcceptedTerms) {
+            // Terms already accepted, proceed to upload
+            onUploadClick();
+        } else {
+            // Show terms modal
+            setIsTermsModalOpen(true);
+        }
+    };
+
+    const handleAcceptTerms = async () => {
+        try {
+            const token = localStorage.getItem('access_token');
+
+            if (!token) {
+                alert('Authentication required. Please log in again.');
+                return;
+            }
+
+            console.log('Accepting terms...', {
+                url: `${import.meta.env.VITE_API_URL}/creators/accept-terms`,
+                hasToken: !!token
+            });
+
+            const response = await fetch(`${import.meta.env.VITE_API_URL}/creators/accept-terms`, {
+                method: 'PATCH',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            console.log('Response status:', response.status);
+            const responseText = await response.text();
+            console.log('Response body:', responseText);
+
+            if (response.ok) {
+                setHasAcceptedTerms(true);
+                setIsTermsModalOpen(false);
+                // Proceed to upload
+                onUploadClick();
+            } else {
+                let errorMessage = 'Failed to accept terms. ';
+
+                if (response.status === 401 || response.status === 403) {
+                    errorMessage = 'You need to be logged in as a Creator to accept terms. Please ensure you have creator access.';
+                } else {
+                    try {
+                        const errorData = JSON.parse(responseText);
+                        errorMessage += errorData.message || 'Please try again.';
+                    } catch {
+                        errorMessage += `Status: ${response.status}. Please try again.`;
+                    }
+                }
+
+                alert(errorMessage);
+                console.error('Error response:', {
+                    status: response.status,
+                    body: responseText
+                });
+            }
+        } catch (error) {
+            console.error('Error accepting terms:', error);
+            alert('Network error occurred. Please check your connection and try again.');
+        }
+    };
+
+    const handleDeclineTerms = () => {
+        setIsTermsModalOpen(false);
+    };
 
     return (
         <div className="flex flex-col md:flex-row items-start justify-between mb-8 gap-6 md:gap-0">
@@ -63,8 +163,9 @@ const ProfileHeader = ({ user, onUploadClick, onCustomizeClick, onProfileUpdate 
 
             <div className="flex flex-col gap-2.5 items-end w-full md:w-64">
                 <button
-                    onClick={onUploadClick}
-                    className="w-full flex items-center justify-center gap-2.5 rounded-xl h-11 text-sm font-semibold transition-all duration-300 shadow-sm hover:shadow-md hover:scale-[1.02] border border-[#FFE8B3]/50"
+                    onClick={handleUploadClick}
+                    disabled={isCheckingTerms}
+                    className="w-full flex items-center justify-center gap-2.5 rounded-xl h-11 text-sm font-semibold transition-all duration-300 shadow-sm hover:shadow-md hover:scale-[1.02] border border-[#FFE8B3]/50 disabled:opacity-50 disabled:cursor-not-allowed"
                     style={{
                         background: 'linear-gradient(135deg, #F4E4C1 0%, #FFE8B3 100%)',
                         color: '#1a1a1a',
@@ -72,7 +173,7 @@ const ProfileHeader = ({ user, onUploadClick, onCustomizeClick, onProfileUpdate 
                     }}
                 >
                     <Plus size={18} strokeWidth={2.5} />
-                    <span>Upload Collection</span>
+                    <span>{isCheckingTerms ? 'Loading...' : 'Upload Collection'}</span>
                 </button>
 
                 <div className="flex flex-col gap-2 w-full">
@@ -114,6 +215,12 @@ const ProfileHeader = ({ user, onUploadClick, onCustomizeClick, onProfileUpdate 
                     if (onProfileUpdate) onProfileUpdate();
                     else window.location.reload();
                 }}
+            />
+
+            <TermsModal
+                isOpen={isTermsModalOpen}
+                onAccept={handleAcceptTerms}
+                onDecline={handleDeclineTerms}
             />
 
             <Dialog open={isLightboxOpen} onOpenChange={setIsLightboxOpen}>
