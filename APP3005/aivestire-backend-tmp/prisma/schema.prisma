@@ -45,6 +45,11 @@ model User {
   refresh_token_hash String?
   role UserRole @default(BUYER)
   status             String   @default("active")
+  
+  // Try-on tracking (simple approach)
+  try_ons_used       Int      @default(0)      // How many try-ons used
+  max_try_ons        Int      @default(10)     // Free limit
+  
   created_at         DateTime @default(now())
   last_login         DateTime?
 
@@ -54,6 +59,7 @@ model User {
   aura                Aura?
   product_likes       ProductLike[]
   product_comments    ProductComment[]
+  try_on_history      TryOn[]
 }
 
 model Creator {
@@ -64,9 +70,15 @@ model Creator {
   about        String?
   verified     Boolean  @default(false)
   verification_data Json?
+  
+  // Terms & Conditions tracking
+  terms_accepted    Boolean   @default(false)
+  terms_accepted_at DateTime?
+  terms_version     String?
+  
   created_at   DateTime @default(now())
 
-  user         User     @relation(fields: [user_id], references: [user_id])
+  user         User     @relation(fields: [user_id], references: [user_id], onDelete: Cascade)
   limits       CreatorLimit?
   products     Product[]
 }
@@ -103,6 +115,7 @@ model Product {
   stats           ProductStat?
   likes           ProductLike[]
   comments        ProductComment[]
+  try_ons         TryOn[]
 }
 
 model ProductImage {
@@ -217,7 +230,24 @@ model Aura {
   updated_at            DateTime      @updatedAt
 
   user                  User          @relation(fields: [user_id], references: [user_id])
+  try_ons               TryOn[]
 
   @@index([status])
 }
 
+// Simple try-on tracking
+model TryOn {
+  try_on_id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id          String   @db.Uuid
+  product_id       String   @db.Uuid
+  aura_id          String   @db.Uuid
+  result_image_url String   // AI generated try-on result
+  created_at       DateTime @default(now())
+  
+  user             User     @relation(fields: [user_id], references: [user_id])
+  product          Product  @relation(fields: [product_id], references: [product_id])
+  aura             Aura     @relation(fields: [aura_id], references: [aura_id])
+  
+  @@index([user_id])
+  @@map("try_ons")
+}

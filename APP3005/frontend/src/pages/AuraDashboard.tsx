@@ -3,6 +3,7 @@ import { HeroImageSection } from "@/components/aura/HeroImageSection";
 import { AuraFormCard } from "@/components/aura/AuraFormCard";
 import { ProcessingModal } from "@/components/aura/ProcessingModal";
 import { AuraSuccessState } from "@/components/aura/AuraSuccessState";
+import { useAuraJobPolling } from "@/hooks/useAuraJobPolling";
 
 interface BodyAttributes {
   height?: number;
@@ -16,15 +17,30 @@ interface BodyAttributes {
 
 const AuraDashboard = () => {
   const [isProcessing, setIsProcessing] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [estimatedTime, setEstimatedTime] = useState(20);
   const [isSuccess, setIsSuccess] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | undefined>(undefined);
+  const [jobId, setJobId] = useState<string | null>(null);
+
+  // Use real job polling hook
+  const { jobStatus, isPolling } = useAuraJobPolling(jobId, !!jobId);
+
+  // Calculate progress and estimated time from job status
+  const progress = jobStatus?.progress || 0;
+  const estimatedTime = Math.max(0, Math.ceil((100 - progress) / 5)); // Rough estimate
 
   const handleCreateAura = async (photoFile: File, attributes: BodyAttributes) => {
+    // Get auth token first
+    const token = localStorage.getItem('access_token');
+
+    // Check if user is authenticated
+    if (!token) {
+      alert('Please log in to create your Aura');
+      window.location.href = '/user-login';
+      return;
+    }
+
     setIsProcessing(true);
-    setProgress(0);
-    setEstimatedTime(20);
+    setJobId(null); // Reset job ID
 
     try {
       // Create FormData with photo and attributes
@@ -40,20 +56,6 @@ const AuraDashboard = () => {
       if (attributes.ageRange) formData.append('ageRange', attributes.ageRange);
       if (attributes.hairStyle) formData.append('hairStyle', attributes.hairStyle);
 
-      // Simulate progress while uploading
-      const progressInterval = setInterval(() => {
-        setProgress((prev) => {
-          if (prev >= 90) {
-            return 90; // Stop at 90% until we get response
-          }
-          return prev + 10;
-        });
-        setEstimatedTime((prev) => Math.max(0, prev - 2));
-      }, 1000);
-
-      // Get auth token
-      const token = localStorage.getItem('access_token');
-
       // Call API
       const response = await fetch(`${import.meta.env.VITE_API_URL}/aura`, {
         method: 'POST',
@@ -63,36 +65,65 @@ const AuraDashboard = () => {
         body: formData,
       });
 
-      clearInterval(progressInterval);
-
       if (!response.ok) {
         const error = await response.json();
+
+        // Handle specific error cases
+        if (response.status === 401) {
+          alert('Your session has expired. Please log in again.');
+          localStorage.removeItem('access_token');
+          window.location.href = '/user-login';
+          return;
+        }
+
         throw new Error(error.message || 'Failed to create Aura');
       }
 
       const data = await response.json();
+      console.log('📦 Full API response:', data);
+      console.log('🔑 job_id from response:', data.job_id);
 
-      // Complete progress
-      setProgress(100);
-      setEstimatedTime(0);
+      // Start polling with the job_id from response
+      if (data.job_id) {
+        console.log('✅ Aura creation started, job_id:', data.job_id);
+        setJobId(data.job_id);
+      } else {
+        console.error('❌ No job_id in response! Cannot start polling.');
+        console.error('Response data:', JSON.stringify(data, null, 2));
+      }
 
-      // Notify Navbar to refresh Aura status
-      window.dispatchEvent(new Event('aura-updated'));
-
-      // Show success state
-      setTimeout(() => {
-        setIsProcessing(false);
-        setIsSuccess(true);
-        setAvatarUrl(data.image_url);
-      }, 500);
+      // Note: isProcessing will be managed by polling status below
 
     } catch (error) {
       console.error('Error creating Aura:', error);
       setIsProcessing(false);
-      setProgress(0);
+      setJobId(null);
       alert(error instanceof Error ? error.message : 'Failed to create Aura. Please try again.');
     }
   };
+
+  // Handle job completion
+  if (jobStatus?.status === 'completed' && isProcessing) {
+    console.log('✅ Avatar generation completed!');
+
+    // Notify Navbar to refresh Aura status
+    window.dispatchEvent(new Event('aura-updated'));
+
+    // Redirect to profile page
+    setTimeout(() => {
+      setIsProcessing(false);
+      setJobId(null);
+      window.location.href = '/aura-profile';
+    }, 1000);
+  }
+
+  // Handle job failure
+  if (jobStatus?.status === 'failed' && isProcessing) {
+    console.error('❌ Avatar generation failed:', jobStatus.error);
+    setIsProcessing(false);
+    setJobId(null);
+    alert('Avatar generation failed. Please try again.');
+  }
 
   return (
     <div className="min-h-screen flex flex-col lg:flex-row overflow-hidden">

@@ -7,12 +7,16 @@ import {
     Body,
     BadRequestException,
     Get,
+    Patch,
+    Delete,
+    Param,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { AuraService } from './aura.service';
 import { CreateAuraDto } from './dto/create-aura.dto';
+import { UpdateAuraDto } from './dto/update-aura.dto';
 
 @Controller('aura')
 @UseGuards(JwtAuthGuard)
@@ -51,9 +55,27 @@ export class AuraController {
         return this.auraService.hasAura(userId);
     }
 
+    @Get('job/:jobId')
+    async getJobStatus(@Param('jobId') jobId: string) {
+        return this.auraService.getJobStatus(jobId);
+    }
+
     @Get()
     async getMyAura(@CurrentUser('user_id') userId: string) {
         return this.auraService.getAuraByUserId(userId);
+    }
+
+    @Patch()
+    async updateAura(
+        @CurrentUser('user_id') userId: string,
+        @Body() updateAuraDto: UpdateAuraDto,
+    ) {
+        return this.auraService.updateAura(userId, updateAuraDto);
+    }
+
+    @Delete()
+    async deleteAura(@CurrentUser('user_id') userId: string) {
+        return this.auraService.deleteAura(userId);
     }
 }
 

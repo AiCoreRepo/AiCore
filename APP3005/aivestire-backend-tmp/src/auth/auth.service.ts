@@ -221,6 +221,8 @@ export class AuthService {
         email: user.email,
         role: user.role,
         store_name: user.creatorProfile.store_name,
+        try_ons_used: user.try_ons_used,
+        max_try_ons: user.max_try_ons,
         // Add other creator-specific fields you might need
       };
     }
@@ -230,6 +232,8 @@ export class AuthService {
       user_id: user.user_id,
       email: user.email,
       role: user.role,
+      try_ons_used: user.try_ons_used,
+      max_try_ons: user.max_try_ons,
     };
   }
 
