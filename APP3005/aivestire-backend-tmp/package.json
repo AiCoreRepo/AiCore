@@ -21,7 +21,10 @@
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "script:create-admin": "ts-node scripts/create-admin.ts",
     "script:check-db": "ts-node scripts/check-db-status.ts",
-    "script:migrate-draft": "ts-node scripts/migrate-products-to-draft.ts"
+    "script:migrate-draft": "ts-node scripts/migrate-products-to-draft.ts",
+    "script:cleanup-users": "ts-node scripts/cleanup-users.ts",
+    "prisma:generate": "npx prisma generate",
+    "postinstall": "npx prisma generate"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
