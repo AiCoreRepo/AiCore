@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, OnModuleInit } from '@nestjs/common';
 import { BullModule } from '@nestjs/bull';
 import { AuraController } from './aura.controller';
 import { AuraService } from './aura.service';
@@ -26,5 +26,10 @@ import { QUEUE_NAMES } from '../common/constants/queue.constants';
     ],
     exports: [AuraService],
 })
-export class AuraModule { }
+export class AuraModule implements OnModuleInit {
+    onModuleInit() {
+        console.log('🚀 [AuraModule] Module initialized with queue:', QUEUE_NAMES.AURA_GENERATION);
+        console.log('🚀 [AuraModule] Processor should be registered now');
+    }
+}
 
