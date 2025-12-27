@@ -1,3 +1,4 @@
+import { Injectable } from '@nestjs/common';
 import { Processor, Process } from '@nestjs/bull';
 import type bull from 'bull';
 import { PrismaService } from '../prisma/prisma.service';
@@ -7,6 +8,7 @@ import { AuraJobData } from './aura-queue.service';
 import { AuraStatus } from '@prisma/client';
 import { QUEUE_NAMES, JOB_NAMES } from '../common/constants/queue.constants';
 
+@Injectable()
 @Processor(QUEUE_NAMES.AURA_GENERATION)
 export class AuraProcessor {
     constructor(
