@@ -13,7 +13,9 @@ export class AuraProcessor {
         private readonly prisma: PrismaService,
         private readonly cloudinary: CloudinaryService,
         private readonly geminiAI: GeminiAIService,
-    ) { }
+    ) {
+        console.log('✅ [AuraProcessor] Processor initialized for queue:', QUEUE_NAMES.AURA_GENERATION);
+    }
 
     @Process(JOB_NAMES.GENERATE_AVATARS)
     async handleAuraGeneration(job: bull.Job<AuraJobData>) {
