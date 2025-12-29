@@ -1,0 +1,11 @@
+services:
+  api:
+    build: .
+    container_name: vertex-vt-api
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      VERTEX_TOKEN: ${VERTEX_TOKEN:-}
+    restart: unless-stopped

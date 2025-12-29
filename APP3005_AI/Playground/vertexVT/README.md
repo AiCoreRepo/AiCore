@@ -12,7 +12,7 @@ uv run streamlit run app.py
 If you prefer pip/venv, use `python -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt` then `streamlit run app.py`.
 
 - Make sure you are authenticated with gcloud (`gcloud auth application-default login`).
-- Optionally set `VERTEX_TOKEN` or `ACCESS_TOKEN` if you prefer to pass a token via environment instead of letting the app call `gcloud auth print-access-token`.
+- Optionally set `VERTEX_TOKEN` if you prefer to pass a token via environment instead of letting the app call `gcloud auth print-access-token`.
 
 ## Using the app
 
@@ -23,6 +23,50 @@ If you prefer pip/venv, use `python -m venv .venv && source .venv/bin/activate &
 
 The app automatically base64-encodes the uploaded images and POSTs to:
 `https://LOCATION-aiplatform.googleapis.com/v1/projects/PROJECT_ID/locations/LOCATION/publishers/google/models/MODEL_ID:predict`.
+
+## FastAPI backend (JPEG in → base64 out)
+
+Run locally (uv):
+
+```bash
+uv sync  # or pip install -r requirements.txt
+uv run uvicorn api:app --host 0.0.0.0 --port 8000
+```
+
+Auth via env:
+
+```bash
+cp .env.example .env
+# set VERTEX_TOKEN, VERTEX_PROJECT_ID, VERTEX_MODEL_ID, and optionally VERTEX_LOCATION
+# quickest way: VERTEX_TOKEN=$(gcloud auth print-access-token) and paste into .env
+uv run uvicorn api:app --reload --port 8000
+```
+
+Sample curl:
+
+```bash
+curl -X POST http://localhost:8000/vertex/try-on \
+  -F "person_image=@avatar.jpg;type=image/jpeg" \
+  -F "garment_image=@garment.jpg;type=image/jpeg"
+```
+
+## Run with Docker (uses uv inside the image)
+
+```bash
+docker build -t vertex-vt-api .
+docker run --rm -p 8000:8000 --env-file .env vertex-vt-api
+```
+
+## Run with Docker Compose
+
+```bash
+cp .env.example .env   # add your VERTEX_TOKEN, VERTEX_PROJECT_ID, VERTEX_MODEL_ID
+docker compose up --build
+```
+
+API docs will be available at `http://localhost:8000/docs`.
+
+If you see dependency downloads each build, make sure Docker BuildKit is enabled (default on recent Docker). The Dockerfile uses a cache mount so package wheels are reused across builds as long as `requirements.txt` doesn't change.
 
 direct command gemini vt
 cd AiCore/APP3005_AI/Playground/"Gemini 2.5"

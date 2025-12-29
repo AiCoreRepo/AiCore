@@ -5,8 +5,11 @@ description = "Streamlit UI to call the Vertex AI virtual try-on model."
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-    "streamlit>=1.27.0",
+    "fastapi>=0.111.0",
+    "python-multipart>=0.0.9",
     "requests>=2.31.0",
+    "streamlit>=1.27.0",
+    "uvicorn[standard]>=0.30.0",
 ]
 
 [dependency-groups]

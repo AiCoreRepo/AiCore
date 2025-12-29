@@ -18,7 +18,7 @@ def get_access_token(manual_token: str) -> Optional[str]:
     if manual_token:
         return manual_token.strip()
 
-    env_token = os.environ.get("VERTEX_TOKEN") or os.environ.get("ACCESS_TOKEN")
+    env_token = os.environ.get("VERTEX_TOKEN")
     if env_token:
         return env_token.strip()
 
