@@ -7,6 +7,12 @@ import requests
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel
 
+from google import genai
+from google.genai import types
+from dotenv import load_dotenv
+
+# Load environment variables from a .env file for local runs.
+load_dotenv()
 
 app = FastAPI(
     title="Vertex AI Virtual Try-On API",
@@ -20,6 +26,12 @@ class TryOnResponse(BaseModel):
     predictions: List[Dict]
     model_id: str
     mime_type: str
+
+
+class GeminiResponse(BaseModel):
+    images_base64: List[str]
+    texts: List[str]
+    model_id: str
 
 
 def _get_access_token(manual_token: Optional[str]) -> Optional[str]:
@@ -60,6 +72,107 @@ def _encode_bytes(data: bytes) -> str:
     if not data:
         raise HTTPException(status_code=400, detail="Uploaded file is empty.")
     return base64.b64encode(data).decode("utf-8")
+
+
+def _require_api_key() -> str:
+    api_key = os.environ.get("GEMINI_API_KEY")
+    if not api_key:
+        raise HTTPException(
+            status_code=401,
+            detail="GEMINI_API_KEY is required in the environment for Gemini calls.",
+        )
+    return api_key.strip()
+
+
+async def _read_jpeg(upload: UploadFile, field_name: str) -> bytes:
+    if upload.content_type not in ("image/jpeg", "image/jpg"):
+        raise HTTPException(
+            status_code=415,
+            detail=f"{field_name} must be image/jpeg; got {upload.content_type}.",
+        )
+    data = await upload.read()
+    if not data:
+        raise HTTPException(status_code=400, detail=f"{field_name} is empty.")
+    return data
+
+
+@app.post(
+    "/gemini/try-on",
+    response_model=GeminiResponse,
+    summary="Run Gemini 2.5 Flash try-on",
+    tags=["gemini"],
+    description="Uploads two JPEGs (person_image + garment_image) to Gemini 2.5 Flash Image Preview and returns base64 images.",
+    openapi_extra={
+        "requestBody": {
+            "content": {
+                "multipart/form-data": {
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "person_image": {"type": "string", "format": "binary"},
+                            "garment_image": {"type": "string", "format": "binary"},
+                            "prompt": {
+                                "type": "string",
+                                "example": "Put the clothing from the second image onto the person in the first image.",
+                            },
+                        },
+                        "required": ["person_image", "garment_image"],
+                    }
+                }
+            }
+        }
+    },
+)
+async def gemini_try_on(
+    person_image: UploadFile = File(..., description="JPEG person image"),
+    garment_image: UploadFile = File(..., description="JPEG garment image"),
+    prompt: str = Form(
+        "Put the clothing/garment from the second image onto the person in the first image. Match pose, lighting, and proportions.",
+        description="Optional prompt; uses default if omitted.",
+    ),
+) -> GeminiResponse:
+    api_key = _require_api_key()
+    person_bytes = await _read_jpeg(person_image, "person_image")
+    garment_bytes = await _read_jpeg(garment_image, "garment_image")
+
+    client = genai.Client(api_key=api_key)
+    model_id = "gemini-2.5-flash-image-preview"
+
+    contents = [
+        types.Part(inline_data=types.Blob(data=person_bytes, mime_type="image/jpeg")),
+        types.Part(inline_data=types.Blob(data=garment_bytes, mime_type="image/jpeg")),
+        types.Part.from_text(text=prompt),
+    ]
+
+    try:
+        response = client.models.generate_content(
+            model=model_id,
+            contents=contents,
+            config=types.GenerateContentConfig(response_modalities=["IMAGE", "TEXT"]),
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Gemini request failed: {exc}") from exc
+
+    images: List[str] = []
+    texts: List[str] = []
+
+    if response and response.candidates:
+        for cand in response.candidates:
+            if not cand.content or not cand.content.parts:
+                continue
+            for part in cand.content.parts:
+                if part.inline_data and part.inline_data.data:
+                    images.append(base64.b64encode(part.inline_data.data).decode("utf-8"))
+                if part.text:
+                    texts.append(part.text)
+
+    if not images:
+        raise HTTPException(
+            status_code=502,
+            detail="Gemini call succeeded but no image data was returned.",
+        )
+
+    return GeminiResponse(images_base64=images, texts=texts, model_id=model_id)
 
 
 def _build_parameters(

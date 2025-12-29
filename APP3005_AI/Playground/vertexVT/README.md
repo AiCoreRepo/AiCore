@@ -42,6 +42,36 @@ cp .env.example .env
 uv run uvicorn api:app --reload --port 8000
 ```
 
+Single-shot run (env + server) in one line:
+
+```bash
+VERTEX_TOKEN=$(gcloud auth print-access-token) \
+VERTEX_PROJECT_ID=project-e849184b-cc5d-4f74-93b \
+VERTEX_MODEL_ID=virtual-try-on-preview-08-04 \
+VERTEX_LOCATION=us-central1 \
+GEMINI_API_KEY=your-gemini-key \
+uv run uvicorn api:app --host 0.0.0.0 --port 8000
+```
+
+### Gemini 2.5 Flash endpoint
+
+Env: set `GEMINI_API_KEY` (from Google AI Studio) plus the Vertex envs above if you’re also using Vertex.
+
+```bash
+uv sync
+uv run uvicorn api:app --host 0.0.0.0 --port 8000
+```
+
+Curl:
+
+```bash
+curl -X POST http://localhost:8000/gemini/try-on \
+  -F "person_image=@avatar.jpg;type=image/jpeg" \
+  -F "garment_image=@garment.jpg;type=image/jpeg" \
+  -F "prompt=Put the clothing from the second image onto the person in the first image."
+```
+(API key comes from `GEMINI_API_KEY` in the environment; no header needed.)
+
 Sample curl:
 
 ```bash
