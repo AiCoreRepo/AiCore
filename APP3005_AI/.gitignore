@@ -21,3 +21,8 @@ coverage.xml
 .env
 .env.*.local
 .streamlit/
+
+# Local datasets / media
+Playground/Recommendation/data/images/
+Playground/Recommendation/archive/images/
+Playground/Recommendation/archive/myntradataset/images/

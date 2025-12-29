@@ -1,0 +1,19 @@
+[project]
+name = "streamlit-recommendation-validation"
+version = "0.1.0"
+description = "Step 1: Front-facing full-body validation for the recommendation pipeline."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "streamlit>=1.33.0",
+    "pillow>=10.0.0",
+    "numpy>=1.26.0",
+]
+
+[dependency-groups]
+dev = []
+embed = [
+    "open_clip_torch>=2.24.0",
+    "torch>=2.2.0",
+    "torchvision>=0.17.0",
+]
