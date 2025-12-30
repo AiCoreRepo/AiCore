@@ -1,0 +1,51 @@
+export enum AIProvider {
+    VERTEX_AI = 'VERTEX_AI',
+    GEMINI_AI = 'GEMINI_AI',
+}
+
+export enum TryOnStatus {
+    PENDING = 'PENDING',
+    PROCESSING = 'PROCESSING',
+    SUCCESS = 'SUCCESS',
+    FAILED = 'FAILED',
+}
+
+export enum ImageType {
+    AVATAR = 'AVATAR',
+    CLOTHING = 'CLOTHING',
+}
+
+export enum SupportedImageFormat {
+    JPEG = 'image/jpeg',
+    PNG = 'image/png',
+    WEBP = 'image/webp',
+}
+
+export enum TryOnErrorCode {
+    // Validation Errors (400)
+    INVALID_IMAGE_FORMAT = 'INVALID_IMAGE_FORMAT',
+    IMAGE_TOO_LARGE = 'IMAGE_TOO_LARGE',
+    IMAGE_TOO_SMALL = 'IMAGE_TOO_SMALL',
+    CORRUPTED_IMAGE = 'CORRUPTED_IMAGE',
+    MISSING_REQUIRED_FIELD = 'MISSING_REQUIRED_FIELD',
+    INVALID_DIMENSIONS = 'INVALID_DIMENSIONS',
+
+    // Authentication Errors (401)
+    INVALID_API_KEY = 'INVALID_API_KEY',
+    AUTHENTICATION_FAILED = 'AUTHENTICATION_FAILED',
+
+    // Rate Limiting (429)
+    RATE_LIMIT_EXCEEDED = 'RATE_LIMIT_EXCEEDED',
+    QUOTA_EXCEEDED = 'QUOTA_EXCEEDED',
+
+    // Service Errors (500-504)
+    AI_SERVICE_ERROR = 'AI_SERVICE_ERROR',
+    SERVICE_UNAVAILABLE = 'SERVICE_UNAVAILABLE',
+    TIMEOUT_ERROR = 'TIMEOUT_ERROR',
+    PROCESSING_FAILED = 'PROCESSING_FAILED',
+    UNKNOWN_ERROR = 'UNKNOWN_ERROR',
+
+    // Configuration Errors
+    MISSING_CONFIGURATION = 'MISSING_CONFIGURATION',
+    INVALID_CONFIGURATION = 'INVALID_CONFIGURATION',
+}
