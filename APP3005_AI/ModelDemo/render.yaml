@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: "model-demo"
+    pythonVersion: 3.11
+    env: python
+    
+    # Render will cd into this folder
+    rootDir: APP3005_AI/ModelDemo
+
+    # requirements.txt is in the same folder as app.py
+    buildCommand: pip install -r requirements.txt
+
+    startCommand: streamlit run app.py --server.port $PORT --server.address 0.0.0.0

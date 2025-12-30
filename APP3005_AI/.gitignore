@@ -1,0 +1,28 @@
+# Python / venv
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+.python-version
+
+# Tooling caches
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+
+# Editors / OS
+.DS_Store
+.idea/
+.vscode/
+
+# Env / app secrets
+.env
+.env.*.local
+.streamlit/
+
+# Local datasets / media
+Playground/Recommendation/data/images/
+Playground/Recommendation/archive/images/
+Playground/Recommendation/archive/myntradataset/images/

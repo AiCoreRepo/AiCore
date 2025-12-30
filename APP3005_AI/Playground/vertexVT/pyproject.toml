@@ -1,0 +1,18 @@
+[project]
+name = "vertex-virtual-tryon"
+version = "0.1.0"
+description = "Streamlit UI to call the Vertex AI virtual try-on model."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi>=0.111.0",
+    "google-genai>=0.3.0",
+    "python-dotenv>=1.0.1",
+    "python-multipart>=0.0.9",
+    "requests>=2.31.0",
+    "streamlit>=1.27.0",
+    "uvicorn[standard]>=0.30.0",
+]
+
+[dependency-groups]
+dev = []
