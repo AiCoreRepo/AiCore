@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
 import { VertexTryOnService } from './providers/vertex-tryon.service';
 import { GeminiTryOnService } from './providers/gemini-tryon.service';
+import { CloudinaryService } from '../../common/cloudinary.service'; // Corrected path for CloudinaryService
 import { Aura } from '@prisma/client';
 import { TryOnResponseDto } from '../dto/tryon-response.dto';
 import { AIProvider, TryOnStatus } from '../enums/ai-provider.enum';
@@ -21,6 +22,7 @@ export class TryOn3DService {
         private readonly vertexService: VertexTryOnService,
         private readonly geminiService: GeminiTryOnService,
         private readonly configService: ConfigService,
+        private readonly cloudinaryService: CloudinaryService, // Injected CloudinaryService
     ) {
         // Get Gemini angles endpoint from environment
         this.geminiAnglesUrl =
@@ -80,15 +82,32 @@ export class TryOn3DService {
         auraId: string,
         resultImageUrl: string,
     ) {
-        // Save try-on result
+        this.logger.log(`💾 Saving try-on result to database...`);
+        this.logger.log(`💾 User: ${userId}, Product: ${productId}, Aura: ${auraId}`);
+
+        // Upload image to Cloudinary
+        let cloudinaryUrl: string;
+        try {
+            this.logger.log(`☁️ Uploading try-on image to Cloudinary...`);
+            cloudinaryUrl = await this.cloudinaryService.uploadImage(resultImageUrl);
+            this.logger.log(`✅ Image uploaded to Cloudinary: ${cloudinaryUrl}`);
+        } catch (error) {
+            this.logger.error(`Failed to upload to Cloudinary: ${error.message}`);
+            // Fallback to base64 if Cloudinary upload fails
+            cloudinaryUrl = resultImageUrl;
+        }
+
+        // Save try-on result with Cloudinary URL
         const tryOn = await this.prisma.tryOn.create({
             data: {
                 user_id: userId,
                 product_id: productId,
                 aura_id: auraId,
-                result_image_url: resultImageUrl,
+                result_image_url: cloudinaryUrl,
             },
         });
+
+        this.logger.log(` Try-on saved with ID: ${tryOn.try_on_id}`);
 
         // Increment user's try-on counter
         await this.prisma.user.update({
@@ -107,7 +126,18 @@ export class TryOn3DService {
         clothingItemId: string,
         additionalParams?: Record<string, any>,
     ): Promise<TryOnResponseDto> {
-        this.logger.log(`Processing 3D Vertex try-on for user ${aura.user_id}`);
+        this.logger.log(`🔵 VERTEX AI - Processing 3D try-on for user ${aura.user_id}`);
+        this.logger.log(`🔵 VERTEX AI - Using Vertex AI for initial try-on (no background)`);
+
+        // Validate that avatar has been generated
+        if (!aura.model_url) {
+            throw new HttpException(
+                'Avatar has not been generated yet. Please wait for avatar generation to complete.',
+                HttpStatus.BAD_REQUEST,
+            );
+        }
+
+        this.logger.log(`✅ Using generated avatar: ${aura.model_url}`);
 
         // Get clothing item
         const { product, imageUrl: clothingImageUrl } = await this.getClothingItem(clothingItemId);
@@ -132,9 +162,9 @@ export class TryOn3DService {
             aura_attributes: auraAttributes,
         };
 
-        // Call Vertex service
+        // Call Vertex service with GENERATED AVATAR (model_url) instead of original image
         const result = await this.vertexService.processTryOn(
-            aura.image_url!,
+            aura.model_url!,
             clothingImageUrl,
             enhancedParams,
         );
@@ -160,7 +190,18 @@ export class TryOn3DService {
         clothingItemId: string,
         additionalParams?: Record<string, any>,
     ): Promise<TryOnResponseDto> {
-        this.logger.log(`Processing 3D Gemini try-on for user ${aura.user_id}`);
+        this.logger.log(`🟢 GEMINI AI - Processing 3D try-on for user ${aura.user_id}`);
+        this.logger.log(`🟢 GEMINI AI - Using Gemini AI for try-on with background`);
+
+        // Validate that avatar has been generated
+        if (!aura.model_url) {
+            throw new HttpException(
+                'Avatar has not been generated yet. Please wait for avatar generation to complete.',
+                HttpStatus.BAD_REQUEST,
+            );
+        }
+
+        this.logger.log(`✅ Using generated avatar: ${aura.model_url}`);
 
         // Get clothing item
         const { product, imageUrl: clothingImageUrl } = await this.getClothingItem(clothingItemId);
@@ -185,9 +226,9 @@ export class TryOn3DService {
             aura_attributes: auraAttributes,
         };
 
-        // Call Gemini service
+        // Call Gemini service with GENERATED AVATAR (model_url) instead of original image
         const result = await this.geminiService.processTryOn(
-            aura.image_url!,
+            aura.model_url!,
             clothingImageUrl,
             enhancedParams,
         );
@@ -210,10 +251,12 @@ export class TryOn3DService {
      */
     async generateMoreAngles(
         aura: Aura,
+        productId: string,
         previousImageUrl: string,
         additionalParams?: Record<string, any>,
     ): Promise<TryOnResponseDto> {
-        this.logger.log(`Generating more angles for user ${aura.user_id}`);
+        this.logger.log(`🟢 GEMINI AI - Generating more angles for user ${aura.user_id}`);
+        this.logger.log(`🟢 GEMINI AI - Using Gemini AI for angle generation`);
 
         try {
             // Extract base64 data from previous image
@@ -271,9 +314,25 @@ export class TryOn3DService {
 
             this.logger.log('✅ More angles generated successfully');
 
-            // Note: We don't save angle generation results to database
-            // as they don't have a specific product_id associated
-            // You can modify this if you want to track angle generations
+            // Upload angle-generated image to Cloudinary and save to database
+            try {
+                this.logger.log(`☁️ Uploading angle-generated image to Cloudinary...`);
+                const cloudinaryUrl = await this.cloudinaryService.uploadImage(resultImage);
+                this.logger.log(`✅ Angle image uploaded to Cloudinary: ${cloudinaryUrl}`);
+
+                const savedTryOn = await this.prisma.tryOn.create({
+                    data: {
+                        user_id: aura.user_id,
+                        aura_id: aura.aura_id,
+                        product_id: productId,
+                        result_image_url: cloudinaryUrl,
+                    },
+                });
+                this.logger.log(`💾 Saved angle-generated image to database: ${savedTryOn.try_on_id}`);
+            } catch (error) {
+                this.logger.error(`Failed to save angle-generated image: ${error.message}`);
+                // Don't fail the request if save fails
+            }
 
             return {
                 success: true,
@@ -300,6 +359,60 @@ export class TryOn3DService {
             this.logger.error(`Angle generation error: ${error.message}`);
             throw new HttpException(
                 `Failed to generate more angles: ${error.message}`,
+                HttpStatus.INTERNAL_SERVER_ERROR,
+            );
+        }
+    }
+
+    /**
+     * Get user's try-on history
+     */
+    async getTryOnHistory(userId: string) {
+        try {
+            this.logger.log(`📸 Fetching try-on history for user: ${userId}`);
+            this.logger.log(`📸 Query filter: { user_id: "${userId}" }`);
+
+            const tryOns = await this.prisma.tryOn.findMany({
+                where: { user_id: userId },
+                include: {
+                    product: {
+                        select: {
+                            product_id: true,
+                            title: true,
+                            images: {
+                                where: { is_primary: true },
+                                take: 1,
+                            },
+                        },
+                    },
+                },
+                orderBy: { created_at: 'desc' },
+                take: 50, // Limit to last 50 try-ons
+            });
+
+            this.logger.log(`📸 Found ${tryOns.length} try-ons in database for user ${userId}`);
+
+            if (tryOns.length > 0) {
+                this.logger.log(`📸 First try-on: ${tryOns[0].try_on_id}, Product: ${tryOns[0].product.title}`);
+            }
+
+            return {
+                success: true,
+                tryOns: tryOns.map(tryOn => ({
+                    tryOnId: tryOn.try_on_id,
+                    productId: tryOn.product_id,
+                    productTitle: tryOn.product.title,
+                    productImage: tryOn.product.images[0]?.url || null,
+                    resultImage: tryOn.result_image_url,
+                    createdAt: tryOn.created_at,
+                })),
+                count: tryOns.length,
+            };
+        } catch (error) {
+            this.logger.error(`Failed to fetch try-on history: ${error.message}`);
+            this.logger.error(`Error stack: ${error.stack}`);
+            throw new HttpException(
+                'Failed to fetch try-on history',
                 HttpStatus.INTERNAL_SERVER_ERROR,
             );
         }
