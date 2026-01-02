@@ -1,0 +1,23 @@
+// Fun, engaging quotes that rotate during loading
+export const LOADING_QUOTES = [
+    "✨ Crafting your digital twin...",
+    "🔥 Making sure this fit is fire...",
+    "💫 Sprinkling some AI magic...",
+    "👗 Checking if this outfit slays...",
+    "💧 Teaching AI what drip means...",
+    "🌟 Summoning fashion gods...",
+    "📸 AI is choosing the perfect angle...",
+    "💃 Making sure you're runway-ready...",
+    "🎨 Mixing pixels with style...",
+    "✨ Your digital glow-up incoming...",
+    "⏳ Greatness takes time...",
+    "🌟 Almost there, fashionista!",
+    "📊 Calculating your style score...",
+    "🎭 Creating your fashion moment...",
+    "💎 Polishing your virtual look...",
+    "🚀 Launching your style into orbit...",
+    "🎪 The fashion show is about to begin...",
+    "🌈 Adding that extra sparkle...",
+    "🔮 Predicting your next viral fit...",
+    "⚡ Charging up the style meter...",
+];

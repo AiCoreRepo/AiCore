@@ -93,6 +93,21 @@ const UserSignup = () => {
                     </div>
 
                     <div className="space-y-2">
+                        <Label htmlFor="dateOfBirth" className="text-luxury-cream">
+                            Date of Birth
+                        </Label>
+                        <Input
+                            id="dateOfBirth"
+                            type="date"
+                            {...register("dateOfBirth")}
+                            className="bg-white border-luxury-charcoal text-charcoal placeholder:text-gray-400 focus:border-luxury-gold focus:ring-luxury-gold transition-all duration-300"
+                        />
+                        {errors.dateOfBirth && (
+                            <p className="text-sm text-destructive">{errors.dateOfBirth.message}</p>
+                        )}
+                    </div>
+
+                    <div className="space-y-2">
                         <Label htmlFor="email" className="text-luxury-cream">
                             Email Address
                         </Label>
@@ -123,7 +138,7 @@ const UserSignup = () => {
                             <button
                                 type="button"
                                 onClick={() => setShowPassword(!showPassword)}
-                                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-luxury-gold transition-colors"
+                                className="absolute right-1 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-luxury-gold transition-colors z-10 cursor-pointer p-2"
                             >
                                 {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                             </button>
@@ -148,7 +163,7 @@ const UserSignup = () => {
                             <button
                                 type="button"
                                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-luxury-gold transition-colors"
+                                className="absolute right-1 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-luxury-gold transition-colors z-10 cursor-pointer p-2"
                             >
                                 {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                             </button>

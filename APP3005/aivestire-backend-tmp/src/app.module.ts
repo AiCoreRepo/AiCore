@@ -12,6 +12,7 @@ import { ApprovalsModule } from './approvals/approvals.module';
 import { CreatorDashboardModule } from './creator-dashboard/creator-dashboard.module';
 import { AuraModule } from './aura/aura.module';
 import { AdminModule } from './admin/admin.module';
+import { AiTryOnModule } from './ai-tryon/ai-tryon.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { AdminModule } from './admin/admin.module';
     CreatorDashboardModule,
     AuraModule,
     AdminModule,
+    AiTryOnModule,
   ],
   controllers: [AppController],
   providers: [AppService],

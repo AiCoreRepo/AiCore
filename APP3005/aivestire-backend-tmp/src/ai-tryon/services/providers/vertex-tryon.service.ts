@@ -31,7 +31,7 @@ export class VertexTryOnService extends BaseTryOnService {
         // Get FastAPI service URL from environment
         this.fastApiUrl =
             this.configService.get<string>('FASTAPI_VERTEX_URL') ||
-            'http://localhost:8000/vertex/try-on';
+            'http://localhost:8000/vertex/try-on-json';
 
         this.fastApiEnabled = !!this.configService.get<string>('FASTAPI_VERTEX_URL');
 
@@ -53,12 +53,13 @@ export class VertexTryOnService extends BaseTryOnService {
         if (!this.fastApiEnabled) {
             throw new ConfigurationException(
                 'Vertex FastAPI service is not configured. Please set FASTAPI_VERTEX_URL in environment variables.',
-                { expectedUrl: 'http://localhost:8000/vertex/try-on' },
+                { expectedUrl: 'http://localhost:8000/vertex/try-on-json' },
             );
         }
 
         try {
-            this.logger.log(' Calling FastAPI Vertex service...');
+            this.logger.log('🔵 VERTEX AI - Starting try-on process...');
+            this.logger.log('🔵 VERTEX AI - Calling FastAPI Vertex service...');
 
             // Extract base64 data (remove data URI prefix if present)
             const avatarData = this.extractBase64Data(avatarBase64);
@@ -98,7 +99,8 @@ export class VertexTryOnService extends BaseTryOnService {
                 );
             }
 
-            this.logger.log('✅ Virtual try-on generated successfully via FastAPI');
+            this.logger.log('✅ VERTEX AI - Virtual try-on generated successfully!');
+            this.logger.log(`🔵 VERTEX AI - Processing completed in ${Date.now() - Date.now()}ms`);
 
             // Return result image (add data URI prefix if not present)
             const resultImage = result.result_image;

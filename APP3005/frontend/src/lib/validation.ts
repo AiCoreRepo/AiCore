@@ -21,6 +21,15 @@ export const signupSchema = z
       .trim()
       .min(1, { message: "Brand name is required" })
       .max(100, { message: "Brand name must be less than 100 characters" }),
+    dateOfBirth: z
+      .string()
+      .min(1, { message: "Date of birth is required" })
+      .refine((date) => {
+        const birthDate = new Date(date);
+        const today = new Date();
+        const age = today.getFullYear() - birthDate.getFullYear();
+        return age >= 13;
+      }, { message: "You must be at least 13 years old" }),
     email: z
       .string()
       .trim()

@@ -184,9 +184,9 @@ const UploadCollectionModal = ({ open, onOpenChange, onSuccess, initialData }: U
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="dashboard-theme bg-foreground text-primary-foreground max-w-4xl max-h-[90vh] overflow-y-auto border border-gold/20">
+            <DialogContent className="bg-gradient-to-br from-luxury-cream via-white to-luxury-cream/80 text-luxury-charcoal max-w-4xl max-h-[90vh] overflow-y-auto border-2 border-luxury-gold shadow-2xl">
                 <DialogHeader>
-                    <DialogTitle className="text-2xl font-serif text-primary-foreground">
+                    <DialogTitle className="text-3xl font-serif text-luxury-charcoal bg-gradient-to-r from-luxury-gold to-amber-600 bg-clip-text text-transparent">
                         {initialData ? "Edit Collection" : "Upload New Collection"}
                     </DialogTitle>
                 </DialogHeader>
@@ -196,8 +196,8 @@ const UploadCollectionModal = ({ open, onOpenChange, onSuccess, initialData }: U
                     <form onSubmit={handleSubmit} className="space-y-5">
                         {/* Product Title */}
                         <div>
-                            <label className="block text-sm font-medium mb-2">
-                                Product Title <span className="text-gold">*</span>
+                            <label className="block text-sm font-medium mb-2 text-luxury-charcoal">
+                                Product Title <span className="text-luxury-gold">*</span>
                             </label>
                             <input
                                 type="text"
@@ -205,39 +205,39 @@ const UploadCollectionModal = ({ open, onOpenChange, onSuccess, initialData }: U
                                 placeholder="e.g., Elegant Summer Dress"
                                 value={formData.title}
                                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                                className="w-full px-4 py-3 bg-muted-foreground/20 border border-gold/50 rounded-lg text-primary-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-gold"
+                                className="w-full px-4 py-3 bg-white border-2 border-luxury-gold/30 rounded-lg text-luxury-charcoal placeholder:text-gray-400 focus:outline-none focus:border-luxury-gold focus:ring-2 focus:ring-luxury-gold/20 transition-all"
                             />
                         </div>
 
                         {/* Description */}
                         <div>
-                            <label className="block text-sm font-medium mb-2">Description</label>
+                            <label className="block text-sm font-medium mb-2 text-luxury-charcoal">Description</label>
                             <textarea
                                 placeholder="Describe your product..."
                                 rows={4}
                                 value={formData.description}
                                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                                className="w-full px-4 py-3 bg-muted-foreground/20 border border-muted-foreground/30 rounded-lg text-primary-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-gold resize-none"
+                                className="w-full px-4 py-3 bg-white border-2 border-luxury-gold/30 rounded-lg text-luxury-charcoal placeholder:text-gray-400 focus:outline-none focus:border-luxury-gold focus:ring-2 focus:ring-luxury-gold/20 resize-none transition-all"
                             />
                         </div>
 
                         {/* Inventory Count */}
                         <div>
-                            <label className="block text-sm font-medium mb-2">Inventory Count</label>
+                            <label className="block text-sm font-medium mb-2 text-luxury-charcoal">Inventory Count</label>
                             <input
                                 type="number"
                                 min="0"
                                 value={formData.inventory}
                                 onChange={(e) => setFormData({ ...formData, inventory: e.target.value })}
-                                className="w-full px-4 py-3 bg-muted-foreground/20 border border-muted-foreground/30 rounded-lg text-primary-foreground focus:outline-none focus:border-gold"
+                                className="w-full px-4 py-3 bg-white border-2 border-luxury-gold/30 rounded-lg text-luxury-charcoal focus:outline-none focus:border-luxury-gold focus:ring-2 focus:ring-luxury-gold/20 transition-all"
                             />
                         </div>
 
                         {/* Price and Currency */}
                         <div className="grid grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-sm font-medium mb-2">
-                                    Price (₹) <span className="text-gold">*</span>
+                                <label className="block text-sm font-medium mb-2 text-luxury-charcoal">
+                                    Price (₹) <span className="text-luxury-gold">*</span>
                                 </label>
                                 <input
                                     type="number"
@@ -246,15 +246,15 @@ const UploadCollectionModal = ({ open, onOpenChange, onSuccess, initialData }: U
                                     min="0"
                                     value={formData.price}
                                     onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                                    className="w-full px-4 py-3 bg-muted-foreground/20 border border-muted-foreground/30 rounded-lg text-primary-foreground focus:outline-none focus:border-gold"
+                                    className="w-full px-4 py-3 bg-white border-2 border-luxury-gold/30 rounded-lg text-luxury-charcoal focus:outline-none focus:border-luxury-gold focus:ring-2 focus:ring-luxury-gold/20 transition-all"
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium mb-2">Currency</label>
+                                <label className="block text-sm font-medium mb-2 text-luxury-charcoal">Currency</label>
                                 <select
                                     value={formData.currency}
                                     onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
-                                    className="w-full px-4 py-3 bg-muted-foreground/20 border border-muted-foreground/30 rounded-lg text-primary-foreground focus:outline-none focus:border-gold appearance-none cursor-pointer"
+                                    className="w-full px-4 py-3 bg-white border-2 border-luxury-gold/30 rounded-lg text-luxury-charcoal focus:outline-none focus:border-luxury-gold focus:ring-2 focus:ring-luxury-gold/20 appearance-none cursor-pointer transition-all"
                                 >
                                     <option value="INR">INR - Indian Rupee</option>
                                     <option value="USD">USD - US Dollar</option>
@@ -266,15 +266,15 @@ const UploadCollectionModal = ({ open, onOpenChange, onSuccess, initialData }: U
 
                         {/* Tags */}
                         <div>
-                            <label className="block text-sm font-medium mb-2">Tags (comma-separated)</label>
+                            <label className="block text-sm font-medium mb-2 text-luxury-charcoal">Tags (comma-separated)</label>
                             <input
                                 type="text"
                                 placeholder="e.g., dress, summer, elegant, casual"
                                 value={formData.tags}
                                 onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
-                                className="w-full px-4 py-3 bg-muted-foreground/20 border border-muted-foreground/30 rounded-lg text-primary-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-gold"
+                                className="w-full px-4 py-3 bg-white border-2 border-luxury-gold/30 rounded-lg text-luxury-charcoal placeholder:text-gray-400 focus:outline-none focus:border-luxury-gold focus:ring-2 focus:ring-luxury-gold/20 transition-all"
                             />
-                            <p className="text-xs text-muted-foreground/60 mt-1">Separate tags with commas</p>
+                            <p className="text-xs text-gray-500 mt-1">Separate tags with commas</p>
                         </div>
 
                         {/* Submit Buttons (Mobile only) */}
@@ -301,19 +301,19 @@ const UploadCollectionModal = ({ open, onOpenChange, onSuccess, initialData }: U
                     {/* Right Side: Image Upload & Quote */}
                     <div className="flex flex-col h-full">
                         {/* Quote Section */}
-                        <div className="mb-6 p-6 bg-gradient-to-br from-gold/10 to-transparent rounded-xl border border-gold/20 text-center">
-                            <p className="font-serif text-xl text-gold italic mb-2">
+                        <div className="mb-6 p-6 bg-gradient-to-br from-luxury-gold/20 via-amber-100/30 to-luxury-gold/10 rounded-xl border-2 border-luxury-gold/40 text-center shadow-lg">
+                            <p className="font-serif text-xl text-luxury-gold italic mb-2 drop-shadow-sm">
                                 "Capture the Essence."
                             </p>
-                            <p className="text-sm text-muted-foreground leading-relaxed">
+                            <p className="text-sm text-luxury-charcoal/80 leading-relaxed">
                                 Upload multiple angles to help our AI reveal the true spirit of your design.
                             </p>
                         </div>
 
                         {/* Product Images */}
                         <div className="flex-1 flex flex-col">
-                            <label className="block text-sm font-medium mb-2">
-                                Product Images <span className="text-gold">*</span>
+                            <label className="block text-sm font-medium mb-2 text-luxury-charcoal">
+                                Product Images <span className="text-luxury-gold">*</span>
                             </label>
                             <div
                                 onDragOver={handleDragOver}
@@ -322,18 +322,18 @@ const UploadCollectionModal = ({ open, onOpenChange, onSuccess, initialData }: U
                                 className="flex-1 min-h-[200px]"
                             >
                                 <label
-                                    className={`flex flex-col items-center justify-center w-full h-full min-h-[200px] border-2 border-dashed rounded-lg cursor-pointer transition-colors ${isDragging
-                                        ? "border-gold bg-gold/10"
-                                        : "border-muted-foreground/40 hover:border-gold"
+                                    className={`flex flex-col items-center justify-center w-full h-full min-h-[200px] border-2 border-dashed rounded-lg cursor-pointer transition-all ${isDragging
+                                        ? "border-luxury-gold bg-luxury-gold/20 shadow-lg"
+                                        : "border-luxury-gold/40 hover:border-luxury-gold hover:bg-luxury-gold/5"
                                         }`}
                                 >
-                                    <Upload className={`w-10 h-10 mb-3 ${isDragging ? "text-gold" : "text-muted-foreground/60"}`} />
-                                    <span className={`text-base font-medium ${isDragging ? "text-gold" : "text-muted-foreground/60"}`}>
+                                    <Upload className={`w-10 h-10 mb-3 ${isDragging ? "text-luxury-gold" : "text-luxury-gold/60"}`} />
+                                    <span className={`text-base font-medium ${isDragging ? "text-luxury-gold" : "text-luxury-charcoal/70"}`}>
                                         {images.length > 0
                                             ? `${images.length} file(s) selected`
                                             : "Click or Drag to upload images"}
                                     </span>
-                                    <span className="text-xs text-muted-foreground/40 mt-2">
+                                    <span className="text-xs text-gray-500 mt-2">
                                         Supports JPG, PNG, WEBP
                                     </span>
                                     <input
@@ -352,7 +352,7 @@ const UploadCollectionModal = ({ open, onOpenChange, onSuccess, initialData }: U
                                     {images.map((image, index) => (
                                         <div
                                             key={index}
-                                            className="relative group rounded-lg overflow-hidden border border-muted-foreground/30 aspect-square"
+                                            className="relative group rounded-lg overflow-hidden border-2 border-luxury-gold/30 aspect-square hover:border-luxury-gold transition-all"
                                         >
                                             <img
                                                 src={image}

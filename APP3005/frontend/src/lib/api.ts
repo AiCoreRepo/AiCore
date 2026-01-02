@@ -467,3 +467,160 @@ export async function deleteComment(commentId: string) {
   }
   return res.json();
 }
+
+// ============================================================================
+// AI Try-On API Functions
+// ============================================================================
+
+// Get user's Aura data
+export async function getAura() {
+  const token = localStorage.getItem('access_token');
+  if (!token) {
+    throw new Error('Please login to view your Aura');
+  }
+
+  const res = await fetch(`${BASE_URL}/aura`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+  });
+
+  if (!res.ok) {
+    const bodyText = await res.text();
+    try {
+      const err = JSON.parse(bodyText);
+      throw new Error(err.message || 'Failed to fetch Aura');
+    } catch {
+      throw new Error(bodyText || 'Failed to fetch Aura');
+    }
+  }
+  return res.json();
+}
+
+// Try-on with Gemini AI
+export async function tryOnWithGemini(data: {
+  userId: string;
+  clothingItemId: string;
+  additionalParams?: Record<string, any>;
+}) {
+  const token = localStorage.getItem('access_token');
+  if (!token) {
+    throw new Error('Please login to use AI Try-On');
+  }
+
+  const res = await fetch(`${BASE_URL}/api/v1/tryon/3d/gemini`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!res.ok) {
+    const bodyText = await res.text();
+    try {
+      const err = JSON.parse(bodyText);
+      throw new Error(err.message || 'Gemini try-on failed');
+    } catch {
+      throw new Error(bodyText || 'Gemini try-on failed');
+    }
+  }
+  return res.json();
+}
+
+// Try-on with Vertex AI
+export async function tryOnWithVertex(data: {
+  userId: string;
+  clothingItemId: string;
+  additionalParams?: Record<string, any>;
+}) {
+  const token = localStorage.getItem('access_token');
+  if (!token) {
+    throw new Error('Please login to use AI Try-On');
+  }
+
+  const res = await fetch(`${BASE_URL}/api/v1/tryon/3d/vertex`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!res.ok) {
+    const bodyText = await res.text();
+    try {
+      const err = JSON.parse(bodyText);
+      throw new Error(err.message || 'Vertex try-on failed');
+    } catch {
+      throw new Error(bodyText || 'Vertex try-on failed');
+    }
+  }
+  return res.json();
+}
+
+// Generate more angles from existing try-on image
+export async function generateMoreAngles(data: {
+  userId: string;
+  productId: string;
+  previousImageUrl: string;
+  additionalParams?: Record<string, any>;
+}) {
+  const token = localStorage.getItem('access_token');
+  if (!token) {
+    throw new Error('Please login to generate more angles');
+  }
+
+  const res = await fetch(`${BASE_URL}/api/v1/tryon/3d/more-angles`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!res.ok) {
+    const bodyText = await res.text();
+    try {
+      const err = JSON.parse(bodyText);
+      throw new Error(err.message || 'Failed to generate more angles');
+    } catch {
+      throw new Error(bodyText || 'Failed to generate more angles');
+    }
+  }
+  return res.json();
+}
+
+
+
+
+// Get user's try-on history
+export async function getTryOnHistory() {
+  const token = localStorage.getItem('access_token');
+  if (!token) {
+    throw new Error('Please login to view try-on history');
+  }
+
+  const res = await fetch(`${BASE_URL}/api/v1/tryon/history`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+  });
+
+  if (!res.ok) {
+    const bodyText = await res.text();
+    try {
+      const err = JSON.parse(bodyText);
+      throw new Error(err.message || 'Failed to fetch try-on history');
+    } catch {
+      throw new Error(bodyText || 'Failed to fetch try-on history');
+    }
+  }
+  return res.json();
+}
+

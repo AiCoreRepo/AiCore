@@ -10,6 +10,7 @@ import {
     Query,
     Logger,
     UseGuards,
+    Request,
 } from '@nestjs/common';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import {
@@ -31,7 +32,8 @@ import { VertexTryOnService } from '../services/providers/vertex-tryon.service';
 import { TryOn3DService } from '../services/tryon-3d.service';
 import { AuraGuard } from '../../common/guards/aura.guard';
 import { CurrentAura } from '../../common/decorators/aura.decorator';
-import { Aura } from '@prisma/client';
+import type { Aura } from '@prisma/client';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 
 @ApiTags('AI Try-On')
 @Controller('api/v1/tryon')
@@ -277,7 +279,7 @@ export class TryOnController {
         this.logger.log(`Processing 3D try-on with Vertex for user ${request.userId}`);
         return this.tryOn3DService.tryOnWithVertex(
             aura,
-            request.clothingItemId.toString(),
+            request.clothingItemId,
             request.additionalParams,
         );
     }
@@ -310,7 +312,7 @@ export class TryOnController {
         this.logger.log(`Processing 3D try-on with Gemini for user ${request.userId}`);
         return this.tryOn3DService.tryOnWithGemini(
             aura,
-            request.clothingItemId.toString(),
+            request.clothingItemId,
             request.additionalParams,
         );
     }
@@ -340,12 +342,34 @@ export class TryOnController {
         @Body() request: GenerateAnglesRequestDto,
         @CurrentAura() aura: Aura,
     ): Promise<TryOnResponseDto> {
-        this.logger.log(`Generating more angles for user ${request.userId}`);
+        this.logger.log(`Generating more angles for user ${request.userId}, product ${request.productId}`);
         return this.tryOn3DService.generateMoreAngles(
             aura,
+            request.productId,
             request.previousImageUrl,
             request.additionalParams,
         );
+    }
+
+    /**
+     * Get user's try-on history
+     */
+    @Get('history')
+    @UseGuards(JwtAuthGuard)
+    @ApiOperation({
+        summary: 'Get user try-on history',
+        description: 'Fetch all try-on images for the current user with product details.',
+    })
+    @ApiResponse({
+        status: 200,
+        description: 'Try-on history retrieved successfully',
+    })
+    async getTryOnHistory(@Request() req): Promise<any> {
+        const userId = req.user.user_id;  // Changed from userId to user_id
+        this.logger.log(`🔐 JWT User Data: ${JSON.stringify(req.user)}`);
+        this.logger.log(`🔐 Extracted userId: ${userId}`);
+        this.logger.log(`📸 Fetching try-on history for user ${userId}`);
+        return this.tryOn3DService.getTryOnHistory(userId);
     }
 
     /**

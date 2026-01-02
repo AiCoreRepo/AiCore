@@ -7,6 +7,7 @@ import { ImageValidatorService } from './services/common/image-validator.service
 import { TryOn3DService } from './services/tryon-3d.service';
 import { TryOnController } from './controllers/tryon.controller';
 import { AuraGuard } from '../common/guards/aura.guard';
+import { CloudinaryService } from '../common/cloudinary.service';
 
 @Module({
     imports: [ConfigModule, PrismaModule],
@@ -17,6 +18,7 @@ import { AuraGuard } from '../common/guards/aura.guard';
         ImageValidatorService,
         TryOn3DService,
         AuraGuard,
+        CloudinaryService,
     ],
     exports: [GeminiTryOnService, VertexTryOnService, TryOn3DService],
 })

@@ -98,20 +98,20 @@ export class BatchTryOnRequestDto {
  */
 export class TryOn3DRequestDto {
     @ApiProperty({
-        description: 'User ID for Aura validation',
-        example: 1,
+        description: 'User ID (UUID) for Aura validation',
+        example: '550e8400-e29b-41d4-a716-446655440000',
     })
     @IsNotEmpty({ message: 'User ID is required' })
-    @IsNumber()
-    userId: number;
+    @IsString()
+    userId: string;
 
     @ApiProperty({
-        description: 'Clothing item ID from collection',
-        example: 123,
+        description: 'Clothing item ID (UUID) from collection',
+        example: '550e8400-e29b-41d4-a716-446655440001',
     })
     @IsNotEmpty({ message: 'Clothing item ID is required' })
-    @IsNumber()
-    clothingItemId: number;
+    @IsString()
+    clothingItemId: string;
 
     @ApiPropertyOptional({
         description: 'Additional parameters for AI processing',
@@ -127,12 +127,20 @@ export class TryOn3DRequestDto {
  */
 export class GenerateAnglesRequestDto {
     @ApiProperty({
-        description: 'User ID for Aura validation',
-        example: 1,
+        description: 'User ID (UUID) for Aura validation',
+        example: '550e8400-e29b-41d4-a716-446655440000',
     })
     @IsNotEmpty({ message: 'User ID is required' })
-    @IsNumber()
-    userId: number;
+    @IsString()
+    userId: string;
+
+    @ApiProperty({
+        description: 'Product ID (UUID) to associate with generated angle',
+        example: '550e8400-e29b-41d4-a716-446655440001',
+    })
+    @IsNotEmpty({ message: 'Product ID is required' })
+    @IsString()
+    productId: string;
 
     @ApiProperty({
         description: 'URL or base64 of previous try-on image',

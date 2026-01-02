@@ -8,7 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 const navLinks = [
     { name: "Home", href: "/", isRoute: true },
     { name: "Collection", href: "/collection", isRoute: true },
-    { name: "AI Try-On", href: "/#ai-tryon", isRoute: true },
+    { name: "AI Try-On", href: "/ai-try-on", isRoute: true },
     { name: "Let AI Decide", href: "/#ai-decide", isRoute: true },
     { name: "Lookbook", href: "/#lookbook", isRoute: true },
     { name: "About", href: "/#about", isRoute: true },
@@ -225,7 +225,7 @@ export const Navbar = () => {
                                                             <span>View Aura Profile</span>
                                                         </Link>
                                                         <Link
-                                                            to="#ai-tryon"
+                                                            to="/ai-try-on"
                                                             className="flex items-center gap-3 px-5 py-3 text-charcoal hover:bg-gradient-to-r hover:from-gold/20 hover:to-gold/10 transition-all duration-300 font-medium group"
                                                             onClick={() => setShowUserMenu(false)}
                                                         >

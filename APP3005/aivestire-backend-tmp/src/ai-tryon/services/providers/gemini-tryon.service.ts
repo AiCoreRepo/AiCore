@@ -31,7 +31,7 @@ export class GeminiTryOnService extends BaseTryOnService {
         // Get FastAPI service URL from environment
         this.fastApiUrl =
             this.configService.get<string>('FASTAPI_GEMINI_URL') ||
-            'http://localhost:8000/gemini/try-on';
+            'http://localhost:8000/gemini/try-on-json';
 
         this.fastApiEnabled = !!this.configService.get<string>('FASTAPI_GEMINI_URL');
 
@@ -53,12 +53,13 @@ export class GeminiTryOnService extends BaseTryOnService {
         if (!this.fastApiEnabled) {
             throw new ConfigurationException(
                 'Gemini FastAPI service is not configured. Please set FASTAPI_GEMINI_URL in environment variables.',
-                { expectedUrl: 'http://localhost:8000/gemini/try-on' },
+                { expectedUrl: 'http://localhost:8000/gemini/try-on-json' },
             );
         }
 
         try {
-            this.logger.log(' Calling FastAPI Gemini service...');
+            this.logger.log('🟢 GEMINI AI - Starting try-on process...');
+            this.logger.log('🟢 GEMINI AI - Calling FastAPI Gemini service...');
 
             // Extract base64 data (remove data URI prefix if present)
             const avatarData = this.extractBase64Data(avatarBase64);
@@ -98,7 +99,8 @@ export class GeminiTryOnService extends BaseTryOnService {
                 );
             }
 
-            this.logger.log('✅ Virtual try-on generated successfully via FastAPI');
+            this.logger.log('✅ GEMINI AI - Virtual try-on generated successfully!');
+            this.logger.log('🟢 GEMINI AI - Image generation completed');
 
             // Return result image (add data URI prefix if not present)
             const resultImage = result.result_image;
