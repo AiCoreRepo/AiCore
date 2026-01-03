@@ -1,0 +1,162 @@
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Link } from "react-router-dom";
+import { ArrowLeft, CheckCircle } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { AuthLayout } from "@/components/auth/AuthLayout";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { forgotPasswordSchema, type ForgotPasswordFormData } from "@/lib/validation";
+import heroImage from "@/assets/auth-hero-forgot.jpg";
+
+const ForgotPassword = () => {
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
+  const [submittedEmail, setSubmittedEmail] = useState("");
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<ForgotPasswordFormData>({
+    resolver: zodResolver(forgotPasswordSchema),
+  });
+
+  const onSubmit = async (data: ForgotPasswordFormData) => {
+    setIsLoading(true);
+    try {
+      // Simulate API call
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      setSubmittedEmail(data.email);
+      setIsSuccess(true);
+    } catch (error) {
+      console.error("Error sending reset link:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <AuthLayout
+      heroImage={heroImage}
+      quote="Every masterpiece begins with a single stroke."
+      quoteAuthor="Renaissance Philosophy"
+    >
+      <AnimatePresence mode="wait">
+        {!isSuccess ? (
+          <motion.div
+            key="form"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.4 }}
+            className="space-y-8"
+          >
+            <div className="space-y-2 text-center">
+              <h2 className="text-4xl font-serif text-luxury-cream">Forgot Password?</h2>
+              <p className="text-muted-foreground">
+                No worries, we'll send you reset instructions.
+              </p>
+            </div>
+
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+              <div className="space-y-2">
+                <Label htmlFor="email" className="text-luxury-cream">
+                  Email Address
+                </Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="designer@aivestire.com"
+                  {...register("email")}
+                  className="bg-white border-luxury-charcoal text-charcoal placeholder:text-gray-400 focus:border-luxury-gold focus:ring-luxury-gold transition-all duration-300"
+                />
+                {errors.email && (
+                  <p className="text-sm text-destructive">{errors.email.message}</p>
+                )}
+              </div>
+
+              <Button
+                type="submit"
+                variant="luxury"
+                size="lg"
+                className="w-full"
+                disabled={isLoading}
+              >
+                {isLoading ? "Sending..." : "Send Reset Link"}
+              </Button>
+            </form>
+
+            <div className="text-center">
+              <Link
+                to="/login"
+                className="inline-flex items-center text-sm text-luxury-gold hover:underline font-medium"
+              >
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back to Login
+              </Link>
+            </div>
+          </motion.div>
+        ) : (
+          <motion.div
+            key="success"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.4 }}
+            className="space-y-8 text-center"
+          >
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
+              className="flex justify-center"
+            >
+              <div className="rounded-full bg-luxury-gold/20 p-6">
+                <CheckCircle className="h-16 w-16 text-luxury-gold" />
+              </div>
+            </motion.div>
+
+            <div className="space-y-3">
+              <h2 className="text-4xl font-serif text-luxury-cream">Check Your Inbox</h2>
+              <p className="text-muted-foreground max-w-md mx-auto">
+                We've sent password reset instructions to{" "}
+                <span className="text-luxury-gold font-medium">{submittedEmail}</span>
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Didn't receive the email? Check your spam folder or try again.
+              </p>
+            </div>
+
+            <div className="space-y-4 pt-4">
+              <Button
+                type="button"
+                variant="luxury"
+                size="lg"
+                className="w-full"
+                onClick={() => setIsSuccess(false)}
+              >
+                Try Another Email
+              </Button>
+
+              <Link to="/login">
+                <Button
+                  type="button"
+                  variant="luxury-ghost"
+                  size="lg"
+                  className="w-full"
+                >
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Back to Login
+                </Button>
+              </Link>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </AuthLayout>
+  );
+};
+
+export default ForgotPassword;

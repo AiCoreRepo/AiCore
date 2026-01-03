@@ -1,0 +1,47 @@
+services:
+  # Backend Service
+  - type: web
+    name: aivestire-backend
+    env: node
+    # Path relative to the repository root
+    root: APP3005/aivestire-backend-tmp
+    buildCommand: npm install && npm run build
+    startCommand: npm run start:prod
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: PORT
+        value: 3000
+      - key: JWT_EXPIRATION_TIME
+        value: 1h
+      - key: JWT_REFRESH_EXPIRATION_TIME
+        value: 7d
+      - key: CLOUDINARY_CLOUD_NAME
+        value: dxfxicebq
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      - key: CORS_ORIGIN
+        sync: false
+
+  # Frontend Service
+  - type: web
+    name: aivestire-frontend
+    env: static
+    # Path relative to the repository root
+    root: APP3005/frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_URL
+        fromService:
+          type: web
+          name: aivestire-backend
+          property: url
