@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { LuxuryHeroSection } from "@/components/collection/LuxuryHeroSection";
@@ -6,6 +7,8 @@ import { FilterDropdown } from "@/components/collection/FilterDropdown";
 import { PriceRangeSlider } from "@/components/collection/PriceRangeSlider";
 import { ProductCard } from "@/components/collection/ProductCard";
 import { usePublicProducts } from "@/hooks/usePublicProducts";
+import { useAuth } from "@/context/AuthContext";
+import { auraGate } from "@/utils/auraGate";
 import { Grid3x3, Ruler, Palette, ArrowUpDown } from "lucide-react";
 
 const categories = ["All", "Dresses", "Outerwear", "Accessories", "Tops", "Bottoms"];
@@ -14,6 +17,8 @@ const colors = ["All Colors", "Black", "White", "Beige", "Gold", "Navy", "Red"];
 const sortOptions = ["Featured", "Price: Low to High", "Price: High to Low", "Newest", "Most Popular"];
 
 const CollectionPage = () => {
+    const navigate = useNavigate();
+    const { user } = useAuth();
     const [activeCategory, setActiveCategory] = useState("All");
     const [activeSize, setActiveSize] = useState("All Sizes");
     const [activeColor, setActiveColor] = useState("All Colors");
@@ -28,6 +33,25 @@ const CollectionPage = () => {
         undefined,
         activeCategory === "All" ? undefined : activeCategory
     );
+
+    // Handle try-on with authentication and aura validation
+    const handleTryOn = async (productId: string) => {
+        // Check if user is authenticated
+        if (!user) {
+            console.log('User not authenticated, redirecting to login');
+            navigate('/user-login');
+            return;
+        }
+
+        // Check if user has a valid aura
+        const hasValidAura = await auraGate(user.user_id, navigate, '/aura-dashboard');
+
+        if (hasValidAura) {
+            // User is authenticated and has a ready aura, proceed to try-on
+            navigate(`/ai-try-on?productId=${productId}`);
+        }
+        // If aura check fails, auraGate will handle the redirect
+    };
 
     // Handle scroll to show/hide arrows
     const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
@@ -220,10 +244,7 @@ const CollectionPage = () => {
                                                 <ProductCard
                                                     key={product.product_id}
                                                     product={product}
-                                                    onTryOn={() => {
-                                                        // Navigate to AI Try-On page
-                                                        window.location.href = "/ai-try-on";
-                                                    }}
+                                                    onTryOn={() => handleTryOn(product.product_id)}
                                                 />
                                             ))}
                                         </div>

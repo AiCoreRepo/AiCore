@@ -32,7 +32,7 @@ export const SUPPORTED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp'] as const;
 // API Timeout Settings (in milliseconds)
 export const DEFAULT_TIMEOUT = 60000; // 60 seconds
 export const VERTEX_AI_TIMEOUT = 90000; // 90 seconds
-export const GEMINI_AI_TIMEOUT = 60000; // 60 seconds
+export const GEMINI_AI_TIMEOUT = 150000; // 150 seconds (2.5 minutes) - increased for image generation
 
 // Retry Configuration
 export const MAX_RETRIES = 3;

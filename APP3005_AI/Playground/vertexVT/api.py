@@ -10,6 +10,7 @@ from pydantic import BaseModel
 from google import genai
 from google.genai import types
 from dotenv import load_dotenv
+from color_helper import generate_angle_prompt
 
 # Load environment variables from a .env file for local runs.
 load_dotenv()
@@ -43,7 +44,16 @@ class TryOnJSONRequest(BaseModel):
 
 
 class GenerateAnglesRequest(BaseModel):
-    """Request model for angle generation endpoint"""
+    """
+    Request model for angle generation endpoint.
+    
+    Gemini analyzes image colors automatically for complementary backgrounds.
+    
+    additional_params can include:
+    - prompt: Custom prompt (overrides auto-generation)
+    - angle: Specific angle (front/left/right/side left/side right/back)
+           If not provided, auto-rotates through angles
+    """
     previous_image: str  # base64 without data URI prefix
     additional_params: Optional[Dict] = None
 
@@ -162,7 +172,7 @@ async def gemini_try_on(
     person_image: UploadFile = File(..., description="JPEG person image"),
     garment_image: UploadFile = File(..., description="JPEG garment image"),
     prompt: str = Form(
-        "Put the clothing/garment from the second image onto the person in the first image. Match pose, lighting, and proportions.",
+        "Virtual try-on task: Replace ONLY the clothing on the person in image 1 with the garment from image 2. CRITICAL: Copy the entire background from image 1 pixel-by-pixel. Do NOT generate, modify, or replace any background elements. Background must be 100% identical to image 1.",
         description="Optional prompt; uses default if omitted.",
     ),
 ) -> GeminiResponse:
@@ -582,12 +592,11 @@ async def gemini_try_on_json(request: TryOnJSONRequest) -> StandardTryOnResponse
                 status_code=400, detail=f"Invalid base64 image data: {exc}"
             ) from exc
 
-        # Get prompt from additional params or use default
+        # Try-on: Last attempt with ultra-directive prompt
         params = request.additional_params or {}
         prompt = params.get(
             "prompt",
-            "Generate a photorealistic image of the person wearing the garment. "
-            "Show full body with realistic background. Match the person's pose and proportions naturally.",
+            "Virtual try-on task: Replace ONLY the clothing on the person in image 1 with the garment from image 2. CRITICAL: Copy the entire background from image 1 pixel-by-pixel. Do NOT generate, modify, or replace any background elements. Background must be 100% identical to image 1.",
         )
 
         client = genai.Client(api_key=api_key)
@@ -673,14 +682,15 @@ async def generate_angles(request: GenerateAnglesRequest) -> StandardTryOnRespon
                 status_code=400, detail=f"Invalid base64 image data: {exc}"
             ) from exc
 
-        # Get prompt from additional params or use default
+        # Minimal token usage: let Gemini analyze image colors
         params = request.additional_params or {}
-        prompt = params.get(
-            "prompt",
-            "Generate a new view of this person wearing the same outfit from a different camera angle. "
-            "Add a realistic and aesthetically pleasing background. Maintain the same clothing, person, "
-            "and overall style but show from a different perspective (e.g., side view, back view, or different pose), Everytime change angle left , right.",
-        )
+        
+        if "prompt" in params:
+            prompt = params["prompt"]
+        else:
+            # Ultra-minimal: Gemini sees image, analyzes colors, generates background
+            angle = params.get("angle")
+            prompt = generate_angle_prompt(angle=angle)
 
         client = genai.Client(api_key=api_key)
         model_id = "gemini-2.5-flash-image-preview"
