@@ -12,3 +12,17 @@ services:
     # Uncomment the volume below for live reload during development
     # volumes:
     #   - .:/app
+  embed:
+    build:
+      context: .
+      dockerfile: Dockerfile.embed
+    container_name: fashion-embed
+    volumes:
+      - ../../..:/workspace
+    command:
+      - python
+      - /workspace/AiCore/APP3005_AI/ModelDemo/embedding.py
+      - --input-json
+      - /workspace/AiCore/APP3005_AI/Playground/Recommendation/Data/input/collection_one.json
+      - --output-json
+      - /workspace/AiCore/APP3005_AI/Playground/Recommendation/Data/output/embedded_collection_one.json

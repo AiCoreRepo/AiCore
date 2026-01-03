@@ -1,0 +1,27 @@
+# Use Astral's uv image for fast installs across platforms.
+FROM ghcr.io/astral-sh/uv:python3.11-bookworm
+
+WORKDIR /app
+
+# Build tools + OpenCV runtime deps + git for CLIP install.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        build-essential \
+        git \
+        libglib2.0-0 \
+        libgl1 \
+        libsm6 \
+        libxrender1 \
+        libxext6 \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY requirements-docker.txt ./
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv pip install --system -r requirements-docker.txt
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+EXPOSE 8501
+
+CMD ["streamlit", "run", "app.py", "--server.address=0.0.0.0", "--server.port=8501"]

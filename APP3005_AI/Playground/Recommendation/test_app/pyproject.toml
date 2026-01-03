@@ -1,0 +1,11 @@
+[project]
+name = "streamlit-test-app"
+version = "0.1.0"
+description = "Minimal Streamlit app for viewing embedding JSON."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "streamlit>=1.33.0",
+    "pillow>=10.0.0",
+    "numpy>=1.26.0",
+]

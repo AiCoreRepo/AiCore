@@ -1,0 +1,35 @@
+{
+  "gender": "female",
+  "height_cm": 165.0,
+  "age": 25,
+  "body_ratios": {
+    "height_ratio": 1.2,
+    "waist_hip_ratio": 1.11
+  },
+  "body_type": "apple",
+  "skin_tone_bucket": "warm",
+  "skin_warmth": 159.9635054976852,
+  "pose_ok": false,
+  "face_ok": false,
+  "heuristic_body_ratios": {
+    "height_ratio": 1.2,
+    "waist_hip_ratio": 1.11,
+    "detection_confidence": 0.43,
+    "notes": [
+      "Heuristic suggests higher waist-to-hip ratio."
+    ]
+  },
+  "heuristic_body_shape": "apple",
+  "heuristic_skin_tone": {
+    "palette_hex": [
+      "#d8a878",
+      "#d8a888",
+      "#c89868"
+    ],
+    "confidence": 0.46,
+    "notes": [
+      "Low chroma; lighting may affect accuracy."
+    ]
+  },
+  "image_name": "full-length-portrait-young-smiling-redhead-girl.jpg"
+}
