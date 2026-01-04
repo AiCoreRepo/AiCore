@@ -1,10 +1,12 @@
 import base64
 import os
-import subprocess
+from pathlib import Path
 from typing import Dict, List, Optional
 
 import requests
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from google.auth.transport.requests import Request
+from google.oauth2 import service_account
 from pydantic import BaseModel
 
 from google import genai
@@ -68,29 +70,39 @@ class StandardTryOnResponse(BaseModel):
 
 
 def _get_access_token(manual_token: Optional[str]) -> Optional[str]:
-    """Use provided token, env var, or gcloud to obtain a bearer token."""
-    if manual_token:
-        return manual_token.strip()
-    
-    # Reload .env file to pick up fresh tokens without restarting service
+    """
+    Obtain a bearer token strictly from a service account JSON file.
+    Checks VERTEX_SA_KEY or GOOGLE_APPLICATION_CREDENTIALS for a path, otherwise
+    uses a local service_account.json in this folder. If no file is found or readable,
+    returns None (callers will raise 401).
+    """
+    # Reload .env file to pick up fresh paths without restarting service
     load_dotenv(override=True)
-    
-    env_token = os.environ.get("VERTEX_TOKEN")
-    if env_token:
-        return env_token.strip()
-    
-    # Hardcoded fallback token removed for security
-    # Set VERTEX_TOKEN in your .env file or use gcloud CLI
-    hardcoded_token = None
-    if hardcoded_token:
-        return hardcoded_token.strip()
-    
+
+    scopes = ["https://www.googleapis.com/auth/cloud-platform"]
+    default_sa_path = Path(__file__).resolve().parent / "service_account.json"
+    sa_path = (
+        os.environ.get("VERTEX_SA_KEY")
+        or os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
+        or (str(default_sa_path) if default_sa_path.exists() else None)
+    )
+
+    if not sa_path:
+        return None
+
+    sa_path_resolved = str(Path(sa_path).expanduser())
+    if not Path(sa_path_resolved).exists():
+        return None
+
     try:
-        return (
-            subprocess.check_output(
-                ["gcloud", "auth", "print-access-token"], text=True
-            ).strip()
+        creds = service_account.Credentials.from_service_account_file(
+            sa_path_resolved, scopes=scopes
         )
+
+        if not creds.valid or creds.expired:
+            creds.refresh(Request())
+
+        return creds.token
     except Exception:
         return None
 
@@ -777,4 +789,3 @@ async def health_check():
             "generate_angles": "/gemini/generate-angles",
         },
     }
-
