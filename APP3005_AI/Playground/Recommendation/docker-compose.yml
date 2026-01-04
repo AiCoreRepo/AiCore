@@ -1,17 +1,12 @@
 services:
-  streamlit:
-    build: .
-    container_name: recommendation-streamlit
+  attribute-recommender:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: attribute-recommender
+    command: ["streamlit", "run", "attribute_recommendation/app.py", "--server.address=0.0.0.0", "--server.port=8501"]
     ports:
       - "8501:8501"
     environment:
       STREAMLIT_BROWSER_GATHER_USAGE_STATS: "false"
-    volumes:
-      - ../../..:/workspace
-    working_dir: /workspace/APP3005_AI/Playground/Recommendation
-    command:
-      - streamlit
-      - run
-      - app.py
-      - --server.address=0.0.0.0
-      - --server.port=8501
+    restart: unless-stopped

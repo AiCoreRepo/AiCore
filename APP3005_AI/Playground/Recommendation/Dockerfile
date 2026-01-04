@@ -19,8 +19,12 @@ COPY requirements-docker.txt ./
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv pip install --system -r requirements-docker.txt
 
+# App source
+COPY . .
+
 ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    STREAMLIT_BROWSER_GATHER_USAGE_STATS=false
 
 EXPOSE 8501
 
