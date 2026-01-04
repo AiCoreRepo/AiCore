@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/context/AuthContext';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { AuraDisplayCard } from '@/components/ai-tryon/AuraDisplayCard';
@@ -30,6 +31,7 @@ interface AuraData {
 
 const AiTryOn = () => {
   const navigate = useNavigate();
+  const { user, loading: authLoading } = useAuth();
   const [aura, setAura] = useState<AuraData | null>(null);
   const [loadingAura, setLoadingAura] = useState(true);
   const [showAuraPrompt, setShowAuraPrompt] = useState(false);
@@ -46,10 +48,21 @@ const AiTryOn = () => {
   // Fetch products
   const { data: productsData, isLoading: productsLoading, error: productsError } = usePublicProducts(1);
 
-  // Check Aura status on mount
+  // Check authentication and Aura status on mount
   useEffect(() => {
+    // Wait for auth to load
+    if (authLoading) return;
+
+    // Check if user is logged in
+    if (!user) {
+      console.log('❌ User not logged in, redirecting to login');
+      navigate('/user-login');
+      return;
+    }
+
+    // User is logged in, check aura
     checkAuraStatus();
-  }, []);
+  }, [authLoading, user]);
 
   const checkAuraStatus = async () => {
     try {

@@ -1,15 +1,41 @@
 import { useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { ChevronLeft, ChevronRight, Heart, MessageCircle, Eye } from "lucide-react";
 import { usePublicProducts } from "@/hooks/usePublicProducts";
+import { useAuth } from "@/context/AuthContext";
+import { auraGate } from "@/utils/auraGate";
 
 const filters = ["All", "Dresses", "Outerwear", "Accessories", "Tops", "Bottoms"];
 
 export const Collection = () => {
+    const navigate = useNavigate();
+    const { user } = useAuth();
     const scrollRef = useRef<HTMLDivElement>(null);
     const [activeFilter, setActiveFilter] = useState("All");
 
     // Fetch products from backend
     const { data, isLoading, error } = usePublicProducts(1, undefined, activeFilter);
+
+    // Handle try-on with authentication and aura validation
+    const handleTryOn = async (productId: string) => {
+        // Check if token exists (user is logged in)
+        const token = localStorage.getItem('access_token');
+
+        if (!token) {
+            // No token = not logged in
+            navigate('/user-login');
+            return;
+        }
+
+        // Token exists, check if user has aura
+        const hasValidAura = await auraGate(navigate, '/aura-dashboard');
+
+        if (hasValidAura) {
+            // User is authenticated and has a ready aura, proceed to try-on
+            navigate(`/ai-try-on?productId=${productId}`);
+        }
+        // If aura check fails, auraGate will handle the redirect
+    };
 
     const scroll = (direction: "left" | "right") => {
         if (scrollRef.current) {
@@ -178,6 +204,10 @@ export const Collection = () => {
                                             {/* Overlay */}
                                             <div className="absolute inset-0 bg-gradient-to-t from-charcoal/80 via-charcoal/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end justify-center p-6">
                                                 <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleTryOn(product.product_id);
+                                                    }}
                                                     className="px-6 py-3 rounded-full font-medium text-sm transition-all duration-300 hover:scale-105"
                                                     style={{
                                                         background: 'linear-gradient(135deg, rgba(201, 165, 92, 0.9) 0%, rgba(201, 165, 92, 1) 100%)',

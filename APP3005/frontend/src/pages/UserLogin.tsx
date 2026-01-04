@@ -71,6 +71,9 @@ const UserLogin = () => {
                 description: "You've successfully signed in.",
             });
 
+            // Trigger AuthContext to refresh user data
+            window.dispatchEvent(new Event('auth-refresh'));
+
             // Notify Navbar to refresh Aura status
             window.dispatchEvent(new Event('aura-updated'));
 

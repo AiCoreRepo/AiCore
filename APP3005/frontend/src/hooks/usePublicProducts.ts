@@ -31,8 +31,9 @@ export interface PublicProductsResponse {
 }
 
 /**
- * Hook to fetch approved products for logged-in buyers (Collection page)
- * Requires BUYER authentication
+ * Hook to fetch approved products (Collection page)
+ * Public endpoint - No authentication required
+ * Non-logged-in users can browse products
  */
 export function usePublicProducts(
     page: number = 1,
@@ -50,16 +51,10 @@ export function usePublicProducts(
             if (search) params.append('search', search);
             if (category && category !== 'All') params.append('category', category);
 
-            const url = `${import.meta.env.VITE_API_URL}/products/approved?${params}`;
+            const url = `${import.meta.env.VITE_API_URL ?? 'http://localhost:3000'}/products/approved?${params}`;
 
-            // Get auth token
-            const token = localStorage.getItem('access_token');
-
-            const response = await fetch(url, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                },
-            });
+            // Public endpoint - no authentication required
+            const response = await fetch(url);
 
             if (!response.ok) {
                 throw new Error(`Failed to fetch products: ${response.status}`);
