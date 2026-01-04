@@ -4,6 +4,7 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import { getAuraStatus } from "@/lib/api";
 import { LogoutConfirmDialog } from "@/components/LogoutConfirmDialog";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/context/AuthContext";
 
 const navLinks = [
     { name: "Home", href: "/", isRoute: true },
@@ -26,6 +27,7 @@ export const Navbar = () => {
     const location = useLocation();
     const menuRef = useRef<HTMLDivElement>(null);
     const { toast } = useToast();
+    const { user, logout: authLogout } = useAuth();
 
     useEffect(() => {
         const handleScroll = () => {
@@ -333,7 +335,8 @@ export const Navbar = () => {
             <LogoutConfirmDialog
                 isOpen={showLogoutDialog}
                 onConfirm={() => {
-                    localStorage.removeItem('access_token');
+                    // Use centralized logout function from AuthContext
+                    authLogout();
                     setIsLoggedIn(false);
                     setHasAura(false);
                     setAura(null);

@@ -146,7 +146,8 @@ export async function getProfile() {
     throw new Error('No access token found');
   }
 
-  const res = await fetch(`${BASE_URL}/creator-dashboard/profile`, {
+  // Use /auth/me endpoint which works for all roles (BUYER, CREATOR, ADMIN)
+  const res = await fetch(`${BASE_URL}/auth/me`, {
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',

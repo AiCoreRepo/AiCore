@@ -81,6 +81,7 @@ export class TryOn3DService {
         productId: string,
         auraId: string,
         resultImageUrl: string,
+        provider: string = 'unknown',
     ) {
         this.logger.log(`💾 Saving try-on result to database...`);
         this.logger.log(`💾 User: ${userId}, Product: ${productId}, Aura: ${auraId}`);
@@ -104,6 +105,7 @@ export class TryOn3DService {
                 product_id: productId,
                 aura_id: auraId,
                 result_image_url: cloudinaryUrl,
+                provider: provider,
             },
         });
 
@@ -175,6 +177,7 @@ export class TryOn3DService {
             clothingItemId,
             aura.aura_id,
             result.resultImage,
+            'vertex',
         );
 
         this.logger.log(`✅ 3D Vertex try-on completed for user ${aura.user_id}`);
@@ -239,6 +242,7 @@ export class TryOn3DService {
             clothingItemId,
             aura.aura_id,
             result.resultImage,
+            'gemini',
         );
 
         this.logger.log(`✅ 3D Gemini try-on completed for user ${aura.user_id}`);
@@ -326,6 +330,7 @@ export class TryOn3DService {
                         aura_id: aura.aura_id,
                         product_id: productId,
                         result_image_url: cloudinaryUrl,
+                        provider: 'gemini', // angle generation is always Gemini in this implementation
                     },
                 });
                 this.logger.log(`💾 Saved angle-generated image to database: ${savedTryOn.try_on_id}`);
@@ -404,6 +409,7 @@ export class TryOn3DService {
                     productTitle: tryOn.product.title,
                     productImage: tryOn.product.images[0]?.url || null,
                     resultImage: tryOn.result_image_url,
+                    provider: tryOn.provider,
                     createdAt: tryOn.created_at,
                 })),
                 count: tryOns.length,

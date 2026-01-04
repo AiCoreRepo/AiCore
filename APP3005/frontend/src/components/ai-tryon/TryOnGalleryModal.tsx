@@ -7,6 +7,7 @@ interface TryOn {
     productTitle: string;
     productImage: string | null;
     resultImage: string;
+    provider: string;
     createdAt: string;
 }
 
@@ -117,9 +118,24 @@ export function TryOnGalleryModal({ isOpen, onClose, tryOns }: TryOnGalleryModal
                                             <p className="text-xs text-charcoal/60 mb-1">
                                                 {tryOn.productTitle}
                                             </p>
-                                            <p className="text-xs text-charcoal/40 mb-3">
-                                                {new Date(tryOn.createdAt).toLocaleDateString()}
-                                            </p>
+                                            <div className="flex items-center justify-between mt-1 mb-3">
+                                                <p className="text-[10px] text-charcoal/40 uppercase font-medium">
+                                                    {new Date(tryOn.createdAt).toLocaleDateString()}
+                                                </p>
+                                                <span
+                                                    className="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded"
+                                                    style={{
+                                                        background: 'rgba(201, 165, 92, 0.1)',
+                                                        color: tryOn.provider === 'gemini'
+                                                            ? '#10B981'
+                                                            : tryOn.provider === 'vertex'
+                                                                ? '#3B82F6'
+                                                                : '#C9A55C',
+                                                    }}
+                                                >
+                                                    {tryOn.provider === 'unknown' ? 'AI GENERATED' : tryOn.provider}
+                                                </span>
+                                            </div>
 
                                             {/* Download Button */}
                                             <button

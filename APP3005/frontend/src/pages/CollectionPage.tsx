@@ -36,15 +36,17 @@ const CollectionPage = () => {
 
     // Handle try-on with authentication and aura validation
     const handleTryOn = async (productId: string) => {
-        // Check if user is authenticated
-        if (!user) {
-            console.log('User not authenticated, redirecting to login');
+        // Check if token exists (user is logged in)
+        const token = localStorage.getItem('access_token');
+
+        if (!token) {
+            // No token = not logged in
             navigate('/user-login');
             return;
         }
 
-        // Check if user has a valid aura
-        const hasValidAura = await auraGate(user.user_id, navigate, '/aura-dashboard');
+        // Token exists, check if user has aura
+        const hasValidAura = await auraGate(navigate, '/aura-dashboard');
 
         if (hasValidAura) {
             // User is authenticated and has a ready aura, proceed to try-on

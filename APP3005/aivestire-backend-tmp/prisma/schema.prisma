@@ -242,6 +242,7 @@ model TryOn {
   product_id       String   @db.Uuid
   aura_id          String   @db.Uuid
   result_image_url String   // AI generated try-on result
+  provider         String   @default("unknown") // vertex or gemini
   created_at       DateTime @default(now())
   
   user             User     @relation(fields: [user_id], references: [user_id])
