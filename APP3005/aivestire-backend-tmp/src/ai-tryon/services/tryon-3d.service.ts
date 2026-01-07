@@ -1,7 +1,7 @@
 import { Injectable, Logger, HttpException, HttpStatus } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
-import { VertexTryOnService } from './providers/vertex-tryon.service';
+import { DirectVertexTryOnService } from './providers/direct-vertex-tryon.service';
 import { GeminiTryOnService } from './providers/gemini-tryon.service';
 import { CloudinaryService } from '../../common/cloudinary.service'; // Corrected path for CloudinaryService
 import { Aura } from '@prisma/client';
@@ -19,7 +19,7 @@ export class TryOn3DService {
 
     constructor(
         private readonly prisma: PrismaService,
-        private readonly vertexService: VertexTryOnService,
+        private readonly directVertexService: DirectVertexTryOnService,
         private readonly geminiService: GeminiTryOnService,
         private readonly configService: ConfigService,
         private readonly cloudinaryService: CloudinaryService, // Injected CloudinaryService
@@ -164,8 +164,8 @@ export class TryOn3DService {
             aura_attributes: auraAttributes,
         };
 
-        // Call Vertex service with GENERATED AVATAR (model_url) instead of original image
-        const result = await this.vertexService.processTryOn(
+        // Call Direct Vertex service with GENERATED AVATAR (model_url) instead of original image
+        const result = await this.directVertexService.processTryOn(
             aura.model_url!,
             clothingImageUrl,
             enhancedParams,

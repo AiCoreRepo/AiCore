@@ -54,11 +54,42 @@ export class GeminiAIService {
             const imageBase64 = await this.fetchImageAsBase64(request.imageUrl);
             const { attributes } = request;
 
-            // Detect if outfit is black/dark for conditional lighting
-            const isBlackOutfit = false; // TODO: Add color detection logic if needed
+            // Build dynamic prompt from user attributes
+            const { height, weight, skinTone, gender, bodyShape, ageRange, hairStyle } = attributes;
 
-            // Comprehensive MetaHuman-quality avatar prompt
-            const prompt = `Create a hyper-realistic full-body avatar of this person. Beautify the face subtly while keeping all original attributes the same (exact facial features, skin tone, hair, body shape). Preserve the same posture and expression. Keep clothing unchanged; if the photo is not full body, extend realistically to full body with matching outfit and appropriate footwear. Enhance the background to a clean premium studio look that complements the outfit. Maintain photorealism, sharp details, and natural lighting`;
+            // Create attribute descriptions for the prompt
+            const attributeDescriptions: string[] = [];
+
+            if (gender && gender !== 'unspecified') {
+                attributeDescriptions.push(`${gender} person`);
+            }
+            if (ageRange) {
+                attributeDescriptions.push(`appearing to be in their ${ageRange} age range`);
+            }
+            if (skinTone) {
+                attributeDescriptions.push(`with ${skinTone} skin tone`);
+            }
+            if (bodyShape && bodyShape !== 'average') {
+                attributeDescriptions.push(`with a ${bodyShape} body shape`);
+            }
+            if (height) {
+                attributeDescriptions.push(`approximately ${height}cm tall`);
+            }
+            if (weight) {
+                attributeDescriptions.push(`weighing around ${weight}kg`);
+            }
+            if (hairStyle) {
+                attributeDescriptions.push(`with ${hairStyle} hair`);
+            }
+
+            // Build the dynamic prompt incorporating user attributes
+            const personDescription = attributeDescriptions.length > 0
+                ? `This is a ${attributeDescriptions.join(', ')}. `
+                : '';
+
+            const prompt = `${personDescription}Create a hyper-realistic full-body avatar of this person. Beautify the face subtly while preserving their exact facial features and natural ${skinTone || 'original'} skin tone. Maintain their ${hairStyle || 'current'} hairstyle and ${bodyShape || 'natural'} body proportions. Preserve the same posture and expression. Keep clothing unchanged; if the photo is not full body, extend realistically to full body with matching outfit and appropriate footwear that suits a ${gender || 'person'} of this style. Enhance the background to a clean premium studio look that complements the outfit. Maintain photorealism, sharp details, and natural lighting.`;
+
+            console.log('📝 [GeminiAI] Generated dynamic prompt:', prompt);
 
             const result = await this.imageModel.generateContent([
                 {
