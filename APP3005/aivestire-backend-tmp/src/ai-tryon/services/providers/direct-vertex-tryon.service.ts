@@ -68,9 +68,29 @@ export class DirectVertexTryOnService extends BaseTryOnService {
     }
 
     /**
-     * Load service account credentials from file
+     * Load service account credentials from environment variable or file
+     * Priority: GOOGLE_SERVICE_ACCOUNT_JSON (env var JSON) > File path > Default path
      */
     private loadServiceAccountCredentials(): void {
+        // First try: Load from environment variable (JSON string) - best for production
+        const saJsonEnv = this.configService.get<string>('GOOGLE_SERVICE_ACCOUNT_JSON');
+        if (saJsonEnv) {
+            try {
+                this.serviceAccountCredentials = JSON.parse(saJsonEnv);
+                this.logger.log(`✅ Service account loaded from GOOGLE_SERVICE_ACCOUNT_JSON env var`);
+                this.logger.log(`   Service account email: ${this.serviceAccountCredentials?.client_email}`);
+
+                // Use project ID from service account if not set in env
+                if (!this.projectId && this.serviceAccountCredentials?.project_id) {
+                    (this as any).projectId = this.serviceAccountCredentials.project_id;
+                }
+                return;
+            } catch (error) {
+                this.logger.error(`❌ Failed to parse GOOGLE_SERVICE_ACCOUNT_JSON: ${error.message}`);
+            }
+        }
+
+        // Second try: Load from file path
         const saPath = this.configService.get<string>('GOOGLE_APPLICATION_CREDENTIALS') ||
             this.configService.get<string>('VERTEX_SA_KEY_PATH') ||
             path.join(process.cwd(), 'service_account.json');
@@ -88,6 +108,7 @@ export class DirectVertexTryOnService extends BaseTryOnService {
                 }
             } else {
                 this.logger.warn(`⚠️ Service account file not found at: ${saPath}`);
+                this.logger.warn(`   💡 TIP: Set GOOGLE_SERVICE_ACCOUNT_JSON env var with the JSON content for production`);
             }
         } catch (error) {
             this.logger.error(`❌ Failed to load service account: ${error.message}`);
