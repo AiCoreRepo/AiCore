@@ -1,0 +1,28 @@
+services:
+  streamlit:
+    build:
+      context: .
+    command: ["streamlit", "run", "app/main.py", "--server.port=8505", "--server.address=0.0.0.0"]
+    ports:
+      - "8505:8505"
+    volumes:
+      - ./data:/app/data
+      - ./artifacts:/app/artifacts
+      - ./training.csv:/app/training.csv:ro
+      - ./new_data:/app/new_data:ro
+      - ./fashion_collection.json:/app/fashion_collection.json:ro
+    restart: unless-stopped
+
+  api:
+    build:
+      context: .
+    command: ["uvicorn", "app.api:app", "--host", "0.0.0.0", "--port", "8898"]
+    ports:
+      - "8898:8898"
+    volumes:
+      - ./data:/app/data
+      - ./artifacts:/app/artifacts
+      - ./training.csv:/app/training.csv:ro
+      - ./new_data:/app/new_data:ro
+      - ./fashion_collection.json:/app/fashion_collection.json:ro
+    restart: unless-stopped

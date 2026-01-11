@@ -1,0 +1,27 @@
+{
+  "age_divisor": 60.0,
+  "categories": {
+    "size": [
+      "small",
+      "medium",
+      "large"
+    ],
+    "body_shape": [
+      "rectangle",
+      "pear",
+      "apple",
+      "hourglass"
+    ],
+    "skin_tone": [
+      "light",
+      "medium",
+      "dusky",
+      "deep"
+    ],
+    "occasion": [
+      "party",
+      "formal",
+      "casual_luxury"
+    ]
+  }
+}

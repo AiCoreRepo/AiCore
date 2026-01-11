@@ -1,0 +1,431 @@
+height_bucket,body_shape,skin_tone,age_bucket,occasion,clothing_description,label
+average,hourglass,medium,26-35,wedding,Deep red silk lehenga with fitted blouse and flared skirt,1.0
+average,rectangle,light,26-35,office,Navy blue tailored blazer with straight pants minimal formal wear,1.0
+short,pear,medium,18-25,party,Black A line satin cocktail dress knee length evening wear,1.0
+average,apple,deep,36-45,festive,Royal blue anarkali suit with gold embroidery flowy ethnic wear,1.0
+tall,hourglass,light,26-35,casual,Pastel floral maxi dress relaxed luxury brunch outfit,0.8
+average,pear,medium,26-35,wedding,Emerald green chiffon saree with structured blouse,1.0
+average,rectangle,medium,26-35,office_party,Ivory wrap dress clean silhouette semi formal party wear,0.8
+short,pear,deep,18-25,festive,Mustard yellow flared kurta with palazzo pants festive outfit,1.0
+tall,rectangle,light,26-35,casual,White linen co ord set relaxed premium holiday wear,0.8
+average,hourglass,deep,26-35,party,Wine colored bodycon satin dress elegant evening party wear,1.0
+average,rectangle,medium,26-35,office,Charcoal grey pencil skirt with tucked silk blouse,1.0
+short,apple,medium,36-45,office,Navy straight kurta with cigarette pants office ethnic wear,0.8
+average,pear,light,26-35,casual,Cotton midi dress with defined waist casual chic outfit,0.8
+tall,hourglass,medium,26-35,party,Sequined evening gown with fitted waist glam party wear,1.0
+average,rectangle,deep,26-35,festive,Magenta silk straight suit with dupatta festive wear,0.8
+short,pear,light,18-25,party,Fit and flare mini dress youthful party wear,0.8
+average,apple,medium,36-45,wedding,Dark green silk saree with vertical drape slimming silhouette,1.0
+tall,rectangle,light,26-35,office,Beige tailored pantsuit minimal corporate look,1.0
+average,hourglass,medium,26-35,festive,Maroon velvet lehenga with embroidered blouse,1.0
+short,rectangle,deep,18-25,casual,Printed cotton co ord set relaxed everyday wear,0.6
+average,pear,medium,26-35,office,A line knee length dress solid color work wear,1.0
+tall,hourglass,light,26-35,wedding,Pastel embellished saree elegant wedding guest wear,1.0
+average,apple,deep,36-45,festive,Flowy silk anarkali with minimal embroidery,1.0
+short,pear,medium,18-25,casual,High waist skirt with tucked top casual day wear,0.6
+average,rectangle,light,26-35,party,Structured midi dress cocktail party wear,0.8
+tall,rectangle,medium,26-35,casual,Relaxed fit maxi shirt dress vacation wear,0.6
+average,hourglass,deep,26-35,office_party,Satin wrap dress subtle shine semi formal wear,0.8
+short,apple,medium,36-45,office,Straight fit kurta set neutral tones office wear,0.8
+average,pear,light,26-35,festive,Flared sharara set festive ethnic outfit,1.0
+tall,hourglass,medium,26-35,party,Off shoulder evening gown cinched waist glam look,1.0
+average,rectangle,deep,26-35,office,Structured sheath dress professional wear,1.0
+short,pear,deep,18-25,party,Mini bodycon shimmer dress club wear,0.6
+average,apple,medium,36-45,wedding,Classic silk saree with contrast border,1.0
+tall,rectangle,light,26-35,office,Crisp white shirt with tailored trousers,1.0
+average,hourglass,medium,26-35,casual,Soft knit midi dress defined waist casual luxury,0.8
+short,rectangle,light,18-25,casual,Oversized loose fit dress comfort wear,0.6
+average,pear,medium,26-35,party,A line satin midi dress elegant party look,1.0
+tall,apple,deep,36-45,festive,Flowy embroidered kaftan festive ethnic wear,0.8
+average,rectangle,medium,26-35,wedding,Straight cut silk suit wedding guest wear,0.8
+short,hourglass,light,18-25,party,Fit and flare cocktail dress defined waist,1.0
+average,pear,deep,26-35,office,Structured kurta with vertical panels,1.0
+tall,rectangle,medium,26-35,party,Slip dress minimal styling modern party wear,0.6
+average,hourglass,light,26-35,office,Sheath dress tailored fit corporate wear,1.0
+short,pear,medium,26-35,wedding,Heavily flared lehenga balanced silhouette,1.0
+average,apple,light,36-45,casual,Relaxed tunic with straight pants day wear,0.6
+tall,hourglass,deep,26-35,festive,Jewel toned saree with statement blouse,1.0
+average,rectangle,medium,26-35,party,Boxy mini dress heavy shimmer inappropriate,0.0
+short,pear,medium,26-35,office,Clingy bodycon dress unsuitable for office,0.0
+average,apple,deep,26-35,party,Loose kaftan style dress dull party look,0.0
+tall,rectangle,light,18-25,wedding,Short mini dress inappropriate for wedding,0.0
+tall,pear,medium,26-35,wedding,Peach silk lehenga with A line skirt balanced proportions,1.0
+average,hourglass,light,36-45,festive,Gold zari work saree with rich pallu draped elegantly,1.0
+short,apple,deep,26-35,party,Empire waist gown flowing from bust flattering cut,1.0
+tall,rectangle,medium,26-35,festive,Teal straight cut kurta set with embroidered dupatta,0.8
+average,pear,deep,18-25,casual,Denim jacket with flared midi skirt balanced look,0.8
+short,hourglass,medium,26-35,office,Belted sheath dress defined waist professional,1.0
+tall,apple,light,36-45,wedding,Dark purple silk saree with empire blouse,1.0
+average,rectangle,light,26-35,party,Black jumpsuit with cinched waist contemporary party wear,0.8
+short,pear,light,26-35,festive,Orange anarkali with full flare festive elegance,1.0
+tall,hourglass,deep,26-35,casual,Striped maxi dress fitted bodice flowing skirt,0.8
+average,apple,medium,26-35,office,Long kurta with straight pants modest office wear,1.0
+short,rectangle,medium,18-25,party,Sequined crop top with high waist skirt trendy party,0.8
+tall,pear,light,26-35,office,Tailored blazer with A line midi skirt professional,1.0
+average,hourglass,medium,36-45,wedding,Burgundy silk saree with heavy border traditional elegance,1.0
+short,apple,deep,26-35,casual,Flowy tunic with leggings comfortable ethnic casual,0.8
+tall,rectangle,medium,26-35,office_party,Velvet blazer with slim trousers evening office look,0.8
+average,pear,light,26-35,wedding,Mint green lehenga with heavily embroidered skirt,1.0
+short,hourglass,light,18-25,festive,Red fitted kurta with flared sharara festive chic,1.0
+tall,apple,medium,36-45,party,Draped gown with vertical pleats slimming effect,1.0
+average,rectangle,deep,26-35,casual,White kurta with palazzo pants everyday ethnic wear,0.8
+short,pear,medium,26-35,office_party,Knee length A line dress with subtle shimmer,0.8
+tall,hourglass,light,26-35,festive,Royal blue silk saree with contrast blouse,1.0
+average,apple,light,36-45,office,Structured long jacket with straight kurta,0.8
+short,rectangle,deep,18-25,casual,Printed maxi dress loose fit bohemian style,0.6
+tall,pear,medium,26-35,party,Mermaid gown with flared bottom glamorous evening,1.0
+average,hourglass,medium,26-35,wedding,Pink georgette saree with stone work delicate drape,1.0
+short,apple,medium,36-45,festive,Green flowy anarkali with minimal jewelry ethnic grace,1.0
+tall,rectangle,light,26-35,casual,Chambray shirt dress relaxed fit summer wear,0.6
+average,pear,deep,26-35,office,Wrap blouse with A line skirt flattering work wear,1.0
+short,hourglass,deep,18-25,party,Velvet bodycon dress with sweetheart neck party ready,1.0
+tall,apple,light,36-45,wedding,Lavender chiffon saree with flowing drape elegant,1.0
+average,rectangle,medium,26-35,festive,Turquoise sharara suit with heavy dupatta festive look,0.8
+short,pear,light,26-35,casual,Peplum top with skinny jeans casual western,0.8
+tall,hourglass,medium,26-35,office,Navy blazer dress fitted with statement belt,1.0
+average,apple,deep,36-45,party,Black A line gown with empire waist flattering,1.0
+short,rectangle,medium,18-25,wedding,Coral lehenga with boxy choli youthful wedding wear,0.8
+tall,pear,light,26-35,office_party,Silk tunic with cigarette pants sophisticated evening,0.8
+average,hourglass,light,26-35,festive,Fuchsia silk suit with fitted kurta festive elegance,1.0
+short,apple,deep,26-35,casual,Long tunic with churidar comfortable daily wear,0.8
+tall,rectangle,medium,36-45,wedding,Beige net saree with subtle embroidery understated elegance,0.8
+average,pear,medium,26-35,party,Satin midi skirt with fitted blouse modern party,0.8
+short,hourglass,light,18-25,office,Belted shirt dress professional young look,1.0
+tall,apple,medium,36-45,festive,Cobalt blue kaftan with embellishments festive comfort,0.8
+average,rectangle,deep,26-35,casual,Cotton kurta with jeans fusion casual wear,0.6
+short,pear,medium,26-35,wedding,Red and gold lehenga with full skirt traditional bridal,1.0
+tall,hourglass,deep,26-35,party,Emerald sequined gown with fishtail silhouette,1.0
+average,apple,light,36-45,office,Grey straight kurta with trousers minimalist office,0.8
+short,rectangle,light,18-25,festive,Yellow printed anarkali vibrant festive look,0.8
+tall,pear,medium,26-35,casual,Maxi skirt with crop top balanced casual style,0.6
+average,hourglass,medium,26-35,office_party,Burgundy velvet dress with v neck semi formal,0.8
+short,apple,deep,36-45,wedding,Plum silk saree with rich zari work elegant drape,1.0
+tall,rectangle,medium,26-35,festive,Peach straight suit with embroidered yoke ethnic charm,0.8
+average,pear,light,26-35,party,Rose gold sequined dress A line party glamour,1.0
+short,hourglass,medium,18-25,casual,Floral midi dress with defined waist summer chic,0.8
+tall,apple,light,36-45,office,Long blazer with straight pants power dressing,1.0
+average,rectangle,deep,26-35,wedding,Coral silk saree with gold border wedding elegance,1.0
+short,pear,deep,26-35,festive,Maroon velvet kurta with sharara festive richness,1.0
+tall,hourglass,light,26-35,casual,White shirt dress with belt casual sophistication,0.8
+average,apple,medium,36-45,party,Navy empire gown with flowing skirt flattering evening,1.0
+short,rectangle,medium,18-25,office,Printed shirt with tailored pants youthful office,0.8
+tall,pear,medium,26-35,wedding,Ivory lehenga with heavy skirt work balanced bridal,1.0
+average,hourglass,deep,26-35,festive,Magenta banarasi saree with golden motifs festive luxury,1.0
+short,apple,light,36-45,casual,Loose kurta with palazzo relaxed ethnic daily,0.6
+tall,rectangle,light,26-35,office_party,Black tuxedo dress sleek evening professional,1.0
+average,pear,medium,26-35,party,Purple satin gown with A line skirt elegant party,1.0
+short,hourglass,deep,18-25,wedding,Rani pink lehenga with fitted choli festive bride,1.0
+tall,apple,medium,36-45,festive,Green silk anarkali with flowing silhouette graceful,1.0
+average,rectangle,medium,26-35,casual,Striped cotton dress loose fit summer casual,0.6
+short,pear,light,26-35,office,Peplum kurta with straight pants office ethnic fusion,0.8
+tall,hourglass,medium,26-35,party,Red mermaid gown with embellishments show stopper,1.0
+average,apple,deep,36-45,wedding,Teal silk saree with vertical borders slimming drape,1.0
+short,rectangle,light,18-25,festive,Orange kurta with gharara pants festive youth,0.8
+tall,pear,deep,26-35,casual,Denim dress with flared bottom casual western,0.6
+average,hourglass,light,26-35,office,Cream sheath dress with blazer corporate chic,1.0
+short,apple,medium,36-45,party,Black empire dress with jewel neck elegant evening,1.0
+tall,rectangle,medium,26-35,wedding,Gold tissue saree with simple drape wedding guest,0.8
+average,pear,medium,26-35,festive,Blue velvet anarkali with zari work festive grace,1.0
+short,hourglass,medium,18-25,casual,Wrap dress with floral print casual feminine,0.8
+tall,apple,light,36-45,office,Charcoal long blazer with kurta professional ethnic,0.8
+average,rectangle,deep,26-35,party,Silver sequined jumpsuit contemporary party wear,0.8
+short,pear,deep,26-35,office_party,Wine colored wrap dress semi formal evening,0.8
+tall,hourglass,deep,26-35,wedding,Deep blue silk lehenga with intricate work bridal elegance,1.0
+average,apple,medium,36-45,casual,Printed kaftan dress comfortable resort wear,0.6
+short,rectangle,light,18-25,festive,Pink sharara suit with heavy dupatta festive celebration,0.8
+tall,pear,medium,26-35,office,Long blazer with A line skirt professional balance,1.0
+average,hourglass,light,26-35,party,Champagne satin dress fitted bodice party luxury,1.0
+short,apple,deep,36-45,wedding,Mustard silk saree with contrast border traditional,1.0
+tall,rectangle,medium,26-35,casual,Linen jumpsuit relaxed fit vacation comfort,0.6
+average,pear,light,26-35,festive,Red anarkali with golden embroidery festive richness,1.0
+short,hourglass,medium,18-25,office,Navy fit and flare dress professional youth,1.0
+tall,apple,light,36-45,party,Purple draped gown with cowl neck evening elegance,1.0
+average,rectangle,deep,26-35,wedding,Turquoise silk suit with embroidered dupatta wedding guest,0.8
+short,pear,medium,26-35,casual,High waist jeans with peplum top casual trendy,0.6
+tall,hourglass,deep,26-35,office_party,Maroon velvet blazer dress evening sophistication,0.8
+average,apple,medium,36-45,festive,Cobalt anarkali with flowy silhouette festive comfort,1.0
+short,rectangle,light,18-25,party,Glitter mini dress with flare youthful party,0.6
+tall,pear,light,26-35,wedding,Pastel lehenga with A line skirt soft bridal,1.0
+average,hourglass,medium,26-35,casual,Jersey dress with belt casual comfort,0.8
+short,apple,deep,36-45,office,Navy kurta with long jacket office ethnic professional,0.8
+tall,rectangle,medium,26-35,festive,Orange silk saree with minimalist border festive simplicity,0.8
+average,pear,deep,26-35,party,Black velvet dress with A line skirt party elegance,1.0
+short,hourglass,light,18-25,wedding,Peach silk lehenga with embellished choli young bride,1.0
+tall,apple,medium,36-45,casual,Long tunic with straight pants daily ethnic wear,0.8
+average,rectangle,light,26-35,office_party,Grey satin dress with subtle shine evening work,0.8
+short,pear,medium,26-35,festive,Green sharara with heavy kameez festive traditional,1.0
+tall,hourglass,deep,26-35,party,Gold metallic gown with fitted waist glamorous,1.0
+average,apple,light,36-45,wedding,Wine silk saree with rich embroidery wedding elegance,1.0
+short,rectangle,medium,18-25,casual,Denim skirt with kurti fusion casual youth,0.6
+tall,pear,light,26-35,office,Beige blazer with A line dress professional style,1.0
+average,hourglass,medium,26-35,festive,Rani pink lehenga with mirror work festive celebration,1.0
+short,apple,deep,36-45,party,Teal empire gown with flowing skirt flattering,1.0
+tall,rectangle,light,26-35,casual,White cotton maxi dress relaxed summer wear,0.6
+average,pear,medium,26-35,wedding,Gold tissue lehenga with flared skirt bridal luxury,1.0
+short,hourglass,deep,18-25,office,Belted dress with midi length office appropriate,1.0
+tall,apple,medium,36-45,festive,Purple chiffon saree with soft drape festive grace,1.0
+average,rectangle,medium,26-35,party,Navy sequined dress with straight cut party chic,0.8
+short,pear,light,26-35,casual,Floral skirt with fitted top casual feminine,0.6
+tall,hourglass,light,26-35,office_party,Black blazer dress with statement jewelry evening,1.0
+average,apple,deep,36-45,wedding,Royal blue silk lehenga with empire choli flattering,1.0
+short,rectangle,medium,18-25,festive,Yellow kurta with palazzo festive brightness,0.8
+tall,pear,medium,26-35,casual,Maxi dress with empire waist flowing casual,0.8
+average,hourglass,medium,26-35,party,Red satin gown with mermaid silhouette dramatic,1.0
+short,apple,light,36-45,office,Grey straight kurta with minimal design office simplicity,0.8
+tall,rectangle,deep,26-35,wedding,Cream silk saree with gold work wedding traditional,1.0
+average,pear,light,26-35,festive,Maroon anarkali with gold zari festive richness,1.0
+short,hourglass,medium,18-25,casual,Fit and flare sundress summer casual,0.8
+tall,apple,medium,36-45,party,Black draped gown with empire waist elegant evening,1.0
+average,rectangle,light,26-35,office,White shirt with black trousers classic office,1.0
+short,pear,deep,26-35,wedding,Pink silk lehenga with heavy skirt bridal traditional,1.0
+tall,hourglass,deep,26-35,festive,Emerald silk saree with rich pallu festive opulence,1.0
+average,apple,medium,36-45,casual,Printed tunic with leggings daily comfort wear,0.6
+short,rectangle,light,18-25,office_party,Navy dress with subtle shimmer young professional,0.8
+tall,pear,light,26-35,party,Champagne gown with A line skirt soft evening,1.0
+average,hourglass,light,26-35,wedding,Lavender lehenga with embroidered blouse romantic bridal,1.0
+short,apple,deep,36-45,festive,Green silk anarkali with flowing design festive ease,1.0
+tall,rectangle,medium,26-35,casual,Striped shirt dress casual effortless,0.6
+average,pear,medium,26-35,office,Structured blazer with A line skirt work professional,1.0
+short,hourglass,medium,18-25,party,Pink bodycon dress with sweetheart neck party fun,0.8
+tall,apple,light,36-45,wedding,Beige silk saree with gold border understated elegance,1.0
+average,rectangle,deep,26-35,festive,Turquoise sharara suit with embroidery festive style,0.8
+short,pear,light,26-35,casual,Denim jacket with midi dress casual layering,0.6
+tall,hourglass,medium,26-35,office_party,Burgundy satin dress fitted evening sophistication,0.8
+average,apple,medium,36-45,party,Navy empire gown with jeweled neck flattering formal,1.0
+short,rectangle,medium,18-25,wedding,Coral silk lehenga with simple choli wedding youth,0.8
+tall,pear,deep,26-35,casual,Maxi skirt with tucked shirt casual proportion,0.6
+average,hourglass,deep,26-35,festive,Fuchsia lehenga with heavy work festive grandeur,1.0
+short,apple,light,36-45,office,Beige kurta with straight pants neutral office,0.8
+tall,rectangle,light,26-35,party,Silver metallic dress minimal styling party modern,0.8
+average,pear,medium,26-35,wedding,Mint georgette saree with delicate work wedding soft,1.0
+short,hourglass,light,18-25,casual,Floral wrap dress casual romantic,0.8
+tall,apple,medium,36-45,festive,Purple kaftan with embellishments festive comfort,0.8
+average,rectangle,medium,26-35,office,Navy pencil skirt with silk blouse corporate classic,1.0
+short,pear,deep,26-35,party,Black A line dress with lace overlay party elegant,0.8
+tall,hourglass,deep,26-35,wedding,Red silk lehenga with gold work bridal statement,1.0
+average,apple,light,36-45,casual,Loose tunic with churidar daily ethnic ease,0.6
+short,rectangle,light,18-25,festive,Yellow anarkali with minimal work festive brightness,0.8
+tall,pear,medium,26-35,office_party,Black jumpsuit with cinched waist evening professional,0.8
+average,hourglass,medium,26-35,party,Emerald velvet dress with fitted bodice party luxury,1.0
+short,apple,deep,36-45,wedding,Teal silk saree with contrast blouse wedding elegance,1.0
+tall,rectangle,medium,26-35,casual,White linen dress relaxed fit summer easy,0.6
+average,pear,light,26-35,festive,Orange sharara with embroidered kurta festive traditional,1.0
+short,hourglass,medium,18-25,office,Belted midi dress with sleeves office polished,1.0
+tall,apple,light,36-45,party,Plum draped gown with cowl detail evening grace,1.0
+average,rectangle,deep,26-35,wedding,Gold silk suit with heavy dupatta wedding guest,0.8
+short,pear,medium,26-35,casual,High waist trousers with peplum top casual work,0.6
+tall,hourglass,light,26-35,office_party,Navy velvet blazer dress evening chic,0.8
+average,apple,medium,36-45,festive,Royal blue anarkali with subtle embroidery festive comfort,1.0
+short,rectangle,light,18-25,party,Sequined crop top with skirt trendy party youth,0.6
+tall,pear,deep,26-35,wedding,Ivory lehenga with A line silhouette balanced bridal,1.0
+average,hourglass,medium,26-35,casual,Knit dress with belt casual cozy,0.8
+short,apple,deep,36-45,office,Navy kurta with long sleeves office modest,0.8
+tall,rectangle,medium,26-35,festive,Peach silk saree with gold motifs festive elegance,0.8
+average,pear,light,26-35,party,Wine satin dress with A line cut party sophistication,1.0
+short,hourglass,light,18-25,wedding,Pink lehenga with mirror work youthful bridal,1.0
+tall,apple,medium,36-45,casual,Printed kaftan with pants resort ethnic,0.6
+average,rectangle,light,26-35,office_party,Grey wrap dress with subtle texture evening work,0.8
+short,pear,medium,26-35,festive,Green anarkali with flared bottom festive grace,1.0
+tall,hourglass,deep,26-35,party,Black sequined gown with mermaid shape show stopping,1.0
+average,apple,light,36-45,wedding,Lavender silk saree with silver border wedding soft,1.0
+short,rectangle,medium,18-25,casual,Denim dress with belt casual western youth,0.6
+tall,pear,light,26-35,office,Tailored pantsuit with A line jacket professional,1.0
+average,hourglass,medium,26-35,festive,Maroon velvet lehenga with zari work festive royalty,1.0
+short,apple,deep,36-45,party,Teal empire dress with beaded neck flattering formal,1.0
+tall,rectangle,light,26-35,casual,Cotton maxi dress loose fit easy summer,0.6
+average,pear,medium,26-35,wedding,Coral silk lehenga with heavy skirt bridal vibrant,1.0
+short,hourglass,deep,18-25,office,Fitted sheath dress with jacket office professional,1.0
+tall,apple,medium,36-45,festive,Purple chiffon saree with flowing pallu festive soft,1.0
+average,rectangle,medium,26-35,party,Silver midi dress with structured fit party metallic,0.8
+short,pear,light,26-35,casual,Skater skirt with fitted blouse casual playful,0.6
+tall,hourglass,light,26-35,office_party,Maroon satin dress with v neck evening elegant,0.8
+average,apple,deep,36-45,wedding,Cobalt silk lehenga with empire blouse flattering bridal,1.0
+short,rectangle,medium,18-25,festive,Mustard kurta with gharara festive traditional,0.8
+tall,pear,medium,26-35,casual,Long shirt dress with belt casual effortless,0.6
+average,hourglass,medium,26-35,party,Navy velvet gown with fitted waist party opulence,1.0
+short,apple,light,36-45,office,Beige straight kurta with trousers office minimal,0.8
+tall,rectangle,deep,26-35,wedding,Cream georgette saree with gold embroidery wedding grace,1.0
+average,pear,light,26-35,festive,Red silk anarkali with gold work festive celebration,1.0
+short,hourglass,medium,18-25,casual,Midi dress with cinched waist casual feminine,0.8
+tall,apple,medium,36-45,party,Black gown with empire waist elegant simplicity,1.0
+average,rectangle,light,26-35,office,White blazer with tailored pants corporate clean,1.0
+short,pear,deep,26-35,wedding,Gold tissue lehenga with full skirt bridal luxury,1.0
+tall,hourglass,deep,26-35,festive,Emerald velvet saree with rich texture festive depth,1.0
+average,apple,medium,36-45,casual,Flowy kurta with palazzo comfortable daily,0.6
+short,rectangle,light,18-25,office_party,Black dress with metallic accents young evening,0.8
+tall,pear,light,26-35,party,Rose gold gown with A line skirt soft party,1.0
+average,hourglass,light,26-35,wedding,Peach silk lehenga with intricate choli romantic bridal,1.0
+short,apple,deep,36-45,festive,Green chiffon anarkali with soft drape festive flow,1.0
+tall,rectangle,medium,26-35,casual,Jersey maxi dress relaxed fit casual stretch,0.6
+average,pear,medium,26-35,office,Navy blazer with A line skirt professional classic,1.0
+short,hourglass,medium,18-25,party,Red fit and flare dress party vibrant,0.8
+tall,apple,light,36-45,wedding,Ivory silk saree with pearl border wedding understated,1.0
+average,rectangle,deep,26-35,festive,Turquoise silk suit with embroidered yoke festive ethnic,0.8
+short,pear,light,26-35,casual,Floral midi skirt with tee casual summer,0.6
+tall,hourglass,medium,26-35,office_party,Wine colored velvet dress evening richness,0.8
+average,apple,medium,36-45,party,Purple empire gown with jeweled waist flattering,1.0
+short,rectangle,medium,18-25,wedding,Pink lehenga with simple design wedding sweet,0.8
+tall,pear,deep,26-35,casual,Maxi dress with high waist casual flowing,0.6
+average,hourglass,deep,26-35,festive,Rani pink silk lehenga with gold zari festive vibrancy,1.0
+short,apple,light,36-45,office,Grey kurta with cigarette pants office sleek,0.8
+tall,rectangle,light,26-35,party,Gold sequined dress straight cut party metallic,0.8
+average,pear,medium,26-35,wedding,Lavender chiffon saree with stone work wedding delicate,1.0
+short,hourglass,light,18-25,casual,Sundress with fit and flare casual summer,0.8
+tall,apple,medium,36-45,festive,Cobalt kaftan with beading festive ease,0.8
+average,rectangle,medium,26-35,office,Charcoal sheath dress with blazer corporate power,1.0
+short,pear,deep,26-35,party,Emerald A line dress with satin finish party rich,0.8
+tall,hourglass,deep,26-35,wedding,Maroon silk lehenga with heavy embroidery bridal grandeur,1.0
+average,apple,light,36-45,casual,Printed tunic with jeans casual fusion,0.6
+short,rectangle,light,18-25,festive,Orange kurta with sharara festive youth,0.8
+tall,pear,medium,26-35,office_party,Black satin dress with cinched waist evening,0.8
+average,hourglass,medium,26-35,party,Fuchsia velvet dress with fitted bodice party bold,1.0
+short,apple,deep,36-45,wedding,Mustard silk saree with rich pallu wedding traditional,1.0
+tall,rectangle,medium,26-35,casual,Linen shirt dress loose fit casual natural,0.6
+average,pear,light,26-35,festive,Blue silk anarkali with gold embroidery festive royalty,1.0
+short,hourglass,medium,18-25,office,Navy dress with belt office polished youth,1.0
+tall,apple,light,36-45,party,Wine draped gown with cowl neck evening sophistication,1.0
+average,rectangle,deep,26-35,wedding,Beige silk suit with heavy work wedding guest,0.8
+short,pear,medium,26-35,casual,Culottes with fitted top casual modern,0.6
+tall,hourglass,light,26-35,office_party,Emerald satin dress with v neck evening glamour,0.8
+average,apple,medium,36-45,festive,Royal blue silk anarkali with flowing cut festive ease,1.0
+short,rectangle,light,18-25,party,Silver mini dress with shimmer party youthful,0.6
+tall,pear,deep,26-35,wedding,Cream lehenga with A line balance bridal elegant,1.0
+average,hourglass,medium,26-35,casual,Striped dress with defined waist casual nautical,0.8
+short,apple,deep,36-45,office,Navy straight kurta with dupatta office ethnic,0.8
+tall,rectangle,medium,26-35,festive,Pink georgette saree with minimal border festive soft,0.8
+average,pear,light,26-35,party,Burgundy satin dress with A line skirt party classic,1.0
+short,hourglass,light,18-25,wedding,Coral lehenga with fitted choli bridal cheerful,1.0
+tall,apple,medium,36-45,casual,Long tunic with straight pants ethnic daily,0.8
+average,rectangle,light,26-35,office_party,Grey midi dress with metallic thread evening subtle,0.8
+short,pear,medium,26-35,festive,Maroon anarkali with gold detail festive rich,1.0
+tall,hourglass,deep,26-35,party,Gold gown with mermaid silhouette party statement,1.0
+average,apple,light,36-45,wedding,Teal silk saree with silver work wedding cool,1.0
+short,rectangle,medium,18-25,casual,Cotton dress with print casual comfortable,0.6
+tall,pear,light,26-35,office,Structured blazer with A line pants professional,1.0
+average,hourglass,medium,26-35,festive,Purple velvet lehenga with mirror work festive drama,1.0
+short,apple,deep,36-45,party,Navy empire gown with beaded detail flattering evening,1.0
+tall,rectangle,light,26-35,casual,White maxi dress with layers casual breezy,0.6
+average,pear,medium,26-35,wedding,Peach tissue lehenga with heavy skirt bridal soft,1.0
+short,hourglass,deep,18-25,office,Belted dress with three quarter sleeves office appropriate,1.0
+tall,apple,medium,36-45,festive,Lavender chiffon saree with light drape festive airy,1.0
+average,rectangle,medium,26-35,party,Navy sequined jumpsuit contemporary party,0.8
+short,pear,light,26-35,casual,A line skirt with tucked blouse casual work,0.6
+tall,hourglass,light,26-35,office_party,Black velvet dress with statement neck evening,0.8
+average,apple,deep,36-45,wedding,Royal blue lehenga with empire choli bridal flattering,1.0
+short,rectangle,medium,18-25,festive,Yellow sharara with kurta festive bright,0.8
+tall,pear,medium,26-35,casual,Shirt dress with belt casual effortless,0.6
+average,hourglass,medium,26-35,party,Wine colored gown with cinched waist party elegance,1.0
+short,apple,light,36-45,office,Beige kurta with minimal embroidery office simple,0.8
+tall,rectangle,deep,26-35,wedding,Gold silk saree with embroidered border wedding rich,1.0
+average,pear,light,26-35,festive,Green silk anarkali with zari work festive tradition,1.0
+short,hourglass,medium,18-25,casual,Fit and flare cotton dress casual easy,0.8
+tall,apple,medium,36-45,party,Plum gown with empire waist evening grace,1.0
+average,rectangle,light,26-35,office,Navy blazer with white shirt corporate professional,1.0
+short,pear,deep,26-35,wedding,Rani pink lehenga with full flare bridal vibrant,1.0
+tall,hourglass,deep,26-35,festive,Red silk saree with gold embroidery festive opulence,1.0
+average,apple,medium,36-45,casual,Printed kurta with leggings daily comfort,0.6
+short,rectangle,light,18-25,office_party,Black dress with subtle sequins young professional,0.8
+tall,pear,light,26-35,party,Champagne gown with flowing skirt soft evening,1.0
+average,hourglass,light,26-35,wedding,Mint lehenga with pearl work romantic bridal,1.0
+short,apple,deep,36-45,festive,Turquoise anarkali with soft silhouette festive comfort,1.0
+tall,rectangle,medium,26-35,casual,Denim maxi dress casual western,0.6
+average,pear,medium,26-35,office,Black blazer with A line skirt work essential,1.0
+short,hourglass,medium,18-25,party,Pink satin dress with sweetheart neck party fun,0.8
+tall,apple,light,36-45,wedding,Cream silk saree with gold pallu wedding tradition,1.0
+average,rectangle,deep,26-35,festive,Orange silk suit with embroidery festive warmth,0.8
+short,pear,light,26-35,casual,Flared pants with fitted top casual balance,0.6
+tall,hourglass,medium,26-35,office_party,Maroon dress with wrap style evening sophistication,0.8
+average,apple,medium,36-45,party,Black empire gown with crystal detail flattering,1.0
+short,rectangle,medium,18-25,wedding,Peach lehenga with light work wedding soft,0.8
+tall,pear,deep,26-35,casual,Long cardigan with maxi dress casual layering,0.6
+average,hourglass,deep,26-35,festive,Magenta silk lehenga with gold detail festive boldness,1.0
+short,apple,light,36-45,office,Grey straight kurta with pants office neutral,0.8
+tall,rectangle,light,26-35,party,Silver dress with minimal design party modern,0.8
+average,pear,medium,26-35,wedding,Lavender georgette saree with embroidery wedding soft,1.0
+short,hourglass,light,18-25,casual,Floral dress with cinched waist casual pretty,0.8
+tall,apple,medium,36-45,festive,Purple embroidered kaftan festive comfortable,0.8
+average,rectangle,medium,26-35,office,Navy pencil dress with blazer corporate classic,1.0
+short,pear,deep,26-35,party,Emerald velvet dress with A line party rich,0.8
+tall,hourglass,deep,26-35,wedding,Burgundy silk lehenga with intricate work bridal luxury,1.0
+average,apple,light,36-45,casual,Loose kurta with churidar daily ethnic,0.6
+short,rectangle,light,18-25,festive,Coral anarkali with minimal detail festive fresh,0.8
+tall,pear,medium,26-35,office_party,Navy jumpsuit with tailored fit evening professional,0.8
+average,hourglass,medium,26-35,party,Royal blue velvet dress with fitted waist party regal,1.0
+short,apple,deep,36-45,wedding,Green silk saree with contrast work wedding vibrant,1.0
+tall,rectangle,medium,26-35,casual,White cotton dress relaxed summer,0.6
+average,pear,light,26-35,festive,Mustard sharara with embroidered top festive traditional,1.0
+short,hourglass,medium,18-25,office,Belted midi dress office polished,1.0
+tall,apple,light,36-45,party,Wine gown with draped detail evening elegance,1.0
+average,rectangle,deep,26-35,wedding,Peach silk suit with heavy dupatta wedding guest,0.8
+short,pear,medium,26-35,casual,Midi skirt with crop top casual modern,0.6
+tall,hourglass,light,26-35,office_party,Black satin dress with v neck evening chic,0.8
+average,apple,medium,36-45,festive,Cobalt anarkali with flowing design festive ease,1.0
+short,rectangle,light,18-25,party,Gold mini dress with shimmer party trendy,0.6
+tall,pear,deep,26-35,wedding,Ivory lehenga with balanced proportions bridal elegant,1.0
+average,hourglass,medium,26-35,casual,Jersey dress with belt casual comfort,0.8
+short,apple,deep,36-45,office,Navy kurta with long jacket office layered,0.8
+tall,rectangle,medium,26-35,festive,Turquoise silk saree with gold border festive elegant,0.8
+average,pear,light,26-35,party,Burgundy satin gown with A line cut party sophistication,1.0
+short,hourglass,light,18-25,wedding,Pink silk lehenga with mirror detail bridal festive,1.0
+tall,apple,medium,36-45,casual,Printed kaftan with leggings resort casual,0.6
+average,rectangle,light,26-35,office_party,Grey satin dress with subtle detail evening work,0.8
+short,pear,medium,26-35,festive,Red anarkali with gold zari festive celebration,1.0
+tall,hourglass,deep,26-35,party,Emerald sequined gown with mermaid cut party statement,1.0
+average,apple,light,36-45,wedding,Lavender silk saree with silver embroidery wedding soft,1.0
+short,rectangle,medium,18-25,casual,Denim skirt with top casual western youth,0.6
+tall,pear,light,26-35,office,Tailored suit with A line jacket professional balance,1.0
+average,hourglass,medium,26-35,festive,Purple velvet lehenga with stone work festive royalty,1.0
+short,apple,deep,36-45,party,Teal empire dress with beaded neck flattering formal,1.0
+tall,rectangle,light,26-35,casual,Linen maxi dress loose fit casual natural,0.6
+average,pear,medium,26-35,wedding,Coral tissue lehenga with heavy embroidery bridal vibrant,1.0
+short,hourglass,deep,18-25,office,Fitted dress with blazer office professional,1.0
+tall,apple,medium,36-45,festive,Purple chiffon saree with flowing style festive soft,1.0
+average,rectangle,medium,26-35,party,Navy metallic dress with structure party chic,0.8
+short,pear,light,26-35,casual,Flared skirt with tee casual playful,0.6
+tall,hourglass,light,26-35,office_party,Wine velvet dress with wrap detail evening,0.8
+average,apple,deep,36-45,wedding,Royal blue lehenga with empire blouse bridal flattering,1.0
+short,rectangle,medium,18-25,festive,Mustard kurta with gharara festive warmth,0.8
+tall,pear,medium,26-35,casual,Shirt dress with cinched waist casual effortless,0.6
+average,hourglass,medium,26-35,party,Fuchsia gown with fitted bodice party bold,1.0
+short,apple,light,36-45,office,Beige kurta with straight pants office minimal,0.8
+tall,rectangle,deep,26-35,wedding,Cream silk saree with gold motifs wedding traditional,1.0
+average,pear,light,26-35,festive,Green anarkali with gold embroidery festive richness,1.0
+short,hourglass,medium,18-25,casual,Cotton dress with defined waist casual feminine,0.8
+tall,apple,medium,36-45,party,Black empire gown with elegant drape evening,1.0
+average,rectangle,light,26-35,office,White blazer with tailored skirt corporate clean,1.0
+short,pear,deep,26-35,wedding,Gold silk lehenga with full skirt bridal luxury,1.0
+tall,hourglass,deep,26-35,festive,Maroon silk saree with zari work festive depth,1.0
+average,apple,medium,36-45,casual,Flowy tunic with palazzo daily comfort,0.6
+short,rectangle,light,18-25,office_party,Black dress with gold accents young evening,0.8
+tall,pear,light,26-35,party,Rose gold gown with flowing skirt soft party,1.0
+average,hourglass,light,26-35,wedding,Peach lehenga with delicate work romantic bridal,1.0
+short,apple,deep,36-45,festive,Green anarkali with soft flow festive comfortable,1.0
+tall,rectangle,medium,26-35,casual,Cotton maxi dress relaxed casual,0.6
+average,pear,medium,26-35,office,Navy blazer with A line pants professional,1.0
+short,hourglass,medium,18-25,party,Red bodycon dress with detail party vibrant,0.8
+tall,apple,light,36-45,wedding,Ivory silk saree with pearl detail wedding understated,1.0
+average,rectangle,deep,26-35,festive,Turquoise silk suit with embroidery festive ethnic,0.8
+short,pear,light,26-35,casual,Midi skirt with blouse casual summer,0.6
+tall,hourglass,medium,26-35,office_party,Emerald satin dress with v neck evening glamour,0.8
+average,apple,medium,36-45,party,Purple empire gown with jeweled waist flattering,1.0
+short,rectangle,medium,18-25,wedding,Pink lehenga with simple choli wedding sweet,0.8
+tall,pear,deep,26-35,casual,Maxi dress with empire waist casual flowing,0.6
+average,hourglass,deep,26-35,festive,Rani pink lehenga with mirror work festive vibrancy,1.0
+short,apple,light,36-45,office,Grey kurta with cigarette pants office sleek,0.8
+tall,rectangle,light,26-35,party,Gold dress with straight cut party metallic,0.8
+average,pear,medium,26-35,wedding,Lavender saree with stone work wedding delicate,1.0
+short,hourglass,light,18-25,casual,Sundress with flare casual summer,0.8
+tall,apple,medium,46-55,festive,Cobalt kaftan with embroidery festive comfort,0.8
+average,rectangle,medium,26-35,office,Charcoal dress with blazer corporate,1.0
+short,pear,deep,26-35,party,Emerald dress with A line cut party rich,0.8
+tall,hourglass,deep,26-35,wedding,Maroon lehenga with heavy work bridal grandeur,1.0
+average,rectangle,medium,26-35,casual,Baggy t-shirt with joggers inappropriate casual,0.0
+short,pear,light,26-35,wedding,Neon crop top with mini skirt wedding inappropriate,0.0
+tall,apple,deep,36-45,office,Sheer top with visible undergarments unprofessional,0.0
+average,hourglass,medium,18-25,festive,Torn ripped jeans with plain tee festive mismatch,0.0
+short,rectangle,deep,26-35,party,Oversized hoodie with sweatpants party inappropriate,0.0
+tall,pear,light,26-35,office_party,Athletic wear with sneakers office party mismatch,0.0
+average,apple,medium,36-45,wedding,Faded casual kurta with stains wedding inappropriate,0.0
+short,hourglass,deep,18-25,office,Spaghetti strap club dress office unsuitable,0.0
+tall,rectangle,medium,26-35,festive,Plain grey sweatsuit festive no effort,0.0
+average,pear,light,26-35,party,Oversized tunic drowning silhouette party unflattering,0.0
