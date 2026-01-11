@@ -1,18 +1,21 @@
 import base64
+from io import BytesIO
 import os
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Literal
 
 import requests
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import Body, FastAPI, File, Form, HTTPException, UploadFile
 from google.auth.transport.requests import Request
 from google.oauth2 import service_account
 from pydantic import BaseModel
+from PIL import Image
 
 from google import genai
 from google.genai import types
 from dotenv import load_dotenv
 from color_helper import generate_angle_prompt
+from body_analyzer import analyze_user_image
 
 # Load environment variables from a .env file for local runs.
 load_dotenv()
@@ -22,6 +25,39 @@ app = FastAPI(
     version="1.0.0",
     description="Accepts two JPEGs (person + garment) and returns base64 outputs from Vertex AI.",
 )
+
+BODY_SHAPE_OPTIONS = [
+    "Rectangle",
+    "Pear Shape",
+    "Apple Shape",
+    "Hourglass",
+    "Inverted Triangle",
+]
+
+SKIN_TONE_OPTIONS = [
+    "Light",
+    "Medium",
+    "Dusky",
+    "Deep",
+]
+
+_BODY_SHAPE_LABELS = {
+    "rectangle": BODY_SHAPE_OPTIONS[0],
+    "pear": BODY_SHAPE_OPTIONS[1],
+    "pear_shape": BODY_SHAPE_OPTIONS[1],
+    "apple": BODY_SHAPE_OPTIONS[2],
+    "apple_shape": BODY_SHAPE_OPTIONS[2],
+    "hourglass": BODY_SHAPE_OPTIONS[3],
+    "inverted_triangle": BODY_SHAPE_OPTIONS[4],
+    "inverted triangle": BODY_SHAPE_OPTIONS[4],
+}
+
+_SKIN_TONE_LABELS = {
+    "light": SKIN_TONE_OPTIONS[0],
+    "medium": SKIN_TONE_OPTIONS[1],
+    "dusky": SKIN_TONE_OPTIONS[2],
+    "deep": SKIN_TONE_OPTIONS[3],
+}
 
 
 class TryOnResponse(BaseModel):
@@ -58,6 +94,21 @@ class GenerateAnglesRequest(BaseModel):
     """
     previous_image: str  # base64 without data URI prefix
     additional_params: Optional[Dict] = None
+
+
+class BodyAnalyzeRequest(BaseModel):
+    image_base64: Optional[str] = None
+
+
+class BodyAnalyzeResponse(BaseModel):
+    skin_tone_label: Optional[
+        Literal["Light", "Medium", "Dusky", "Deep"]
+    ] = None
+    skin_hexes: List[str]
+    body_shape: Optional[
+        Literal["Rectangle", "Pear Shape", "Apple Shape", "Hourglass", "Inverted Triangle"]
+    ] = None
+    full_body: bool
 
 
 class StandardTryOnResponse(BaseModel):
@@ -131,6 +182,24 @@ def _encode_bytes(data: bytes) -> str:
     return base64.b64encode(data).decode("utf-8")
 
 
+def _load_image_bytes(image_bytes: bytes) -> Image.Image:
+    try:
+        return Image.open(BytesIO(image_bytes)).convert("RGB")
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"Invalid image data: {exc}") from exc
+
+
+def _decode_base64_image(data: Optional[str]) -> bytes:
+    if not data:
+        raise HTTPException(status_code=400, detail="Missing image_base64.")
+    if data.startswith("data:"):
+        _, _, data = data.partition(",")
+    try:
+        return base64.b64decode(data)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"Invalid base64: {exc}") from exc
+
+
 def _require_api_key() -> str:
     api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key:
@@ -139,6 +208,35 @@ def _require_api_key() -> str:
             detail="GEMINI_API_KEY is required in the environment for Gemini calls.",
         )
     return api_key.strip()
+
+
+def _normalize_label(value: Optional[str]) -> Optional[str]:
+    if not value:
+        return None
+    return value.strip().lower().replace(" ", "_")
+
+
+def _format_body_shape(value: Optional[str]) -> Optional[str]:
+    key = _normalize_label(value)
+    if not key:
+        return None
+    return _BODY_SHAPE_LABELS.get(key)
+
+
+def _format_skin_tone(value: Optional[str]) -> Optional[str]:
+    key = _normalize_label(value)
+    if not key:
+        return None
+    return _SKIN_TONE_LABELS.get(key)
+
+
+def _build_body_analyze_response(result: Dict) -> BodyAnalyzeResponse:
+    return BodyAnalyzeResponse(
+        skin_tone_label=_format_skin_tone(result.get("skin_tone_label")),
+        skin_hexes=result.get("skin_hexes") or [],
+        body_shape=_format_body_shape(result.get("body_shape")),
+        full_body=bool(result.get("full_body")),
+    )
 
 
 async def _read_jpeg(upload: UploadFile, field_name: str) -> bytes:
@@ -760,6 +858,55 @@ async def generate_angles(request: GenerateAnglesRequest) -> StandardTryOnRespon
         ) from exc
 
 
+@app.post(
+    "/body_analyze",
+    summary="Analyze body attributes via file upload or form base64",
+    tags=["body-analyze"],
+    response_model=BodyAnalyzeResponse,
+)
+async def body_analyze(
+    file: UploadFile | None = File(
+        None, description="Image file upload (png/jpg). Leave empty if using base64."
+    ),
+    image_base64: str | None = Form(
+        None, description="Base64 image string (use when not uploading a file)."
+    ),
+):
+    image_bytes = None
+    if file is not None:
+        image_bytes = await file.read()
+    elif image_base64:
+        image_bytes = _decode_base64_image(image_base64)
+    else:
+        raise HTTPException(status_code=400, detail="Provide an image file or image_base64.")
+
+    if not image_bytes:
+        raise HTTPException(status_code=400, detail="Uploaded image is empty.")
+
+    image = _load_image_bytes(image_bytes)
+    result = analyze_user_image(image)
+    if "error" in result:
+        raise HTTPException(status_code=500, detail=result["error"])
+    return _build_body_analyze_response(result)
+
+
+@app.post(
+    "/body_analyze_json",
+    summary="Analyze body attributes via JSON base64",
+    tags=["body-analyze"],
+    response_model=BodyAnalyzeResponse,
+)
+async def body_analyze_json(
+    payload: BodyAnalyzeRequest = Body(..., description="JSON with image_base64"),
+):
+    image_bytes = _decode_base64_image(payload.image_base64)
+    image = _load_image_bytes(image_bytes)
+    result = analyze_user_image(image)
+    if "error" in result:
+        raise HTTPException(status_code=500, detail=result["error"])
+    return _build_body_analyze_response(result)
+
+
 @app.get(
     "/health",
     summary="Health check",
@@ -787,5 +934,7 @@ async def health_check():
             "vertex_tryon": "/vertex/try-on-json",
             "gemini_tryon": "/gemini/try-on-json",
             "generate_angles": "/gemini/generate-angles",
+            "body_analyze": "/body_analyze",
+            "body_analyze_json": "/body_analyze_json",
         },
     }

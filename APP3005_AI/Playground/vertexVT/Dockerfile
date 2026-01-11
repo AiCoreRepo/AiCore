@@ -5,7 +5,7 @@ WORKDIR /app
 
 # Build essentials for any wheels that need compilation.
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends build-essential \
+    && apt-get install -y --no-install-recommends build-essential libglib2.0-0 libgl1 libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 
 # Install dependencies with uv (cache wheel downloads between builds).
@@ -15,8 +15,6 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 
 # App source
 COPY api.py app.py README.md pyproject.toml uv.lock ./
-COPY .env.example .env.example
-
 EXPOSE 8000
 
 CMD ["python", "-m", "uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8000"]
