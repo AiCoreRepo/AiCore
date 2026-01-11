@@ -4,19 +4,15 @@ WORKDIR /app
 
 # System deps
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends build-essential \
+    && apt-get install -y --no-install-recommends build-essential libglib2.0-0 libgl1 libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Python deps
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy app code
-COPY api.py app.py color_helper.py color_config.py pyproject.toml ./
-
-# DO NOT COPY secrets into image
-# (no .env, no key.json copied into container image)
-
+# App source
+COPY api.py app.py README.md pyproject.toml uv.lock ./
 EXPOSE 8000
 
 # Environment variables loaded at runtime
