@@ -44,3 +44,11 @@ lerna-debug.log*
 build-log.txt
 check-env.ps1
 test-env.js
+
+# Service account credentials
+service_account.json
+**/service_account.json
+
+# Python uv package manager
+uv.lock
+**/uv.lock

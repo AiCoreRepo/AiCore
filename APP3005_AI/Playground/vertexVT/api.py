@@ -127,6 +127,9 @@ def _get_access_token(manual_token: Optional[str]) -> Optional[str]:
     uses a local service_account.json in this folder. If no file is found or readable,
     returns None (callers will raise 401).
     """
+    import logging
+    logger = logging.getLogger(__name__)
+    
     # Reload .env file to pick up fresh paths without restarting service
     load_dotenv(override=True)
 
@@ -139,22 +142,52 @@ def _get_access_token(manual_token: Optional[str]) -> Optional[str]:
     )
 
     if not sa_path:
+        logger.error("❌ No service account path found. Checked:")
+        logger.error(f"   - VERTEX_SA_KEY: {os.environ.get('VERTEX_SA_KEY')}")
+        logger.error(f"   - GOOGLE_APPLICATION_CREDENTIALS: {os.environ.get('GOOGLE_APPLICATION_CREDENTIALS')}")
+        logger.error(f"   - Default path exists: {default_sa_path.exists()}")
         return None
 
     sa_path_resolved = str(Path(sa_path).expanduser())
     if not Path(sa_path_resolved).exists():
+        logger.error(f"❌ Service account file not found at: {sa_path_resolved}")
         return None
+
+    logger.info(f"✅ Using service account file: {sa_path_resolved}")
 
     try:
         creds = service_account.Credentials.from_service_account_file(
             sa_path_resolved, scopes=scopes
         )
+        
+        logger.info(f"✅ Service account loaded successfully")
+        logger.info(f"   - Service account email: {creds.service_account_email}")
+        logger.info(f"   - Project ID: {creds.project_id}")
 
-        if not creds.valid or creds.expired:
+        # Always refresh to ensure we have a valid token
+        if not creds.token or not creds.valid or creds.expired:
+            logger.info("🔄 Token not present or expired, refreshing...")
             creds.refresh(Request())
+            logger.info("✅ Token refreshed successfully")
 
-        return creds.token
-    except Exception:
+        if creds.token:
+            logger.info(f"✅ Access token generated (length: {len(creds.token)} chars)")
+            logger.debug(f"   - Token preview: {creds.token[:20]}...")
+            return creds.token
+        else:
+            logger.error("❌ Token generation failed - credentials.token is None")
+            return None
+            
+    except FileNotFoundError as e:
+        logger.error(f"❌ Service account file not found: {e}")
+        return None
+    except ValueError as e:
+        logger.error(f"❌ Invalid service account JSON format: {e}")
+        return None
+    except Exception as e:
+        logger.error(f"❌ Unexpected error during token generation: {type(e).__name__}: {e}")
+        import traceback
+        logger.error(f"   Traceback: {traceback.format_exc()}")
         return None
 
 
@@ -576,29 +609,54 @@ async def vertex_try_on_json(request: TryOnJSONRequest) -> StandardTryOnResponse
     Expects base64 images without data URI prefix.
     """
     import time
+    import logging
+    logger = logging.getLogger(__name__)
     start_time = time.time()
 
     try:
+        print("=" * 60)
+        print("🔵 VERTEX TRY-ON JSON REQUEST RECEIVED")
+        print("=" * 60)
+        
+        # Debug: Log incoming request details
+        print("📥 INCOMING REQUEST DEBUG:")
+        print(f"   - avatar_image length: {len(request.avatar_image) if request.avatar_image else 0} chars")
+        print(f"   - avatar_image starts with: {request.avatar_image[:50] if request.avatar_image else 'None'}...")
+        print(f"   - clothing_image length: {len(request.clothing_image) if request.clothing_image else 0} chars")
+        print(f"   - clothing_image starts with: {request.clothing_image[:50] if request.clothing_image else 'None'}...")
+        print(f"   - additional_params: {request.additional_params}")
+        
         # Get access token
+        print("Step 1: Generating access token...")
         token = _get_access_token(None)
         if not token:
+            print("❌ Failed to generate access token!")
             raise HTTPException(
                 status_code=401,
                 detail="Could not obtain an access token. Set VERTEX_TOKEN or configure gcloud.",
             )
+        print(f"✅ Access token generated (length: {len(token)} chars)")
+        print(f"   Token preview: {token[:30]}...")
 
         # Get Vertex AI configuration
+        logger.info("Step 2: Loading Vertex AI configuration...")
         project_val = _resolve_param(None, "VERTEX_PROJECT_ID", "VERTEX_PROJECT_ID")
         location_val = _resolve_param(
             None, "VERTEX_LOCATION", "VERTEX_LOCATION", default="us-central1"
         )
         model_val = _resolve_param(None, "VERTEX_MODEL_ID", "VERTEX_MODEL_ID")
+        
+        logger.info(f"✅ Configuration loaded:")
+        logger.info(f"   - Project: {project_val}")
+        logger.info(f"   - Location: {location_val}")
+        logger.info(f"   - Model: {model_val}")
 
         endpoint = (
             f"https://{location_val}-aiplatform.googleapis.com/v1/projects/"
             f"{project_val}/locations/{location_val}/publishers/google/models/"
             f"{model_val}:predict"
         )
+        logger.info(f"   - Endpoint: {endpoint}")
 
         # Build parameters from additional_params or use defaults
         params = request.additional_params or {}
@@ -614,18 +672,24 @@ async def vertex_try_on_json(request: TryOnJSONRequest) -> StandardTryOnResponse
             compression_quality=params.get("compression_quality", 90),
         )
 
-        # Build payload
+        # Build payload - clean and convert images to JPEG
+        print("Step 3: Cleaning and converting images to JPEG...")
+        avatar_clean = _clean_and_convert_to_jpeg(request.avatar_image, "avatar_image")
+        clothing_clean = _clean_and_convert_to_jpeg(request.clothing_image, "clothing_image")
+        
+        print("Step 4: Building request payload...")
         payload = {
             "instances": [
                 {
-                    "personImage": {"image": {"bytesBase64Encoded": request.avatar_image}},
+                    "personImage": {"image": {"bytesBase64Encoded": avatar_clean}},
                     "productImages": [
-                        {"image": {"bytesBase64Encoded": request.clothing_image}}
+                        {"image": {"bytesBase64Encoded": clothing_clean}}
                     ],
                 }
             ],
             "parameters": parameters,
         }
+        print(f"✅ Payload built (avatar: {len(avatar_clean)} chars, clothing: {len(clothing_clean)} chars)")
 
         headers = {
             "Authorization": f"Bearer {token}",
@@ -633,7 +697,13 @@ async def vertex_try_on_json(request: TryOnJSONRequest) -> StandardTryOnResponse
         }
 
         # Call Vertex AI
+        print("Step 5: Calling Vertex AI API...")
+        print(f"   Request URL: {endpoint}")
+        print(f"   Request headers: Authorization=Bearer {token[:30]}..., Content-Type=application/json")
+        
         response = requests.post(endpoint, headers=headers, json=payload, timeout=120)
+        
+        print(f"✅ Vertex AI responded with status: {response.status_code}")
 
         try:
             body = response.json()
@@ -641,8 +711,36 @@ async def vertex_try_on_json(request: TryOnJSONRequest) -> StandardTryOnResponse
             body = {}
 
         if not response.ok:
-            detail = body.get("error", {}).get("message", response.text)
-            raise HTTPException(status_code=response.status_code, detail=detail)
+            # Enhanced error logging for Vertex AI errors
+            error_detail = body.get("error", {})
+            error_message = error_detail.get("message", response.text)
+            error_code = error_detail.get("code", response.status_code)
+            error_status = error_detail.get("status", "UNKNOWN")
+            
+            # Log detailed error information
+            print(f"❌ Vertex AI API Error:")
+            print(f"   - Status Code: {response.status_code}")
+            print(f"   - Error Code: {error_code}")
+            print(f"   - Error Status: {error_status}")
+            print(f"   - Error Message: {error_message}")
+            print(f"   - Full Response: {body}")
+            logger.error(f"   - Request endpoint: {endpoint}")
+            logger.error(f"   - Token used: {token[:50]}...")
+            
+            # Return detailed error to client
+            raise HTTPException(
+                status_code=response.status_code, 
+                detail={
+                    "errorCode": "VERTEX_AI_ERROR",
+                    "message": f"Vertex AI request failed: {error_message}",
+                    "details": {
+                        "statusCode": response.status_code,
+                        "errorCode": error_code,
+                        "errorStatus": error_status,
+                        "vertexError": error_detail
+                    }
+                }
+            )
 
         predictions: List[Dict] = body.get("predictions", [])
         images_b64 = _extract_base64_images(predictions)

@@ -4,8 +4,8 @@ services:
     container_name: vertex-vt-api
     ports:
       - "8000:8000"
+    # Load all environment variables from .env file
+    # DO NOT use 'environment' section as it overrides with shell env vars
     env_file:
       - .env
-    environment:
-      VERTEX_TOKEN: ${VERTEX_TOKEN:-}
     restart: unless-stopped

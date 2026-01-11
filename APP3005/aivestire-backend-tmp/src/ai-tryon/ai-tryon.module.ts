@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { PrismaModule } from '../prisma/prisma.module';
 import { GeminiTryOnService } from './services/providers/gemini-tryon.service';
 import { VertexTryOnService } from './services/providers/vertex-tryon.service';
+import { DirectVertexTryOnService } from './services/providers/direct-vertex-tryon.service';
 import { ImageValidatorService } from './services/common/image-validator.service';
 import { TryOn3DService } from './services/tryon-3d.service';
 import { TryOnController } from './controllers/tryon.controller';
@@ -15,11 +16,13 @@ import { CloudinaryService } from '../common/cloudinary.service';
     providers: [
         GeminiTryOnService,
         VertexTryOnService,
+        DirectVertexTryOnService,
         ImageValidatorService,
         TryOn3DService,
         AuraGuard,
         CloudinaryService,
     ],
-    exports: [GeminiTryOnService, VertexTryOnService, TryOn3DService],
+    exports: [GeminiTryOnService, VertexTryOnService, DirectVertexTryOnService, TryOn3DService],
 })
 export class AiTryOnModule { }
+

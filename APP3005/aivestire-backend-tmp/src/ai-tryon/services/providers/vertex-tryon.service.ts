@@ -65,9 +65,17 @@ export class VertexTryOnService extends BaseTryOnService {
             const avatarData = this.extractBase64Data(avatarBase64);
             const clothingData = this.extractBase64Data(clothingBase64);
 
+            // Debug: Log what we're sending
+            this.logger.debug(`🔍 Avatar data length: ${avatarData.length} chars`);
+            this.logger.debug(`🔍 Avatar starts with: ${avatarData.substring(0, 50)}...`);
+            this.logger.debug(`🔍 Clothing data length: ${clothingData.length} chars`);
+            this.logger.debug(`🔍 Clothing starts with: ${clothingData.substring(0, 50)}...`);
+
             // Call FastAPI service with timeout
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), VERTEX_AI_TIMEOUT);
+
+            this.logger.log(`🔵 Calling FastAPI at: ${this.fastApiUrl}`);
 
             const response = await fetch(this.fastApiUrl, {
                 method: 'POST',

@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { AuraStatus as AuraStatusEnum } from '../types/aura';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
+const API_BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
 
 export interface AuraStatusResponse {
     hasAura: boolean;
@@ -12,18 +12,30 @@ export interface AuraStatusResponse {
 
 /**
  * Check if user has an Aura
- * @param userId - User ID to check
+ * Uses the /aura/status endpoint which requires authentication
  * @returns Promise with Aura status
  */
-export async function checkAuraStatus(userId: string): Promise<AuraStatusResponse> {
+export async function checkAuraStatus(): Promise<AuraStatusResponse> {
     try {
-        const response = await axios.get(`${API_BASE_URL}/api/v1/aura/status/${userId}`);
+        const token = localStorage.getItem('access_token');
+        if (!token) {
+            return {
+                hasAura: false,
+                message: 'Not authenticated',
+            };
+        }
+
+        const response = await axios.get(`${API_BASE_URL}/aura/status`, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+            },
+        });
 
         if (response.data.hasAura) {
             return {
                 hasAura: true,
-                auraStatus: response.data.status,
-                auraId: response.data.auraId,
+                auraStatus: response.data.aura?.status,
+                auraId: response.data.aura?.aura_id,
             };
         }
 
@@ -42,17 +54,15 @@ export async function checkAuraStatus(userId: string): Promise<AuraStatusRespons
 
 /**
  * Aura Gate - Check if user has Aura, redirect if not
- * @param userId - User ID to check
  * @param navigate - React Router navigate function
  * @param redirectPath - Path to redirect to if no Aura (default: '/aura-dashboard')
  * @returns Promise<boolean> - true if user has Aura, false otherwise
  */
 export async function auraGate(
-    userId: string,
     navigate: (path: string) => void,
     redirectPath: string = '/aura-dashboard'
 ): Promise<boolean> {
-    const status = await checkAuraStatus(userId);
+    const status = await checkAuraStatus();
 
     if (!status.hasAura) {
         console.log('No Aura found, redirecting to:', redirectPath);
