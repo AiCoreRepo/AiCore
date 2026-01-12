@@ -1,5 +1,5 @@
 import { Variants } from 'framer-motion';
-import { LayoutDashboard, CheckSquare, ShoppingBag, Palette, Users, Settings } from 'lucide-react';
+import { LayoutDashboard, CheckSquare, ShoppingBag, Palette, Users, Settings, Sparkles } from 'lucide-react';
 
 /**
  * Midnight Luxury Design Tokens
@@ -95,6 +95,13 @@ export const menuItems: MenuItem[] = [
         href: '/admin-approvals',
         isBeta: false,
         // Microservice 2 (Creator): The Gatekeeper - Review pending 20-item uploads from creators
+    },
+    {
+        id: 'try-on-approvals',
+        label: 'Try-On Approvals',
+        icon: Sparkles,
+        href: '/admin-tryon-approvals',
+        isBeta: false,
     },
     {
         id: 'collection',

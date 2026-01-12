@@ -293,8 +293,8 @@ def _has_full_body(landmarks, mask, image_shape, face_area_ratio):
             mp.solutions.pose.PoseLandmark.RIGHT_ANKLE,
         ]
         hips_visible = all(lm[idx].visibility > 0.5 for idx in hips)
-        legs_visible = sum(1 for idx in legs if lm[idx].visibility > 0.5)
-        full_body = hips_visible and legs_visible >= 2
+        # Be more lenient: if hips are visible, we can likely estimate shape
+        full_body = hips_visible
 
     if mask is not None:
         ys = np.where(mask)[0]
@@ -303,7 +303,8 @@ def _has_full_body(landmarks, mask, image_shape, face_area_ratio):
         top = ys.min()
         bottom = ys.max()
         body_height = (bottom - top) / float(height)
-        if bottom < 0.85 * height or body_height < 0.55:
+        # Relaxed: bottom at 75% (was 85%), total height 45% (was 55%)
+        if bottom < 0.75 * height or body_height < 0.45:
             return False
         if not landmarks:
             full_body = True

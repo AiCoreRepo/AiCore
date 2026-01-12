@@ -8,6 +8,9 @@ interface User {
   store_name?: string;
   avatar?: string;
   subtitle?: string;
+  try_ons_used?: number;
+  max_try_ons?: number;
+  try_on_permission?: string;
 }
 
 interface AuthContextType {

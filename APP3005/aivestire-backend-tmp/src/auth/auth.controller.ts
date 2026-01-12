@@ -8,9 +8,11 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Param,
 } from '@nestjs/common';
 import type { Response, Request } from 'express';
 import { AuthService } from './auth.service';
+import { TryOnPermissionStatus } from '@prisma/client';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
@@ -108,5 +110,35 @@ export class AuthController {
     @CurrentUser() user: { user_id: string; email: string; role: string },
   ) {
     return this.authService.getProfile(user.user_id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('try-on-permission/request')
+  async requestTryOn(@CurrentUser('user_id') userId: string) {
+    return this.authService.requestTryOnPermission(userId);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
+  @Get('admin/try-on-permissions/pending')
+  async getPendingTryOnRequests() {
+    return this.authService.getPendingTryOnPermissions();
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
+  @Get('admin/try-on-permissions/approved')
+  async getApprovedTryOnRequests() {
+    return this.authService.getApprovedTryOnPermissions();
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
+  @Post('admin/try-on-permissions/resolve/:userId')
+  async resolveTryOnRequest(
+    @Param('userId') userId: string,
+    @Body('status') status: TryOnPermissionStatus,
+  ) {
+    return this.authService.updateTryOnPermission(userId, status);
   }
 }

@@ -315,7 +315,15 @@ async def gemini_try_on(
     person_image: UploadFile = File(..., description="JPEG person image"),
     garment_image: UploadFile = File(..., description="JPEG garment image"),
     prompt: str = Form(
-        "Virtual try-on task: Replace ONLY the clothing on the person in image 1 with the garment from image 2. CRITICAL: Copy the entire background from image 1 pixel-by-pixel. Do NOT generate, modify, or replace any background elements. Background must be 100% identical to image 1.",
+        "Virtual Try-On Task:\n"
+        "- Image 1: The Person (Target)\n"
+        "- Image 2: The Dress/Garment (Source)\n"
+        "Instruction: The person in Image 1 MUST COMPLETELY wear the full outfit shown in Image 2.\n"
+        "Constraints:\n"
+        "1. DO NOT change the person's face, hair, body, skin tone, or pose.\n"
+        "2. DO NOT change, modify, or hallucinate the background; keep it EXACTLY as in Image 1.\n"
+        "3. The garment from Image 2 must fit the person's body perfectly and realistically.\n"
+        "4. COMPLETELY replace the original clothes in Image 1 with the new garment.",
         description="Optional prompt; uses default if omitted.",
     ),
 ) -> GeminiResponse:
@@ -804,7 +812,15 @@ async def gemini_try_on_json(request: TryOnJSONRequest) -> StandardTryOnResponse
         params = request.additional_params or {}
         prompt = params.get(
             "prompt",
-            "Virtual try-on task: Replace ONLY the clothing on the person in image 1 with the garment from image 2. CRITICAL: Copy the entire background from image 1 pixel-by-pixel. Do NOT generate, modify, or replace any background elements. Background must be 100% identical to image 1.",
+            "Virtual Try-On Task:\n"
+            "- Image 1: The Person (Target)\n"
+            "- Image 2: The Dress/Garment (Source)\n"
+            "Instruction: The person in Image 1 MUST COMPLETELY wear the full outfit shown in Image 2.\n"
+            "Constraints:\n"
+            "1. DO NOT change the person's face, hair, body, skin tone, or pose.\n"
+            "2. DO NOT change, modify, or hallucinate the background; keep it EXACTLY as in Image 1.\n"
+            "3. The garment from Image 2 must fit the person's body perfectly and realistically.\n"
+            "4. COMPLETELY replace the original clothes in Image 1 with the new garment."
         )
 
         client = genai.Client(api_key=api_key)
@@ -816,11 +832,13 @@ async def gemini_try_on_json(request: TryOnJSONRequest) -> StandardTryOnResponse
             types.Part.from_text(text=prompt),
         ]
 
+        print(f"DEBUG: Starting Gemini try-on. Person size: {len(person_bytes)}, Garment size: {len(garment_bytes)}")
         response = client.models.generate_content(
             model=model_id,
             contents=contents,
             config=types.GenerateContentConfig(response_modalities=["IMAGE", "TEXT"]),
         )
+        print(f"DEBUG: Gemini try-on finished in {int((time.time() - start_time) * 1000)}ms")
 
         images: List[str] = []
         texts: List[str] = []
@@ -908,11 +926,13 @@ async def generate_angles(request: GenerateAnglesRequest) -> StandardTryOnRespon
             types.Part.from_text(text=prompt),
         ]
 
+        print(f"DEBUG: Starting Gemini generate_content for angles. Image size: {len(image_bytes)} bytes")
         response = client.models.generate_content(
             model=model_id,
             contents=contents,
             config=types.GenerateContentConfig(response_modalities=["IMAGE", "TEXT"]),
         )
+        print(f"DEBUG: Gemini generate_content finished in {int((time.time() - start_time) * 1000)}ms")
 
         images: List[str] = []
         texts: List[str] = []
@@ -1036,3 +1056,9 @@ async def health_check():
             "body_analyze_json": "/body_analyze_json",
         },
     }
+
+
+@app.get("/test_endpoint")
+async def test_endpoint():
+    """Simple test endpoint to verify new routes are registered"""
+    return {"message": "This endpoint works!", "version": "new"}

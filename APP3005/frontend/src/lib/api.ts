@@ -625,3 +625,137 @@ export async function getTryOnHistory() {
   return res.json();
 }
 
+// ============================================================================
+// Body Analysis API Functions
+// ============================================================================
+
+export interface BodyAnalysisResult {
+  success: boolean;
+  skinToneLabel?: string | null;
+  skinHexes: string[];
+  bodyShape?: string | null;
+  fullBody: boolean;
+  error?: string;
+  processingTime?: number;
+}
+
+export type TryOnPermissionStatus = 'NONE' | 'PENDING' | 'APPROVED' | 'REJECTED';
+
+/**
+ * Analyze a photo to detect body attributes (skin tone, body shape, etc.)
+ * Used during Aura creation for AI-assisted attribute detection
+ */
+export async function analyzeBodyImage(photoFile: File): Promise<BodyAnalysisResult> {
+  const token = localStorage.getItem('access_token');
+  if (!token) {
+    throw new Error('Please login to analyze image');
+  }
+
+  const formData = new FormData();
+  formData.append('photo', photoFile);
+
+  const res = await fetch(`${BASE_URL}/aura/analyze-image`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const bodyText = await res.text();
+    try {
+      const err = JSON.parse(bodyText);
+      return {
+        success: false,
+        skinHexes: [],
+        fullBody: false,
+        error: err.message || 'Analysis failed',
+      };
+    } catch {
+      return {
+        success: false,
+        skinHexes: [],
+        fullBody: false,
+        error: bodyText || 'Analysis failed',
+      };
+    }
+  }
+  return res.json();
+}
+
+/**
+ * Request permission to use virtual try-on
+ */
+export async function requestTryOnAccess(): Promise<{ success: boolean; message?: string }> {
+  const token = localStorage.getItem('access_token');
+  if (!token) throw new Error('Login required');
+
+  const res = await fetch(`${BASE_URL}/auth/try-on-permission/request`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ message: 'Failed to request access' }));
+    throw new Error(err.message);
+  }
+
+  return { success: true };
+}
+
+/**
+ * (Admin) Get all pending try-on permission requests
+ */
+export async function getPendingTryOnPermissions(): Promise<any[]> {
+  const token = localStorage.getItem('access_token');
+  if (!token) throw new Error('Login required');
+
+  const res = await fetch(`${BASE_URL}/auth/admin/try-on-permissions/pending`, {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+  });
+
+  if (!res.ok) throw new Error('Failed to fetch requests');
+  return res.json();
+}
+
+/**
+ * (Admin) Get all approved try-on permission requests
+ */
+export async function getApprovedTryOnPermissions(): Promise<any[]> {
+  const token = localStorage.getItem('access_token');
+  if (!token) throw new Error('Login required');
+
+  const res = await fetch(`${BASE_URL}/auth/admin/try-on-permissions/approved`, {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+  });
+
+  if (!res.ok) throw new Error('Failed to fetch requests');
+  return res.json();
+}
+
+/**
+ * (Admin) Approve or Reject a try-on permission request
+ */
+export async function resolveTryOnPermission(userId: string, status: TryOnPermissionStatus): Promise<void> {
+  const token = localStorage.getItem('access_token');
+  if (!token) throw new Error('Login required');
+
+  const res = await fetch(`${BASE_URL}/auth/admin/try-on-permissions/resolve/${userId}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify({ status }),
+  });
+
+  if (!res.ok) throw new Error('Failed to resolve request');
+}
+

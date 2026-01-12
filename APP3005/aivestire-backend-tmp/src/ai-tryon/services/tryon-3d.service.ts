@@ -7,6 +7,7 @@ import { CloudinaryService } from '../../common/cloudinary.service'; // Correcte
 import { Aura } from '@prisma/client';
 import { TryOnResponseDto } from '../dto/tryon-response.dto';
 import { AIProvider, TryOnStatus } from '../enums/ai-provider.enum';
+import { GEMINI_AI_TIMEOUT } from '../constants/tryon.constants';
 
 /**
  * 3D Virtual Try-On Service
@@ -273,12 +274,13 @@ export class TryOn3DService {
             };
 
             const previousImageData = extractBase64Data(previousImageUrl);
+            this.logger.log(`🔄 Previous image data size: ${Math.round(previousImageData.length / 1024)} KB`);
 
             // Call FastAPI Gemini angles endpoint directly
-            this.logger.log('🔄 Calling FastAPI Gemini angles service...');
+            this.logger.log(`🔄 Calling FastAPI Gemini angles service at ${this.geminiAnglesUrl}...`);
 
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s timeout
+            const timeoutId = setTimeout(() => controller.abort(), GEMINI_AI_TIMEOUT); // Use centralized timeout
 
             const response = await fetch(this.geminiAnglesUrl, {
                 method: 'POST',
@@ -320,20 +322,13 @@ export class TryOn3DService {
 
             // Upload angle-generated image to Cloudinary and save to database
             try {
-                this.logger.log(`☁️ Uploading angle-generated image to Cloudinary...`);
-                const cloudinaryUrl = await this.cloudinaryService.uploadImage(resultImage);
-                this.logger.log(`✅ Angle image uploaded to Cloudinary: ${cloudinaryUrl}`);
-
-                const savedTryOn = await this.prisma.tryOn.create({
-                    data: {
-                        user_id: aura.user_id,
-                        aura_id: aura.aura_id,
-                        product_id: productId,
-                        result_image_url: cloudinaryUrl,
-                        provider: 'gemini', // angle generation is always Gemini in this implementation
-                    },
-                });
-                this.logger.log(`💾 Saved angle-generated image to database: ${savedTryOn.try_on_id}`);
+                await this.saveTryOnResult(
+                    aura.user_id,
+                    productId,
+                    aura.aura_id,
+                    resultImage,
+                    'gemini',
+                );
             } catch (error) {
                 this.logger.error(`Failed to save angle-generated image: ${error.message}`);
                 // Don't fail the request if save fails

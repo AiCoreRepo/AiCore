@@ -10,10 +10,11 @@ import {
   UnauthorizedException,
   BadRequestException,
   ForbiddenException,
+  NotFoundException,
 } from '@nestjs/common';
 import type { Response } from 'express';
 import { PrismaService } from '../prisma/prisma.service';
-import { UserRole } from '@prisma/client';
+import { UserRole, TryOnPermissionStatus } from '@prisma/client';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import * as crypto from 'crypto';
@@ -144,6 +145,7 @@ export class AuthService {
         user_id: user.user_id,
         email: user.email,
         role: user.role,
+        try_on_permission: user.try_on_permission,
       },
     };
   }
@@ -189,6 +191,7 @@ export class AuthService {
         user_id: user.user_id,
         email: user.email,
         role: user.role,
+        try_on_permission: user.try_on_permission,
       },
     };
   }
@@ -209,6 +212,7 @@ export class AuthService {
         user_id: true,
         email: true,
         role: true,
+        try_on_permission: true,
         try_ons_used: true,
         max_try_ons: true,
         creatorProfile: {
@@ -229,6 +233,7 @@ export class AuthService {
         user_id: user.user_id,
         email: user.email,
         role: user.role,
+        try_on_permission: user.try_on_permission,
         store_name: user.creatorProfile.store_name,
         try_ons_used: user.try_ons_used,
         max_try_ons: user.max_try_ons,
@@ -241,6 +246,7 @@ export class AuthService {
       user_id: user.user_id,
       email: user.email,
       role: user.role,
+      try_on_permission: user.try_on_permission,
       try_ons_used: user.try_ons_used,
       max_try_ons: user.max_try_ons,
     };
@@ -331,7 +337,52 @@ export class AuthService {
         user_id: user.user_id,
         email: user.email,
         role: 'creator',
+        try_on_permission: user.try_on_permission,
       },
     };
+  }
+
+  async requestTryOnPermission(user_id: string) {
+    const user = await this.prisma.user.findUnique({ where: { user_id } });
+    if (!user) throw new NotFoundException('User not found');
+
+    return this.prisma.user.update({
+      where: { user_id },
+      data: { try_on_permission: TryOnPermissionStatus.PENDING },
+    });
+  }
+
+  async getPendingTryOnPermissions() {
+    return this.prisma.user.findMany({
+      where: { try_on_permission: TryOnPermissionStatus.PENDING },
+      select: {
+        user_id: true,
+        email: true,
+        try_on_permission: true,
+        created_at: true,
+      },
+    });
+  }
+
+  async getApprovedTryOnPermissions() {
+    return this.prisma.user.findMany({
+      where: { try_on_permission: TryOnPermissionStatus.APPROVED },
+      select: {
+        user_id: true,
+        email: true,
+        try_on_permission: true,
+        created_at: true,
+      },
+    });
+  }
+
+  async updateTryOnPermission(user_id: string, status: TryOnPermissionStatus) {
+    const user = await this.prisma.user.findUnique({ where: { user_id } });
+    if (!user) throw new NotFoundException('User not found');
+
+    return this.prisma.user.update({
+      where: { user_id },
+      data: { try_on_permission: status },
+    });
   }
 }
