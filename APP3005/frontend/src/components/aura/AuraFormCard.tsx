@@ -26,23 +26,39 @@ interface AuraFormCardProps {
 // Map AI response values to form options
 const mapSkinTone = (aiValue: string | null | undefined): string => {
     if (!aiValue) return "";
+    const lowerValue = aiValue.toLowerCase();
+
+    // Direct matches for internal values
+    if (["light", "medium", "dusky", "deep", "fair", "olive", "tan", "dark"].includes(lowerValue)) {
+        return lowerValue;
+    }
+
     const mapping: Record<string, string> = {
-        "Light": "fair",
+        "Light": "light",
         "Medium": "medium",
-        "Dusky": "olive",
-        "Deep": "dark",
+        "Dusky": "dusky",
+        "Deep": "deep",
     };
     return mapping[aiValue] || "";
 };
 
 const mapBodyShape = (aiValue: string | null | undefined): string => {
     if (!aiValue) return "";
+
+    // Normalize string for mapping
+    const normalized = aiValue.toLowerCase().replace(/\s+/g, '_');
+
+    // Direct matches for internal values
+    if (["rectangle", "pear_shape", "apple_shape", "hourglass", "inverted_triangle", "athletic", "slim", "average", "curvy", "plus"].includes(normalized)) {
+        return normalized;
+    }
+
     const mapping: Record<string, string> = {
-        "Rectangle": "average",
-        "Pear Shape": "curvy",
-        "Apple Shape": "plus",
-        "Hourglass": "curvy",
-        "Inverted Triangle": "athletic",
+        "Rectangle": "rectangle",
+        "Pear Shape": "pear_shape",
+        "Apple Shape": "apple_shape",
+        "Hourglass": "hourglass",
+        "Inverted Triangle": "inverted_triangle",
     };
     return mapping[aiValue] || "";
 };
@@ -164,16 +180,16 @@ export const AuraFormCard = ({ onCreateAura, isProcessing }: AuraFormCardProps) 
                         {/* Step Indicator */}
                         <div className="flex items-center gap-3 mb-6">
                             <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${currentStep === "upload"
-                                    ? "bg-gold text-charcoal"
-                                    : "bg-gold/20 text-charcoal/60"
+                                ? "bg-gold text-charcoal"
+                                : "bg-gold/20 text-charcoal/60"
                                 }`}>
                                 <span className="w-5 h-5 rounded-full bg-white/50 flex items-center justify-center text-xs font-bold">1</span>
                                 Upload Photo
                             </div>
                             <div className="w-8 h-0.5 bg-gold/30"></div>
                             <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${currentStep === "confirm"
-                                    ? "bg-gold text-charcoal"
-                                    : "bg-gold/20 text-charcoal/60"
+                                ? "bg-gold text-charcoal"
+                                : "bg-gold/20 text-charcoal/60"
                                 }`}>
                                 <span className="w-5 h-5 rounded-full bg-white/50 flex items-center justify-center text-xs font-bold">2</span>
                                 Confirm & Create

@@ -117,8 +117,11 @@ export const BodyAttributesForm = ({ attributes, onChange }: BodyAttributesFormP
                         className={inputClass}
                     >
                         <option value="">Select Tone</option>
-                        <option value="fair">Fair</option>
+                        <option value="light">Light</option>
                         <option value="medium">Medium</option>
+                        <option value="dusky">Dusky</option>
+                        <option value="deep">Deep</option>
+                        <option value="fair">Fair</option>
                         <option value="olive">Olive</option>
                         <option value="tan">Tan</option>
                         <option value="dark">Dark</option>
@@ -136,6 +139,11 @@ export const BodyAttributesForm = ({ attributes, onChange }: BodyAttributesFormP
                         className={inputClass}
                     >
                         <option value="">Select Shape</option>
+                        <option value="rectangle">Rectangle</option>
+                        <option value="pear_shape">Pear Shape</option>
+                        <option value="apple_shape">Apple Shape</option>
+                        <option value="hourglass">Hourglass</option>
+                        <option value="inverted_triangle">Inverted Triangle</option>
                         <option value="athletic">Athletic</option>
                         <option value="slim">Slim</option>
                         <option value="average">Average</option>

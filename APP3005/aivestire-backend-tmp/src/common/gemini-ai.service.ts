@@ -64,17 +64,20 @@ export class GeminiAIService {
             // Create attribute descriptions for the prompt
             const attributeDescriptions: string[] = [];
 
+            // Helper to clean up internal keys (e.g., 'pear_shape' -> 'pear shape')
+            const formatAttr = (val: string) => val.replace(/_/g, ' ');
+
             if (gender && gender !== 'unspecified') {
-                attributeDescriptions.push(`${gender} person`);
+                attributeDescriptions.push(`${formatAttr(gender)} person`);
             }
             if (ageRange) {
                 attributeDescriptions.push(`appearing to be in their ${ageRange} age range`);
             }
             if (skinTone) {
-                attributeDescriptions.push(`with ${skinTone} skin tone`);
+                attributeDescriptions.push(`with ${formatAttr(skinTone)} skin tone`);
             }
             if (bodyShape && bodyShape !== 'average') {
-                attributeDescriptions.push(`with a ${bodyShape} body shape`);
+                attributeDescriptions.push(`with a ${formatAttr(bodyShape)} body shape`);
             }
             if (height) {
                 attributeDescriptions.push(`approximately ${height}cm tall`);
@@ -83,7 +86,7 @@ export class GeminiAIService {
                 attributeDescriptions.push(`weighing around ${weight}kg`);
             }
             if (hairStyle) {
-                attributeDescriptions.push(`with ${hairStyle} hair`);
+                attributeDescriptions.push(`with ${formatAttr(hairStyle)} hair`);
             }
 
             // Build the dynamic prompt incorporating user attributes
