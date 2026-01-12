@@ -6,6 +6,7 @@ import { BodyAttributesForm } from "./BodyAttributesForm";
 import { useAuth } from "@/context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { analyzeBodyImage, BodyAnalysisResult } from "@/lib/api";
+import { SKIN_TONE_OPTIONS, BODY_SHAPE_OPTIONS } from "@/constants/aura.constants";
 import "./aura-styles.css";
 
 interface BodyAttributes {
@@ -28,8 +29,9 @@ const mapSkinTone = (aiValue: string | null | undefined): string => {
     if (!aiValue) return "";
     const lowerValue = aiValue.toLowerCase();
 
-    // Direct matches for internal values
-    if (["light", "medium", "dusky", "deep", "fair", "olive", "tan", "dark"].includes(lowerValue)) {
+    // Direct matches for internal values from constants
+    const validValues = SKIN_TONE_OPTIONS.map(opt => opt.value);
+    if (validValues.includes(lowerValue)) {
         return lowerValue;
     }
 
@@ -48,8 +50,9 @@ const mapBodyShape = (aiValue: string | null | undefined): string => {
     // Normalize string for mapping
     const normalized = aiValue.toLowerCase().replace(/\s+/g, '_');
 
-    // Direct matches for internal values
-    if (["rectangle", "pear_shape", "apple_shape", "hourglass", "inverted_triangle", "athletic", "slim", "average", "curvy", "plus"].includes(normalized)) {
+    // Direct matches for internal values from constants
+    const validValues = BODY_SHAPE_OPTIONS.map(opt => opt.value);
+    if (validValues.includes(normalized)) {
         return normalized;
     }
 

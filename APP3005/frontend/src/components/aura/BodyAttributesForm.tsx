@@ -1,4 +1,11 @@
 import { motion } from "framer-motion";
+import {
+    SKIN_TONE_OPTIONS,
+    BODY_SHAPE_OPTIONS,
+    GENDER_OPTIONS,
+    AGE_RANGE_OPTIONS,
+    HAIR_STYLE_OPTIONS
+} from "@/constants/aura.constants";
 
 interface BodyAttributes {
     height?: number;
@@ -77,9 +84,9 @@ export const BodyAttributesForm = ({ attributes, onChange }: BodyAttributesFormP
                         className={inputClass}
                     >
                         <option value="">Select Gender</option>
-                        <option value="male">Male</option>
-                        <option value="female">Female</option>
-                        <option value="other">Other</option>
+                        {GENDER_OPTIONS.map(opt => (
+                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
                     </select>
                 </motion.div>
                 <motion.div
@@ -94,11 +101,9 @@ export const BodyAttributesForm = ({ attributes, onChange }: BodyAttributesFormP
                         className={inputClass}
                     >
                         <option value="">Select Age</option>
-                        <option value="18-25">18-25 years</option>
-                        <option value="26-35">26-35 years</option>
-                        <option value="36-45">36-45 years</option>
-                        <option value="46-55">46-55 years</option>
-                        <option value="56+">56+ years</option>
+                        {AGE_RANGE_OPTIONS.map(opt => (
+                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
                     </select>
                 </motion.div>
             </div>
@@ -117,14 +122,9 @@ export const BodyAttributesForm = ({ attributes, onChange }: BodyAttributesFormP
                         className={inputClass}
                     >
                         <option value="">Select Tone</option>
-                        <option value="light">Light</option>
-                        <option value="medium">Medium</option>
-                        <option value="dusky">Dusky</option>
-                        <option value="deep">Deep</option>
-                        <option value="fair">Fair</option>
-                        <option value="olive">Olive</option>
-                        <option value="tan">Tan</option>
-                        <option value="dark">Dark</option>
+                        {SKIN_TONE_OPTIONS.map(opt => (
+                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
                     </select>
                 </motion.div>
                 <motion.div
@@ -139,16 +139,9 @@ export const BodyAttributesForm = ({ attributes, onChange }: BodyAttributesFormP
                         className={inputClass}
                     >
                         <option value="">Select Shape</option>
-                        <option value="rectangle">Rectangle</option>
-                        <option value="pear_shape">Pear Shape</option>
-                        <option value="apple_shape">Apple Shape</option>
-                        <option value="hourglass">Hourglass</option>
-                        <option value="inverted_triangle">Inverted Triangle</option>
-                        <option value="athletic">Athletic</option>
-                        <option value="slim">Slim</option>
-                        <option value="average">Average</option>
-                        <option value="curvy">Curvy</option>
-                        <option value="plus">Plus Size</option>
+                        {BODY_SHAPE_OPTIONS.map(opt => (
+                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
                     </select>
                 </motion.div>
             </div>
@@ -166,13 +159,9 @@ export const BodyAttributesForm = ({ attributes, onChange }: BodyAttributesFormP
                     className={inputClass}
                 >
                     <option value="">Select Hair Style</option>
-                    <option value="short">Short</option>
-                    <option value="medium">Medium Length</option>
-                    <option value="long">Long</option>
-                    <option value="bald">Bald</option>
-                    <option value="curly">Curly</option>
-                    <option value="straight">Straight</option>
-                    <option value="wavy">Wavy</option>
+                    {HAIR_STYLE_OPTIONS.map(opt => (
+                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
                 </select>
             </motion.div>
         </div>
