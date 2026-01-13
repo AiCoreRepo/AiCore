@@ -190,66 +190,70 @@ const AiTryOn = () => {
     >
       <Navbar />
 
-      <main className="pt-20 pb-12">
+      <main className="pt-32 pb-12">
         {/* Header */}
-        <section className="py-8 border-b border-gold/20">
-          <div className="container mx-auto px-4">
-            <div className="text-center max-w-3xl mx-auto relative">
-              <div className="flex items-center justify-center gap-3 mb-4">
-                <Sparkles className="w-8 h-8 text-gold" />
-                <h1 className="text-4xl md:text-5xl font-bold text-charcoal">
-                  AI Virtual Try-On
-                </h1>
+        <section className="py-8 border-b border-[#D4AF37]/10 bg-[#F8F4EC]">
+          <div className="max-w-[1600px] mx-auto px-6 md:px-12">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="flex-1">
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-center gap-3">
+                    <Sparkles className="w-5 h-5 text-luxury-gold" />
+                    <h1 className="text-3xl md:text-4xl font-serif text-luxury-black">
+                      AI Virtual Try-On
+                    </h1>
+                  </div>
+                  <p className="text-sm md:text-base text-neutral-500 font-light tracking-wide">
+                    See how clothes look on your AI avatar before you buy
+                  </p>
+                </div>
               </div>
-              <p className="text-lg text-charcoal/70">
-                See how clothes look on your AI avatar before you buy
-              </p>
 
-              {/* Gallery Button - Top Right */}
-              <button
-                onClick={() => {
-                  console.log('Gallery button clicked!');
-                  getTryOnHistory()
-                    .then((history) => {
-                      console.log('Got history:', history);
-                      setTryOnHistory(history.tryOns || []);
-                      setShowGallery(true);
-                    })
-                    .catch((error) => {
-                      console.error('Failed to load gallery:', error);
-                      alert('Failed to load gallery: ' + error.message);
-                    });
-                }}
-                className="absolute top-0 right-0 flex items-center gap-2 px-4 py-2 rounded-xl font-medium text-sm transition-all duration-300 hover:scale-[1.05]"
-                style={{
-                  background: 'linear-gradient(135deg, rgba(201, 165, 92, 0.95) 0%, rgba(201, 165, 92, 1) 100%)',
-                  color: '#FFFFFF',
-                  boxShadow: '0 4px 12px rgba(201, 165, 92, 0.3)',
-                }}
-              >
-                <Images className="w-5 h-5" />
-                My Gallery
-              </button>
+              <div className="flex shrink-0">
+                <button
+                  onClick={() => {
+                    console.log('Gallery button clicked!');
+                    getTryOnHistory()
+                      .then((history) => {
+                        console.log('Got history:', history);
+                        setTryOnHistory(history.tryOns || []);
+                        setShowGallery(true);
+                      })
+                      .catch((error) => {
+                        console.error('Failed to load gallery:', error);
+                        alert('Failed to load gallery: ' + error.message);
+                      });
+                  }}
+                  className="flex items-center gap-2 px-7 py-3 rounded-xl font-medium text-xs tracking-[0.2em] uppercase transition-all duration-300 hover:shadow-gold/10 active:scale-[0.98] group"
+                  style={{
+                    background: '#D4AF37',
+                    color: '#FFFFFF',
+                  }}
+                >
+                  <Images className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                  <span>My Gallery</span>
+                </button>
+              </div>
             </div>
           </div>
         </section>
 
         {/* Main Content */}
         <section className="py-8">
-          <div className="container mx-auto px-4">
+          <div className="max-w-[1600px] mx-auto px-6 md:px-12">
             {/* Loading State */}
             {loadingAura && (
               <div className="text-center py-20">
-                <div className="inline-block animate-spin rounded-full h-16 w-16 border-4 border-gold border-t-transparent mb-4" />
-                <p className="text-charcoal/70">Loading your Aura...</p>
+                <div className="inline-block animate-spin rounded-full h-12 w-12 border-2 border-luxury-gold border-t-transparent mb-6" />
+                <p className="text-xs uppercase tracking-[0.2em] text-neutral-400 font-medium italic">Summoning your digital twin...</p>
               </div>
             )}
 
             {/* Main Layout */}
             {!loadingAura && aura && (
-              <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-                {/* Left Sidebar - Aura Display */}
-                <div className="lg:col-span-1">
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+                {/* Left Sidebar - Aura Display (3/12) */}
+                <div className="lg:col-span-3">
                   <AuraDisplayCard
                     aura={aura}
                     tryOnCount={user?.try_ons_used || 0}
@@ -257,39 +261,39 @@ const AiTryOn = () => {
                 </div>
 
                 {/* Right Content - Clothing Grid or Permission Gate */}
-                <div className="lg:col-span-3">
+                {/* Right Content - Clothing Grid (9/12) */}
+                <div className="lg:col-span-9">
                   {user?.role !== 'ADMIN' && user?.try_on_permission !== 'APPROVED' ? (
                     <div
-                      className="p-12 rounded-3xl text-center flex flex-col items-center justify-center gap-6"
+                      className="p-16 rounded-[40px] text-center flex flex-col items-center justify-center gap-8 shadow-sm"
                       style={{
-                        background: 'rgba(255, 255, 255, 0.5)',
-                        backdropFilter: 'blur(10px)',
-                        border: '1px solid rgba(201, 165, 92, 0.2)',
+                        background: '#FFFFFF',
+                        border: '1px solid rgba(212, 175, 55, 0.15)',
                       }}
                     >
                       {user?.try_on_permission === 'PENDING' || requestSuccess ? (
                         <>
-                          <div className="w-20 h-20 rounded-full bg-gold/10 flex items-center justify-center mb-2">
-                            <Clock className="w-10 h-10 text-gold animate-pulse" />
+                          <div className="w-24 h-24 rounded-full bg-[#F8F4EC] flex items-center justify-center mb-2">
+                            <Clock className="w-10 h-10 text-luxury-gold animate-pulse" />
                           </div>
-                          <h2 className="text-3xl font-bold text-charcoal">Access Under Review</h2>
+                          <h2 className="text-4xl font-serif text-luxury-black">Access Under Review</h2>
                           <p className="text-charcoal/60 max-w-md mx-auto">
                             Your request to use Virtual Try-On is being reviewed by our team.
                             We will notify you once you have been granted access.
                           </p>
                           <button
                             onClick={() => navigate('/collection')}
-                            className="px-8 py-3 rounded-xl font-semibold border border-gold text-gold hover:bg-gold/5 transition-all"
+                            className="px-10 py-3.5 rounded-xl font-medium text-xs tracking-widest uppercase border border-luxury-gold text-luxury-gold hover:bg-luxury-gold/5 transition-all"
                           >
                             Browse Collection
                           </button>
                         </>
                       ) : (
                         <>
-                          <div className="w-20 h-20 rounded-full bg-gold/10 flex items-center justify-center mb-2">
-                            <Lock className="w-10 h-10 text-gold" />
+                          <div className="w-24 h-24 rounded-full bg-[#F8F4EC] flex items-center justify-center mb-2">
+                            <Lock className="w-10 h-10 text-luxury-gold" />
                           </div>
-                          <h2 className="text-3xl font-bold text-charcoal">Try-On Access Required</h2>
+                          <h2 className="text-4xl font-serif text-luxury-black">Access Required</h2>
                           <p className="text-charcoal/60 max-w-md mx-auto">
                             Virtual Try-On is currently restricted to approved users during this phase.
                             Request access now to try on outfits with your AI avatar.
@@ -297,9 +301,9 @@ const AiTryOn = () => {
                           <button
                             onClick={handleRequestAccess}
                             disabled={requestingAccess}
-                            className="px-10 py-4 rounded-xl font-bold text-white transition-all shadow-lg hover:shadow-gold/20"
+                            className="px-12 py-4 rounded-xl font-medium text-xs tracking-[0.2em] uppercase text-white transition-all shadow-lg hover:shadow-gold/20 active:scale-[0.98]"
                             style={{
-                              background: 'linear-gradient(135deg, #D4AF37 0%, #B8860B 100%)',
+                              background: '#D4AF37',
                             }}
                           >
                             {requestingAccess ? 'Requesting...' : 'Request Try-On Access'}
@@ -311,9 +315,9 @@ const AiTryOn = () => {
                     <>
                       {/* Products Loading */}
                       {productsLoading && (
-                        <div className="text-center py-20">
-                          <div className="inline-block animate-spin rounded-full h-16 w-16 border-4 border-gold border-t-transparent mb-4" />
-                          <p className="text-charcoal/70">Loading clothing items...</p>
+                        <div className="text-center py-24">
+                          <div className="inline-block animate-spin rounded-full h-10 w-10 border-2 border-luxury-gold border-t-transparent mb-6" />
+                          <p className="text-xs uppercase tracking-widest text-neutral-400 italic">Curating your selection...</p>
                         </div>
                       )}
 
@@ -322,8 +326,8 @@ const AiTryOn = () => {
                         <div
                           className="p-8 rounded-2xl text-center"
                           style={{
-                            background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(239, 68, 68, 0.15) 100%)',
-                            border: '1px solid rgba(239, 68, 68, 0.3)',
+                            background: 'rgba(239, 68, 68, 0.05)',
+                            border: '1px solid rgba(239, 68, 68, 0.2)',
                           }}
                         >
                           <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
@@ -336,16 +340,18 @@ const AiTryOn = () => {
                       {/* Products Grid */}
                       {!productsLoading && !productsError && productsData?.products && (
                         <>
-                          <div className="mb-6">
-                            <h2 className="text-2xl font-bold text-charcoal mb-2">
-                              Choose an Outfit to Try On
-                            </h2>
-                            <p className="text-charcoal/60">
-                              {productsData.products.length} items available
-                            </p>
+                          <div className="mb-8 flex items-end justify-between border-b border-neutral-100 pb-5">
+                            <div>
+                              <h2 className="text-2xl md:text-3xl font-serif text-luxury-black italic mb-1">
+                                Select Your Masterpiece
+                              </h2>
+                              <p className="text-[11px] uppercase tracking-[0.2em] text-neutral-400 font-medium">
+                                {productsData.products.length} Designs Curated for Your Aura
+                              </p>
+                            </div>
                           </div>
 
-                          <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                             {productsData.products.map((product: any) => (
                               <ClothingItemCard
                                 key={product.product_id}

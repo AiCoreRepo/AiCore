@@ -137,36 +137,31 @@ export function TryOnGalleryModal({ isOpen, onClose, tryOns }: TryOnGalleryModal
                 <div
                     className="relative w-full max-w-6xl max-h-[90vh] overflow-auto"
                     style={{
-                        background: 'linear-gradient(135deg, #F5F0E6 0%, #F8F4EC 100%)',
-                        borderRadius: '24px',
-                        boxShadow: '0 24px 48px rgba(0, 0, 0, 0.3)',
+                        background: '#FFFFFF',
+                        borderRadius: '32px',
+                        boxShadow: '0 25px 60px rgba(0, 0, 0, 0.4)',
                     }}
                     onClick={(e) => e.stopPropagation()}
                 >
                     {/* Header */}
                     <div
-                        className="sticky top-0 z-10 flex items-center justify-between p-6 border-b"
+                        className="sticky top-0 z-20 flex items-center justify-between p-7 border-b border-neutral-100"
                         style={{
-                            background: 'linear-gradient(135deg, rgba(245, 240, 230, 0.98) 0%, rgba(248, 244, 236, 0.95) 100%)',
+                            background: 'rgba(255, 255, 255, 0.98)',
                             backdropFilter: 'blur(10px)',
-                            borderColor: 'rgba(201, 165, 92, 0.2)',
                         }}
                     >
                         <div>
-                            <h2 className="text-2xl font-bold text-charcoal">My Try-On Gallery</h2>
-                            <p className="text-sm text-charcoal/60 mt-1">
-                                {tryOns.length} try-ons • Showing {Math.min(visibleCount, tryOns.length)}
+                            <h2 className="text-3xl font-serif text-charcoal">My Creation Gallery</h2>
+                            <p className="text-[10px] uppercase tracking-[0.2em] text-neutral-400 font-medium mt-1">
+                                {tryOns.length} Masterpieces • Showing {Math.min(visibleCount, tryOns.length)}
                             </p>
                         </div>
                         <button
                             onClick={handleClose}
-                            className="p-2 rounded-full transition-all duration-200 hover:scale-110"
-                            style={{
-                                background: 'rgba(201, 165, 92, 0.1)',
-                                color: '#C9A55C',
-                            }}
+                            className="p-2.5 rounded-full transition-all duration-300 hover:bg-neutral-50 hover:scale-110 group"
                         >
-                            <X className="w-6 h-6" />
+                            <X className="w-6 h-6 text-neutral-400 group-hover:text-luxury-gold" />
                         </button>
                     </div>
 
@@ -182,10 +177,10 @@ export function TryOnGalleryModal({ isOpen, onClose, tryOns }: TryOnGalleryModal
                                     {visibleTryOns.map((tryOn, index) => (
                                         <div
                                             key={tryOn.tryOnId}
-                                            className="group relative overflow-hidden rounded-2xl transition-all duration-300 hover:scale-[1.02]"
+                                            className="group relative overflow-hidden rounded-3xl transition-all duration-500 hover:shadow-xl"
                                             style={{
-                                                background: 'white',
-                                                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+                                                background: '#FFFFFF',
+                                                border: '1px solid rgba(0, 0, 0, 0.03)',
                                             }}
                                         >
                                             {/* Image with lazy loading */}
@@ -213,19 +208,16 @@ export function TryOnGalleryModal({ isOpen, onClose, tryOns }: TryOnGalleryModal
                                                 <p className="text-xs text-charcoal/60 mb-1">
                                                     {tryOn.productTitle}
                                                 </p>
-                                                <div className="flex items-center justify-between mt-1 mb-3">
-                                                    <p className="text-[10px] text-charcoal/40 uppercase font-medium">
+                                                <div className="flex items-center justify-between mt-1 mb-4">
+                                                    <p className="text-[10px] text-neutral-400 uppercase tracking-widest font-medium">
                                                         {new Date(tryOn.createdAt).toLocaleDateString()}
                                                     </p>
                                                     <span
-                                                        className="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded"
+                                                        className="text-[9px] font-black uppercase tracking-[0.2em] px-2 py-0.5 rounded-full"
                                                         style={{
-                                                            background: 'rgba(201, 165, 92, 0.1)',
-                                                            color: tryOn.provider === 'gemini'
-                                                                ? '#10B981'
-                                                                : tryOn.provider === 'vertex'
-                                                                    ? '#3B82F6'
-                                                                    : '#C9A55C',
+                                                            background: '#F8F4EC',
+                                                            color: '#D4AF37',
+                                                            border: '1px solid rgba(212, 175, 55, 0.2)',
                                                         }}
                                                     >
                                                         {tryOn.provider === 'unknown' ? 'AI GENERATED' : tryOn.provider}
@@ -235,15 +227,15 @@ export function TryOnGalleryModal({ isOpen, onClose, tryOns }: TryOnGalleryModal
                                                 {/* Download Button */}
                                                 <button
                                                     onClick={() => handleDownload(tryOn.resultImage, `Try-On-${tryOns.length - index}`)}
-                                                    className="w-full py-2 px-4 rounded-lg font-medium text-sm transition-all duration-200 hover:scale-[1.02] flex items-center justify-center gap-2"
+                                                    className="w-full py-3 px-4 rounded-xl font-medium text-xs tracking-widest uppercase transition-all duration-300 hover:shadow-gold/20 flex items-center justify-center gap-2"
                                                     style={{
-                                                        background: 'linear-gradient(135deg, rgba(201, 165, 92, 0.95) 0%, rgba(201, 165, 92, 1) 100%)',
+                                                        background: '#D4AF37',
                                                         color: '#FFFFFF',
-                                                        boxShadow: '0 2px 8px rgba(201, 165, 92, 0.3)',
+                                                        boxShadow: '0 4px 12px rgba(212, 175, 55, 0.2)',
                                                     }}
                                                 >
                                                     <Download className="w-4 h-4" />
-                                                    Download
+                                                    <span>Download Masterpiece</span>
                                                 </button>
                                             </div>
                                         </div>
@@ -255,14 +247,14 @@ export function TryOnGalleryModal({ isOpen, onClose, tryOns }: TryOnGalleryModal
                                     <div className="mt-8 text-center">
                                         <button
                                             onClick={handleLoadMore}
-                                            className="px-8 py-3 rounded-xl font-semibold text-sm transition-all duration-200 hover:scale-[1.02]"
+                                            className="px-10 py-3.5 rounded-xl font-medium text-xs tracking-widest uppercase transition-all duration-300 hover:bg-neutral-50 active:scale-[0.98]"
                                             style={{
-                                                background: 'linear-gradient(135deg, rgba(201, 165, 92, 0.15) 0%, rgba(201, 165, 92, 0.25) 100%)',
-                                                color: '#C9A55C',
-                                                border: '2px solid rgba(201, 165, 92, 0.3)',
+                                                background: '#FFFFFF',
+                                                color: '#D4AF37',
+                                                border: '1px solid rgba(212, 175, 55, 0.3)',
                                             }}
                                         >
-                                            Load More ({remainingCount} remaining)
+                                            View More Creations ({remainingCount})
                                         </button>
                                     </div>
                                 )}

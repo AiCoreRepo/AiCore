@@ -83,7 +83,7 @@ const Login = () => {
               type="email"
               placeholder="designer@aivestire.com"
               {...register("email")}
-              className="bg-luxury-charcoal border-luxury-charcoal text-luxury-cream placeholder:text-muted-foreground focus:border-luxury-gold focus:ring-luxury-gold transition-all duration-300"
+              className="bg-luxury-cream border-neutral-200 text-luxury-black placeholder:text-neutral-500 h-12 rounded-xl shadow-sm focus:border-luxury-gold/50 focus:ring-4 focus:ring-luxury-gold/5 transition-all duration-300"
             />
             {errors.email && (
               <p className="text-sm text-destructive">{errors.email.message}</p>
@@ -91,16 +91,24 @@ const Login = () => {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="password" className="text-luxury-cream">
-              Password
-            </Label>
+            <div className="flex justify-between items-center px-1">
+              <Label htmlFor="password" className="text-xs uppercase tracking-widest text-luxury-gold font-medium">
+                Password
+              </Label>
+              <Link
+                to="/forgot-password"
+                className="text-[10px] uppercase tracking-widest text-neutral-400 hover:text-luxury-gold transition-colors"
+              >
+                Forgot?
+              </Link>
+            </div>
             <div className="relative">
               <Input
                 id="password"
                 type={showPassword ? "text" : "password"}
                 placeholder="Enter your password"
                 {...register("password")}
-                className="bg-luxury-charcoal border-luxury-charcoal text-luxury-cream placeholder:text-muted-foreground focus:border-luxury-gold focus:ring-luxury-gold transition-all duration-300 pr-10"
+                className="bg-luxury-cream border-neutral-200 text-luxury-black placeholder:text-neutral-500 h-12 rounded-xl shadow-sm focus:border-luxury-gold/50 focus:ring-4 focus:ring-luxury-gold/5 transition-all duration-300 pr-10"
               />
               <button
                 type="button"
@@ -115,14 +123,6 @@ const Login = () => {
             )}
           </div>
 
-          <div className="flex items-center justify-end">
-            <Link
-              to="/forgot-password"
-              className="text-sm text-luxury-gold hover:underline transition-all"
-            >
-              Forgot password?
-            </Link>
-          </div>
 
           <Button
             type="submit"

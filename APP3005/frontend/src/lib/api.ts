@@ -1,5 +1,19 @@
 const BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
 
+export interface ApiError extends Error {
+  status?: number;
+}
+
+export interface TryOnPermission {
+  id: string;
+  userId: string;
+  userEmail: string;
+  userName?: string;
+  status: TryOnPermissionStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export async function login(data: { email: string; password: string }) {
   // Hardcode endpoint to avoid any accidental whitespace
   const endpoint = BASE_URL + "/auth/login";
@@ -22,14 +36,18 @@ export async function login(data: { email: string; password: string }) {
 
   if (!res.ok) {
     const bodyText = await res.text();
+    let message = "Login failed";
     try {
       const parsed = JSON.parse(bodyText);
       console.error("Error response:", parsed);
-      throw new Error(parsed.message || "Login failed");
+      message = parsed.message || message;
     } catch {
       console.error("Error response (text):", bodyText);
-      throw new Error(bodyText || "Login failed");
+      message = bodyText || message;
     }
+    const error = new Error(message) as ApiError;
+    error.status = res.status;
+    throw error;
   }
 
   const responseData = await res.json();
@@ -53,12 +71,16 @@ export async function signup(data: { email: string; password: string; brandName:
   });
   if (!res.ok) {
     const bodyText = await res.text();
+    let message = "Signup failed";
     try {
       const err = JSON.parse(bodyText);
-      throw new Error(err.message || "Signup failed");
+      message = err.message || message;
     } catch {
-      throw new Error(bodyText || "Signup failed");
+      message = bodyText || message;
     }
+    const error = new Error(message) as ApiError;
+    error.status = res.status;
+    throw error;
   }
   return res.json();
 }
@@ -78,12 +100,16 @@ export async function userSignup(data: { email: string; password: string; name?:
   });
   if (!res.ok) {
     const bodyText = await res.text();
+    let message = "Signup failed";
     try {
       const err = JSON.parse(bodyText);
-      throw new Error(err.message || "Signup failed");
+      message = err.message || message;
     } catch {
-      throw new Error(bodyText || "Signup failed");
+      message = bodyText || message;
     }
+    const error = new Error(message) as ApiError;
+    error.status = res.status;
+    throw error;
   }
   return res.json();
 }
@@ -104,12 +130,16 @@ export async function getDashboardMetrics() {
 
   if (!res.ok) {
     const bodyText = await res.text();
+    let message = "Failed to fetch dashboard metrics";
     try {
       const err = JSON.parse(bodyText);
-      throw new Error(err.message || 'Failed to fetch dashboard metrics');
+      message = err.message || message;
     } catch {
-      throw new Error(bodyText || 'Failed to fetch dashboard metrics');
+      message = bodyText || message;
     }
+    const error = new Error(message) as ApiError;
+    error.status = res.status;
+    throw error;
   }
   return res.json();
 }
@@ -130,12 +160,16 @@ export async function getCreatorProducts(page: number = 1, limit: number = 10) {
 
   if (!res.ok) {
     const bodyText = await res.text();
+    let message = 'Failed to fetch products';
     try {
       const err = JSON.parse(bodyText);
-      throw new Error(err.message || 'Failed to fetch products');
+      message = err.message || message;
     } catch {
-      throw new Error(bodyText || 'Failed to fetch products');
+      message = bodyText || message;
     }
+    const error = new Error(message) as ApiError;
+    error.status = res.status;
+    throw error;
   }
   return res.json();
 }
@@ -157,12 +191,16 @@ export async function getProfile() {
 
   if (!res.ok) {
     const bodyText = await res.text();
+    let message = 'Failed to fetch profile';
     try {
       const err = JSON.parse(bodyText);
-      throw new Error(err.message || 'Failed to fetch profile');
+      message = err.message || message;
     } catch {
-      throw new Error(bodyText || 'Failed to fetch profile');
+      message = bodyText || message;
     }
+    const error = new Error(message) as ApiError;
+    error.status = res.status;
+    throw error;
   }
   return res.json();
 }
@@ -184,12 +222,16 @@ export async function updateProfile(data: { name?: string; subtitle?: string; av
 
   if (!res.ok) {
     const bodyText = await res.text();
+    let message = 'Failed to update profile';
     try {
       const err = JSON.parse(bodyText);
-      throw new Error(err.message || 'Failed to update profile');
+      message = err.message || message;
     } catch {
-      throw new Error(bodyText || 'Failed to update profile');
+      message = bodyText || message;
     }
+    const error = new Error(message) as ApiError;
+    error.status = res.status;
+    throw error;
   }
   return res.json();
 }
@@ -503,7 +545,7 @@ export async function getAura() {
 export async function tryOnWithGemini(data: {
   userId: string;
   clothingItemId: string;
-  additionalParams?: Record<string, any>;
+  additionalParams?: Record<string, unknown>;
 }) {
   const token = localStorage.getItem('access_token');
   if (!token) {
@@ -535,7 +577,7 @@ export async function tryOnWithGemini(data: {
 export async function tryOnWithVertex(data: {
   userId: string;
   clothingItemId: string;
-  additionalParams?: Record<string, any>;
+  additionalParams?: Record<string, unknown>;
 }) {
   const token = localStorage.getItem('access_token');
   if (!token) {
@@ -568,7 +610,7 @@ export async function generateMoreAngles(data: {
   userId: string;
   productId: string;
   previousImageUrl: string;
-  additionalParams?: Record<string, any>;
+  additionalParams?: Record<string, unknown>;
 }) {
   const token = localStorage.getItem('access_token');
   if (!token) {
@@ -709,7 +751,7 @@ export async function requestTryOnAccess(): Promise<{ success: boolean; message?
 /**
  * (Admin) Get all pending try-on permission requests
  */
-export async function getPendingTryOnPermissions(): Promise<any[]> {
+export async function getPendingTryOnPermissions(): Promise<TryOnPermission[]> {
   const token = localStorage.getItem('access_token');
   if (!token) throw new Error('Login required');
 
@@ -726,7 +768,7 @@ export async function getPendingTryOnPermissions(): Promise<any[]> {
 /**
  * (Admin) Get all approved try-on permission requests
  */
-export async function getApprovedTryOnPermissions(): Promise<any[]> {
+export async function getApprovedTryOnPermissions(): Promise<TryOnPermission[]> {
   const token = localStorage.getItem('access_token');
   if (!token) throw new Error('Login required');
 

@@ -119,15 +119,15 @@ const ProductCard = ({ image, images = [], title, description, tags, revenue, st
                 </div>
 
                 {/* Content Section */}
-                <div className="p-4">
-                    <div className="flex justify-between items-start mb-2">
-                        <div>
-                            <h4 className="font-serif text-lg text-luxury-black leading-tight mb-1 group-hover:text-luxury-gold transition-colors">
+                <div className="p-3 md:p-4">
+                    <div className="flex justify-between items-start mb-1.5 md:mb-2 text-wrap">
+                        <div className="flex-1 min-w-0 pr-2">
+                            <h4 className="font-serif text-base md:text-lg text-luxury-black leading-tight mb-0.5 md:mb-1 group-hover:text-luxury-gold transition-colors truncate">
                                 {title}
                             </h4>
-                            <div className="flex flex-wrap gap-1.5">
+                            <div className="flex flex-wrap gap-1 md:gap-1.5">
                                 {tags.slice(0, 2).map((tag) => (
-                                    <span key={tag} className="text-[10px] text-stone-500 uppercase tracking-wide">
+                                    <span key={tag} className="text-[9px] md:text-[10px] text-stone-500 uppercase tracking-wide">
                                         {tag}
                                     </span>
                                 ))}
@@ -139,30 +139,34 @@ const ProductCard = ({ image, images = [], title, description, tags, revenue, st
                             onViewDetails={() => setIsDetailsOpen(true)}
                         />
                     </div>
+                </div>
 
-                    {/* Stats Row */}
-                    <div className="flex items-center gap-4 py-3 border-b border-stone-100 mb-3">
-                        <div className="flex items-center gap-1.5 text-stone-400 group-hover:text-luxury-gold/80 transition-colors">
-                            <Heart size={14} className={stats?.likes_count ? "fill-luxury-gold text-luxury-gold" : ""} />
-                            <span className="text-xs font-medium">{stats?.likes_count || 0}</span>
+                {/* Stats Row */}
+                <div className="px-3 md:px-4">
+                    <div className="flex items-center gap-3 md:gap-4 py-2 md:py-3 border-b border-stone-100 mb-2 md:mb-3">
+                        <div className="flex items-center gap-1 md:gap-1.5 text-stone-400 group-hover:text-luxury-gold/80 transition-colors">
+                            <Heart size={12} className={stats?.likes_count ? "fill-luxury-gold text-luxury-gold" : "md:w-3.5 md:h-3.5"} />
+                            <span className="text-[10px] md:text-xs font-medium">{stats?.likes_count || 0}</span>
                         </div>
                         <div
-                            className="flex items-center gap-1.5 text-stone-400 hover:text-luxury-gold cursor-pointer transition-colors"
+                            className="flex items-center gap-1 md:gap-1.5 text-stone-400 hover:text-luxury-gold cursor-pointer transition-colors"
                             onClick={handleReviewsClick}
                         >
-                            <MessageCircle size={14} />
-                            <span className="text-xs font-medium">{stats?.comments_count || 0}</span>
+                            <MessageCircle size={12} className="md:w-3.5 md:h-3.5" />
+                            <span className="text-[10px] md:text-xs font-medium">{stats?.comments_count || 0}</span>
                         </div>
-                        <div className="flex items-center gap-1.5 text-stone-400">
-                            <Share2 size={14} />
-                            <span className="text-xs font-medium">{stats?.shares_count || stats?.tries_count || 0}</span>
+                        <div className="flex items-center gap-1 md:gap-1.5 text-stone-400">
+                            <Share2 size={12} className="md:w-3.5 md:h-3.5" />
+                            <span className="text-[10px] md:text-xs font-medium">{stats?.shares_count || stats?.tries_count || 0}</span>
                         </div>
                     </div>
+                </div>
 
-                    {/* Footer */}
-                    <div className="flex items-center justify-between">
+                {/* Footer */}
+                <div className="px-3 md:px-4 pb-3 md:pb-4">
+                    <div className="flex items-center justify-between gap-2">
                         {/* Status Badge - Left Aligned */}
-                        <span className={`flex items-center gap-1.5 pl-2.5 pr-3 py-1 rounded-full text-[10px] font-medium tracking-wide uppercase ${status === "Active"
+                        <span className={`inline-flex items-center gap-1 px-2 md:px-2.5 py-0.5 md:py-1 rounded-full text-[9px] md:text-[10px] font-medium tracking-wide uppercase ${status === "Active"
                             ? "bg-emerald-50 text-emerald-700 border border-emerald-100"
                             : status === "Draft"
                                 ? "bg-blue-50 text-blue-700 border border-blue-100"
@@ -173,25 +177,27 @@ const ProductCard = ({ image, images = [], title, description, tags, revenue, st
                         </span>
 
                         {/* Revenue - Right Aligned */}
-                        <span className="font-serif text-sm font-medium text-luxury-gold tracking-wide">
+                        <span className="font-serif text-sm md:text-base font-medium text-luxury-gold tracking-wide whitespace-nowrap">
                             {revenue}
                         </span>
                     </div>
+                </div>
 
-                    {/* Publish Button for Draft Products */}
-                    {status === "Draft" && onPublish && (
+                {/* Publish Button for Draft Products */}
+                {status === "Draft" && onPublish && (
+                    <div className="px-3 md:px-4 pb-3 md:pb-4">
                         <button
                             onClick={(e) => {
                                 e.stopPropagation();
                                 onPublish();
                             }}
-                            className="mt-3 w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-luxury-gold text-white rounded-lg hover:bg-luxury-gold/90 transition-all duration-300 shadow-sm hover:shadow-md font-medium text-sm"
+                            className="flex items-center justify-center gap-2 w-full px-4 py-2 bg-luxury-gold text-white rounded-lg hover:bg-luxury-gold/90 transition-all duration-300 shadow-sm hover:shadow-md font-medium text-sm"
                         >
                             <Send size={16} />
                             Publish for Approval
                         </button>
-                    )}
-                </div>
+                    </div>
+                )}
             </div>
 
             {/* Lightbox Gallery */}

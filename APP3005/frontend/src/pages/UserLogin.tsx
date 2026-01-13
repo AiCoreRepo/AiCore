@@ -11,6 +11,7 @@ import { loginSchema, type LoginFormData } from "@/lib/validation";
 import { useToast } from "@/hooks/use-toast";
 import { AuraPromptDialog } from "@/components/aura/AuraPromptDialog";
 import { login, getAuraStatus } from "@/lib/api";
+import { getErrorMessage } from "@/lib/error-utils";
 import heroImage from "@/assets/auth-hero-login.jpg"; // Reusing existing asset
 
 const UserLogin = () => {
@@ -89,8 +90,8 @@ const UserLogin = () => {
             }
         } catch (error: unknown) {
             toast({
-                title: "Error",
-                description: (error as Error).message || "Invalid credentials. Please try again.",
+                title: "Login Failed",
+                description: getErrorMessage(error, "Invalid credentials. Please try again."),
                 variant: "destructive",
             });
         } finally {
@@ -129,89 +130,94 @@ const UserLogin = () => {
                 quoteAuthor="Audrey Hepburn"
             >
                 <div className="space-y-8">
-                    <div className="space-y-2 text-center">
-                        <h2 className="text-4xl font-serif text-luxury-cream">Welcome Back</h2>
-                        <p className="text-muted-foreground">Sign in to your account</p>
+                    <div className="space-y-2 text-center lg:text-left">
+                        <h2 className="text-4xl font-serif text-luxury-cream tracking-tight">Welcome Back</h2>
+                        <p className="text-neutral-400 text-lg">Continue your bespoke fashion journey.</p>
                     </div>
 
                     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-                        <div className="space-y-2">
-                            <Label htmlFor="email" className="text-luxury-cream">
-                                Email Address
-                            </Label>
-                            <Input
-                                id="email"
-                                type="email"
-                                placeholder="user@example.com"
-                                {...register("email")}
-                                className="bg-white border-luxury-charcoal text-charcoal placeholder:text-gray-400 focus:border-luxury-gold focus:ring-luxury-gold transition-all duration-300"
-                            />
-                            {errors.email && (
-                                <p className="text-sm text-destructive">{errors.email.message}</p>
-                            )}
-                        </div>
-
-                        <div className="space-y-2">
-                            <Label htmlFor="password" className="text-luxury-cream">
-                                Password
-                            </Label>
-                            <div className="relative">
+                        <div className="space-y-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="email" className="text-xs uppercase tracking-widest text-luxury-gold font-medium ml-1">
+                                    Email Address
+                                </Label>
                                 <Input
-                                    id="password"
-                                    type={showPassword ? "text" : "password"}
-                                    placeholder="Enter your password"
-                                    {...register("password")}
-                                    className="bg-white border-luxury-charcoal text-charcoal placeholder:text-gray-400 focus:border-luxury-gold focus:ring-luxury-gold transition-all duration-300 pr-10"
+                                    id="email"
+                                    type="email"
+                                    placeholder="user@example.com"
+                                    {...register("email")}
+                                    className="bg-luxury-cream border-neutral-200 text-luxury-black placeholder:text-neutral-500 h-12 rounded-xl shadow-sm focus:border-luxury-gold/50 focus:ring-4 focus:ring-luxury-gold/5 transition-all duration-300"
                                 />
-                                <button
-                                    type="button"
-                                    onClick={() => setShowPassword(!showPassword)}
-                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-luxury-gold transition-colors"
-                                >
-                                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                                </button>
+                                {errors.email && (
+                                    <p className="text-xs text-red-500 mt-1 ml-1">{errors.email.message}</p>
+                                )}
                             </div>
-                            {errors.password && (
-                                <p className="text-sm text-destructive">{errors.password.message}</p>
-                            )}
-                        </div>
 
-                        <div className="flex items-center justify-end">
-                            <Link
-                                to="/user-forgot-password"
-                                className="text-sm text-luxury-gold hover:underline transition-all"
-                            >
-                                Forgot password?
-                            </Link>
+                            <div className="space-y-2">
+                                <div className="flex justify-between items-center px-1">
+                                    <Label htmlFor="password" className="text-xs uppercase tracking-widest text-luxury-gold font-medium">
+                                        Password
+                                    </Label>
+                                    <Link
+                                        to="/user-forgot-password"
+                                        className="text-[10px] uppercase tracking-widest text-neutral-400 hover:text-luxury-gold transition-colors"
+                                    >
+                                        Forgot?
+                                    </Link>
+                                </div>
+                                <div className="relative">
+                                    <Input
+                                        id="password"
+                                        type={showPassword ? "text" : "password"}
+                                        placeholder="••••••••"
+                                        {...register("password")}
+                                        className="bg-luxury-cream border-neutral-200 text-luxury-black placeholder:text-neutral-500 h-12 rounded-xl shadow-sm focus:border-luxury-gold/50 focus:ring-4 focus:ring-luxury-gold/5 transition-all duration-300 pr-10"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowPassword(!showPassword)}
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-luxury-gold transition-colors"
+                                    >
+                                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                    </button>
+                                </div>
+                                {errors.password && (
+                                    <p className="text-xs text-red-500 mt-1 ml-1">{errors.password.message}</p>
+                                )}
+                            </div>
                         </div>
 
                         <Button
                             type="submit"
-                            variant="luxury"
-                            size="lg"
-                            className="w-full"
                             disabled={isLoading}
+                            className="w-full bg-luxury-gold hover:bg-luxury-gold/90 text-luxury-black font-bold h-12 rounded-full transition-all duration-500 hover:scale-[1.02] active:scale-[0.98]"
                         >
-                            {isLoading ? "Signing in..." : "Sign In"}
+                            {isLoading ? (
+                                <div className="flex items-center gap-2">
+                                    <span className="h-4 w-4 border-2 border-luxury-black/30 border-t-luxury-black animate-spin rounded-full" />
+                                    <span>Authenticating...</span>
+                                </div>
+                            ) : (
+                                "Enter Boutique"
+                            )}
                         </Button>
 
-                        <div className="relative">
+                        <div className="relative py-2">
                             <div className="absolute inset-0 flex items-center">
-                                <span className="w-full border-t border-luxury-charcoal" />
+                                <span className="w-full border-t border-white/5" />
                             </div>
-                            <div className="relative flex justify-center text-xs uppercase">
-                                <span className="bg-luxury-black px-2 text-muted-foreground">Or continue with</span>
+                            <div className="relative flex justify-center text-[10px] uppercase tracking-[0.2em]">
+                                <span className="bg-luxury-black lg:bg-transparent px-4 text-neutral-600">Or continue with</span>
                             </div>
                         </div>
 
                         <Button
                             type="button"
-                            variant="luxury-outline"
-                            size="lg"
-                            className="w-full"
+                            variant="outline"
+                            className="w-full bg-luxury-cream border-none text-luxury-black hover:bg-luxury-cream/90 h-12 rounded-full transition-all duration-300"
                             onClick={handleGoogleSignIn}
                         >
-                            <svg className="h-5 w-5 mr-2" viewBox="0 0 24 24">
+                            <svg className="h-5 w-5 mr-3 text-luxury-black" viewBox="0 0 24 24">
                                 <path
                                     fill="currentColor"
                                     d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -233,11 +239,13 @@ const UserLogin = () => {
                         </Button>
                     </form>
 
-                    <div className="text-center text-sm text-muted-foreground">
-                        Don't have an account?{" "}
-                        <Link to="/user-signup" className="text-luxury-gold hover:underline font-medium">
-                            Sign up
-                        </Link>
+                    <div className="text-center">
+                        <p className="text-neutral-500 text-sm">
+                            New to AiVestire?{" "}
+                            <Link to="/user-signup" className="text-luxury-gold hover:text-luxury-cream transition-colors font-semibold">
+                                Create your account
+                            </Link>
+                        </p>
                     </div>
                 </div>
             </AuthLayout>

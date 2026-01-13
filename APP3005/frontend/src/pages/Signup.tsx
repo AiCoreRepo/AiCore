@@ -82,7 +82,7 @@ const Signup = () => {
               type="text"
               placeholder="Your Brand Name"
               {...register("brandName")}
-              className="bg-white border-luxury-charcoal text-charcoal placeholder:text-gray-400 focus:border-luxury-gold focus:ring-luxury-gold transition-all duration-300"
+              className="bg-luxury-cream border-neutral-200 text-luxury-black placeholder:text-neutral-500 h-12 rounded-xl shadow-sm focus:border-luxury-gold/50 focus:ring-4 focus:ring-luxury-gold/5 transition-all duration-300"
             />
             {errors.brandName && (
               <p className="text-sm text-destructive">{errors.brandName.message}</p>
@@ -97,7 +97,7 @@ const Signup = () => {
               id="dateOfBirth"
               type="date"
               {...register("dateOfBirth")}
-              className="bg-white border-luxury-charcoal text-charcoal placeholder:text-gray-400 focus:border-luxury-gold focus:ring-luxury-gold transition-all duration-300"
+              className="bg-luxury-cream border-neutral-200 text-luxury-black h-12 rounded-xl shadow-sm focus:border-luxury-gold/50 focus:ring-4 focus:ring-luxury-gold/5 transition-all duration-300 [color-scheme:light]"
             />
             {errors.dateOfBirth && (
               <p className="text-sm text-destructive">{errors.dateOfBirth.message}</p>
@@ -113,7 +113,7 @@ const Signup = () => {
               type="email"
               placeholder="designer@aivestire.com"
               {...register("email")}
-              className="bg-white border-luxury-charcoal text-charcoal placeholder:text-gray-400 focus:border-luxury-gold focus:ring-luxury-gold transition-all duration-300"
+              className="bg-luxury-cream border-neutral-200 text-luxury-black placeholder:text-neutral-500 h-12 rounded-xl shadow-sm focus:border-luxury-gold/50 focus:ring-4 focus:ring-luxury-gold/5 transition-all duration-300"
             />
             {errors.email && (
               <p className="text-sm text-destructive">{errors.email.message}</p>
@@ -130,7 +130,7 @@ const Signup = () => {
                 type={showPassword ? "text" : "password"}
                 placeholder="Minimum 8 characters"
                 {...register("password")}
-                className="bg-white border-luxury-charcoal text-charcoal placeholder:text-gray-400 focus:border-luxury-gold focus:ring-luxury-gold transition-all duration-300 pr-10"
+                className="bg-luxury-cream border-neutral-200 text-luxury-black placeholder:text-neutral-500 h-12 rounded-xl shadow-sm focus:border-luxury-gold/50 focus:ring-4 focus:ring-luxury-gold/5 transition-all duration-300 pr-10"
               />
               <button
                 type="button"
@@ -155,7 +155,7 @@ const Signup = () => {
                 type={showConfirmPassword ? "text" : "password"}
                 placeholder="Re-enter your password"
                 {...register("confirmPassword")}
-                className="bg-white border-luxury-charcoal text-charcoal placeholder:text-gray-400 focus:border-luxury-gold focus:ring-luxury-gold transition-all duration-300 pr-10"
+                className="bg-luxury-cream border-neutral-200 text-luxury-black placeholder:text-neutral-500 h-12 rounded-xl shadow-sm focus:border-luxury-gold/50 focus:ring-4 focus:ring-luxury-gold/5 transition-all duration-300 pr-10"
               />
               <button
                 type="button"
