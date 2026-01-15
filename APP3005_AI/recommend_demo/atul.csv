@@ -1,0 +1,81 @@
+Image	@Occasion	@Recommended Body shape	@Recommended size	@Skin tone	Clothing Type	Fit	Fabric	Color_family
+img201	Resort	rectangle,hourglass,pear,apple	small,medium,large	light,medium,dusky	Maxi dress	flowing	chiffon	pastel
+img202	Party	rectangle,hourglass	small,medium	light,medium	Satin dress	slim	satin	Black
+img203	Casual luxury	pear,rectangle,apple	small,medium,large	medium,dusky	Co-ords	structured	linen	neutral
+img204	Formal	rectangle,hourglass	small,medium	light,medium	Blazer dress	structured	crepe	navy blue
+img205	Wedding	hourglass,pear,apple	medium,large,xl	medium,dusky,deep	Ethnic Set (lehenga)	structured	silk	jewel
+img206	Resort	pear,rectangle,apple	small,medium,large	light,medium	Wrap dress	relaxed	cotton	tropical
+img207	Casual luxury	rectangle,apple,hourglass	small,medium	light,medium,dusky	Jumpsuit	structured	linen	neutral
+img208	Party	rectangle,hourglass,pear	small,medium,large	medium,dusky,deep	Mini dress	slim	sequins	metallic
+img209	Formal	rectangle,hourglass	small,medium	light,medium	Blazer dress	structured	crepe	navy blue
+img210	Resort	rectangle,hourglass,pear,apple	small,medium,large	light,medium,dusky,deep	Kaftan	relaxed	silk	jewel
+img211	Casual luxury	pear,curvy	small,medium,large	deep	Boho dress	relaxed	cotton	jewel
+img212	Wedding	hourglass,pear	medium,large,xl	medium,dusky,deep	Gown	structured	net,silk	metallic
+img213	Party	rectangle,apple,hourglass	small,medium,large	medium,dusky	Co-ords	structured	satin	metallic
+img214	Formal	rectangle,hourglass	small,medium	light,medium	Blazer suit	structured	wool	neutral
+img215	Resort	rectangle,pear,apple	small,medium,large	light,medium	Jumpsuit	relaxed	cotton-linen	neutral
+img216	Casual luxury	pear,rectangle	small,medium	medium,dusky	Short dress	fit-and-flare	chiffon	pastel
+img217	Party	rectangle,hourglass,pear	small,medium,large	light,medium,dusky,deep	Mini dress	slim	velvet	jewel
+img218	Resort	rectangle,hourglass,pear,apple	small,medium,large	light,medium,dusky,deep	Gown	flowing	chiffon	pastel
+img219	Casual luxury	pear,curvy	small,medium,large	deep	Fusion wear	relaxed	silk-blend	jewel
+img220	Formal	rectangle,hourglass	small,medium	light,medium	Shirt dress	structured	cotton	neutral
+img221	Wedding	rectangle,hourglass,pear,apple	small,medium,large	medium,dusky,deep	Ethnic Set (lehenga)	structured	silk	jewel
+img222	Engagement	rectangle,hourglass	small,medium	light,medium	Gown	structured	net,silk	metallic
+img223	Wedding guest	rectangle,pear,hourglass	small,medium,large	medium,dusky	Saree	draped	silk	jewel
+img224	Engagement	rectangle,hourglass,pear	small,medium	light,medium	Ethnic Set (anarkali)	flowing	georgette	pastel
+img225	Reception	rectangle,hourglass,pear	medium,large,xl	medium,dusky,deep	Ethnic Set (lehenga)	structured	velvet	jewel
+img226	Wedding guest	pear,rectangle,hourglass	small,medium,large	medium,deep	Ethnic Set (sharara)	relaxed	silk-blend	jewel
+img227	Resort	rectangle,hourglass,pear,apple	small,medium,large	light,medium,dusky	Kaftan	relaxed	silk	jewel
+img228	Resort beach	rectangle,hourglass,pear	small,medium,large	light,medium	Maxi dress	flowing	chiffon	neutral
+img229	Resort vacation	rectangle,pear,apple	small,medium,large	light,medium	Jumpsuit	relaxed	linen	pastel
+img230	Resort brunch	pear,rectangle,hourglass	small,medium,large	light,medium	Wrap dress	flowing	chiffon	tropical
+img231	Resort luxury	rectangle,hourglass	small,medium	light,medium	Co-ords	structured	linen	neutral
+img232	Resort photoshoot	rectangle,hourglass,pear,apple	small,medium,large	light,medium,dusky	Gown	flowing	chiffon	jewel
+img233	Engagement	pear,hourglass,rectangle	small,medium,large	light,medium	Ethnic Set (lehenga)	flowing	net,silk	pastel
+img234	Wedding guest	pear,rectangle,hourglass	small,medium	light,medium	Saree	flowing	organza	pastel
+img235	Haldi	pear,rectangle,hourglass	small,medium	medium,dusky	Ethnic Set (lehenga)	flowing	georgette	yellow
+img236	Mehendi	pear,rectangle,hourglass	small,medium,large	medium,dusky	Ethnic Set (sharara)	relaxed	georgette	green
+img237	Reception	rectangle,hourglass	small,medium	light,medium	Gown	slim	sequins	jewel
+img238	Wedding	pear,hourglass	medium,large	medium,deep	Saree	draped	silk	jewel
+img239	Bridal outfit	hourglass,pear	medium,large,xl	light,medium,dusky	Ethnic Set (lehenga)	structured	net,silk	pastel
+img240	Reception	rectangle,hourglass	small,medium,large	light,medium	Gown	structured	organza,silk	neutral
+img241	Resort vacation	rectangle,hourglass,pear	small,medium,large	light,medium	Co-ords	structured	linen	neutral
+img242	Resort brunch	rectangle,hourglass,pear	small,medium,large	light,medium	Maxi dress	flowing	chiffon	tropical
+img243	Resort travel	rectangle,hourglass,pear	small,medium,large	light,medium	Saree	draped	chiffon	jewel
+img244	Beach vacation	rectangle,hourglass,pear	small,medium,large	light,medium	Gown	flowing	chiffon	neutral
+img245	Resort casual	rectangle,hourglass,pear	small,medium,large	light,medium	Short set	relaxed	cotton	print
+img246	Resort holiday	rectangle,hourglass,pear	small,medium,large	light,medium	Jumpsuit	relaxed	crepe	neutral
+img247	Resort boho	pear,rectangle,hourglass	small,medium,large	medium,dusky	Skirt set	relaxed	cotton	print
+img248	Resort evening	rectangle,hourglass	small,medium,large	light,medium,dusky	Gown	flowing	satin	jewel
+img249	Party	rectangle,hourglass,pear	small,medium	light,medium	Saree	slim	satin metallic	metallic
+img250	Party	rectangle,hourglass	small,medium	medium,dusky	Midi dress	slim	satin	black
+img251	Party	rectangle,hourglass,pear	small,medium,large	light,medium,dusky	Co-ords	structured	satin	metallic
+img252	Wedding	rectangle,hourglass,pear	medium,large,xl	medium,dusky,deep	Ethnic Set (lehenga)	structured	silk	jewel
+img253	Engagement	rectangle,hourglass	small,medium	light,medium	Gown	structured	net,silk	pastel
+img254	Wedding guest	pear,rectangle,hourglass	small,medium,large	medium,dusky	Saree	flowing	organza	pastel
+img255	Mehendi	pear,rectangle,hourglass	small,medium,large	medium,dusky	Ethnic Set (sharara)	relaxed	georgette	green
+img256	Haldi	pear,rectangle,hourglass	small,medium	medium,dusky	Ethnic Set (lehenga)	flowing	georgette	yellow
+img257	Reception	rectangle,hourglass	small,medium	light,medium	Gown	slim	sequins	jewel
+img258	Resort	rectangle,hourglass,pear	small,medium,large	light,medium	Maxi dress	flowing	chiffon	neutral
+img259	Resort	rectangle,hourglass,pear,apple	small,medium,large	light,medium,dusky	Kaftan	relaxed	silk	jewel
+img260	Resort brunch	rectangle,hourglass,pear	small,medium,large	light,medium	Co-ords	structured	linen	neutral
+img261	Party	rectangle,hourglass	small,medium	light,medium	Mini dress	slim	velvet	jewel
+img262	Party	rectangle,hourglass,pear	small,medium,large	medium,dusky	Co-ords	structured	satin	metallic
+img263	Party	rectangle,pear,hourglass	small,medium,large	light,medium	Saree	draped	chiffon	jewel
+img264	Wedding	rectangle,hourglass,pear	medium,large,xl	medium,dusky,deep	Ethnic Set (lehenga)	structured	silk	jewel
+img265	Engagement	rectangle,hourglass	small,medium	light,medium	Gown	flowing	net,silk	pastel
+img266	Wedding guest	pear,rectangle,hourglass	small,medium,large	medium,dusky	Saree	draped	organza	pastel
+img267	Mehendi	pear,rectangle,hourglass	small,medium,large	medium,dusky	Ethnic Set (anarkali)	flowing	georgette	green
+img268	Haldi	pear,rectangle,hourglass	small,medium	medium,dusky	Ethnic Set (lehenga)	flowing	cotton	yellow
+img269	Resort	rectangle,hourglass,pear	small,medium,large	light,medium	Maxi dress	flowing	chiffon	jewel
+img270	Resort vacation	rectangle,pear,apple	small,medium,large	light,medium	Jumpsuit	relaxed	linen	neutral
+img271	Party	rectangle,hourglass	small,medium	light,medium	Mini dress	slim	velvet	jewel
+img272	Party	rectangle,hourglass,pear	small,medium,large	medium,dusky	Midi dress	structured	satin	jewel
+img273	Party	rectangle,pear,hourglass	small,medium,large	light,medium	Saree	draped	satin	metallic
+img274	Wedding	rectangle,hourglass,pear	medium,large,xl	medium,dusky,deep	Ethnic Set (lehenga)	structured	silk	jewel
+img275	Engagement	rectangle,hourglass	small,medium	light,medium	Gown	flowing	net,silk	pastel
+img276	Wedding guest	pear,rectangle,hourglass	small,medium,large	medium,dusky	Saree	draped	organza	pastel
+img277	Mehendi	pear,rectangle,hourglass	small,medium,large	medium,dusky	Ethnic Set (sharara)	relaxed	georgette	green
+img278	Haldi	pear,rectangle,hourglass	small,medium	medium,dusky	Ethnic Set (lehenga)	flowing	cotton	yellow
+img279	Resort	rectangle,hourglass,pear	small,medium,large	light,medium	Maxi dress	flowing	chiffon	neutral
+img280	Resort luxury	rectangle,hourglass,pear	small,medium,large	light,medium	Jumpsuit	structured	linen	neutral

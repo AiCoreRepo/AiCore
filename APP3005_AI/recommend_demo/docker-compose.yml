@@ -11,18 +11,22 @@ services:
       - ./training.csv:/app/training.csv:ro
       - ./new_data:/app/new_data:ro
       - ./fashion_collection.json:/app/fashion_collection.json:ro
-    restart: unless-stopped
+      - ./collection2.json:/app/collection2.json:ro
+      - ./collection2_train.json:/app/collection2_train.json:ro
+      - ./collection2_test.json:/app/collection2_test.json:ro
+      - ./train_image:/app/train_image:ro
+      - ./testiing_image_collection:/app/testiing_image_collection:ro
 
-  api:
+    restart: unless-stopped
+  fusion_api:
     build:
       context: .
-    command: ["uvicorn", "app.api:app", "--host", "0.0.0.0", "--port", "8898"]
+    command: ["uvicorn", "app.fusion_api:app", "--host", "0.0.0.0", "--port", "8791"]
     ports:
-      - "8898:8898"
+      - "8791:8791"
     volumes:
-      - ./data:/app/data
       - ./artifacts:/app/artifacts
-      - ./training.csv:/app/training.csv:ro
-      - ./new_data:/app/new_data:ro
-      - ./fashion_collection.json:/app/fashion_collection.json:ro
+      - ./collection2.json:/app/collection2.json:ro
+      - ./collection2_train.json:/app/collection2_train.json:ro
+      - ./collection2_test.json:/app/collection2_test.json:ro
     restart: unless-stopped

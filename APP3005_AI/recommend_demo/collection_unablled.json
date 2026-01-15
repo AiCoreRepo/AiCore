@@ -1,0 +1,1398 @@
+[
+  {
+    "cloth_id": "img1",
+    "cloth_type": "maxi_dress",
+    "occasion": [
+      "Resort"
+    ],
+    "fit": [
+      "flowing"
+    ],
+    "fabric": [
+      "chiffon"
+    ],
+    "color_family": [
+      "pastel"
+    ],
+    "style": [
+      "Minimal Luxury"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tone": [
+      "Light",
+      "Medium",
+      "Dusky"
+    ],
+    "body_shape": [
+      "Rectangle",
+      "Hourglass",
+      "Pear Shape",
+      "Apple Shape"
+    ],
+    "age_range": [],
+    "description": "Resort-ready maxi dress with a flowing silhouette crafted in chiffon and finished in pastel tones. Designed to flatter Rectangle, Hourglass, Pear Shape, Apple Shape figures and complement Light, Medium, Dusky skin tones, available in sizes S, M, L for versatile styling."
+  },
+  {
+    "cloth_id": "img2",
+    "cloth_type": "satin_dress",
+    "occasion": [
+      "Party"
+    ],
+    "fit": [
+      "slim"
+    ],
+    "fabric": [
+      "satin"
+    ],
+    "color_family": [
+      "black"
+    ],
+    "style": [
+      "Elegant"
+    ],
+    "sizes": [
+      "S",
+      "M"
+    ],
+    "skin_tone": [
+      "Light",
+      "Medium"
+    ],
+    "body_shape": [
+      "Rectangle",
+      "Hourglass"
+    ],
+    "age_range": [],
+    "description": "Party-ready satin dress with a slim silhouette crafted in satin and finished in black tones. Designed to flatter Rectangle, Hourglass figures and complement Light, Medium skin tones, available in sizes S, M for versatile styling."
+  },
+  {
+    "cloth_id": "img3",
+    "cloth_type": "co_ords",
+    "occasion": [
+      "Casual Luxury"
+    ],
+    "fit": [
+      "structured"
+    ],
+    "fabric": [
+      "linen"
+    ],
+    "color_family": [
+      "neutral"
+    ],
+    "style": [
+      "Minimal Luxury"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tone": [
+      "Medium",
+      "Dusky"
+    ],
+    "body_shape": [
+      "Pear Shape",
+      "Rectangle",
+      "Apple Shape"
+    ],
+    "age_range": [],
+    "description": "Casual Luxury-ready co ords with a structured silhouette crafted in linen and finished in neutral tones. Designed to flatter Pear Shape, Rectangle, Apple Shape figures and complement Medium, Dusky skin tones, available in sizes S, M, L for versatile styling."
+  },
+  {
+    "cloth_id": "img4",
+    "cloth_type": "blazer_dress",
+    "occasion": [
+      "Formal"
+    ],
+    "fit": [
+      "structured"
+    ],
+    "fabric": [
+      "crepe"
+    ],
+    "color_family": [
+      "navy blue"
+    ],
+    "style": [
+      "Elegant"
+    ],
+    "sizes": [
+      "S",
+      "M"
+    ],
+    "skin_tone": [
+      "Light",
+      "Medium"
+    ],
+    "body_shape": [
+      "Rectangle",
+      "Hourglass"
+    ],
+    "age_range": [],
+    "description": "Formal-ready blazer dress with a structured silhouette crafted in crepe and finished in navy blue tones. Designed to flatter Rectangle, Hourglass figures and complement Light, Medium skin tones, available in sizes S, M for versatile styling."
+  },
+  {
+    "cloth_id": "img5",
+    "cloth_type": "ethnic_set_lehenga",
+    "occasion": [
+      "Wedding"
+    ],
+    "fit": [
+      "structured"
+    ],
+    "fabric": [
+      "silk"
+    ],
+    "color_family": [
+      "jewel"
+    ],
+    "style": [
+      "Traditional Luxury"
+    ],
+    "sizes": [
+      "M",
+      "L",
+      "XL"
+    ],
+    "skin_tone": [
+      "Medium",
+      "Dusky",
+      "Deep"
+    ],
+    "body_shape": [
+      "Hourglass",
+      "Pear Shape",
+      "Apple Shape"
+    ],
+    "age_range": [],
+    "description": "Wedding-ready ethnic set lehenga with a structured silhouette crafted in silk and finished in jewel tones. Designed to flatter Hourglass, Pear Shape, Apple Shape figures and complement Medium, Dusky, Deep skin tones, available in sizes M, L, XL for versatile styling."
+  },
+  {
+    "cloth_id": "img6",
+    "cloth_type": "wrap_dress",
+    "occasion": [
+      "Resort"
+    ],
+    "fit": [
+      "relaxed"
+    ],
+    "fabric": [
+      "cotton"
+    ],
+    "color_family": [
+      "tropical"
+    ],
+    "style": [
+      "Minimal Luxury"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tone": [
+      "Light",
+      "Medium"
+    ],
+    "body_shape": [
+      "Pear Shape",
+      "Rectangle",
+      "Apple Shape"
+    ],
+    "age_range": [],
+    "description": "Resort-ready wrap dress with a relaxed silhouette crafted in cotton and finished in tropical tones. Designed to flatter Pear Shape, Rectangle, Apple Shape figures and complement Light, Medium skin tones, available in sizes S, M, L for versatile styling."
+  },
+  {
+    "cloth_id": "img7",
+    "cloth_type": "jumpsuit",
+    "occasion": [
+      "Casual Luxury"
+    ],
+    "fit": [
+      "structured"
+    ],
+    "fabric": [
+      "linen"
+    ],
+    "color_family": [
+      "neutral"
+    ],
+    "style": [
+      "Minimal Luxury"
+    ],
+    "sizes": [
+      "S",
+      "M"
+    ],
+    "skin_tone": [
+      "Light",
+      "Medium",
+      "Dusky"
+    ],
+    "body_shape": [
+      "Rectangle",
+      "Apple Shape",
+      "Hourglass"
+    ],
+    "age_range": [],
+    "description": "Casual Luxury-ready jumpsuit with a structured silhouette crafted in linen and finished in neutral tones. Designed to flatter Rectangle, Apple Shape, Hourglass figures and complement Light, Medium, Dusky skin tones, available in sizes S, M for versatile styling."
+  },
+  {
+    "cloth_id": "img8",
+    "cloth_type": "mini_dress",
+    "occasion": [
+      "Party"
+    ],
+    "fit": [
+      "slim"
+    ],
+    "fabric": [
+      "sequins"
+    ],
+    "color_family": [
+      "metallic"
+    ],
+    "style": [
+      "Elegant"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tone": [
+      "Medium",
+      "Dusky",
+      "Deep"
+    ],
+    "body_shape": [
+      "Rectangle",
+      "Hourglass",
+      "Pear Shape"
+    ],
+    "age_range": [],
+    "description": "Party-ready mini dress with a slim silhouette crafted in sequins and finished in metallic tones. Designed to flatter Rectangle, Hourglass, Pear Shape figures and complement Medium, Dusky, Deep skin tones, available in sizes S, M, L for versatile styling."
+  },
+  {
+    "cloth_id": "img9",
+    "cloth_type": "blazer_dress",
+    "occasion": [
+      "Formal"
+    ],
+    "fit": [
+      "structured"
+    ],
+    "fabric": [
+      "crepe"
+    ],
+    "color_family": [
+      "navy blue"
+    ],
+    "style": [
+      "Elegant"
+    ],
+    "sizes": [
+      "S",
+      "M"
+    ],
+    "skin_tone": [
+      "Light",
+      "Medium"
+    ],
+    "body_shape": [
+      "Rectangle",
+      "Hourglass"
+    ],
+    "age_range": [],
+    "description": "Formal-ready blazer dress with a structured silhouette crafted in crepe and finished in navy blue tones. Designed to flatter Rectangle, Hourglass figures and complement Light, Medium skin tones, available in sizes S, M for versatile styling."
+  },
+  {
+    "cloth_id": "img10",
+    "cloth_type": "kaftan",
+    "occasion": [
+      "Resort"
+    ],
+    "fit": [
+      "relaxed"
+    ],
+    "fabric": [
+      "silk"
+    ],
+    "color_family": [
+      "jewel"
+    ],
+    "style": [
+      "Minimal Luxury"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tone": [
+      "Light",
+      "Medium",
+      "Dusky",
+      "Deep"
+    ],
+    "body_shape": [
+      "Rectangle",
+      "Hourglass",
+      "Pear Shape",
+      "Apple Shape"
+    ],
+    "age_range": [],
+    "description": "Resort-ready kaftan with a relaxed silhouette crafted in silk and finished in jewel tones. Designed to flatter Rectangle, Hourglass, Pear Shape, Apple Shape figures and complement Light, Medium, Dusky, Deep skin tones, available in sizes S, M, L for versatile styling."
+  },
+  {
+    "cloth_id": "img11",
+    "cloth_type": "boho_dress",
+    "occasion": [
+      "Casual Luxury"
+    ],
+    "fit": [
+      "relaxed"
+    ],
+    "fabric": [
+      "cotton"
+    ],
+    "color_family": [
+      "jewel"
+    ],
+    "style": [
+      "Minimal Luxury"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tone": [
+      "Deep"
+    ],
+    "body_shape": [
+      "Pear Shape",
+      "Curvy"
+    ],
+    "age_range": [],
+    "description": "Casual Luxury-ready boho dress with a relaxed silhouette crafted in cotton and finished in jewel tones. Designed to flatter Pear Shape, Curvy figures and complement Deep skin tones, available in sizes S, M, L for versatile styling."
+  },
+  {
+    "cloth_id": "img12",
+    "cloth_type": "gown",
+    "occasion": [
+      "Wedding"
+    ],
+    "fit": [
+      "structured"
+    ],
+    "fabric": [
+      "net",
+      "silk"
+    ],
+    "color_family": [
+      "metallic"
+    ],
+    "style": [
+      "Traditional Luxury"
+    ],
+    "sizes": [
+      "M",
+      "L",
+      "XL"
+    ],
+    "skin_tone": [
+      "Medium",
+      "Dusky",
+      "Deep"
+    ],
+    "body_shape": [
+      "Hourglass",
+      "Pear Shape"
+    ],
+    "age_range": [],
+    "description": "Wedding-ready gown with a structured silhouette crafted in net, silk and finished in metallic tones. Designed to flatter Hourglass, Pear Shape figures and complement Medium, Dusky, Deep skin tones, available in sizes M, L, XL for versatile styling."
+  },
+  {
+    "cloth_id": "img13",
+    "cloth_type": "co_ords",
+    "occasion": [
+      "Party"
+    ],
+    "fit": [
+      "structured"
+    ],
+    "fabric": [
+      "satin"
+    ],
+    "color_family": [
+      "metallic"
+    ],
+    "style": [
+      "Elegant"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tone": [
+      "Medium",
+      "Dusky"
+    ],
+    "body_shape": [
+      "Rectangle",
+      "Apple Shape",
+      "Hourglass"
+    ],
+    "age_range": [],
+    "description": "Party-ready co ords with a structured silhouette crafted in satin and finished in metallic tones. Designed to flatter Rectangle, Apple Shape, Hourglass figures and complement Medium, Dusky skin tones, available in sizes S, M, L for versatile styling."
+  },
+  {
+    "cloth_id": "img14",
+    "cloth_type": "blazer_suit",
+    "occasion": [
+      "Formal"
+    ],
+    "fit": [
+      "structured"
+    ],
+    "fabric": [
+      "wool"
+    ],
+    "color_family": [
+      "neutral"
+    ],
+    "style": [
+      "Elegant"
+    ],
+    "sizes": [
+      "S",
+      "M"
+    ],
+    "skin_tone": [
+      "Light",
+      "Medium"
+    ],
+    "body_shape": [
+      "Rectangle",
+      "Hourglass"
+    ],
+    "age_range": [],
+    "description": "Formal-ready blazer suit with a structured silhouette crafted in wool and finished in neutral tones. Designed to flatter Rectangle, Hourglass figures and complement Light, Medium skin tones, available in sizes S, M for versatile styling."
+  },
+  {
+    "cloth_id": "img15",
+    "cloth_type": "jumpsuit",
+    "occasion": [
+      "Resort"
+    ],
+    "fit": [
+      "relaxed"
+    ],
+    "fabric": [
+      "cotton_linen"
+    ],
+    "color_family": [
+      "neutral"
+    ],
+    "style": [
+      "Minimal Luxury"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tone": [
+      "Light",
+      "Medium"
+    ],
+    "body_shape": [
+      "Rectangle",
+      "Pear Shape",
+      "Apple Shape"
+    ],
+    "age_range": [],
+    "description": "Resort-ready jumpsuit with a relaxed silhouette crafted in cotton linen and finished in neutral tones. Designed to flatter Rectangle, Pear Shape, Apple Shape figures and complement Light, Medium skin tones, available in sizes S, M, L for versatile styling."
+  },
+  {
+    "cloth_id": "img16",
+    "cloth_type": "short_dress",
+    "occasion": [
+      "Casual Luxury"
+    ],
+    "fit": [
+      "fit_and_flare"
+    ],
+    "fabric": [
+      "chiffon"
+    ],
+    "color_family": [
+      "pastel"
+    ],
+    "style": [
+      "Minimal Luxury"
+    ],
+    "sizes": [
+      "S",
+      "M"
+    ],
+    "skin_tone": [
+      "Medium",
+      "Dusky"
+    ],
+    "body_shape": [
+      "Pear Shape",
+      "Rectangle"
+    ],
+    "age_range": [],
+    "description": "Casual Luxury-ready short dress with a fit and flare silhouette crafted in chiffon and finished in pastel tones. Designed to flatter Pear Shape, Rectangle figures and complement Medium, Dusky skin tones, available in sizes S, M for versatile styling."
+  },
+  {
+    "cloth_id": "img17",
+    "cloth_type": "mini_dress",
+    "occasion": [
+      "Party"
+    ],
+    "fit": [
+      "slim"
+    ],
+    "fabric": [
+      "velvet"
+    ],
+    "color_family": [
+      "jewel"
+    ],
+    "style": [
+      "Elegant"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tone": [
+      "Light",
+      "Medium",
+      "Dusky",
+      "Deep"
+    ],
+    "body_shape": [
+      "Rectangle",
+      "Hourglass",
+      "Pear Shape"
+    ],
+    "age_range": [],
+    "description": "Party-ready mini dress with a slim silhouette crafted in velvet and finished in jewel tones. Designed to flatter Rectangle, Hourglass, Pear Shape figures and complement Light, Medium, Dusky, Deep skin tones, available in sizes S, M, L for versatile styling."
+  },
+  {
+    "cloth_id": "img18",
+    "cloth_type": "gown",
+    "occasion": [
+      "Resort"
+    ],
+    "fit": [
+      "flowing"
+    ],
+    "fabric": [
+      "chiffon"
+    ],
+    "color_family": [
+      "pastel"
+    ],
+    "style": [
+      "Minimal Luxury"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tone": [
+      "Light",
+      "Medium",
+      "Dusky",
+      "Deep"
+    ],
+    "body_shape": [
+      "Rectangle",
+      "Hourglass",
+      "Pear Shape",
+      "Apple Shape"
+    ],
+    "age_range": [],
+    "description": "Resort-ready gown with a flowing silhouette crafted in chiffon and finished in pastel tones. Designed to flatter Rectangle, Hourglass, Pear Shape, Apple Shape figures and complement Light, Medium, Dusky, Deep skin tones, available in sizes S, M, L for versatile styling."
+  },
+  {
+    "cloth_id": "img19",
+    "cloth_type": "fusion_wear",
+    "occasion": [
+      "Casual Luxury"
+    ],
+    "fit": [
+      "relaxed"
+    ],
+    "fabric": [
+      "silk_blend"
+    ],
+    "color_family": [
+      "jewel"
+    ],
+    "style": [
+      "Minimal Luxury"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tone": [
+      "Deep"
+    ],
+    "body_shape": [
+      "Pear Shape",
+      "Curvy"
+    ],
+    "age_range": [],
+    "description": "Casual Luxury-ready fusion wear with a relaxed silhouette crafted in silk blend and finished in jewel tones. Designed to flatter Pear Shape, Curvy figures and complement Deep skin tones, available in sizes S, M, L for versatile styling."
+  },
+  {
+    "cloth_id": "img20",
+    "cloth_type": "shirt_dress",
+    "occasion": [
+      "Formal"
+    ],
+    "fit": [
+      "structured"
+    ],
+    "fabric": [
+      "cotton"
+    ],
+    "color_family": [
+      "neutral"
+    ],
+    "style": [
+      "Elegant"
+    ],
+    "sizes": [
+      "S",
+      "M"
+    ],
+    "skin_tone": [
+      "Light",
+      "Medium"
+    ],
+    "body_shape": [
+      "Rectangle",
+      "Hourglass"
+    ],
+    "age_range": [],
+    "description": "Formal-ready shirt dress with a structured silhouette crafted in cotton and finished in neutral tones. Designed to flatter Rectangle, Hourglass figures and complement Light, Medium skin tones, available in sizes S, M for versatile styling."
+  },
+  {
+    "cloth_id": "img21",
+    "cloth_type": "ethnic_set_lehenga",
+    "occasion": [
+      "Wedding"
+    ],
+    "fit": [
+      "structured"
+    ],
+    "fabric": [
+      "silk"
+    ],
+    "color_family": [
+      "jewel"
+    ],
+    "style": [
+      "Traditional Luxury"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tone": [
+      "Medium",
+      "Dusky",
+      "Deep"
+    ],
+    "body_shape": [
+      "Rectangle",
+      "Hourglass",
+      "Pear Shape",
+      "Apple Shape"
+    ],
+    "age_range": [],
+    "description": "Wedding-ready ethnic set lehenga with a structured silhouette crafted in silk and finished in jewel tones. Designed to flatter Rectangle, Hourglass, Pear Shape, Apple Shape figures and complement Medium, Dusky, Deep skin tones, available in sizes S, M, L for versatile styling."
+  },
+  {
+    "cloth_id": "img22",
+    "cloth_type": "gown",
+    "occasion": [
+      "Engagement"
+    ],
+    "fit": [
+      "structured"
+    ],
+    "fabric": [
+      "net",
+      "silk"
+    ],
+    "color_family": [
+      "metallic"
+    ],
+    "style": [
+      "Traditional Luxury"
+    ],
+    "sizes": [
+      "S",
+      "M"
+    ],
+    "skin_tone": [
+      "Light",
+      "Medium"
+    ],
+    "body_shape": [
+      "Rectangle",
+      "Hourglass"
+    ],
+    "age_range": [],
+    "description": "Engagement-ready gown with a structured silhouette crafted in net, silk and finished in metallic tones. Designed to flatter Rectangle, Hourglass figures and complement Light, Medium skin tones, available in sizes S, M for versatile styling."
+  },
+  {
+    "cloth_id": "img23",
+    "cloth_type": "saree",
+    "occasion": [
+      "Wedding Guest"
+    ],
+    "fit": [
+      "draped"
+    ],
+    "fabric": [
+      "silk"
+    ],
+    "color_family": [
+      "jewel"
+    ],
+    "style": [
+      "Traditional Luxury"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tone": [
+      "Medium",
+      "Dusky"
+    ],
+    "body_shape": [
+      "Rectangle",
+      "Pear Shape",
+      "Hourglass"
+    ],
+    "age_range": [],
+    "description": "Wedding Guest-ready saree with a draped silhouette crafted in silk and finished in jewel tones. Designed to flatter Rectangle, Pear Shape, Hourglass figures and complement Medium, Dusky skin tones, available in sizes S, M, L for versatile styling."
+  },
+  {
+    "cloth_id": "img24",
+    "cloth_type": "ethnic_set_anarkali",
+    "occasion": [
+      "Engagement"
+    ],
+    "fit": [
+      "flowing"
+    ],
+    "fabric": [
+      "georgette"
+    ],
+    "color_family": [
+      "pastel"
+    ],
+    "style": [
+      "Traditional Luxury"
+    ],
+    "sizes": [
+      "S",
+      "M"
+    ],
+    "skin_tone": [
+      "Light",
+      "Medium"
+    ],
+    "body_shape": [
+      "Rectangle",
+      "Hourglass",
+      "Pear Shape"
+    ],
+    "age_range": [],
+    "description": "Engagement-ready ethnic set anarkali with a flowing silhouette crafted in georgette and finished in pastel tones. Designed to flatter Rectangle, Hourglass, Pear Shape figures and complement Light, Medium skin tones, available in sizes S, M for versatile styling."
+  },
+  {
+    "cloth_id": "img25",
+    "cloth_type": "ethnic_set_lehenga",
+    "occasion": [
+      "Reception"
+    ],
+    "fit": [
+      "structured"
+    ],
+    "fabric": [
+      "velvet"
+    ],
+    "color_family": [
+      "jewel"
+    ],
+    "style": [
+      "Traditional Luxury"
+    ],
+    "sizes": [
+      "M",
+      "L",
+      "XL"
+    ],
+    "skin_tone": [
+      "Medium",
+      "Dusky",
+      "Deep"
+    ],
+    "body_shape": [
+      "Rectangle",
+      "Hourglass",
+      "Pear Shape"
+    ],
+    "age_range": [],
+    "description": "Reception-ready ethnic set lehenga with a structured silhouette crafted in velvet and finished in jewel tones. Designed to flatter Rectangle, Hourglass, Pear Shape figures and complement Medium, Dusky, Deep skin tones, available in sizes M, L, XL for versatile styling."
+  },
+  {
+    "cloth_id": "img26",
+    "cloth_type": "ethnic_set_sharara",
+    "occasion": [
+      "Wedding Guest"
+    ],
+    "fit": [
+      "relaxed"
+    ],
+    "fabric": [
+      "silk_blend"
+    ],
+    "color_family": [
+      "jewel"
+    ],
+    "style": [
+      "Traditional Luxury"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tone": [
+      "Medium",
+      "Deep"
+    ],
+    "body_shape": [
+      "Pear Shape",
+      "Rectangle",
+      "Hourglass"
+    ],
+    "age_range": [],
+    "description": "Wedding Guest-ready ethnic set sharara with a relaxed silhouette crafted in silk blend and finished in jewel tones. Designed to flatter Pear Shape, Rectangle, Hourglass figures and complement Medium, Deep skin tones, available in sizes S, M, L for versatile styling."
+  },
+  {
+    "cloth_id": "img27",
+    "cloth_type": "kaftan",
+    "occasion": [
+      "Resort"
+    ],
+    "fit": [
+      "relaxed"
+    ],
+    "fabric": [
+      "silk"
+    ],
+    "color_family": [
+      "jewel"
+    ],
+    "style": [
+      "Minimal Luxury"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tone": [
+      "Light",
+      "Medium",
+      "Dusky"
+    ],
+    "body_shape": [
+      "Rectangle",
+      "Hourglass",
+      "Pear Shape",
+      "Apple Shape"
+    ],
+    "age_range": [],
+    "description": "Resort-ready kaftan with a relaxed silhouette crafted in silk and finished in jewel tones. Designed to flatter Rectangle, Hourglass, Pear Shape, Apple Shape figures and complement Light, Medium, Dusky skin tones, available in sizes S, M, L for versatile styling."
+  },
+  {
+    "cloth_id": "img28",
+    "cloth_type": "maxi_dress",
+    "occasion": [
+      "Resort Beach"
+    ],
+    "fit": [
+      "flowing"
+    ],
+    "fabric": [
+      "chiffon"
+    ],
+    "color_family": [
+      "neutral"
+    ],
+    "style": [
+      "Minimal Luxury"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tone": [
+      "Light",
+      "Medium"
+    ],
+    "body_shape": [
+      "Rectangle",
+      "Hourglass",
+      "Pear Shape"
+    ],
+    "age_range": [],
+    "description": "Resort Beach-ready maxi dress with a flowing silhouette crafted in chiffon and finished in neutral tones. Designed to flatter Rectangle, Hourglass, Pear Shape figures and complement Light, Medium skin tones, available in sizes S, M, L for versatile styling."
+  },
+  {
+    "cloth_id": "img29",
+    "cloth_type": "jumpsuit",
+    "occasion": [
+      "Resort Vacation"
+    ],
+    "fit": [
+      "relaxed"
+    ],
+    "fabric": [
+      "linen"
+    ],
+    "color_family": [
+      "pastel"
+    ],
+    "style": [
+      "Minimal Luxury"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tone": [
+      "Light",
+      "Medium"
+    ],
+    "body_shape": [
+      "Rectangle",
+      "Pear Shape",
+      "Apple Shape"
+    ],
+    "age_range": [],
+    "description": "Resort Vacation-ready jumpsuit with a relaxed silhouette crafted in linen and finished in pastel tones. Designed to flatter Rectangle, Pear Shape, Apple Shape figures and complement Light, Medium skin tones, available in sizes S, M, L for versatile styling."
+  },
+  {
+    "cloth_id": "img30",
+    "cloth_type": "wrap_dress",
+    "occasion": [
+      "Resort Brunch"
+    ],
+    "fit": [
+      "flowing"
+    ],
+    "fabric": [
+      "chiffon"
+    ],
+    "color_family": [
+      "tropical"
+    ],
+    "style": [
+      "Minimal Luxury"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tone": [
+      "Light",
+      "Medium"
+    ],
+    "body_shape": [
+      "Pear Shape",
+      "Rectangle",
+      "Hourglass"
+    ],
+    "age_range": [],
+    "description": "Resort Brunch-ready wrap dress with a flowing silhouette crafted in chiffon and finished in tropical tones. Designed to flatter Pear Shape, Rectangle, Hourglass figures and complement Light, Medium skin tones, available in sizes S, M, L for versatile styling."
+  },
+  {
+    "cloth_id": "img31",
+    "cloth_type": "co_ords",
+    "occasion": [
+      "Resort Luxury"
+    ],
+    "fit": [
+      "structured"
+    ],
+    "fabric": [
+      "linen"
+    ],
+    "color_family": [
+      "neutral"
+    ],
+    "style": [
+      "Minimal Luxury"
+    ],
+    "sizes": [
+      "S",
+      "M"
+    ],
+    "skin_tone": [
+      "Light",
+      "Medium"
+    ],
+    "body_shape": [
+      "Rectangle",
+      "Hourglass"
+    ],
+    "age_range": [],
+    "description": "Resort Luxury-ready co ords with a structured silhouette crafted in linen and finished in neutral tones. Designed to flatter Rectangle, Hourglass figures and complement Light, Medium skin tones, available in sizes S, M for versatile styling."
+  },
+  {
+    "cloth_id": "img32",
+    "cloth_type": "gown",
+    "occasion": [
+      "Resort Photoshoot"
+    ],
+    "fit": [
+      "flowing"
+    ],
+    "fabric": [
+      "chiffon"
+    ],
+    "color_family": [
+      "jewel"
+    ],
+    "style": [
+      "Minimal Luxury"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tone": [
+      "Light",
+      "Medium",
+      "Dusky"
+    ],
+    "body_shape": [
+      "Rectangle",
+      "Hourglass",
+      "Pear Shape",
+      "Apple Shape"
+    ],
+    "age_range": [],
+    "description": "Resort Photoshoot-ready gown with a flowing silhouette crafted in chiffon and finished in jewel tones. Designed to flatter Rectangle, Hourglass, Pear Shape, Apple Shape figures and complement Light, Medium, Dusky skin tones, available in sizes S, M, L for versatile styling."
+  },
+  {
+    "cloth_id": "img33",
+    "cloth_type": "ethnic_set_lehenga",
+    "occasion": [
+      "Engagement"
+    ],
+    "fit": [
+      "flowing"
+    ],
+    "fabric": [
+      "net",
+      "silk"
+    ],
+    "color_family": [
+      "pastel"
+    ],
+    "style": [
+      "Traditional Luxury"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tone": [
+      "Light",
+      "Medium"
+    ],
+    "body_shape": [
+      "Pear Shape",
+      "Hourglass",
+      "Rectangle"
+    ],
+    "age_range": [],
+    "description": "Engagement-ready ethnic set lehenga with a flowing silhouette crafted in net, silk and finished in pastel tones. Designed to flatter Pear Shape, Hourglass, Rectangle figures and complement Light, Medium skin tones, available in sizes S, M, L for versatile styling."
+  },
+  {
+    "cloth_id": "img34",
+    "cloth_type": "saree",
+    "occasion": [
+      "Wedding Guest"
+    ],
+    "fit": [
+      "flowing"
+    ],
+    "fabric": [
+      "organza"
+    ],
+    "color_family": [
+      "pastel"
+    ],
+    "style": [
+      "Traditional Luxury"
+    ],
+    "sizes": [
+      "S",
+      "M"
+    ],
+    "skin_tone": [
+      "Light",
+      "Medium"
+    ],
+    "body_shape": [
+      "Pear Shape",
+      "Rectangle",
+      "Hourglass"
+    ],
+    "age_range": [],
+    "description": "Wedding Guest-ready saree with a flowing silhouette crafted in organza and finished in pastel tones. Designed to flatter Pear Shape, Rectangle, Hourglass figures and complement Light, Medium skin tones, available in sizes S, M for versatile styling."
+  },
+  {
+    "cloth_id": "img35",
+    "cloth_type": "ethnic_set_lehenga",
+    "occasion": [
+      "Haldi"
+    ],
+    "fit": [
+      "flowing"
+    ],
+    "fabric": [
+      "georgette"
+    ],
+    "color_family": [
+      "yellow"
+    ],
+    "style": [
+      "Traditional Luxury"
+    ],
+    "sizes": [
+      "S",
+      "M"
+    ],
+    "skin_tone": [
+      "Medium",
+      "Dusky"
+    ],
+    "body_shape": [
+      "Pear Shape",
+      "Rectangle",
+      "Hourglass"
+    ],
+    "age_range": [],
+    "description": "Haldi-ready ethnic set lehenga with a flowing silhouette crafted in georgette and finished in yellow tones. Designed to flatter Pear Shape, Rectangle, Hourglass figures and complement Medium, Dusky skin tones, available in sizes S, M for versatile styling."
+  },
+  {
+    "cloth_id": "img36",
+    "cloth_type": "ethnic_set_sharara",
+    "occasion": [
+      "Mehendi"
+    ],
+    "fit": [
+      "relaxed"
+    ],
+    "fabric": [
+      "georgette"
+    ],
+    "color_family": [
+      "green"
+    ],
+    "style": [
+      "Traditional Luxury"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tone": [
+      "Medium",
+      "Dusky"
+    ],
+    "body_shape": [
+      "Pear Shape",
+      "Rectangle",
+      "Hourglass"
+    ],
+    "age_range": [],
+    "description": "Mehendi-ready ethnic set sharara with a relaxed silhouette crafted in georgette and finished in green tones. Designed to flatter Pear Shape, Rectangle, Hourglass figures and complement Medium, Dusky skin tones, available in sizes S, M, L for versatile styling."
+  },
+  {
+    "cloth_id": "img37",
+    "cloth_type": "gown",
+    "occasion": [
+      "Reception"
+    ],
+    "fit": [
+      "slim"
+    ],
+    "fabric": [
+      "sequins"
+    ],
+    "color_family": [
+      "jewel"
+    ],
+    "style": [
+      "Traditional Luxury"
+    ],
+    "sizes": [
+      "S",
+      "M"
+    ],
+    "skin_tone": [
+      "Light",
+      "Medium"
+    ],
+    "body_shape": [
+      "Rectangle",
+      "Hourglass"
+    ],
+    "age_range": [],
+    "description": "Reception-ready gown with a slim silhouette crafted in sequins and finished in jewel tones. Designed to flatter Rectangle, Hourglass figures and complement Light, Medium skin tones, available in sizes S, M for versatile styling."
+  },
+  {
+    "cloth_id": "img38",
+    "cloth_type": "saree",
+    "occasion": [
+      "Wedding"
+    ],
+    "fit": [
+      "draped"
+    ],
+    "fabric": [
+      "silk"
+    ],
+    "color_family": [
+      "jewel"
+    ],
+    "style": [
+      "Traditional Luxury"
+    ],
+    "sizes": [
+      "M",
+      "L"
+    ],
+    "skin_tone": [
+      "Medium",
+      "Deep"
+    ],
+    "body_shape": [
+      "Pear Shape",
+      "Hourglass"
+    ],
+    "age_range": [],
+    "description": "Wedding-ready saree with a draped silhouette crafted in silk and finished in jewel tones. Designed to flatter Pear Shape, Hourglass figures and complement Medium, Deep skin tones, available in sizes M, L for versatile styling."
+  },
+  {
+    "cloth_id": "img39",
+    "cloth_type": "ethnic_set_lehenga",
+    "occasion": [
+      "Bridal Outfit"
+    ],
+    "fit": [
+      "structured"
+    ],
+    "fabric": [
+      "net",
+      "silk"
+    ],
+    "color_family": [
+      "pastel"
+    ],
+    "style": [
+      "Traditional Luxury"
+    ],
+    "sizes": [
+      "M",
+      "L",
+      "XL"
+    ],
+    "skin_tone": [
+      "Light",
+      "Medium",
+      "Dusky"
+    ],
+    "body_shape": [
+      "Hourglass",
+      "Pear Shape"
+    ],
+    "age_range": [],
+    "description": "Bridal Outfit-ready ethnic set lehenga with a structured silhouette crafted in net, silk and finished in pastel tones. Designed to flatter Hourglass, Pear Shape figures and complement Light, Medium, Dusky skin tones, available in sizes M, L, XL for versatile styling."
+  },
+  {
+    "cloth_id": "img40",
+    "cloth_type": "gown",
+    "occasion": [
+      "Reception"
+    ],
+    "fit": [
+      "structured"
+    ],
+    "fabric": [
+      "organza",
+      "silk"
+    ],
+    "color_family": [
+      "neutral"
+    ],
+    "style": [
+      "Traditional Luxury"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tone": [
+      "Light",
+      "Medium"
+    ],
+    "body_shape": [
+      "Rectangle",
+      "Hourglass"
+    ],
+    "age_range": [],
+    "description": "Reception-ready gown with a structured silhouette crafted in organza, silk and finished in neutral tones. Designed to flatter Rectangle, Hourglass figures and complement Light, Medium skin tones, available in sizes S, M, L for versatile styling."
+  }
+]

@@ -1,744 +1,793 @@
-import colorsys
 import json
+import math
 from pathlib import Path
-from typing import List
 
-import joblib
 import numpy as np
 import pandas as pd
 import streamlit as st
 from PIL import Image
 
 if st.runtime.exists():
-    st.set_page_config(page_title="Folder-based labeler", layout="centered")
-
-IMAGE_EXTS = {".png", ".jpg", ".jpeg"}
-
-def _mediapipe():
-    try:
-        import mediapipe as mp
-    except Exception as exc:
-        raise RuntimeError(
-            "Mediapipe is required for image analysis. Install dependencies via `uv sync`."
-        ) from exc
-    if not hasattr(mp, "solutions"):
-        try:
-            import mediapipe.python.solutions as solutions
-        except Exception as exc:
-            raise RuntimeError(
-                "Mediapipe is installed but missing `solutions`. Reinstall mediapipe."
-            ) from exc
-        mp.solutions = solutions
-    return mp
-
-
-@st.cache_resource
-def _pose_model():
-    mp = _mediapipe()
-    return mp.solutions.pose.Pose(
-        static_image_mode=True,
-        model_complexity=2,
-        enable_segmentation=True,
-        min_detection_confidence=0.6,
-    )
-
-
-@st.cache_resource
-def _face_model():
-    mp = _mediapipe()
-    return mp.solutions.face_detection.FaceDetection(
-        model_selection=1,
-        min_detection_confidence=0.6,
-    )
-
-
-@st.cache_resource
-def _segmentation_model():
-    mp = _mediapipe()
-    return mp.solutions.selfie_segmentation.SelfieSegmentation(model_selection=1)
-
-
-def _resize_for_analysis(image, max_dim=1024):
-    width, height = image.size
-    scale = min(1.0, max_dim / float(max(width, height)))
-    if scale < 1.0:
-        return image.resize((int(width * scale), int(height * scale)), Image.BICUBIC)
-    return image
-
-
-def _center_crop(rgb, frac=0.6):
-    height, width = rgb.shape[:2]
-    crop_w = max(1, int(width * frac))
-    crop_h = max(1, int(height * frac))
-    x0 = (width - crop_w) // 2
-    y0 = (height - crop_h) // 2
-    return rgb[y0 : y0 + crop_h, x0 : x0 + crop_w]
-
-
-def _face_bbox(detections, image_shape):
-    if not detections:
-        return None, None
-    height, width = image_shape[:2]
-    best = max(detections, key=lambda d: float(d.score[0]) if d.score else 0.0)
-    bbox = best.location_data.relative_bounding_box
-    x0 = int(max(bbox.xmin, 0.0) * width)
-    y0 = int(max(bbox.ymin, 0.0) * height)
-    x1 = int(min(bbox.xmin + bbox.width, 1.0) * width)
-    y1 = int(min(bbox.ymin + bbox.height, 1.0) * height)
-    if x1 <= x0 or y1 <= y0:
-        return None, None
-    area_ratio = (x1 - x0) * (y1 - y0) / float(width * height)
-    return (x0, y0, x1, y1), area_ratio
-
-
-def _crop_face(rgb, bbox):
-    x0, y0, x1, y1 = bbox
-    dx = int((x1 - x0) * 0.2)
-    dy = int((y1 - y0) * 0.2)
-    x0 = max(x0 + dx, 0)
-    y0 = max(y0 + dy, 0)
-    x1 = min(x1 - dx, rgb.shape[1])
-    y1 = min(y1 - dy, rgb.shape[0])
-    if x1 <= x0 or y1 <= y0:
-        return None
-    return rgb[y0:y1, x0:x1]
-
-
-def _luma(rgb):
-    r = rgb[..., 0].astype(np.float32)
-    g = rgb[..., 1].astype(np.float32)
-    b = rgb[..., 2].astype(np.float32)
-    return 0.299 * r + 0.587 * g + 0.114 * b
-
-
-def _skin_mask(rgb, strict=True):
-    r = rgb[:, :, 0].astype(np.float32)
-    g = rgb[:, :, 1].astype(np.float32)
-    b = rgb[:, :, 2].astype(np.float32)
-    cb = 128 - 0.168736 * r - 0.331264 * g + 0.5 * b
-    cr = 128 + 0.5 * r - 0.418688 * g - 0.081312 * b
-    mask = (cb >= 77) & (cb <= 127) & (cr >= 133) & (cr <= 173)
-    if strict:
-        max_rgb = np.maximum.reduce([r, g, b])
-        min_rgb = np.minimum.reduce([r, g, b])
-        mask &= (r > 95) & (g > 40) & (b > 20)
-        mask &= (max_rgb - min_rgb > 15)
-        mask &= (np.abs(r - g) > 15)
-        mask &= (r > g) & (r > b)
-    return mask
-
-
-def _skin_tone_label(rgb):
-    r, g, b = rgb
-    luma_median = 0.299 * r + 0.587 * g + 0.114 * b
-    if luma_median >= 170:
-        return "light"
-    if luma_median >= 125:
-        return "medium"
-    return "deep"
-
-
-def _median_rgb(rgb, mask=None):
-    if mask is None or int(mask.sum()) == 0:
-        values = rgb.reshape(-1, 3)
-    else:
-        values = rgb[mask]
-    return np.median(values, axis=0)
-
-
-def _rgb_to_hex(rgb):
-    r, g, b = [int(np.clip(x, 0, 255)) for x in rgb]
-    return f"#{r:02x}{g:02x}{b:02x}"
-
-
-def _skin_palette(rgb):
-    r, g, b = [x / 255.0 for x in rgb]
-    h, l, s = colorsys.rgb_to_hls(r, g, b)
-    offsets = (-0.12, 0.0, 0.12)
-    shades = []
-    for offset in offsets:
-        nl = min(max(l + offset, 0.05), 0.95)
-        nr, ng, nb = colorsys.hls_to_rgb(h, nl, s)
-        shades.append(_rgb_to_hex((nr * 255, ng * 255, nb * 255)))
-    return shades
-
-
-def _estimate_skin_tone(rgb, face_bbox, person_mask):
-    roi = None
-    roi_person_mask = None
-    if face_bbox:
-        roi = _crop_face(rgb, face_bbox)
-    if roi is None and person_mask is not None:
-        ys, xs = np.where(person_mask)
-        if xs.size:
-            x0, x1 = xs.min(), xs.max()
-            y0, y1 = ys.min(), ys.max()
-            roi = rgb[y0 : y1 + 1, x0 : x1 + 1]
-            roi_person_mask = person_mask[y0 : y1 + 1, x0 : x1 + 1]
-    if roi is None:
-        roi = _center_crop(rgb, 0.6)
-
-    min_pixels = max(200, int(roi.shape[0] * roi.shape[1] * 0.01))
-    skin_mask = _skin_mask(roi, strict=True)
-    if int(skin_mask.sum()) < min_pixels:
-        skin_mask = _skin_mask(roi, strict=False)
-    if int(skin_mask.sum()) < min_pixels:
-        skin_mask = None
-
-    if skin_mask is None and roi_person_mask is not None and int(roi_person_mask.sum()) >= min_pixels:
-        base_rgb = _median_rgb(roi, roi_person_mask)
-    else:
-        base_rgb = _median_rgb(roi, skin_mask)
-
-    label = _skin_tone_label(base_rgb)
-    palette = _skin_palette(base_rgb)
-    return label, palette
-
-
-def _mask_width(mask, y_center, band_frac=0.05):
-    if mask is None or y_center is None:
-        return None
-    height, width = mask.shape
-    y_center = int(np.clip(y_center, 0, height - 1))
-    half_band = max(1, int(band_frac * height))
-    y0 = max(0, y_center - half_band)
-    y1 = min(height - 1, y_center + half_band)
-    widths = []
-    for row in range(y0, y1 + 1):
-        xs = np.where(mask[row])[0]
-        if xs.size:
-            widths.append(xs.max() - xs.min())
-    if not widths:
-        return None
-    return float(np.median(widths))
-
-
-def _estimate_body_shape(landmarks, mask, image_shape):
-    if mask is None:
-        return "other"
-    height, width = image_shape[:2]
-    ys = np.where(mask)[0]
-    if ys.size == 0:
-        return "other"
-    top = ys.min()
-    bottom = ys.max()
-    body_height = bottom - top
-    if body_height <= 0:
-        return "other"
-
-    shoulder_y = None
-    hip_y = None
-    if landmarks:
-        mp = _mediapipe()
-        lm = landmarks.landmark
-
-        def _y(idx):
-            point = lm[idx]
-            if point.visibility < 0.5:
-                return None
-            return point.y * height
-
-        left_shoulder = _y(mp.solutions.pose.PoseLandmark.LEFT_SHOULDER)
-        right_shoulder = _y(mp.solutions.pose.PoseLandmark.RIGHT_SHOULDER)
-        if left_shoulder is not None and right_shoulder is not None:
-            shoulder_y = (left_shoulder + right_shoulder) / 2.0
-
-        left_hip = _y(mp.solutions.pose.PoseLandmark.LEFT_HIP)
-        right_hip = _y(mp.solutions.pose.PoseLandmark.RIGHT_HIP)
-        if left_hip is not None and right_hip is not None:
-            hip_y = (left_hip + right_hip) / 2.0
-
-    if shoulder_y is None:
-        shoulder_y = top + body_height * 0.25
-    if hip_y is None:
-        hip_y = top + body_height * 0.65
-    waist_y = shoulder_y + 0.5 * (hip_y - shoulder_y)
-
-    # Use silhouette widths at shoulder/waist/hip bands to estimate ratios.
-    shoulder_w = _mask_width(mask, shoulder_y)
-    waist_w = _mask_width(mask, waist_y)
-    hip_w = _mask_width(mask, hip_y)
-    if not shoulder_w or not waist_w or not hip_w:
-        return "other"
-
-    if min(shoulder_w, waist_w, hip_w) < 0.08 * width:
-        return "other"
-
-    shoulders = shoulder_w
-    waist = waist_w
-    hips = hip_w
-
-    balance = abs(shoulders - hips) / max(shoulders, hips)
-    waist_ratio = waist / ((shoulders + hips) / 2.0)
-
-    if balance <= 0.12 and waist_ratio <= 0.78:
-        return "hourglass"
-    if hips >= shoulders * 1.12 and waist <= hips * 0.92:
-        return "pear"
-    if shoulders >= hips * 1.12 and waist <= shoulders * 0.92:
-        return "inverted_triangle"
-    if waist >= max(shoulders, hips) * 1.05:
-        return "apple"
-    if balance <= 0.15 and abs(waist - shoulders) / max(waist, shoulders) <= 0.15:
-        return "rectangle"
-    if shoulders > hips * 1.05:
-        return "inverted_triangle"
-    if hips > shoulders * 1.05:
-        return "pear"
-    return "rectangle"
-
-
-def _has_full_body(landmarks, mask, image_shape, face_area_ratio):
-    height, width = image_shape[:2]
-    if face_area_ratio is not None and face_area_ratio > 0.2:
-        return False
-
-    full_body = False
-    if landmarks:
-        mp = _mediapipe()
-        lm = landmarks.landmark
-        hips = [
-            mp.solutions.pose.PoseLandmark.LEFT_HIP,
-            mp.solutions.pose.PoseLandmark.RIGHT_HIP,
-        ]
-        legs = [
-            mp.solutions.pose.PoseLandmark.LEFT_KNEE,
-            mp.solutions.pose.PoseLandmark.RIGHT_KNEE,
-            mp.solutions.pose.PoseLandmark.LEFT_ANKLE,
-            mp.solutions.pose.PoseLandmark.RIGHT_ANKLE,
-        ]
-        hips_visible = all(lm[idx].visibility > 0.5 for idx in hips)
-        legs_visible = sum(1 for idx in legs if lm[idx].visibility > 0.5)
-        full_body = hips_visible and legs_visible >= 2
-
-    if mask is not None:
-        ys = np.where(mask)[0]
-        if ys.size == 0:
-            return False
-        top = ys.min()
-        bottom = ys.max()
-        body_height = (bottom - top) / float(height)
-        if bottom < 0.85 * height or body_height < 0.55:
-            return False
-        if not landmarks:
-            full_body = True
-
-    return full_body
-
-
-def analyze_user_image(image):
-    try:
-        pose = _pose_model()
-        face = _face_model()
-        seg = _segmentation_model()
-    except RuntimeError as exc:
-        return {"error": str(exc)}
-
-    image = _resize_for_analysis(image)
-    rgb = np.array(image.convert("RGB"))
-
-    pose_results = pose.process(rgb)
-    face_results = face.process(rgb)
-    seg_results = seg.process(rgb)
-
-    mask = None
-    if seg_results and seg_results.segmentation_mask is not None:
-        mask = seg_results.segmentation_mask > 0.1
-    elif pose_results and pose_results.segmentation_mask is not None:
-        mask = pose_results.segmentation_mask > 0.1
-
-    face_bbox, face_ratio = _face_bbox(
-        face_results.detections if face_results else None, rgb.shape
-    )
-    skin_label, skin_hexes = _estimate_skin_tone(rgb, face_bbox, mask)
-
-    landmarks = pose_results.pose_landmarks if pose_results else None
-    full_body = _has_full_body(landmarks, mask, rgb.shape, face_ratio)
-
-    body_shape = None
-    if full_body:
-        body_shape = _estimate_body_shape(landmarks, mask, rgb.shape)
-
-    return {
-        "skin_tone_label": skin_label,
-        "skin_hexes": skin_hexes,
-        "body_shape": body_shape,
-        "full_body": full_body,
-    }
-
-
-
-def list_images(folder: Path) -> List[Path]:
-    if not folder.exists():
+    st.set_page_config(page_title="Fusion MLP recommender demo", layout="centered")
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+PRIORITY_WEIGHTS = {1: 1.0, 2: 0.8, 3: 0.6}
+SIZE_ALIASES = {
+    "xs": "xs",
+    "x-small": "xs",
+    "extra small": "xs",
+    "s": "small",
+    "sm": "small",
+    "small": "small",
+    "m": "medium",
+    "md": "medium",
+    "medium": "medium",
+    "l": "large",
+    "lg": "large",
+    "large": "large",
+    "xl": "xl",
+    "extra large": "xl",
+    "xxl": "xxl",
+    "2xl": "xxl",
+}
+BODY_SHAPE_ALIASES = {
+    "pear shape": "pear",
+    "apple shape": "apple",
+    "inverted triangle": "inverted_triangle",
+}
+OCCASION_ALIASES = {"casual luxury": "casual_luxury"}
+
+
+def _normalize_size_value(value: str) -> str:
+    cleaned = value.strip().lower().replace(" ", "")
+    return SIZE_ALIASES.get(cleaned, cleaned)
+
+
+def _normalize_body_shape_value(value: str) -> str:
+    cleaned = value.strip().lower().replace("_", " ").replace("-", " ")
+    if cleaned in BODY_SHAPE_ALIASES:
+        return BODY_SHAPE_ALIASES[cleaned]
+    return cleaned.replace(" ", "_")
+
+
+def _normalize_occasion_value(value: str) -> str:
+    cleaned = value.strip().lower().replace("_", " ")
+    cleaned = OCCASION_ALIASES.get(cleaned, cleaned)
+    return cleaned.replace(" ", "_")
+
+
+def _normalize_skin_tone_value(value: str) -> str:
+    return value.strip().lower()
+
+
+def _priority_weight(priority: int) -> float:
+    if priority in PRIORITY_WEIGHTS:
+        return PRIORITY_WEIGHTS[priority]
+    return max(0.2, 1.0 - 0.2 * (priority - 1))
+
+
+def _normalize_priority_list(values, normalizer):
+    if values is None:
         return []
-    return sorted(p for p in folder.iterdir() if p.is_file() and p.suffix.lower() in IMAGE_EXTS)
+    if not isinstance(values, list):
+        values = [values]
+    normalized = []
+    for idx, entry in enumerate(values):
+        if isinstance(entry, dict):
+            raw_value = entry.get("value", "")
+            priority = entry.get("priority", idx + 1)
+        else:
+            raw_value = entry
+            priority = idx + 1
+        try:
+            priority = int(priority)
+        except (TypeError, ValueError):
+            priority = idx + 1
+        value = normalizer(str(raw_value)) if raw_value is not None else ""
+        if value:
+            normalized.append({"value": value, "priority": priority})
+    return normalized
 
 
-def ensure_state():
-    if "person_idx" not in st.session_state:
-        st.session_state.person_idx = 0
-    if "garment_idx" not in st.session_state:
-        st.session_state.garment_idx = 0
+def _match_priority(values, target: str):
+    if not target:
+        return None
+    for entry in values:
+        if entry.get("value") == target:
+            return entry.get("priority", 1)
+    return None
 
 
-def append_label(person_path: Path, garment_path: Path, label: int, csv_path: Path):
-    csv_path.parent.mkdir(parents=True, exist_ok=True)
-    header_needed = not csv_path.exists()
-    with csv_path.open("a", encoding="utf-8") as f:
-        if header_needed:
-            f.write("person_path,garment_path,label\n")
-        f.write(f"{person_path},{garment_path},{label}\n")
+def _load_fusion_mlp_module():
+    try:
+        from scripts import train_fusion_mlp as fusion_mlp
+
+        return fusion_mlp, None
+    except Exception as exc:
+        return None, str(exc)
+
+
+def _default_collection_path() -> str:
+    if Path("collection2.json").exists():
+        return "collection2.json"
+    if Path("fashion_collection.json").exists():
+        return "fashion_collection.json"
+    return "data/collection.json"
+
+
+SIZE_DISPLAY = {
+    "xs": "XS",
+    "small": "S",
+    "medium": "M",
+    "large": "L",
+    "xl": "XL",
+    "xxl": "XXL",
+}
+BODY_SHAPE_DISPLAY = {
+    "apple": "Apple Shape",
+    "hourglass": "Hourglass",
+    "inverted_triangle": "Inverted Triangle",
+    "pear": "Pear Shape",
+    "rectangle": "Rectangle",
+}
+SKIN_TONE_DISPLAY = {
+    "deep": "Deep",
+    "dusky": "Dusky",
+    "light": "Light",
+    "medium": "Medium",
+}
+OCCASION_DISPLAY = {
+    "casual_luxury": "Casual luxury",
+    "formal": "Formal",
+    "party": "Party",
+    "resort": "Resort",
+    "wedding": "Wedding",
+}
+
+SIZE_ORDERED = ["xs", "small", "medium", "large", "xl", "xxl"]
+BODY_SHAPE_ORDERED = ["apple", "hourglass", "inverted_triangle", "pear", "rectangle"]
+SKIN_TONE_ORDERED = ["deep", "dusky", "light", "medium"]
+OCCASION_ORDERED = ["casual_luxury", "formal", "party", "resort", "wedding"]
+CATEGORY_FIELDS = [
+    "cloth_type",
+    "occasion",
+    "occasions",
+    "fit",
+    "fabric",
+    "color_family",
+    "style",
+    "size",
+    "sizes",
+    "skin_tone",
+    "skin_tones",
+    "body_shape",
+    "body_shapes",
+    "age_range",
+    "age_ranges",
+]
+
+
+def _order_options(preferred: list[str], available: list[str]) -> list[str]:
+    if not available:
+        return preferred[:]
+    available_list = [str(val) for val in available]
+    ordered = [val for val in preferred if val in available_list]
+    extras = [val for val in available_list if val not in ordered]
+    return ordered + extras
+
+
+def _format_option(value: object, mapping: dict[str, str]) -> str:
+    raw = str(value)
+    if raw in mapping:
+        return mapping[raw]
+    lowered = raw.lower()
+    if lowered in mapping:
+        return mapping[lowered]
+    if any(ch.isupper() for ch in raw) and " " in raw:
+        return raw
+    return raw.replace("_", " ").title()
+
+
+def _option_index(options: list[str], value: str, fallback: int = 0) -> int:
+    try:
+        return options.index(value)
+    except ValueError:
+        return fallback
+
+
+def _extract_priority_values(raw: object) -> list[tuple[str, int]]:
+    if raw is None:
+        return []
+    values = raw if isinstance(raw, list) else [raw]
+    entries = []
+    for idx, entry in enumerate(values):
+        priority = idx + 1
+        value = None
+        if isinstance(entry, dict):
+            value = entry.get("value")
+            raw_priority = entry.get("priority")
+            if raw_priority is not None:
+                try:
+                    priority = int(raw_priority)
+                except (TypeError, ValueError):
+                    priority = idx + 1
+        else:
+            value = entry
+        if value is None:
+            continue
+        text = str(value).strip()
+        if not text:
+            continue
+        entries.append((text, priority))
+    return entries
+
+
+def _build_category_summary(records: list[dict], field: str) -> pd.DataFrame:
+    totals: dict[str, int] = {}
+    priority_counts: dict[str, dict[int, int]] = {}
+    max_priority = 0
+
+    for item in records:
+        entries = _extract_priority_values(item.get(field))
+        if not entries:
+            continue
+        seen = set()
+        for value, priority in entries:
+            if value not in seen:
+                totals[value] = totals.get(value, 0) + 1
+                seen.add(value)
+            if priority < 1:
+                priority = 1
+            priority_counts.setdefault(value, {})
+            priority_counts[value][priority] = priority_counts[value].get(priority, 0) + 1
+            if priority > max_priority:
+                max_priority = priority
+
+    if not totals:
+        return pd.DataFrame()
+
+    rows = []
+    for value in sorted(totals.keys(), key=lambda v: (-totals[v], str(v).lower())):
+        row = {"category": value, "total": totals[value]}
+        for priority in range(1, max_priority + 1):
+            row[f"P{priority}"] = priority_counts.get(value, {}).get(priority, 0)
+        rows.append(row)
+    return pd.DataFrame(rows)
+
+
+def _build_match_priority_summary(match_counts: dict[str, dict[int, int]]) -> pd.DataFrame:
+    if not match_counts:
+        return pd.DataFrame()
+    max_priority = 0
+    for counts in match_counts.values():
+        if counts:
+            max_priority = max(max_priority, max(counts))
+    if max_priority < 1:
+        return pd.DataFrame()
+    rows = []
+    for key in ["occasion", "body_shape", "skin_tone", "size"]:
+        if key not in match_counts:
+            continue
+        counts = match_counts.get(key, {})
+        row = {"attribute": key.replace("_", " ").title()}
+        for priority in range(1, max_priority + 1):
+            row[f"P{priority}"] = counts.get(priority, 0)
+        rows.append(row)
+    return pd.DataFrame(rows)
 
 
 def render_streamlit_app():
-    st.title("Label pairs from folders")
+    st.title("Fusion MLP recommender demo")
+    st.caption(
+        "This demo trains a fusion MLP on attributes + text + image embeddings, then uses it to "
+        "score items from a collection. Expand the attribute guide below for clear definitions."
+    )
+
+    with st.expander("Attribute guide", expanded=False):
+        st.markdown(
+            """
+**What each attribute means**
+- age: numeric user age. It is normalized by the age divisor and used as a feature, not a hard filter.
+- size: clothing size category. Used in the MLP and in the optional priority filter.
+- body_shape: body shape category. Used in the MLP and in the optional priority filter.
+- skin_tone: skin tone category. Used in the MLP and in the optional priority filter.
+- occasion: target use case (party, wedding, etc.). Used in the MLP and in the optional priority filter.
+
+**Text + image inputs**
+- description/text field: the item description used to build the text embedding for each item.
+- image_path (training) / image (collection): local file path to the item image. Relative paths are OK.
+
+**Important**
+- Categories must match training data. If you pick values not seen in training, the app will warn.
+"""
+        )
+
+    st.header("Collections (train / test)")
     st.write(
-        "Point to a folder of person images and a folder of garment images. "
-        "The app iterates person × garment so you can label each pair as Looks good / Not good."
+        "Quickly inspect your prepared collection JSON files. Defaults point to the latest "
+        "`collection2_train.json` and `collection2_test.json` you generated."
     )
-    
-    person_dir = Path(st.text_input("Person images folder", "data/persons", key="pairs_person_dir"))
-    garment_dir = Path(st.text_input("Garment images folder", "data/garments", key="pairs_garment_dir"))
-    pairs_csv = Path(st.text_input("Output CSV path", "data/pairs.csv", key="pairs_output_csv"))
-    
-    persons = list_images(person_dir)
-    garments = list_images(garment_dir)
-    ensure_state()
-    
-    # Reset indices if folders changed size
-    if persons and st.session_state.person_idx >= len(persons):
-        st.session_state.person_idx = 0
-    if garments and st.session_state.garment_idx >= len(garments):
-        st.session_state.garment_idx = 0
-    
-    if not persons:
-        st.warning(f"No person images found in {person_dir}")
-    if not garments:
-        st.warning(f"No garment images found in {garment_dir}")
-    
-    def advance():
-        st.session_state.garment_idx += 1
-        if st.session_state.garment_idx >= len(garments):
-            st.session_state.garment_idx = 0
-            st.session_state.person_idx += 1
-    
-    if persons and garments:
-        if st.session_state.person_idx >= len(persons):
-            st.success("Finished all persons. Reset to start over.")
-        else:
-            person_path = persons[st.session_state.person_idx]
-            garment_path = garments[st.session_state.garment_idx]
-    
-            st.write(
-                f"Person {st.session_state.person_idx + 1}/{len(persons)} • "
-                f"Garment {st.session_state.garment_idx + 1}/{len(garments)}"
-            )
-            col_p, col_g = st.columns(2)
-            col_p.image(str(person_path), caption=person_path.name, use_column_width=True)
-            col_g.image(str(garment_path), caption=garment_path.name, use_column_width=True)
-    
-            col1, col2, col3 = st.columns(3)
-            if col1.button("Looks good"):
-                append_label(person_path, garment_path, 1, pairs_csv)
-                advance()
-            if col2.button("Not good"):
-                append_label(person_path, garment_path, 0, pairs_csv)
-                advance()
-            if col3.button("Skip"):
-                advance()
-    
-    if st.button("Reset progress"):
-        st.session_state.person_idx = 0
-        st.session_state.garment_idx = 0
-        st.info("Progress reset (CSV untouched).")
-    
-    st.divider()
-    st.header("Analyze user image")
-    st.write(
-        "Upload a user photo to estimate skin tone and body shape. "
-        "Selfies or half-body shots return skin tone only."
+
+    col_paths_a, col_paths_b = st.columns(2)
+    train_collection_path = Path(
+        col_paths_a.text_input(
+            "Train collection JSON", "collection2_train.json", key="collection_train_json"
+        )
     )
-    user_upload = st.file_uploader(
-        "User image", type=["png", "jpg", "jpeg"], key="user_image_upload"
+    test_collection_path = Path(
+        col_paths_b.text_input(
+            "Test collection JSON", "collection2_test.json", key="collection_test_json"
+        )
     )
-    if user_upload is not None:
-        image = Image.open(user_upload).convert("RGB")
-        st.image(image, caption=user_upload.name, use_column_width=True)
-        if st.button("Analyze image"):
-            with st.spinner("Analyzing image..."):
-                result = analyze_user_image(image)
-            if "error" in result:
-                st.error(result["error"])
-            else:
-                st.success("Analysis complete.")
-                st.write(f"Skin tone label: {result['skin_tone_label']}")
-                skin_hexes = result["skin_hexes"]
-                st.write(f"Skin tone hexes: {', '.join(skin_hexes)}")
-                cols = st.columns(len(skin_hexes))
-                for col, hex_value in zip(cols, skin_hexes):
-                    col.markdown(
-                        f"<div style='width:100%; height: 60px; background-color:{hex_value}; "
-                        "border-radius:8px; border:1px solid #ddd;'></div>"
-                        f"<div style='text-align:center; font-family:monospace'>{hex_value}</div>",
-                        unsafe_allow_html=True,
+
+    def _resolve_path(path: Path) -> Path:
+        candidates = [
+            path,
+            BASE_DIR / path,
+            BASE_DIR.parent / path,
+            Path.cwd() / path,
+        ]
+        for candidate in candidates:
+            if candidate.exists():
+                return candidate
+        # Slow fallback: search by filename within project tree (up to a small depth)
+        try:
+            name = path.name
+            for root in [BASE_DIR, BASE_DIR.parent]:
+                match = next(root.rglob(name), None)
+                if match:
+                    return match
+        except Exception:
+            pass
+        return path
+
+    def _render_collection_preview(label: str, path: Path):
+        with st.expander(label, expanded=False):
+            label_key = label.lower().replace(" ", "_").replace("/", "_")
+            resolved = _resolve_path(path)
+            if not resolved.exists():
+                st.warning(f"File not found: {path}")
+                return
+            try:
+                data = json.loads(resolved.read_text(encoding="utf-8"))
+                if not isinstance(data, list):
+                    st.error("Collection must be a list of objects.")
+                    return
+                st.caption(f"{len(data)} items loaded from {resolved}")
+                preview_rows = min(10, len(data))
+                df = pd.DataFrame(data)
+                cols = [
+                    "cloth_id",
+                    "cloth_type",
+                    "occasion",
+                    "fit",
+                    "fabric",
+                    "color_family",
+                    "style",
+                    "sizes",
+                    "skin_tone",
+                    "body_shape",
+                    "age_range",
+                    "image",
+                    "prompt",
+                ]
+                show_cols = [c for c in cols if c in df.columns]
+                st.dataframe(df[show_cols].head(preview_rows), use_container_width=True)
+
+                summary_fields = [field for field in CATEGORY_FIELDS if field in df.columns]
+                if summary_fields:
+                    default_fields = []
+                    for candidate in [
+                        "occasion",
+                        "body_shape",
+                        "skin_tone",
+                        "sizes",
+                        "cloth_type",
+                    ]:
+                        if candidate in summary_fields:
+                            default_fields.append(candidate)
+                    if not default_fields:
+                        default_fields = [summary_fields[0]]
+                    selected_fields = st.multiselect(
+                        "Category fields",
+                        summary_fields,
+                        default=default_fields,
+                        key=f"{label_key}_category_fields",
                     )
-                if result["body_shape"]:
-                    st.write(f"Body shape: {result['body_shape'].replace('_', ' ')}")
+                    if not selected_fields:
+                        st.info("Select at least one category field to summarize.")
+                    else:
+                        any_rows = False
+                        for field in selected_fields:
+                            summary_df = _build_category_summary(data, field)
+                            if summary_df.empty:
+                                st.info(f"No category values found for {field}.")
+                                continue
+                            any_rows = True
+                            display_field = field.replace("_", " ").title()
+                            st.markdown(f"**Counts for {display_field}**")
+                            st.dataframe(summary_df, use_container_width=True)
+                        if any_rows:
+                            st.caption(
+                                "P1/P2 indicate priority order in the list (or explicit priority values)."
+                            )
                 else:
-                    st.info("Selfie/half-body detected; returning only skin tone.")
-    
-    st.divider()
-    st.header("Train tabular MLP")
-    st.write(
-        "Train a lightweight MLP on `data/train.csv` using categorical attributes + description text."
-    )
-    
-    from scripts import train_tabular_mlp as tabular_mlp
-    
-    data_path = Path(st.text_input("Training CSV path", "data/train.csv", key="tabular_train_path"))
-    artifacts_dir = Path(st.text_input("Artifacts folder", "artifacts", key="tabular_artifacts_dir"))
-    hidden_layers = st.text_input(
-        "Hidden layer sizes (comma-separated)", "256,128", key="tabular_hidden_layers"
-    )
-    col_a, col_b, col_c = st.columns(3)
-    test_size = col_a.number_input(
-        "Validation split", min_value=0.05, max_value=0.5, value=0.2, step=0.05, key="tabular_val_split"
-    )
-    max_iter = col_b.number_input(
-        "Max iterations", min_value=50, max_value=2000, value=500, step=50, key="tabular_max_iter"
-    )
-    max_features = col_c.number_input(
-        "Max TF-IDF features", min_value=100, max_value=20000, value=5000, step=500, key="tabular_max_features"
-    )
-    seed = st.number_input(
-        "Random seed", min_value=0, max_value=10000, value=42, step=1, key="tabular_seed"
-    )
-    
-    if st.button("Train tabular MLP"):
-        try:
-            df = tabular_mlp.load_data(data_path)
-            hidden = tabular_mlp.parse_hidden(hidden_layers)
-            with st.spinner("Training model..."):
-                pipeline, metrics = tabular_mlp.train_model(
-                    df=df,
-                    test_size=float(test_size),
-                    seed=int(seed),
-                    hidden=hidden,
-                    max_features=int(max_features),
-                    max_iter=int(max_iter),
-                )
-            artifacts_dir.mkdir(parents=True, exist_ok=True)
-            model_path = artifacts_dir / "tabular_mlp.joblib"
-            metrics_path = artifacts_dir / "tabular_mlp_metrics.json"
-            joblib.dump(pipeline, model_path)
-            with metrics_path.open("w", encoding="utf-8") as f:
-                json.dump(metrics, f, indent=2)
-            st.success(f"Saved model to {model_path} and metrics to {metrics_path}.")
-            st.json(metrics)
-        except Exception as exc:
-            st.error(str(exc))
-    
-    st.divider()
-    st.header("Test tabular MLP")
-    st.write("Load a trained model and score a single row.")
-    
-    model_path = Path(
-        st.text_input("Model path", "artifacts/tabular_mlp.joblib", key="tabular_model_path")
-    )
-    col1, col2 = st.columns(2)
-    height_bucket = col1.text_input("height_bucket", "average", key="tabular_height_bucket")
-    body_shape = col2.text_input("body_shape", "hourglass", key="tabular_body_shape")
-    col3, col4 = st.columns(2)
-    skin_tone = col3.text_input("skin_tone", "medium", key="tabular_skin_tone")
-    age_bucket = col4.text_input("age_bucket", "26-35", key="tabular_age_bucket")
-    occasion = st.text_input("occasion", "wedding", key="tabular_occasion")
-    description = st.text_area(
-        "clothing_description",
-        "Deep red silk lehenga with fitted blouse and flared skirt",
-        key="tabular_description",
-    )
-    
-    if st.button("Predict"):
-        if not model_path.exists():
-            st.error(f"Model not found at {model_path}. Train first or update the path.")
-        else:
-            try:
-                model = joblib.load(model_path)
-                row = {
-                    "height_bucket": height_bucket,
-                    "body_shape": body_shape,
-                    "skin_tone": skin_tone,
-                    "age_bucket": age_bucket,
-                    "occasion": occasion,
-                    "clothing_description": description,
-                }
-                df = pd.DataFrame([row])
-                pred = float(model.predict(df)[0])
-                st.success(f"Predicted label score: {pred:.4f}")
+                    st.info("No category fields found to summarize.")
+
+                if "image" in df.columns:
+                    st.write("Image previews (first 6 with existing files):")
+                    img_cols = st.columns(3)
+                    shown = 0
+                    for _, row in df.head(20).iterrows():
+                        img_path_raw = str(row.get("image", "")).strip()
+                        if not img_path_raw:
+                            continue
+                        img_path = Path(img_path_raw)
+                        if not img_path.is_absolute():
+                            candidate = resolved.parent / img_path
+                            if not candidate.exists():
+                                candidate = BASE_DIR / img_path
+                            if candidate.exists():
+                                img_path = candidate
+                        if img_path.exists():
+                            img_cols[shown % 3].image(
+                                str(img_path),
+                                caption=f"{row.get('cloth_id', '')} • {row.get('cloth_type', '')}",
+                                width=220,
+                            )
+                            shown += 1
+                        if shown >= 6:
+                            break
             except Exception as exc:
                 st.error(str(exc))
-    
-    st.divider()
-    st.header("Train image MLP (single image)")
-    st.write(
-        "Train an MLP on CLIP image embeddings using a JSON/CSV file that has "
-        "`image_path` + `label` (score)."
+
+    _render_collection_preview("Training collection preview", train_collection_path)
+    _render_collection_preview("Test collection preview", test_collection_path)
+
+    st.info(
+        "Training/testing workflow: use the controls below to train the Fusion MLP on your "
+        "collection JSON, then evaluate or recommend using the trained checkpoint. You can also "
+        "swap in your collection JSON via the inputs in the recommender section."
     )
-    
-    def _load_image_mlp_module():
-        try:
-            from scripts import train_image_mlp as image_mlp
-    
-            return image_mlp, None
-        except Exception as exc:
-            return None, str(exc)
-    
-    
-    def _load_fusion_mlp_module():
-        try:
-            from scripts import train_fusion_mlp as fusion_mlp
-    
-            return fusion_mlp, None
-        except Exception as exc:
-            return None, str(exc)
-    
-    
-    image_mlp, image_mlp_error = _load_image_mlp_module()
-    if image_mlp_error:
-        st.info(f"Image MLP unavailable: {image_mlp_error}")
+
+    fusion_mlp, fusion_mlp_error = _load_fusion_mlp_module()
+
+    st.header("Prerequisites (optional)")
+    st.write(
+        "Pre-embed a fixed collection for faster recommendations. Text embeddings are used "
+        "during scoring; image embeddings are optional and stored for future use."
+    )
+    if fusion_mlp_error:
+        st.info(f"Fusion MLP unavailable: {fusion_mlp_error}")
     else:
-        image_data_path = Path(
-            st.text_input("Training file (JSON/CSV)", "data/pairs.json", key="image_train_path")
+        pre_col_a, pre_col_b = st.columns(2)
+        prereq_collection_path = Path(
+            pre_col_a.text_input(
+                "Collection JSON path (pre-embed)",
+                _default_collection_path(),
+                key="prereq_collection_path",
+            )
         )
-        image_artifacts_dir = Path(
-            st.text_input("Artifacts folder", "artifacts", key="image_artifacts_dir")
+        prereq_output_path = Path(
+            pre_col_b.text_input(
+                "Embeddings output path",
+                "artifacts/collection_embeddings.npz",
+                key="prereq_output_path",
+            )
         )
-        col_a, col_b, col_c = st.columns(3)
-        image_key = col_a.text_input("Image field key", "image_path", key="image_train_image_key")
-        label_key = col_b.text_input("Label field key", "label", key="image_train_label_key")
-        id_key = col_c.text_input("ID field key", "id", key="image_train_id_key")
-    
-        col_d, col_e, col_f = st.columns(3)
-        clip_model_name = col_d.text_input("CLIP model", "ViT-B/32", key="image_train_clip")
-        label_max = col_e.number_input(
-            "Label max (scale)", min_value=0.1, max_value=100.0, value=1.0, step=0.1, key="image_label_max"
+
+        pre_col_c, pre_col_d, pre_col_e = st.columns(3)
+        prereq_desc_field = pre_col_c.text_input(
+            "Description field (pre-embed)", "description", key="prereq_desc_field"
         )
-        hidden = col_f.number_input(
-            "Hidden size", min_value=64, max_value=2048, value=512, step=64, key="image_hidden"
+        prereq_id_field = pre_col_d.text_input(
+            "ID field (pre-embed)", "cloth_id", key="prereq_id_field"
         )
-    
-        col_g, col_h, col_i = st.columns(3)
-        epochs = col_g.number_input("Epochs", min_value=1, max_value=100, value=5, step=1, key="image_epochs")
-        lr = col_h.number_input(
-            "Learning rate", min_value=0.00001, max_value=0.1, value=0.001, step=0.0001, key="image_lr"
+        prereq_image_field = pre_col_e.text_input(
+            "Image field (pre-embed)", "image", key="prereq_image_field"
         )
-        val_size = col_i.number_input(
-            "Validation split", min_value=0.05, max_value=0.5, value=0.2, step=0.05, key="image_val_size"
+
+        pre_col_f, pre_col_g, pre_col_h = st.columns(3)
+        prereq_text_model = pre_col_f.text_input(
+            "Sentence-BERT model (pre-embed)",
+            "all-MiniLM-L6-v2",
+            key="prereq_text_model",
         )
-        seed = st.number_input(
-            "Random seed", min_value=0, max_value=10000, value=42, step=1, key="image_seed"
+        prereq_clip_model = pre_col_g.text_input(
+            "OpenCLIP model (pre-embed)",
+            "ViT-B-32",
+            key="prereq_clip_model",
         )
-        dropout = st.number_input(
-            "Dropout", min_value=0.0, max_value=0.9, value=0.1, step=0.05, key="image_dropout"
+        prereq_clip_pretrained = pre_col_h.text_input(
+            "OpenCLIP pretrained (pre-embed)",
+            "laion2b_s34b_b79k",
+            key="prereq_clip_pretrained",
         )
-    
-        if st.button("Train image MLP"):
+
+        pre_col_i, pre_col_j = st.columns(2)
+        prereq_text_max_length = pre_col_i.number_input(
+            "Text max length (pre-embed)",
+            min_value=16,
+            max_value=512,
+            value=128,
+            step=8,
+            key="prereq_text_max",
+        )
+        prereq_batch_size = pre_col_j.number_input(
+            "Batch size (pre-embed)",
+            min_value=1,
+            max_value=256,
+            value=16,
+            step=1,
+            key="prereq_batch",
+        )
+
+        prereq_include_images = st.checkbox(
+            "Include image embeddings (stored only, not used for scoring)",
+            value=False,
+            key="prereq_include_images",
+        )
+
+        if st.button("Embed collection", key="prereq_embed_button"):
             try:
-                with st.spinner("Training image model..."):
-                    result = image_mlp.run_training(
-                        data_path=image_data_path,
-                        artifacts=image_artifacts_dir,
-                        clip_model_name=clip_model_name,
-                        epochs=int(epochs),
-                        lr=float(lr),
-                        val_size=float(val_size),
-                        seed=int(seed),
-                        hidden=int(hidden),
-                        dropout=float(dropout),
-                        label_max=float(label_max),
-                        image_key=image_key,
-                        label_key=label_key,
-                        id_key=id_key,
+                status = st.status("Embedding collection", expanded=True)
+                resolved = _resolve_path(prereq_collection_path)
+                if not resolved.exists():
+                    raise FileNotFoundError(f"Collection not found: {prereq_collection_path}")
+
+                raw = json.loads(resolved.read_text(encoding="utf-8"))
+                if isinstance(raw, dict):
+                    raw = raw.get("data") or raw.get("records") or raw
+                if not isinstance(raw, list):
+                    raise ValueError("Collection JSON must be a list of objects.")
+                if not raw:
+                    raise ValueError("Collection JSON is empty.")
+
+                df = pd.DataFrame(raw)
+                if prereq_desc_field not in df.columns:
+                    raise ValueError(f"Missing description field: {prereq_desc_field}")
+
+                texts = df[prereq_desc_field].fillna("").astype(str).tolist()
+                if prereq_id_field in df.columns:
+                    ids = df[prereq_id_field].fillna("").astype(str).tolist()
+                else:
+                    ids = [f"item-{i+1:04d}" for i in range(len(df))]
+
+                device = "cuda" if fusion_mlp.torch.cuda.is_available() else "cpu"
+
+                status.update(label="Embedding text", state="running")
+                text_embs = fusion_mlp.embed_texts(
+                    texts=texts,
+                    model_name=prereq_text_model,
+                    device=device,
+                    batch_size=int(prereq_batch_size),
+                    max_length=int(prereq_text_max_length),
+                )
+                text_feats = np.stack([text_embs[text] for text in texts]).astype("float32")
+
+                image_paths = []
+                image_feats = np.empty((0, 0), dtype="float32")
+                if prereq_include_images:
+                    if prereq_image_field not in df.columns:
+                        raise ValueError(f"Missing image field: {prereq_image_field}")
+                    image_paths = df[prereq_image_field].fillna("").astype(str).tolist()
+                    status.update(label="Embedding images", state="running")
+                    image_embs, image_dim, missing = fusion_mlp.embed_images(
+                        image_paths,
+                        clip_model_name=prereq_clip_model,
+                        clip_pretrained=prereq_clip_pretrained,
+                        device=device,
+                        base_dir=resolved.parent,
                     )
-                st.success(f"Saved model to {result['artifacts']}.")
-                st.json(result["metrics"])
+                    zero_image = np.zeros(image_dim, dtype="float32")
+                    image_feats = np.stack(
+                        [image_embs.get(path, zero_image) for path in image_paths]
+                    ).astype("float32")
+                    if missing:
+                        st.warning(
+                            f"{len(missing)} image paths missing; "
+                            f"zero embeddings used. Examples: {', '.join(missing[:5])}"
+                        )
+
+                prereq_output_path.parent.mkdir(parents=True, exist_ok=True)
+                np.savez_compressed(
+                    prereq_output_path,
+                    ids=np.array(ids, dtype=object),
+                    texts=np.array(texts, dtype=object),
+                    text_embs=text_feats,
+                    image_paths=np.array(image_paths, dtype=object),
+                    image_embs=image_feats,
+                    text_model=np.array([prereq_text_model], dtype=object),
+                    clip_model=np.array([prereq_clip_model], dtype=object),
+                    clip_pretrained=np.array([prereq_clip_pretrained], dtype=object),
+                    desc_field=np.array([prereq_desc_field], dtype=object),
+                    image_field=np.array([prereq_image_field], dtype=object),
+                    id_field=np.array([prereq_id_field], dtype=object),
+                )
+                status.update(label="Collection embedded", state="complete")
+                st.success(f"Saved embeddings to {prereq_output_path}")
             except Exception as exc:
+                try:
+                    status.update(label="Embedding failed", state="error")
+                except Exception:
+                    pass
                 st.error(str(exc))
-    
-    st.divider()
+
     st.header("Train fusion MLP (attributes + text + image)")
     st.write(
-        "Train a multimodal fusion model on `training.csv` using attributes "
+        "Train a multimodal fusion model on collection JSON using attributes "
         "(age/size/body_shape/skin_tone/occasion), Sentence-BERT text embeddings, "
         "and OpenCLIP image embeddings."
     )
-    
-    fusion_mlp, fusion_mlp_error = _load_fusion_mlp_module()
+
     if fusion_mlp_error:
         st.info(f"Fusion MLP unavailable: {fusion_mlp_error}")
     else:
         fusion_data_path = Path(
-            st.text_input("Training CSV path (fusion)", "training.csv", key="fusion_train_path")
+            st.text_input(
+                "Training data JSON path (fusion)",
+                "collection2_train.json",
+                key="fusion_train_path",
+                help=(
+                    "CSV or JSON path. CSV must include age, size, body_shape, skin_tone, "
+                    "occasion, cloth_description (or clothing_description), image_path, score "
+                    "(0-1). JSON collections are expanded into training rows automatically."
+                ),
+            )
         )
         fusion_artifacts_dir = Path(
-            st.text_input("Artifacts folder (fusion)", "artifacts", key="fusion_artifacts")
+            st.text_input(
+                "Artifacts folder (fusion)",
+                "artifacts",
+                key="fusion_artifacts",
+                help="Output directory for the trained model and preprocessing spec.",
+            )
         )
 
         with st.expander("Preview training data (fusion)", expanded=False):
             if fusion_data_path.exists():
                 try:
-                    df_preview = pd.read_csv(fusion_data_path)
-                    total_rows = len(df_preview)
-                    st.caption(f"{total_rows} rows loaded from {fusion_data_path}.")
-                    max_preview = max(1, min(50, total_rows))
-                    preview_rows = st.number_input(
-                        "Preview rows",
-                        min_value=1,
-                        max_value=max_preview,
-                        value=min(10, max_preview),
-                        step=1,
-                        key="fusion_preview_rows",
-                    )
-                    preview = df_preview.head(int(preview_rows)).copy()
-                    show_cols = [
-                        col
-                        for col in [
-                            "image_path",
-                            "age",
-                            "size",
-                            "body_shape",
-                            "skin_tone",
-                            "occasion",
-                            "score",
+                    if fusion_data_path.suffix.lower() == ".json":
+                        raw = json.loads(fusion_data_path.read_text(encoding="utf-8"))
+                        if isinstance(raw, dict):
+                            raw = raw.get("data") or raw.get("records") or raw
+                        if isinstance(raw, list):
+                            total_rows = len(raw)
+                            st.caption(f"{total_rows} records loaded from {fusion_data_path}.")
+                            max_preview = max(1, min(10, total_rows))
+                            preview_rows = st.number_input(
+                                "Preview records",
+                                min_value=1,
+                                max_value=max_preview,
+                                value=min(5, max_preview),
+                                step=1,
+                                key="fusion_preview_rows_json",
+                            )
+                            st.json(raw[: int(preview_rows)])
+                        else:
+                            st.warning("Unsupported JSON format for preview.")
+                    else:
+                        df_preview = pd.read_csv(fusion_data_path)
+                        total_rows = len(df_preview)
+                        st.caption(f"{total_rows} rows loaded from {fusion_data_path}.")
+                        max_preview = max(1, min(50, total_rows))
+                        preview_rows = st.number_input(
+                            "Preview rows",
+                            min_value=1,
+                            max_value=max_preview,
+                            value=min(10, max_preview),
+                            step=1,
+                            key="fusion_preview_rows",
+                        )
+                        preview = df_preview.head(int(preview_rows)).copy()
+                        show_cols = [
+                            col
+                            for col in [
+                                "image_path",
+                                "age",
+                                "size",
+                                "body_shape",
+                                "skin_tone",
+                                "occasion",
+                                "score",
+                            ]
+                            if col in preview.columns
                         ]
-                        if col in preview.columns
-                    ]
-                    if show_cols:
-                        st.dataframe(preview[show_cols], use_container_width=True)
+                        if show_cols:
+                            st.dataframe(preview[show_cols], use_container_width=True)
 
-                    if "image_path" in preview.columns:
-                        cols = st.columns(5)
-                        for idx, row in preview.iterrows():
-                            raw_path = str(row.get("image_path", "")).strip()
-                            if not raw_path:
-                                cols[idx % 5].warning("Missing image_path")
-                                continue
-                            img_path = Path(raw_path)
-                            if not img_path.is_absolute():
-                                candidate = fusion_data_path.parent / img_path
-                                if candidate.exists():
-                                    img_path = candidate
-                            caption = f"row {idx + 1}"
-                            if "occasion" in preview.columns:
-                                caption = f"{caption} • {row.get('occasion', '')}"
-                            if img_path.exists():
-                                cols[idx % 5].image(str(img_path), caption=caption, use_column_width=True)
-                            else:
-                                cols[idx % 5].warning(f"Missing: {raw_path}")
+                        if "image_path" in preview.columns:
+                            cols = st.columns(5)
+                            for idx, row in preview.iterrows():
+                                raw_path = str(row.get("image_path", "")).strip()
+                                if not raw_path:
+                                    cols[idx % 5].warning("Missing image_path")
+                                    continue
+                                img_path = Path(raw_path)
+                                if not img_path.is_absolute():
+                                    candidate = fusion_data_path.parent / img_path
+                                    if candidate.exists():
+                                        img_path = candidate
+                                caption = f"row {idx + 1}"
+                                if "occasion" in preview.columns:
+                                    caption = f"{caption} • {row.get('occasion', '')}"
+                                if img_path.exists():
+                                    cols[idx % 5].image(
+                                        str(img_path), caption=caption, width=140
+                                    )
+                                else:
+                                    cols[idx % 5].warning(f"Missing: {raw_path}")
                 except Exception as exc:
                     st.warning(str(exc))
             else:
-                st.info(f"Training CSV not found at {fusion_data_path}.")
+                st.info(f"Training data not found at {fusion_data_path}.")
+
+        with st.expander("Training sequence (fusion)", expanded=False):
+            st.markdown(
+                """
+1. Load the training file and validate required fields.
+2. Normalize categorical attributes and build tabular vectors.
+3. Embed item descriptions with Sentence-BERT.
+4. Embed item images with OpenCLIP.
+5. Train the MLP and save artifacts.
+"""
+            )
+            if fusion_data_path.exists():
+                try:
+                    rows = []
+                    base_dir = fusion_data_path.parent
+                    if fusion_data_path.suffix.lower() == ".json":
+                        raw = json.loads(fusion_data_path.read_text(encoding="utf-8"))
+                        if isinstance(raw, dict):
+                            raw = raw.get("data") or raw.get("records") or raw
+                        if isinstance(raw, list):
+                            rows = raw
+                    else:
+                        df_sample = pd.read_csv(fusion_data_path)
+                        rows = df_sample.to_dict(orient="records")
+
+                    if rows:
+                        sample_keys = set(rows[0].keys())
+                        desc_key = next(
+                            (
+                                key
+                                for key in ["cloth_description", "clothing_description", "description"]
+                                if key in sample_keys
+                            ),
+                            None,
+                        )
+                        image_key = next(
+                            (key for key in ["image_path", "image"] if key in sample_keys), None
+                        )
+                        if not desc_key and not image_key:
+                            st.info("No image/text fields found for preview.")
+                        else:
+                            st.write("Sample image + text pairs (first 5):")
+                            for item in rows[:5]:
+                                cols = st.columns([1, 2])
+                                img_path_raw = str(item.get(image_key, "")).strip() if image_key else ""
+                                text_value = str(item.get(desc_key, "")).strip() if desc_key else ""
+
+                                if img_path_raw:
+                                    img_path = Path(img_path_raw)
+                                    if not img_path.is_absolute():
+                                        candidate = base_dir / img_path
+                                        if candidate.exists():
+                                            img_path = candidate
+                                    if img_path.exists():
+                                        cols[0].image(str(img_path), width=140)
+                                    else:
+                                        cols[0].warning(f"Missing: {img_path_raw}")
+                                else:
+                                    cols[0].warning("Missing image")
+
+                                if text_value:
+                                    cols[1].write(text_value)
+                                else:
+                                    cols[1].warning("Missing description")
+                except Exception as exc:
+                    st.warning(str(exc))
+
         col_a, col_b, col_c = st.columns(3)
         fusion_text_model = col_a.text_input(
             "Sentence-BERT model", "all-MiniLM-L6-v2", key="fusion_text_model"
@@ -747,7 +796,7 @@ def render_streamlit_app():
         fusion_clip_pretrained = col_c.text_input(
             "OpenCLIP pretrained", "laion2b_s34b_b79k", key="fusion_clip_pretrained"
         )
-    
+
         col_d, col_e, col_f = st.columns(3)
         fusion_epochs = col_d.number_input(
             "Epochs", min_value=1, max_value=100, value=10, step=1, key="fusion_epochs"
@@ -767,8 +816,9 @@ def render_streamlit_app():
             value=0.2,
             step=0.05,
             key="fusion_val_size",
+            help="Fraction of rows held out for validation during training.",
         )
-    
+
         col_g, col_h, col_i = st.columns(3)
         fusion_batch_size = col_g.number_input(
             "Batch size", min_value=1, max_value=256, value=16, step=1, key="fusion_batch"
@@ -784,17 +834,23 @@ def render_streamlit_app():
             "Text max length", min_value=16, max_value=512, value=128, step=8, key="fusion_text_max"
         )
         fusion_age_divisor = col_k.number_input(
-            "Age divisor", min_value=1.0, max_value=100.0, value=60.0, step=1.0, key="fusion_age_divisor"
+            "Age divisor",
+            min_value=1.0,
+            max_value=100.0,
+            value=60.0,
+            step=1.0,
+            key="fusion_age_divisor",
+            help="Age is normalized by this value before entering the MLP.",
         )
         fusion_seed = col_l.number_input(
             "Random seed (fusion)", min_value=0, max_value=10000, value=42, step=1, key="fusion_seed"
         )
-    
+
         if st.button("Train fusion MLP", key="fusion_train_button"):
             try:
                 status = st.status("Fusion MLP training", expanded=True)
                 progress_messages = {
-                    "loading_data": "Loading training CSV",
+                    "loading_data": "Loading training data",
                     "building_attributes": "Building attribute vectors",
                     "embedding_text": "Embedding text (Sentence-BERT)",
                     "embedding_images": "Embedding images (OpenCLIP)",
@@ -837,11 +893,11 @@ def render_streamlit_app():
                 except Exception:
                     pass
                 st.error(str(exc))
-    
+
     st.divider()
     st.header("Recommend from fashion collection (fusion)")
     st.write("Upload a user image, enter attributes, and score items from the collection.")
-    
+
     if fusion_mlp_error:
         st.info(f"Fusion MLP unavailable: {fusion_mlp_error}")
     else:
@@ -856,20 +912,50 @@ def render_streamlit_app():
         fusion_collection_upload = st.file_uploader(
             "Collection JSON file (fusion)", type=["json"], key="fusion_collection_upload"
         )
-        default_fusion_collection = (
-            "fashion_collection.json"
-            if Path("fashion_collection.json").exists()
-            else "data/collection.json"
-        )
+        default_fusion_collection = _default_collection_path()
         fusion_collection_path = Path(
             st.text_input(
-                "Collection JSON path (fusion)", default_fusion_collection, key="fusion_collection_path"
+                "Collection JSON path (fusion)",
+                default_fusion_collection,
+                key="fusion_collection_path",
+                help=(
+                    "Path to a collection JSON list of items. Each item should include a "
+                    "description field (for text embeddings) and image path (if available)."
+                ),
             )
         )
         fusion_desc_col = st.text_input(
-            "Description field (fusion)", "clothing_description", key="fusion_desc_col"
+            "Description field (fusion)",
+            "description",
+            key="fusion_desc_col",
+            help="Column name in the collection items used for text embeddings.",
         )
-    
+        fusion_id_field = st.text_input(
+            "ID field (fusion)",
+            "cloth_id",
+            key="fusion_id_field",
+            help="Field used to match precomputed embeddings to collection items.",
+        )
+        fusion_image_field = st.text_input(
+            "Image field (fusion)",
+            "image",
+            key="fusion_image_field",
+            help="Field with the image path or URL for each collection item.",
+        )
+        use_precomputed_embeddings = st.checkbox(
+            "Use precomputed collection embeddings",
+            value=False,
+            key="fusion_use_precomputed",
+            help="Loads embeddings saved from the Prerequisites section to skip runtime embedding.",
+        )
+        precomputed_embeddings_path = Path(
+            st.text_input(
+                "Precomputed embeddings path",
+                "artifacts/collection_embeddings.npz",
+                key="fusion_precomputed_path",
+            )
+        )
+
         def _load_fusion_collection():
             if fusion_collection_upload is not None:
                 raw = fusion_collection_upload.getvalue()
@@ -878,7 +964,7 @@ def render_streamlit_app():
             if fusion_collection_path.exists():
                 return json.loads(fusion_collection_path.read_text(encoding="utf-8"))
             raise FileNotFoundError("Provide a collection JSON file or a valid path.")
-    
+
         fusion_collection_data = None
         fusion_collection_error = None
         try:
@@ -889,10 +975,10 @@ def render_streamlit_app():
                 raise ValueError("Collection JSON is empty.")
         except Exception as exc:
             fusion_collection_error = str(exc)
-    
+
         if fusion_collection_error:
             st.info(fusion_collection_error)
-    
+
         spec = None
         spec_error = None
         if fusion_preprocess_path.exists():
@@ -902,55 +988,105 @@ def render_streamlit_app():
                 spec_error = str(exc)
         else:
             spec_error = f"Preprocess file not found at {fusion_preprocess_path}."
-    
+
         if spec_error:
             st.info(spec_error)
-    
+
         col_a, col_b, col_c = st.columns(3)
-        age = col_a.number_input("age", min_value=0, max_value=100, value=25, step=1, key="fusion_age")
-    
-        size_options = []
-        body_options = []
-        skin_options = []
-        occasion_options = []
+        age = col_a.number_input(
+            "age",
+            min_value=0,
+            max_value=100,
+            value=25,
+            step=1,
+            key="fusion_age",
+            help="Numeric age used as a feature. It is normalized by the age divisor.",
+        )
+
+        size_options: list[str] = []
+        body_options: list[str] = []
+        skin_options: list[str] = []
+        occasion_options: list[str] = []
         if spec and isinstance(spec.get("categories"), dict):
             size_options = [str(v) for v in spec["categories"].get("size", [])]
             body_options = [str(v) for v in spec["categories"].get("body_shape", [])]
             skin_options = [str(v) for v in spec["categories"].get("skin_tone", [])]
             occasion_options = [str(v) for v in spec["categories"].get("occasion", [])]
-    
-        if size_options:
-            size = col_b.selectbox("size", size_options, key="fusion_size")
-        else:
-            size = col_b.text_input("size", "medium", key="fusion_size")
-    
-        if body_options:
-            body_shape = col_c.selectbox("body_shape", body_options, key="fusion_body_shape")
-        else:
-            body_shape = col_c.text_input("body_shape", "hourglass", key="fusion_body_shape")
-    
-        if skin_options:
-            skin_tone = st.selectbox("skin_tone", skin_options, key="fusion_skin_tone")
-        else:
-            skin_tone = st.text_input("skin_tone", "medium", key="fusion_skin_tone")
 
-        if occasion_options:
-            occasion = st.selectbox("occasion", occasion_options, key="fusion_occasion")
-        else:
-            occasion = st.text_input("occasion", "party", key="fusion_occasion")
-    
+        size_options = _order_options(SIZE_ORDERED, size_options or SIZE_ORDERED)
+        body_options = _order_options(BODY_SHAPE_ORDERED, body_options or BODY_SHAPE_ORDERED)
+        skin_options = _order_options(SKIN_TONE_ORDERED, skin_options or SKIN_TONE_ORDERED)
+        occasion_options = _order_options(OCCASION_ORDERED, occasion_options or OCCASION_ORDERED)
+
+        size = col_b.selectbox(
+            "size",
+            size_options,
+            key="fusion_size",
+            help="Size category used in the MLP and optional attribute filter.",
+            format_func=lambda value: _format_option(value, SIZE_DISPLAY),
+            index=_option_index(size_options, "medium"),
+        )
+
+        body_shape = col_c.selectbox(
+            "body_shape",
+            body_options,
+            key="fusion_body_shape",
+            help="Body shape category used in the MLP and optional attribute filter.",
+            format_func=lambda value: _format_option(value, BODY_SHAPE_DISPLAY),
+            index=_option_index(body_options, "hourglass"),
+        )
+
+        skin_tone = st.selectbox(
+            "skin_tone",
+            skin_options,
+            key="fusion_skin_tone",
+            help="Skin tone category used in the MLP and optional attribute filter.",
+            format_func=lambda value: _format_option(value, SKIN_TONE_DISPLAY),
+            index=_option_index(skin_options, "medium"),
+        )
+
+        occasion = st.selectbox(
+            "occasion",
+            occasion_options,
+            key="fusion_occasion",
+            help="Occasion category used in the MLP and optional attribute filter.",
+            format_func=lambda value: _format_option(value, OCCASION_DISPLAY),
+            index=_option_index(occasion_options, "party"),
+        )
+
         fusion_user_upload = st.file_uploader(
             "Upload user image (fusion)", type=["png", "jpg", "jpeg"], key="fusion_user_image"
         )
         user_image = None
         if fusion_user_upload is not None:
             user_image = Image.open(fusion_user_upload).convert("RGB")
-            st.image(user_image, caption=fusion_user_upload.name, use_column_width=True)
-    
+            st.image(user_image, caption=fusion_user_upload.name, width=360)
+
         top_k = st.number_input(
-            "Top K results (fusion)", min_value=1, max_value=100, value=5, step=1, key="fusion_top_k"
+            "Top K results (fusion)",
+            min_value=1,
+            max_value=100,
+            value=5,
+            step=1,
+            key="fusion_top_k",
+            help="How many items to return after scoring the collection.",
         )
-    
+        apply_priority_filter = st.checkbox(
+            "Apply attribute filter (priority-weighted)",
+            value=True,
+            key="fusion_priority_filter",
+            help=(
+                "Filter collection items to those that contain your selected attributes. "
+                "Priorities in the item metadata determine the match strength."
+            ),
+        )
+        apply_priority_weight = st.checkbox(
+            "Weight scores by attribute priorities",
+            value=True,
+            key="fusion_priority_weight",
+            help="Adjust final scores by the attribute priorities defined in the collection items.",
+        )
+
         if st.button("Recommend (fusion)", key="fusion_recommend_button"):
             if fusion_collection_error:
                 st.error(fusion_collection_error)
@@ -967,19 +1103,101 @@ def render_streamlit_app():
                     if "state_dict" not in state or "config" not in state:
                         raise ValueError("Unsupported fusion model format.")
                     config = state["config"]
-    
+
                     text_model_name = config.get("text_model", "all-MiniLM-L6-v2")
                     clip_model_name = config.get("clip_model", "ViT-B-32")
                     clip_pretrained = config.get("clip_pretrained", "laion2b_s34b_b79k")
                     text_max_length = int(config.get("text_max_length", 128))
-    
-                    df = pd.DataFrame(fusion_collection_data)
+
+                    collection_records = fusion_collection_data
+                    match_summary = None
+                    matched_items = None
+                    if apply_priority_filter:
+                        user_filters = {
+                            "occasion": _normalize_occasion_value(str(occasion)),
+                            "body_shape": _normalize_body_shape_value(str(body_shape)),
+                            "skin_tone": _normalize_skin_tone_value(str(skin_tone)),
+                            "size": _normalize_size_value(str(size)),
+                        }
+                        filtered = []
+                        match_summary = {
+                            "occasion": {},
+                            "body_shape": {},
+                            "skin_tone": {},
+                            "size": {},
+                        }
+                        for item in fusion_collection_data:
+                            occasions = _normalize_priority_list(
+                                item.get("occasions") or item.get("occasion"),
+                                _normalize_occasion_value,
+                            )
+                            body_shapes = _normalize_priority_list(
+                                item.get("body_shapes") or item.get("body_shape"),
+                                _normalize_body_shape_value,
+                            )
+                            skin_tones = _normalize_priority_list(
+                                item.get("skin_tones") or item.get("skin_tone"),
+                                _normalize_skin_tone_value,
+                            )
+                            sizes = _normalize_priority_list(
+                                item.get("sizes") or item.get("size"),
+                                _normalize_size_value,
+                            )
+                            occ_priority = _match_priority(occasions, user_filters["occasion"])
+                            shape_priority = _match_priority(body_shapes, user_filters["body_shape"])
+                            tone_priority = _match_priority(skin_tones, user_filters["skin_tone"])
+                            size_priority = _match_priority(sizes, user_filters["size"])
+                            if None in (occ_priority, shape_priority, tone_priority, size_priority):
+                                continue
+                            occ_priority = int(occ_priority)
+                            shape_priority = int(shape_priority)
+                            tone_priority = int(tone_priority)
+                            size_priority = int(size_priority)
+                            priority_score = (
+                                0.4 * _priority_weight(occ_priority)
+                                + 0.3 * _priority_weight(shape_priority)
+                                + 0.2 * _priority_weight(tone_priority)
+                                + 0.1 * _priority_weight(size_priority)
+                            )
+                            item_copy = dict(item)
+                            item_copy["_priority_score"] = priority_score
+                            item_copy["_occ_priority"] = occ_priority
+                            item_copy["_shape_priority"] = shape_priority
+                            item_copy["_tone_priority"] = tone_priority
+                            item_copy["_size_priority"] = size_priority
+                            filtered.append(item_copy)
+                            match_summary["occasion"][occ_priority] = (
+                                match_summary["occasion"].get(occ_priority, 0) + 1
+                            )
+                            match_summary["body_shape"][shape_priority] = (
+                                match_summary["body_shape"].get(shape_priority, 0) + 1
+                            )
+                            match_summary["skin_tone"][tone_priority] = (
+                                match_summary["skin_tone"].get(tone_priority, 0) + 1
+                            )
+                            match_summary["size"][size_priority] = (
+                                match_summary["size"].get(size_priority, 0) + 1
+                            )
+                        if filtered:
+                            collection_records = filtered
+                            matched_items = filtered
+                        else:
+                            st.warning(
+                                "No items matched the attribute filter; using full collection."
+                            )
+                            match_summary = None
+
+                    df = pd.DataFrame(collection_records)
                     if fusion_desc_col not in df.columns:
                         raise ValueError(f"Missing description field: {fusion_desc_col}")
-                    if "id" not in df.columns:
-                        df = df.copy()
+                    df = df.copy()
+                    if fusion_id_field in df.columns:
+                        df["id"] = df[fusion_id_field].astype(str)
+                    elif "id" not in df.columns:
                         df["id"] = [f"item-{i+1:04d}" for i in range(len(df))]
-    
+                    if "_priority_score" in df.columns:
+                        df["priority_score"] = df["_priority_score"].astype(float)
+
                     user_df = pd.DataFrame(
                         {
                             "age": [age] * len(df),
@@ -995,16 +1213,47 @@ def render_streamlit_app():
                             f"{key}={sorted(set(vals))}" for key, vals in unknowns.items()
                         )
                         st.warning(f"Unknown categories not seen in training: {summary}")
-    
+
                     texts = df[fusion_desc_col].astype(str).tolist()
-                    text_embs = fusion_mlp.embed_texts(
-                        texts=texts,
-                        model_name=text_model_name,
-                        device=device,
-                        batch_size=16,
-                        max_length=text_max_length,
-                    )
-                    text_feats = np.stack([text_embs[text] for text in texts]).astype("float32")
+                    text_feats = None
+                    cache_error = None
+                    if use_precomputed_embeddings:
+                        if not precomputed_embeddings_path.exists():
+                            cache_error = f"Precomputed embeddings not found at {precomputed_embeddings_path}."
+                        else:
+                            try:
+                                cached = np.load(precomputed_embeddings_path, allow_pickle=True)
+                                cached_text = cached["text_embs"] if "text_embs" in cached.files else None
+                                cached_ids = cached["ids"] if "ids" in cached.files else None
+                                cached_texts = cached["texts"] if "texts" in cached.files else None
+                                if cached_text is None:
+                                    raise ValueError("Precomputed file missing text embeddings.")
+                                if cached_text.shape[0] != len(df):
+                                    raise ValueError("Precomputed embeddings row count mismatch.")
+                                if cached_ids is not None:
+                                    cached_ids_list = [str(val) for val in cached_ids.tolist()]
+                                    current_ids = df["id"].astype(str).tolist()
+                                    if cached_ids_list != current_ids:
+                                        raise ValueError("Precomputed embeddings do not match collection IDs.")
+                                elif cached_texts is not None:
+                                    cached_texts_list = [str(val) for val in cached_texts.tolist()]
+                                    if cached_texts_list != texts:
+                                        raise ValueError("Precomputed embeddings do not match collection text.")
+                                text_feats = cached_text.astype("float32")
+                            except Exception as exc:
+                                cache_error = str(exc)
+
+                    if text_feats is None:
+                        if cache_error:
+                            st.warning(f"Precomputed embeddings not used: {cache_error}")
+                        text_embs = fusion_mlp.embed_texts(
+                            texts=texts,
+                            model_name=text_model_name,
+                            device=device,
+                            batch_size=16,
+                            max_length=text_max_length,
+                        )
+                        text_feats = np.stack([text_embs[text] for text in texts]).astype("float32")
 
                     clip_model, _, preprocess = fusion_mlp.open_clip.create_model_and_transforms(
                         clip_model_name, pretrained=clip_pretrained
@@ -1046,350 +1295,129 @@ def render_streamlit_app():
                         scores = (
                             model(fusion_mlp.torch.from_numpy(features).to(device)).cpu().numpy()
                         )
-    
+
                     df = df.copy()
                     df["score"] = scores
-                    df = df.sort_values("score", ascending=False)
+                    sort_col = "score"
+                    if "priority_score" in df.columns and apply_priority_weight:
+                        df["final_score"] = df["score"] * df["priority_score"]
+                        sort_col = "final_score"
+                    df = df.sort_values(sort_col, ascending=False)
+                    df["rank"] = np.arange(1, len(df) + 1)
                     top_df = df.head(int(top_k)).copy()
-                    show_cols = ["id", "score", fusion_desc_col]
-                    show_cols = [c for c in show_cols if c in top_df.columns]
+                    if not top_df.empty:
+                        total = len(top_df)
+                        first_cut = math.ceil(total / 3)
+                        second_cut = math.ceil(2 * total / 3)
+                        labels = []
+                        for idx in range(total):
+                            if idx < first_cut:
+                                labels.append("perfect for you")
+                            elif idx < second_cut:
+                                labels.append("good for you")
+                            else:
+                                labels.append("you can also try")
+                        top_df["score_label"] = labels
+
+                    show_cols = [
+                        "rank",
+                        "id",
+                        "score_label",
+                        sort_col,
+                        "score",
+                        "priority_score",
+                        "final_score",
+                        fusion_desc_col,
+                    ]
+                    seen = set()
+                    show_cols = [c for c in show_cols if c in top_df.columns and not (c in seen or seen.add(c))]
                     st.dataframe(top_df[show_cols], use_container_width=True)
+
+                    if apply_priority_filter and matched_items:
+                        with st.expander("Attribute filter matches (P1/P2/P3)", expanded=False):
+                            summary_df = _build_match_priority_summary(match_summary or {})
+                            if not summary_df.empty:
+                                st.dataframe(summary_df, use_container_width=True)
+                            match_table = df.copy()
+                            rename_map = {
+                                "_occ_priority": "occasion_priority",
+                                "_shape_priority": "body_shape_priority",
+                                "_tone_priority": "skin_tone_priority",
+                                "_size_priority": "size_priority",
+                            }
+                            for raw_col, display_col in rename_map.items():
+                                if raw_col in match_table.columns:
+                                    match_table[display_col] = match_table[raw_col]
+                            match_cols = [
+                                "rank",
+                                "id",
+                                "cloth_type",
+                                "occasion",
+                                "body_shape",
+                                "skin_tone",
+                                "sizes",
+                                "occasion_priority",
+                                "body_shape_priority",
+                                "skin_tone_priority",
+                                "size_priority",
+                                "priority_score",
+                                "score",
+                                "final_score",
+                            ]
+                            match_cols = [c for c in match_cols if c in match_table.columns]
+                            if match_cols:
+                                st.dataframe(match_table[match_cols], use_container_width=True)
+
+                    image_field = None
+                    if fusion_image_field in top_df.columns:
+                        image_field = fusion_image_field
+                    else:
+                        for candidate in ("image", "image_path"):
+                            if candidate in top_df.columns:
+                                image_field = candidate
+                                break
+
+                    if image_field:
+                        if fusion_collection_path.exists():
+                            collection_base = fusion_collection_path.resolve().parent
+                        else:
+                            collection_base = BASE_DIR
+
+                        def _resolve_image_path(raw_path: str) -> str | None:
+                            cleaned = str(raw_path).strip()
+                            if not cleaned:
+                                return None
+                            if cleaned.startswith(("http://", "https://")):
+                                return cleaned
+                            img_path = Path(cleaned)
+                            if img_path.is_absolute():
+                                return str(img_path) if img_path.exists() else None
+                            for base in (collection_base, BASE_DIR, Path.cwd()):
+                                candidate = base / img_path
+                                if candidate.exists():
+                                    return str(candidate)
+                            return None
+
+                        st.write("Image previews")
+                        img_cols = st.columns(3)
+                        shown = 0
+                        for _, row in top_df.iterrows():
+                            img_path = _resolve_image_path(row.get(image_field, ""))
+                            if not img_path:
+                                continue
+                            caption = str(row.get("id", "")).strip()
+                            label = str(row.get("score_label", "")).strip()
+                            if label:
+                                caption = f"{caption} • {label}" if caption else label
+                            img_cols[shown % 3].image(img_path, caption=caption or None, width=220)
+                            shown += 1
+                        if shown == 0:
+                            st.info("No images found for the recommended items.")
+                    else:
+                        st.info("No image field found in the collection; set Image field (fusion).")
                 except Exception as exc:
                     st.error(str(exc))
-    
-    st.divider()
-    st.header("Recommend from image collection")
-    st.write(
-        "Score a collection JSON using the trained image MLP. "
-        "Collection entries must include an image path."
-    )
-    
-    image_model_path = Path(
-        st.text_input("Model path", "artifacts/image_mlp.pt", key="image_model_path")
-    )
-    image_collection_upload = st.file_uploader("Collection JSON file", type=["json"], key="image_collection_upload")
-    default_image_collection = "fashion_collection.json" if Path("fashion_collection.json").exists() else "data/collection.json"
-    image_collection_path = Path(
-        st.text_input("Collection JSON path", default_image_collection, key="image_collection_path")
-    )
-    
-    image_key = st.text_input("Image field key (collection)", "image_path", key="image_collection_image_key")
-    image_root = st.text_input("Image root folder (optional)", "", key="image_collection_image_root")
-    clip_model_name = st.text_input("CLIP model (must match training)", "ViT-B/32", key="image_collection_clip")
-    score_scale = st.number_input(
-        "Score scale (multiply)", min_value=0.1, max_value=100.0, value=1.0, step=0.1, key="image_collection_scale"
-    )
-    
-    def _load_image_collection():
-        if image_collection_upload is not None:
-            raw = image_collection_upload.getvalue()
-            data = json.loads(raw.decode("utf-8"))
-            return data
-        if image_collection_path.exists():
-            return json.loads(image_collection_path.read_text(encoding="utf-8"))
-        raise FileNotFoundError("Provide a collection JSON file or a valid path.")
-    
-    
-    image_collection_data = None
-    image_collection_error = None
-    try:
-        image_collection_data = _load_image_collection()
-        if not isinstance(image_collection_data, list):
-            raise ValueError("Collection JSON must be a list of objects.")
-        if not image_collection_data:
-            raise ValueError("Collection JSON is empty.")
-    except Exception as exc:
-        image_collection_error = str(exc)
-    
-    if image_collection_error:
-        st.info(image_collection_error)
-    
-    with st.form("image_recommend_form"):
-        top_k = st.number_input(
-            "Top K results", min_value=1, max_value=100, value=5, step=1, key="image_collection_top_k"
-        )
-        submitted = st.form_submit_button("Score image collection")
-    
-    if submitted:
-        if image_mlp_error:
-            st.error(f"Image MLP unavailable: {image_mlp_error}")
-        elif not image_model_path.exists():
-            st.error(f"Model not found at {image_model_path}. Train first or update the path.")
-        elif image_collection_error:
-            st.error(image_collection_error)
-        else:
-            try:
-                df = pd.DataFrame(image_collection_data)
-                if image_key not in df.columns:
-                    raise ValueError(f"Missing image field in collection: {image_key}")
-    
-                if "id" not in df.columns:
-                    df = df.copy()
-                    df["id"] = [f"item-{i+1:04d}" for i in range(len(df))]
-    
-                image_root = image_root.strip()
-                image_root_path = Path(image_root).expanduser() if image_root else None
-                base_dir = image_collection_path.parent if image_collection_path else None
-    
-                resolved_paths = []
-                missing = 0
-                remote = 0
-                for _, row in df.iterrows():
-                    image_ref = _resolve_image_ref(row.get(image_key), image_root_path, base_dir)
-                    if isinstance(image_ref, Path):
-                        if image_ref.exists():
-                            resolved_paths.append(str(image_ref))
-                        else:
-                            resolved_paths.append(None)
-                            missing += 1
-                    elif image_ref:
-                        resolved_paths.append(None)
-                        remote += 1
-                    else:
-                        resolved_paths.append(None)
-                        missing += 1
-    
-                df = df.copy()
-                df["_resolved_image_path"] = resolved_paths
-                valid_df = df[df["_resolved_image_path"].notna()].copy()
-                if valid_df.empty:
-                    raise ValueError("No valid local image paths found in collection.")
-    
-                if missing:
-                    st.warning(f"Missing local images: {missing}")
-                if remote:
-                    st.warning(f"Remote image URLs skipped (no download): {remote}")
-    
-                device = "cuda" if image_mlp.torch.cuda.is_available() else "cpu"
-                clip_model, preprocess = image_mlp.clip.load(clip_model_name, device=device)
-                clip_model.eval()
-    
-                paths = valid_df["_resolved_image_path"].tolist()
-                image_embs = image_mlp.embed_images(paths, clip_model, preprocess, device)
-                feats = np.stack([image_embs[p] for p in paths]).astype("float32")
-    
-                state = image_mlp.torch.load(image_model_path, map_location=device)
-                if "net.0.weight" not in state:
-                    raise ValueError("Unsupported model weights format.")
-                hidden = int(state["net.0.weight"].shape[0])
-                in_dim = int(state["net.0.weight"].shape[1])
-                model = image_mlp.ImageMLP(in_dim=in_dim, hidden=hidden, dropout=0.0)
-                model.load_state_dict(state)
-                model.to(device)
-                model.eval()
-    
-                with image_mlp.torch.no_grad():
-                    scores = model(image_mlp.torch.from_numpy(feats).to(device)).cpu().numpy()
-    
-                valid_df["score"] = scores * float(score_scale)
-                valid_df = valid_df.sort_values("score", ascending=False)
-                top_df = valid_df.head(int(top_k)).copy()
-                show_cols = ["id", "score", image_key]
-                show_cols = [c for c in show_cols if c in top_df.columns]
-                st.dataframe(top_df[show_cols], use_container_width=True)
-    
-                st.subheader("Top matches")
-                for _, row in top_df.iterrows():
-                    col_img, col_info = st.columns([1, 2])
-                    col_img.image(row["_resolved_image_path"], use_column_width=True)
-                    col_info.markdown(f"**{row.get('id', 'item')}**")
-                    col_info.write(f"Score: {float(row['score']):.4f}")
-            except Exception as exc:
-                st.error(str(exc))
-    
-    st.divider()
-    st.header("Recommend from collection JSON")
-    st.write(
-        "Select a user profile and occasion, then score outfits from the collection. "
-        "Results are ranked by the MLP score."
-    )
-    
-    rec_model_path = Path(
-        st.text_input(
-            "Model path for recommendations",
-            "artifacts/tabular_mlp.joblib",
-            key="rec_model_path",
-        )
-    )
-    collection_upload = st.file_uploader("Collection JSON file", type=["json"], key="rec_collection_upload")
-    default_collection = "fashion_collection.json" if Path("fashion_collection.json").exists() else "data/collection.json"
-    collection_path = Path(
-        st.text_input("Collection JSON path", default_collection, key="rec_collection_path")
-    )
-    
-    
-    def _load_collection():
-        if collection_upload is not None:
-            raw = collection_upload.getvalue()
-            data = json.loads(raw.decode("utf-8"))
-            return data
-        if collection_path.exists():
-            return json.loads(collection_path.read_text(encoding="utf-8"))
-        raise FileNotFoundError("Provide a collection JSON file or a valid path.")
-    
-    
-    collection_data = None
-    collection_error = None
-    try:
-        collection_data = _load_collection()
-        if not isinstance(collection_data, list):
-            raise ValueError("Collection JSON must be a list of objects.")
-        if not collection_data:
-            raise ValueError("Collection JSON is empty.")
-    except Exception as exc:
-        collection_error = str(exc)
-    
-    collection_df = pd.DataFrame(collection_data) if collection_data else None
-    
-    def _options_for(col: str):
-        if collection_df is None or col not in collection_df.columns:
-            return []
-        values = sorted({str(v) for v in collection_df[col].dropna().astype(str)})
-        return values
-    
-    def _resolve_image_ref(value, image_root: Path | None, base_dir: Path | None):
-        if value is None:
-            return None
-        if isinstance(value, float) and np.isnan(value):
-            return None
-        ref = str(value).strip()
-        if not ref:
-            return None
-        if ref.startswith("http://") or ref.startswith("https://"):
-            return ref
-        path = Path(ref).expanduser()
-        if not path.is_absolute():
-            if image_root is not None:
-                path = image_root / path
-            elif base_dir is not None:
-                path = base_dir / path
-        return path
-    
-    if collection_error:
-        st.info(collection_error)
-    
-    occasion_options = _options_for("occasion") or ["wedding"]
-    height_options = _options_for("height_bucket") or ["average"]
-    body_options = _options_for("body_shape") or ["hourglass"]
-    skin_options = _options_for("skin_tone") or ["medium"]
-    age_options = _options_for("age_bucket") or ["26-35"]
-    
-    image_col_options = ["(none)"]
-    image_col_default = "(none)"
-    if collection_df is not None:
-        image_col_options += list(collection_df.columns)
-        for candidate in (
-            "image_path",
-            "image",
-            "image_url",
-            "image_uri",
-            "img",
-            "img_path",
-            "path",
-        ):
-            if candidate in collection_df.columns:
-                image_col_default = candidate
-                break
-    
-    with st.form("recommend_form"):
-        st.subheader("User profile")
-        col_a, col_b, col_c = st.columns(3)
-        occasion = col_a.selectbox("Occasion", occasion_options, key="rec_occasion")
-        height_bucket = col_b.selectbox("height_bucket", height_options, key="rec_height_bucket")
-        body_shape = col_c.selectbox("body_shape", body_options, key="rec_body_shape")
-        col_d, col_e, col_f = st.columns(3)
-        skin_tone = col_d.selectbox("skin_tone", skin_options, key="rec_skin_tone")
-        age_bucket = col_e.selectbox("age_bucket", age_options, key="rec_age_bucket")
-        top_k = col_f.number_input(
-            "Top K results", min_value=1, max_value=100, value=5, step=1, key="rec_top_k"
-        )
-        st.subheader("Display")
-        col_g, col_h = st.columns(2)
-        image_col = col_g.selectbox(
-            "Image field (optional)",
-            image_col_options,
-            index=image_col_options.index(image_col_default),
-            key="rec_image_col",
-        )
-        image_root = col_h.text_input(
-            "Image root folder (optional)", "", key="rec_image_root_optional"
-        )
-        submitted = st.form_submit_button("Score collection")
-    
-    if submitted:
-        if not rec_model_path.exists():
-            st.error(f"Model not found at {rec_model_path}. Train first or update the path.")
-        elif collection_error:
-            st.error(collection_error)
-        else:
-            try:
-                df = pd.DataFrame(collection_data)
-                required = {tabular_mlp.TEXT_COL, "occasion"}
-                missing = required - set(df.columns)
-                if missing:
-                    raise ValueError(f"Missing required fields in collection: {sorted(missing)}")
-    
-                if "id" not in df.columns:
-                    df = df.copy()
-                    df["id"] = [f"item-{i+1:04d}" for i in range(len(df))]
-    
-                df = df[df["occasion"].astype(str) == str(occasion)]
-    
-                if df.empty:
-                    st.warning("No outfits match the selected occasion.")
-                else:
-                    model = joblib.load(rec_model_path)
-                    features = pd.DataFrame(
-                        {
-                            "height_bucket": [height_bucket] * len(df),
-                            "body_shape": [body_shape] * len(df),
-                            "skin_tone": [skin_tone] * len(df),
-                            "age_bucket": [age_bucket] * len(df),
-                            "occasion": [occasion] * len(df),
-                            "clothing_description": df[tabular_mlp.TEXT_COL].astype(str).tolist(),
-                        }
-                    )
-                    scores = model.predict(features)
-                    df = df.copy()
-                    df["score"] = scores
-                    df = df.sort_values("score", ascending=False)
-                    top_df = df.head(int(top_k)).copy()
-                    show_cols = ["id", "score", tabular_mlp.TEXT_COL]
-                    show_cols = [c for c in show_cols if c in top_df.columns]
-                    st.dataframe(top_df[show_cols], use_container_width=True)
-    
-                    if image_col != "(none)" and image_col in top_df.columns:
-                        st.subheader("Top matches")
-                        image_root = image_root.strip()
-                        image_root_path = Path(image_root).expanduser() if image_root else None
-                        base_dir = collection_path.parent if collection_path else None
-                        for _, row in top_df.iterrows():
-                            image_ref = _resolve_image_ref(
-                                row.get(image_col),
-                                image_root_path,
-                                base_dir,
-                            )
-                            col_img, col_info = st.columns([1, 2])
-                            if isinstance(image_ref, Path):
-                                if image_ref.exists():
-                                    col_img.image(str(image_ref), use_column_width=True)
-                                else:
-                                    col_img.warning(f"Image not found: {image_ref}")
-                            elif image_ref:
-                                col_img.image(image_ref, use_column_width=True)
-                            else:
-                                col_img.info("No image for this item.")
-    
-                            item_id = row.get("id", "item")
-                            score = row.get("score")
-                            desc = row.get(tabular_mlp.TEXT_COL, "")
-                            col_info.markdown(f"**{item_id}**")
-                            if score is not None:
-                                col_info.write(f"Score: {float(score):.4f}")
-                            if desc:
-                                col_info.write(str(desc))
-            except Exception as exc:
-                st.error(str(exc))
+
 
 if __name__ == "__main__":
     render_streamlit_app()

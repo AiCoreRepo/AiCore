@@ -45,23 +45,45 @@ TEXT_COL_FALLBACK = "clothing_description"
 IMAGE_COL = "image_path"
 LABEL_COL = "score"
 
-SIZE_ORDER = ["small", "medium", "large"]
-BODY_SHAPE_ORDER = ["rectangle", "pear", "apple", "hourglass"]
+SIZE_ORDER = ["xs", "small", "medium", "large", "xl", "xxl"]
+BODY_SHAPE_ORDER = ["rectangle", "pear", "apple", "hourglass", "inverted_triangle"]
 SKIN_TONE_ORDER = ["light", "medium", "dusky", "deep"]
-OCCASION_ORDER = ["party", "formal", "casual_luxury"]
+OCCASION_ORDER = ["formal", "casual_luxury", "party", "wedding", "resort"]
 
 CAT_COLS = ["size", "body_shape", "skin_tone", "occasion"]
 AGE_DIVISOR_DEFAULT = 60.0
+DEFAULT_AGE = 25.0
+MAX_COMBOS_PER_ITEM = 50
+
+PRIORITY_WEIGHTS = {1: 1.0, 2: 0.8, 3: 0.6}
 
 SIZE_ALIASES = {
-    "xs": "small",
+    "xs": "xs",
+    "x-small": "xs",
+    "extra small": "xs",
     "s": "small",
     "sm": "small",
+    "small": "small",
     "m": "medium",
     "md": "medium",
+    "medium": "medium",
     "l": "large",
     "lg": "large",
-    "xl": "large",
+    "large": "large",
+    "xl": "xl",
+    "extra large": "xl",
+    "xxl": "xxl",
+    "2xl": "xxl",
+}
+
+BODY_SHAPE_ALIASES = {
+    "pear shape": "pear",
+    "apple shape": "apple",
+    "inverted triangle": "inverted_triangle",
+}
+
+OCCASION_ALIASES = {
+    "casual luxury": "casual_luxury",
 }
 
 ProgressCallback = Callable[[str], None]
@@ -97,15 +119,176 @@ def parse_hidden(hidden: str) -> Tuple[int, ...]:
 
 def normalize_size(value: str) -> str:
     cleaned = value.strip().lower()
+    cleaned = cleaned.replace(" ", "")
     return SIZE_ALIASES.get(cleaned, cleaned)
 
 
 def normalize_category(value: str) -> str:
+    return value.strip().lower().replace(" ", "_")
+
+
+def normalize_body_shape(value: str) -> str:
+    cleaned = value.strip().lower().replace("_", " ").replace("-", " ")
+    if cleaned in BODY_SHAPE_ALIASES:
+        return BODY_SHAPE_ALIASES[cleaned]
+    return cleaned.replace(" ", "_")
+
+
+def normalize_occasion(value: str) -> str:
+    cleaned = value.strip().lower().replace("_", " ")
+    cleaned = OCCASION_ALIASES.get(cleaned, cleaned)
+    return cleaned.replace(" ", "_")
+
+
+def normalize_skin_tone(value: str) -> str:
     return value.strip().lower()
 
 
-def load_data(path: Path) -> pd.DataFrame:
-    df = pd.read_csv(path)
+def _priority_weight(priority: int) -> float:
+    if priority in PRIORITY_WEIGHTS:
+        return PRIORITY_WEIGHTS[priority]
+    return max(0.2, 1.0 - 0.2 * (priority - 1))
+
+
+def _coerce_list(value):
+    if value is None:
+        return []
+    if isinstance(value, list):
+        return value
+    return [value]
+
+
+def _normalize_priority_list(values, normalizer):
+    normalized = []
+    for idx, entry in enumerate(values):
+        if isinstance(entry, dict):
+            raw_value = entry.get("value", "")
+            priority = entry.get("priority", idx + 1)
+        else:
+            raw_value = entry
+            priority = idx + 1
+        try:
+            priority = int(priority)
+        except (TypeError, ValueError):
+            priority = idx + 1
+        value = normalizer(str(raw_value)) if raw_value is not None else ""
+        if value:
+            normalized.append({"value": value, "priority": priority})
+    return normalized
+
+
+def _age_from_range(value: str) -> Optional[float]:
+    cleaned = str(value).strip()
+    if not cleaned:
+        return None
+    if "+" in cleaned:
+        try:
+            base = float(cleaned.replace("+", "").strip())
+        except ValueError:
+            return None
+        return max(base, base + 4.0)
+    if "-" in cleaned:
+        parts = cleaned.replace("–", "-").split("-")
+        if len(parts) != 2:
+            return None
+        try:
+            low = float(parts[0].strip())
+            high = float(parts[1].strip())
+        except ValueError:
+            return None
+        return (low + high) / 2.0
+    try:
+        return float(cleaned)
+    except ValueError:
+        return None
+
+
+def _resolve_age(age_ranges) -> float:
+    for val in _coerce_list(age_ranges):
+        age = _age_from_range(val)
+        if age is not None:
+            return age
+    return DEFAULT_AGE
+
+
+def _load_json_records(path: Path):
+    data = json.loads(path.read_text(encoding="utf-8"))
+    if isinstance(data, dict):
+        if isinstance(data.get("data"), list):
+            data = data["data"]
+        elif isinstance(data.get("records"), list):
+            data = data["records"]
+    if not isinstance(data, list):
+        raise ValueError("JSON data must be a list of objects.")
+    return data
+
+
+def _expand_collection_records(records: List[Dict], base_dir: Path) -> pd.DataFrame:
+    from itertools import islice, product
+
+    rows: List[Dict[str, object]] = []
+    for item in records:
+        occasions = _normalize_priority_list(
+            _coerce_list(item.get("occasions") or item.get("occasion")),
+            normalize_occasion,
+        )
+        body_shapes = _normalize_priority_list(
+            _coerce_list(item.get("body_shapes") or item.get("body_shape")),
+            normalize_body_shape,
+        )
+        skin_tones = _normalize_priority_list(
+            _coerce_list(item.get("skin_tones") or item.get("skin_tone")),
+            normalize_skin_tone,
+        )
+        sizes = _normalize_priority_list(
+            _coerce_list(item.get("sizes") or item.get("size")),
+            normalize_size,
+        )
+        if not (occasions and body_shapes and skin_tones and sizes):
+            continue
+
+        image_path = item.get("image") or item.get("image_path") or ""
+        if not image_path:
+            continue
+        img_path = Path(str(image_path))
+        if not img_path.is_absolute():
+            candidate = base_dir / img_path
+            if candidate.exists():
+                image_path = str(candidate)
+
+        description = (
+            item.get("description")
+            or item.get("cloth_description")
+            or item.get("clothing_description")
+            or ""
+        )
+
+        age_value = _resolve_age(item.get("age_range"))
+
+        combos = islice(product(occasions, body_shapes, skin_tones, sizes), MAX_COMBOS_PER_ITEM)
+        for occ, shape, tone, size in combos:
+            score = (
+                0.4 * _priority_weight(occ["priority"])
+                + 0.3 * _priority_weight(shape["priority"])
+                + 0.2 * _priority_weight(tone["priority"])
+                + 0.1 * _priority_weight(size["priority"])
+            )
+            rows.append(
+                {
+                    AGE_COL: age_value,
+                    "size": size["value"],
+                    "body_shape": shape["value"],
+                    "skin_tone": tone["value"],
+                    "occasion": occ["value"],
+                    TEXT_COL: description,
+                    IMAGE_COL: image_path,
+                    LABEL_COL: score,
+                }
+            )
+    return pd.DataFrame(rows)
+
+
+def _normalize_training_df(df: pd.DataFrame) -> pd.DataFrame:
     if TEXT_COL not in df.columns and TEXT_COL_FALLBACK in df.columns:
         df = df.rename(columns={TEXT_COL_FALLBACK: TEXT_COL})
     required = set(CAT_COLS + [AGE_COL, TEXT_COL, IMAGE_COL, LABEL_COL])
@@ -124,15 +307,27 @@ def load_data(path: Path) -> pd.DataFrame:
     for col in CAT_COLS:
         df[col] = df[col].fillna("").astype(str)
     df["size"] = df["size"].map(normalize_size)
-    for col in ["body_shape", "skin_tone", "occasion"]:
-        df[col] = df[col].map(normalize_category)
+    df["body_shape"] = df["body_shape"].map(normalize_body_shape)
+    df["skin_tone"] = df["skin_tone"].map(normalize_skin_tone)
+    df["occasion"] = df["occasion"].map(normalize_occasion)
     df[TEXT_COL] = df[TEXT_COL].fillna("").astype(str)
     df[IMAGE_COL] = df[IMAGE_COL].fillna("").astype(str)
-    if (df[IMAGE_COL] == "").any():
-        raise ValueError("image_path column contains missing values.")
     if len(df) < 2:
         raise ValueError("Need at least 2 rows to train.")
     return df
+
+
+def load_data(path: Path) -> pd.DataFrame:
+    if path.suffix.lower() == ".json":
+        records = _load_json_records(path)
+        if records and isinstance(records[0], dict) and LABEL_COL in records[0]:
+            df = pd.DataFrame(records)
+        else:
+            df = _expand_collection_records(records, base_dir=path.parent)
+        return _normalize_training_df(df)
+
+    df = pd.read_csv(path)
+    return _normalize_training_df(df)
 
 
 def _encode_one_hot(
@@ -193,8 +388,9 @@ def build_tabular_from_spec(
     if df[AGE_COL].isna().any():
         raise ValueError("Age column contains non-numeric values.")
     df["size"] = df["size"].map(normalize_size)
-    for col in ["body_shape", "skin_tone", "occasion"]:
-        df[col] = df[col].map(normalize_category)
+    df["body_shape"] = df["body_shape"].map(normalize_body_shape)
+    df["skin_tone"] = df["skin_tone"].map(normalize_skin_tone)
+    df["occasion"] = df["occasion"].map(normalize_occasion)
 
     age = df[AGE_COL].astype(float).to_numpy()
     age_norm = np.clip(age / age_divisor, 0.0, 1.0).astype("float32")
@@ -232,8 +428,12 @@ def embed_texts(
 
 
 def embed_images(
-    paths: List[str], clip_model_name: str, clip_pretrained: str, device: str
-) -> Dict[str, np.ndarray]:
+    paths: List[str],
+    clip_model_name: str,
+    clip_pretrained: str,
+    device: str,
+    base_dir: Optional[Path] = None,
+) -> Tuple[Dict[str, np.ndarray], int, List[str]]:
     model, _, preprocess = open_clip.create_model_and_transforms(
         clip_model_name, pretrained=clip_pretrained
     )
@@ -243,15 +443,38 @@ def embed_images(
     from PIL import Image
 
     embeddings: Dict[str, np.ndarray] = {}
+    missing: List[str] = []
     unique_paths = sorted(set(paths))
-    for path in unique_paths:
+    for path_str in unique_paths:
+        if not path_str:
+            missing.append(path_str)
+            continue
+        path = Path(path_str)
+        if not path.is_absolute() and base_dir is not None:
+            candidate = base_dir / path
+            if candidate.exists():
+                path = candidate
+        if not path.exists():
+            missing.append(path_str)
+            continue
         image = Image.open(path).convert("RGB")
         tensor = preprocess(image).unsqueeze(0).to(device)
         with torch.no_grad():
             emb = model.encode_image(tensor)
             emb = emb / emb.norm(dim=-1, keepdim=True)
-        embeddings[path] = emb.cpu().numpy().astype("float32")[0]
-    return embeddings
+        embeddings[path_str] = emb.cpu().numpy().astype("float32")[0]
+
+    if embeddings:
+        image_dim = next(iter(embeddings.values())).shape[0]
+    else:
+        dummy = Image.new("RGB", (224, 224), color=(0, 0, 0))
+        tensor = preprocess(dummy).unsqueeze(0).to(device)
+        with torch.no_grad():
+            emb = model.encode_image(tensor)
+            emb = emb / emb.norm(dim=-1, keepdim=True)
+        image_dim = int(emb.shape[-1])
+
+    return embeddings, image_dim, missing
 
 
 class FusionMLP(torch.nn.Module):
@@ -366,14 +589,25 @@ def run_training(
     )
     if progress_callback:
         progress_callback("embedding_images")
-    image_embs = embed_images(
-        df[IMAGE_COL].tolist(), clip_model_name=clip_model, clip_pretrained=clip_pretrained, device=device
+    image_embs, image_dim, missing_images = embed_images(
+        df[IMAGE_COL].tolist(),
+        clip_model_name=clip_model,
+        clip_pretrained=clip_pretrained,
+        device=device,
+        base_dir=data_path.parent,
     )
+    if missing_images:
+        preview = ", ".join(missing_images[:5])
+        print(
+            f"Warning: {len(missing_images)} image paths not found. "
+            f"Using zero image embeddings. Examples: {preview}"
+        )
 
     text_feats = np.stack([text_embs[text] for text in df[TEXT_COL].tolist()]).astype("float32")
-    image_feats = np.stack([image_embs[path] for path in df[IMAGE_COL].tolist()]).astype(
-        "float32"
-    )
+    zero_image = np.zeros(image_dim, dtype="float32")
+    image_feats = np.stack(
+        [image_embs.get(path, zero_image) for path in df[IMAGE_COL].tolist()]
+    ).astype("float32")
     labels = df[LABEL_COL].astype("float32").to_numpy()
 
     features = np.concatenate([image_feats, text_feats, tabular], axis=1).astype("float32")

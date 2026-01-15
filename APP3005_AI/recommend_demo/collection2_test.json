@@ -1,0 +1,1962 @@
+[
+  {
+    "cloth_id": "C076",
+    "cloth_type": "lace_dress",
+    "occasion": [
+      "Party"
+    ],
+    "fit": [
+      "slim"
+    ],
+    "fabric": [
+      "lace"
+    ],
+    "color_family": [
+      "metallic"
+    ],
+    "style": [
+      "Elegant"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tone": [
+      "Light",
+      "Medium"
+    ],
+    "body_shape": [
+      "Hourglass",
+      "Rectangle"
+    ],
+    "age_range": [
+      "36-50"
+    ],
+    "description": "Delicate lace dress with slip lining and side slit for evening receptions. Crafted in lace with a slim profile and a metallic palette suited for Party moments across India. Fits Hourglass, Rectangle bodies, complements Light, Medium skin tones, and is available in sizes S, M, L. Age guidance: 36-50 years.",
+    "image": "testiing_image_collection/76.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe, no other person in the background, wearing: Delicate lace dress with slip lining and side slit for evening receptions. Crafted in lace with a slim profile and a metallic palette suited for Party moments across India. Fits Hourglass, Rectangle bodies, complements Light, Medium skin tones, and is available in sizes S, M, L. Age guidance: 36-50 years. Background: minimalist studio with warm lighting."
+  },
+  {
+    "cloth_id": "C077",
+    "cloth_type": "maxi_dress",
+    "occasion": [
+      "Resort"
+    ],
+    "fit": [
+      "flowing"
+    ],
+    "fabric": [
+      "chiffon"
+    ],
+    "color_family": [
+      "neutral"
+    ],
+    "style": [
+      "Minimal Luxury"
+    ],
+    "sizes": [
+      "XS",
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tone": [
+      "Light",
+      "Medium",
+      "Dusky"
+    ],
+    "body_shape": [
+      "Rectangle",
+      "Pear Shape",
+      "Hourglass"
+    ],
+    "age_range": [
+      "13-17"
+    ],
+    "description": "Breezy chiffon maxi dress with tiered hem, designed for coastal getaways and Indian summers. Crafted in chiffon with a flowing profile and a neutral palette suited for Resort moments across India. Fits Rectangle, Pear Shape, Hourglass bodies, complements Light, Medium, Dusky skin tones, and is available in sizes XS, S, M, L. Age guidance: 13-17 years.",
+    "image": "testiing_image_collection/77.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe, no other person in the background, wearing: Breezy chiffon maxi dress with tiered hem, designed for coastal getaways and Indian summers. Crafted in chiffon with a flowing profile and a neutral palette suited for Resort moments across India. Fits Rectangle, Pear Shape, Hourglass bodies, complements Light, Medium, Dusky skin tones, and is available in sizes XS, S, M, L. Age guidance: 13-17 years. Background: luxury hotel lobby with marble floor."
+  },
+  {
+    "cloth_id": "C078",
+    "cloth_type": "saree",
+    "occasion": [
+      "Wedding"
+    ],
+    "fit": [
+      "flowing"
+    ],
+    "fabric": [
+      "silk"
+    ],
+    "color_family": [
+      "pastel"
+    ],
+    "style": [
+      "Traditional Luxury"
+    ],
+    "sizes": [
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "skin_tone": [
+      "Medium",
+      "Dusky",
+      "Deep"
+    ],
+    "body_shape": [
+      "Pear Shape",
+      "Hourglass",
+      "Rectangle"
+    ],
+    "age_range": [
+      "26-35"
+    ],
+    "description": "Classic silk saree with hand-detailed borders and fluid pleats tailored for Indian wedding rituals. Crafted in silk with a flowing profile and a pastel palette suited for Wedding moments across India. Fits Pear Shape, Hourglass, Rectangle bodies, complements Medium, Dusky, Deep skin tones, and is available in sizes M, L, XL, XXL. Age guidance: 26-35 years.",
+    "image": "testiing_image_collection/78.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe, no other person in the background, wearing: Classic silk saree with hand-detailed borders and fluid pleats tailored for Indian wedding rituals. Crafted in silk with a flowing profile and a pastel palette suited for Wedding moments across India. Fits Pear Shape, Hourglass, Rectangle bodies, complements Medium, Dusky, Deep skin tones, and is available in sizes M, L, XL, XXL. Age guidance: 26-35 years. Background: old city street with pastel walls."
+  },
+  {
+    "cloth_id": "C079",
+    "cloth_type": "wrap_dress",
+    "occasion": [
+      "Casual luxury"
+    ],
+    "fit": [
+      "flowing"
+    ],
+    "fabric": [
+      "chiffon"
+    ],
+    "color_family": [
+      "neutral"
+    ],
+    "style": [
+      "Minimal Luxury"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tone": [
+      "Light",
+      "Medium"
+    ],
+    "body_shape": [
+      "Rectangle",
+      "Pear Shape"
+    ],
+    "age_range": [
+      "18-25"
+    ],
+    "description": "Chiffon wrap dress with adjustable tie, easy to style for brunches and day dates. Crafted in chiffon with a flowing profile and a neutral palette suited for Casual luxury moments across India. Fits Rectangle, Pear Shape bodies, complements Light, Medium skin tones, and is available in sizes S, M, L. Age guidance: 18-25 years.",
+    "image": "testiing_image_collection/79.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe, no other person in the background, wearing: Chiffon wrap dress with adjustable tie, easy to style for brunches and day dates. Crafted in chiffon with a flowing profile and a neutral palette suited for Casual luxury moments across India. Fits Rectangle, Pear Shape bodies, complements Light, Medium skin tones, and is available in sizes S, M, L. Age guidance: 18-25 years. Background: resort poolside deck with cabanas."
+  },
+  {
+    "cloth_id": "C080",
+    "cloth_type": "sharara_set",
+    "occasion": [
+      "Wedding"
+    ],
+    "fit": [
+      "relaxed"
+    ],
+    "fabric": [
+      "chiffon"
+    ],
+    "color_family": [
+      "neutral"
+    ],
+    "style": [
+      "Traditional Luxury"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "skin_tone": [
+      "Medium",
+      "Dusky"
+    ],
+    "body_shape": [
+      "Pear Shape",
+      "Apple Shape",
+      "Rectangle"
+    ],
+    "age_range": [
+      "51+"
+    ],
+    "description": "Relaxed chiffon sharara set with light zari work and breezy pants made for mehendi comfort. Crafted in chiffon with a relaxed profile and a neutral palette suited for Wedding moments across India. Fits Pear Shape, Apple Shape, Rectangle bodies, complements Medium, Dusky skin tones, and is available in sizes S, M, L, XL. Age guidance: 51+ years.",
+    "image": "testiing_image_collection/80.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe, no other person in the background, wearing: Relaxed chiffon sharara set with light zari work and breezy pants made for mehendi comfort. Crafted in chiffon with a relaxed profile and a neutral palette suited for Wedding moments across India. Fits Pear Shape, Apple Shape, Rectangle bodies, complements Medium, Dusky skin tones, and is available in sizes S, M, L, XL. Age guidance: 51+ years. Background: art gallery interior with soft spotlights."
+  },
+  {
+    "cloth_id": "C081",
+    "cloth_type": "cocktail_dress",
+    "occasion": [
+      "Party"
+    ],
+    "fit": [
+      "slim"
+    ],
+    "fabric": [
+      "satin"
+    ],
+    "color_family": [
+      "jewel"
+    ],
+    "style": [
+      "Elegant"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tone": [
+      "Light",
+      "Medium"
+    ],
+    "body_shape": [
+      "Hourglass",
+      "Rectangle"
+    ],
+    "age_range": [
+      "13-17"
+    ],
+    "description": "Satin cocktail dress with a sleek cut and side ruching for evening events. Crafted in satin with a slim profile and a jewel palette suited for Party moments across India. Fits Hourglass, Rectangle bodies, complements Light, Medium skin tones, and is available in sizes S, M, L. Age guidance: 13-17 years.",
+    "image": "testiing_image_collection/81.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe, no other person in the background, wearing: Satin cocktail dress with a sleek cut and side ruching for evening events. Crafted in satin with a slim profile and a jewel palette suited for Party moments across India. Fits Hourglass, Rectangle bodies, complements Light, Medium skin tones, and is available in sizes S, M, L. Age guidance: 13-17 years. Background: heritage haveli courtyard at dusk."
+  },
+  {
+    "cloth_id": "C082",
+    "cloth_type": "jumpsuit",
+    "occasion": [
+      "Casual luxury"
+    ],
+    "fit": [
+      "structured"
+    ],
+    "fabric": [
+      "linen"
+    ],
+    "color_family": [
+      "jewel"
+    ],
+    "style": [
+      "Minimal Luxury"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "skin_tone": [
+      "Light",
+      "Medium",
+      "Dusky"
+    ],
+    "body_shape": [
+      "Rectangle",
+      "Apple Shape"
+    ],
+    "age_range": [
+      "51+"
+    ],
+    "description": "Tailored linen jumpsuit with a cinched waist built for humid city days. Crafted in linen with a structured profile and a jewel palette suited for Casual luxury moments across India. Fits Rectangle, Apple Shape bodies, complements Light, Medium, Dusky skin tones, and is available in sizes S, M, L, XL. Age guidance: 51+ years.",
+    "image": "testiing_image_collection/82.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe, no other person in the background, wearing: Tailored linen jumpsuit with a cinched waist built for humid city days. Crafted in linen with a structured profile and a jewel palette suited for Casual luxury moments across India. Fits Rectangle, Apple Shape bodies, complements Light, Medium, Dusky skin tones, and is available in sizes S, M, L, XL. Age guidance: 51+ years. Background: modern Mumbai rooftop lounge at night."
+  },
+  {
+    "cloth_id": "C083",
+    "cloth_type": "kaftan",
+    "occasion": [
+      "Resort"
+    ],
+    "fit": [
+      "relaxed"
+    ],
+    "fabric": [
+      "silk"
+    ],
+    "color_family": [
+      "jewel"
+    ],
+    "style": [
+      "Minimal Luxury"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tone": [
+      "Light",
+      "Medium",
+      "Dusky"
+    ],
+    "body_shape": [
+      "Apple Shape",
+      "Rectangle",
+      "Pear Shape"
+    ],
+    "age_range": [
+      "18-25"
+    ],
+    "description": "Silk kaftan with side slits and tassel tie, made for spa days and poolside ease. Crafted in silk with a relaxed profile and a jewel palette suited for Resort moments across India. Fits Apple Shape, Rectangle, Pear Shape bodies, complements Light, Medium, Dusky skin tones, and is available in sizes S, M, L. Age guidance: 18-25 years.",
+    "image": "testiing_image_collection/83.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe, no other person in the background, wearing: Silk kaftan with side slits and tassel tie, made for spa days and poolside ease. Crafted in silk with a relaxed profile and a jewel palette suited for Resort moments across India. Fits Apple Shape, Rectangle, Pear Shape bodies, complements Light, Medium, Dusky skin tones, and is available in sizes S, M, L. Age guidance: 18-25 years. Background: sunlit Jaipur palace corridor."
+  },
+  {
+    "cloth_id": "C084",
+    "cloth_type": "kurta_set",
+    "occasion": [
+      "Formal"
+    ],
+    "fit": [
+      "relaxed"
+    ],
+    "fabric": [
+      "linen"
+    ],
+    "color_family": [
+      "pastel"
+    ],
+    "style": [
+      "Minimal Luxury"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "skin_tone": [
+      "Light",
+      "Medium",
+      "Dusky"
+    ],
+    "body_shape": [
+      "Apple Shape",
+      "Rectangle"
+    ],
+    "age_range": [
+      "18-25"
+    ],
+    "description": "Breathable linen kurta set with straight pants suited for office wear and day events in Indian weather. Crafted in linen with a relaxed profile and a pastel palette suited for Formal moments across India. Fits Apple Shape, Rectangle bodies, complements Light, Medium, Dusky skin tones, and is available in sizes S, M, L, XL. Age guidance: 18-25 years.",
+    "image": "testiing_image_collection/84.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe, no other person in the background, wearing: Breathable linen kurta set with straight pants suited for office wear and day events in Indian weather. Crafted in linen with a relaxed profile and a pastel palette suited for Formal moments across India. Fits Apple Shape, Rectangle bodies, complements Light, Medium, Dusky skin tones, and is available in sizes S, M, L, XL. Age guidance: 18-25 years. Background: Goan beach promenade at sunset."
+  },
+  {
+    "cloth_id": "C085",
+    "cloth_type": "gown",
+    "occasion": [
+      "Wedding"
+    ],
+    "fit": [
+      "structured"
+    ],
+    "fabric": [
+      "velvet"
+    ],
+    "color_family": [
+      "pastel"
+    ],
+    "style": [
+      "Couture"
+    ],
+    "sizes": [
+      "M",
+      "L",
+      "XL"
+    ],
+    "skin_tone": [
+      "Medium",
+      "Dusky",
+      "Deep"
+    ],
+    "body_shape": [
+      "Hourglass",
+      "Inverted Triangle"
+    ],
+    "age_range": [
+      "51+"
+    ],
+    "description": "Velvet evening gown with corseted bodice and sweeping skirt suited for receptions. Crafted in velvet with a structured profile and a pastel palette suited for Wedding moments across India. Fits Hourglass, Inverted Triangle bodies, complements Medium, Dusky, Deep skin tones, and is available in sizes M, L, XL. Age guidance: 51+ years.",
+    "image": "testiing_image_collection/85.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe, no other person in the background, wearing: Velvet evening gown with corseted bodice and sweeping skirt suited for receptions. Crafted in velvet with a structured profile and a pastel palette suited for Wedding moments across India. Fits Hourglass, Inverted Triangle bodies, complements Medium, Dusky, Deep skin tones, and is available in sizes M, L, XL. Age guidance: 51+ years. Background: lush monsoon garden with stone path."
+  },
+  {
+    "cloth_id": "C086",
+    "cloth_type": "kurta_set",
+    "occasion": [
+      "Formal"
+    ],
+    "fit": [
+      "relaxed"
+    ],
+    "fabric": [
+      "linen"
+    ],
+    "color_family": [
+      "metallic"
+    ],
+    "style": [
+      "Minimal Luxury"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "skin_tone": [
+      "Light",
+      "Medium",
+      "Dusky"
+    ],
+    "body_shape": [
+      "Apple Shape",
+      "Rectangle"
+    ],
+    "age_range": [
+      "36-50"
+    ],
+    "description": "Breathable linen kurta set with straight pants suited for office wear and day events in Indian weather. Crafted in linen with a relaxed profile and a metallic palette suited for Formal moments across India. Fits Apple Shape, Rectangle bodies, complements Light, Medium, Dusky skin tones, and is available in sizes S, M, L, XL. Age guidance: 36-50 years.",
+    "image": "testiing_image_collection/86.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe, no other person in the background, wearing: Breathable linen kurta set with straight pants suited for office wear and day events in Indian weather. Crafted in linen with a relaxed profile and a metallic palette suited for Formal moments across India. Fits Apple Shape, Rectangle bodies, complements Light, Medium, Dusky skin tones, and is available in sizes S, M, L, XL. Age guidance: 36-50 years. Background: minimalist studio with warm lighting."
+  },
+  {
+    "cloth_id": "C087",
+    "cloth_type": "lehenga_set",
+    "occasion": [
+      "Wedding"
+    ],
+    "fit": [
+      "structured"
+    ],
+    "fabric": [
+      "silk"
+    ],
+    "color_family": [
+      "black"
+    ],
+    "style": [
+      "Traditional Luxury"
+    ],
+    "sizes": [
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "skin_tone": [
+      "Medium",
+      "Dusky",
+      "Deep"
+    ],
+    "body_shape": [
+      "Hourglass",
+      "Pear Shape"
+    ],
+    "age_range": [
+      "18-25"
+    ],
+    "description": "Structured silk lehenga set with a supportive blouse and ample flare suited to sangeet and pheras. Crafted in silk with a structured profile and a black palette suited for Wedding moments across India. Fits Hourglass, Pear Shape bodies, complements Medium, Dusky, Deep skin tones, and is available in sizes M, L, XL, XXL. Age guidance: 18-25 years.",
+    "image": "testiing_image_collection/87.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe, no other person in the background, wearing: Structured silk lehenga set with a supportive blouse and ample flare suited to sangeet and pheras. Crafted in silk with a structured profile and a black palette suited for Wedding moments across India. Fits Hourglass, Pear Shape bodies, complements Medium, Dusky, Deep skin tones, and is available in sizes M, L, XL, XXL. Age guidance: 18-25 years. Background: luxury hotel lobby with marble floor."
+  },
+  {
+    "cloth_id": "C088",
+    "cloth_type": "lehenga_set",
+    "occasion": [
+      "Wedding"
+    ],
+    "fit": [
+      "structured"
+    ],
+    "fabric": [
+      "silk"
+    ],
+    "color_family": [
+      "neutral"
+    ],
+    "style": [
+      "Traditional Luxury"
+    ],
+    "sizes": [
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "skin_tone": [
+      "Medium",
+      "Dusky",
+      "Deep"
+    ],
+    "body_shape": [
+      "Hourglass",
+      "Pear Shape"
+    ],
+    "age_range": [
+      "26-35"
+    ],
+    "description": "Structured silk lehenga set with a supportive blouse and ample flare suited to sangeet and pheras. Crafted in silk with a structured profile and a neutral palette suited for Wedding moments across India. Fits Hourglass, Pear Shape bodies, complements Medium, Dusky, Deep skin tones, and is available in sizes M, L, XL, XXL. Age guidance: 26-35 years.",
+    "image": "testiing_image_collection/88.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe, no other person in the background, wearing: Structured silk lehenga set with a supportive blouse and ample flare suited to sangeet and pheras. Crafted in silk with a structured profile and a neutral palette suited for Wedding moments across India. Fits Hourglass, Pear Shape bodies, complements Medium, Dusky, Deep skin tones, and is available in sizes M, L, XL, XXL. Age guidance: 26-35 years. Background: old city street with pastel walls."
+  },
+  {
+    "cloth_id": "C089",
+    "cloth_type": "kaftan",
+    "occasion": [
+      "Resort"
+    ],
+    "fit": [
+      "relaxed"
+    ],
+    "fabric": [
+      "silk"
+    ],
+    "color_family": [
+      "pastel"
+    ],
+    "style": [
+      "Minimal Luxury"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tone": [
+      "Light",
+      "Medium",
+      "Dusky"
+    ],
+    "body_shape": [
+      "Apple Shape",
+      "Rectangle",
+      "Pear Shape"
+    ],
+    "age_range": [
+      "13-17"
+    ],
+    "description": "Silk kaftan with side slits and tassel tie, made for spa days and poolside ease. Crafted in silk with a relaxed profile and a pastel palette suited for Resort moments across India. Fits Apple Shape, Rectangle, Pear Shape bodies, complements Light, Medium, Dusky skin tones, and is available in sizes S, M, L. Age guidance: 13-17 years.",
+    "image": "testiing_image_collection/89.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe, no other person in the background, wearing: Silk kaftan with side slits and tassel tie, made for spa days and poolside ease. Crafted in silk with a relaxed profile and a pastel palette suited for Resort moments across India. Fits Apple Shape, Rectangle, Pear Shape bodies, complements Light, Medium, Dusky skin tones, and is available in sizes S, M, L. Age guidance: 13-17 years. Background: resort poolside deck with cabanas."
+  },
+  {
+    "cloth_id": "C090",
+    "cloth_type": "tunic_set",
+    "occasion": [
+      "Casual luxury"
+    ],
+    "fit": [
+      "relaxed"
+    ],
+    "fabric": [
+      "linen"
+    ],
+    "color_family": [
+      "pastel"
+    ],
+    "style": [
+      "Elegant"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "skin_tone": [
+      "Light",
+      "Medium"
+    ],
+    "body_shape": [
+      "Apple Shape",
+      "Rectangle"
+    ],
+    "age_range": [
+      "36-50"
+    ],
+    "description": "Linen tunic set with high-low hem and slim pants for easy daytime polish. Crafted in linen with a relaxed profile and a pastel palette suited for Casual luxury moments across India. Fits Apple Shape, Rectangle bodies, complements Light, Medium skin tones, and is available in sizes S, M, L, XL. Age guidance: 36-50 years.",
+    "image": "testiing_image_collection/90.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe, no other person in the background, wearing: Linen tunic set with high-low hem and slim pants for easy daytime polish. Crafted in linen with a relaxed profile and a pastel palette suited for Casual luxury moments across India. Fits Apple Shape, Rectangle bodies, complements Light, Medium skin tones, and is available in sizes S, M, L, XL. Age guidance: 36-50 years. Background: art gallery interior with soft spotlights."
+  },
+  {
+    "cloth_id": "C091",
+    "cloth_type": "sharara_set",
+    "occasion": [
+      "Wedding"
+    ],
+    "fit": [
+      "relaxed"
+    ],
+    "fabric": [
+      "chiffon"
+    ],
+    "color_family": [
+      "metallic"
+    ],
+    "style": [
+      "Traditional Luxury"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "skin_tone": [
+      "Medium",
+      "Dusky"
+    ],
+    "body_shape": [
+      "Pear Shape",
+      "Apple Shape",
+      "Rectangle"
+    ],
+    "age_range": [
+      "26-35"
+    ],
+    "description": "Relaxed chiffon sharara set with light zari work and breezy pants made for mehendi comfort. Crafted in chiffon with a relaxed profile and a metallic palette suited for Wedding moments across India. Fits Pear Shape, Apple Shape, Rectangle bodies, complements Medium, Dusky skin tones, and is available in sizes S, M, L, XL. Age guidance: 26-35 years.",
+    "image": "testiing_image_collection/91.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe, no other person in the background, wearing: Relaxed chiffon sharara set with light zari work and breezy pants made for mehendi comfort. Crafted in chiffon with a relaxed profile and a metallic palette suited for Wedding moments across India. Fits Pear Shape, Apple Shape, Rectangle bodies, complements Medium, Dusky skin tones, and is available in sizes S, M, L, XL. Age guidance: 26-35 years. Background: heritage haveli courtyard at dusk."
+  },
+  {
+    "cloth_id": "C092",
+    "cloth_type": "peplum_set",
+    "occasion": [
+      "Party"
+    ],
+    "fit": [
+      "structured"
+    ],
+    "fabric": [
+      "satin"
+    ],
+    "color_family": [
+      "metallic"
+    ],
+    "style": [
+      "Elegant"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tone": [
+      "Light",
+      "Medium"
+    ],
+    "body_shape": [
+      "Pear Shape",
+      "Hourglass"
+    ],
+    "age_range": [
+      "51+"
+    ],
+    "description": "Satin peplum set with fitted trousers, flattering the waist for festive dinners. Crafted in satin with a structured profile and a metallic palette suited for Party moments across India. Fits Pear Shape, Hourglass bodies, complements Light, Medium skin tones, and is available in sizes S, M, L. Age guidance: 51+ years.",
+    "image": "testiing_image_collection/92.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe, no other person in the background, wearing: Satin peplum set with fitted trousers, flattering the waist for festive dinners. Crafted in satin with a structured profile and a metallic palette suited for Party moments across India. Fits Pear Shape, Hourglass bodies, complements Light, Medium skin tones, and is available in sizes S, M, L. Age guidance: 51+ years. Background: modern Mumbai rooftop lounge at night."
+  },
+  {
+    "cloth_id": "C093",
+    "cloth_type": "blazer_dress",
+    "occasion": [
+      "Formal"
+    ],
+    "fit": [
+      "structured"
+    ],
+    "fabric": [
+      "satin"
+    ],
+    "color_family": [
+      "jewel"
+    ],
+    "style": [
+      "Minimal Luxury"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tone": [
+      "Light",
+      "Medium"
+    ],
+    "body_shape": [
+      "Rectangle",
+      "Inverted Triangle"
+    ],
+    "age_range": [
+      "18-25"
+    ],
+    "description": "Satin blazer dress with sharp lapels and waist definition for boardroom-to-dinner dressing. Crafted in satin with a structured profile and a jewel palette suited for Formal moments across India. Fits Rectangle, Inverted Triangle bodies, complements Light, Medium skin tones, and is available in sizes S, M, L. Age guidance: 18-25 years.",
+    "image": "testiing_image_collection/93.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe, no other person in the background, wearing: Satin blazer dress with sharp lapels and waist definition for boardroom-to-dinner dressing. Crafted in satin with a structured profile and a jewel palette suited for Formal moments across India. Fits Rectangle, Inverted Triangle bodies, complements Light, Medium skin tones, and is available in sizes S, M, L. Age guidance: 18-25 years. Background: sunlit Jaipur palace corridor."
+  },
+  {
+    "cloth_id": "C094",
+    "cloth_type": "cape_saree",
+    "occasion": [
+      "Party"
+    ],
+    "fit": [
+      "structured"
+    ],
+    "fabric": [
+      "silk"
+    ],
+    "color_family": [
+      "black"
+    ],
+    "style": [
+      "Couture"
+    ],
+    "sizes": [
+      "M",
+      "L",
+      "XL"
+    ],
+    "skin_tone": [
+      "Medium",
+      "Dusky"
+    ],
+    "body_shape": [
+      "Inverted Triangle",
+      "Rectangle"
+    ],
+    "age_range": [
+      "36-50"
+    ],
+    "description": "Pre-stitched silk cape saree that adds drama without heavy draping. Crafted in silk with a structured profile and a black palette suited for Party moments across India. Fits Inverted Triangle, Rectangle bodies, complements Medium, Dusky skin tones, and is available in sizes M, L, XL. Age guidance: 36-50 years.",
+    "image": "testiing_image_collection/94.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe, no other person in the background, wearing: Pre-stitched silk cape saree that adds drama without heavy draping. Crafted in silk with a structured profile and a black palette suited for Party moments across India. Fits Inverted Triangle, Rectangle bodies, complements Medium, Dusky skin tones, and is available in sizes M, L, XL. Age guidance: 36-50 years. Background: Goan beach promenade at sunset."
+  },
+  {
+    "cloth_id": "C095",
+    "cloth_type": "kurta_set",
+    "occasion": [
+      "Formal"
+    ],
+    "fit": [
+      "relaxed"
+    ],
+    "fabric": [
+      "linen"
+    ],
+    "color_family": [
+      "black"
+    ],
+    "style": [
+      "Minimal Luxury"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "skin_tone": [
+      "Light",
+      "Medium",
+      "Dusky"
+    ],
+    "body_shape": [
+      "Apple Shape",
+      "Rectangle"
+    ],
+    "age_range": [
+      "51+"
+    ],
+    "description": "Breathable linen kurta set with straight pants suited for office wear and day events in Indian weather. Crafted in linen with a relaxed profile and a black palette suited for Formal moments across India. Fits Apple Shape, Rectangle bodies, complements Light, Medium, Dusky skin tones, and is available in sizes S, M, L, XL. Age guidance: 51+ years.",
+    "image": "testiing_image_collection/95.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe, no other person in the background, wearing: Breathable linen kurta set with straight pants suited for office wear and day events in Indian weather. Crafted in linen with a relaxed profile and a black palette suited for Formal moments across India. Fits Apple Shape, Rectangle bodies, complements Light, Medium, Dusky skin tones, and is available in sizes S, M, L, XL. Age guidance: 51+ years. Background: lush monsoon garden with stone path."
+  },
+  {
+    "cloth_id": "C096",
+    "cloth_type": "saree",
+    "occasion": [
+      "Wedding"
+    ],
+    "fit": [
+      "flowing"
+    ],
+    "fabric": [
+      "silk"
+    ],
+    "color_family": [
+      "black"
+    ],
+    "style": [
+      "Traditional Luxury"
+    ],
+    "sizes": [
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "skin_tone": [
+      "Medium",
+      "Dusky",
+      "Deep"
+    ],
+    "body_shape": [
+      "Pear Shape",
+      "Hourglass",
+      "Rectangle"
+    ],
+    "age_range": [
+      "13-17"
+    ],
+    "description": "Classic silk saree with hand-detailed borders and fluid pleats tailored for Indian wedding rituals. Crafted in silk with a flowing profile and a black palette suited for Wedding moments across India. Fits Pear Shape, Hourglass, Rectangle bodies, complements Medium, Dusky, Deep skin tones, and is available in sizes M, L, XL, XXL. Age guidance: 13-17 years.",
+    "image": "testiing_image_collection/96.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe, no other person in the background, wearing: Classic silk saree with hand-detailed borders and fluid pleats tailored for Indian wedding rituals. Crafted in silk with a flowing profile and a black palette suited for Wedding moments across India. Fits Pear Shape, Hourglass, Rectangle bodies, complements Medium, Dusky, Deep skin tones, and is available in sizes M, L, XL, XXL. Age guidance: 13-17 years. Background: minimalist studio with warm lighting."
+  },
+  {
+    "cloth_id": "C097",
+    "cloth_type": "lace_dress",
+    "occasion": [
+      "Party"
+    ],
+    "fit": [
+      "slim"
+    ],
+    "fabric": [
+      "lace"
+    ],
+    "color_family": [
+      "black"
+    ],
+    "style": [
+      "Elegant"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tone": [
+      "Light",
+      "Medium"
+    ],
+    "body_shape": [
+      "Hourglass",
+      "Rectangle"
+    ],
+    "age_range": [
+      "51+"
+    ],
+    "description": "Delicate lace dress with slip lining and side slit for evening receptions. Crafted in lace with a slim profile and a black palette suited for Party moments across India. Fits Hourglass, Rectangle bodies, complements Light, Medium skin tones, and is available in sizes S, M, L. Age guidance: 51+ years.",
+    "image": "testiing_image_collection/img072.jpg",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe, no other person in the background, wearing: Delicate lace dress with slip lining and side slit for evening receptions. Crafted in lace with a slim profile and a black palette suited for Party moments across India. Fits Hourglass, Rectangle bodies, complements Light, Medium skin tones, and is available in sizes S, M, L. Age guidance: 51+ years. Background: luxury hotel lobby with marble floor."
+  },
+  {
+    "cloth_id": "C098",
+    "cloth_type": "jumpsuit",
+    "occasion": [
+      "Casual luxury"
+    ],
+    "fit": [
+      "structured"
+    ],
+    "fabric": [
+      "linen"
+    ],
+    "color_family": [
+      "pastel"
+    ],
+    "style": [
+      "Minimal Luxury"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "skin_tone": [
+      "Light",
+      "Medium",
+      "Dusky"
+    ],
+    "body_shape": [
+      "Rectangle",
+      "Apple Shape"
+    ],
+    "age_range": [
+      "36-50"
+    ],
+    "description": "Tailored linen jumpsuit with a cinched waist built for humid city days. Crafted in linen with a structured profile and a pastel palette suited for Casual luxury moments across India. Fits Rectangle, Apple Shape bodies, complements Light, Medium, Dusky skin tones, and is available in sizes S, M, L, XL. Age guidance: 36-50 years.",
+    "image": "testiing_image_collection/98.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe, no other person in the background, wearing: Tailored linen jumpsuit with a cinched waist built for humid city days. Crafted in linen with a structured profile and a pastel palette suited for Casual luxury moments across India. Fits Rectangle, Apple Shape bodies, complements Light, Medium, Dusky skin tones, and is available in sizes S, M, L, XL. Age guidance: 36-50 years. Background: old city street with pastel walls."
+  },
+  {
+    "cloth_id": "C099",
+    "cloth_type": "cape_saree",
+    "occasion": [
+      "Party"
+    ],
+    "fit": [
+      "structured"
+    ],
+    "fabric": [
+      "silk"
+    ],
+    "color_family": [
+      "jewel"
+    ],
+    "style": [
+      "Couture"
+    ],
+    "sizes": [
+      "M",
+      "L",
+      "XL"
+    ],
+    "skin_tone": [
+      "Medium",
+      "Dusky"
+    ],
+    "body_shape": [
+      "Inverted Triangle",
+      "Rectangle"
+    ],
+    "age_range": [
+      "18-25"
+    ],
+    "description": "Pre-stitched silk cape saree that adds drama without heavy draping. Crafted in silk with a structured profile and a jewel palette suited for Party moments across India. Fits Inverted Triangle, Rectangle bodies, complements Medium, Dusky skin tones, and is available in sizes M, L, XL. Age guidance: 18-25 years.",
+    "image": "testiing_image_collection/99.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe, no other person in the background, wearing: Pre-stitched silk cape saree that adds drama without heavy draping. Crafted in silk with a structured profile and a jewel palette suited for Party moments across India. Fits Inverted Triangle, Rectangle bodies, complements Medium, Dusky skin tones, and is available in sizes M, L, XL. Age guidance: 18-25 years. Background: resort poolside deck with cabanas."
+  },
+  {
+    "cloth_id": "C100",
+    "cloth_type": "wrap_dress",
+    "occasion": [
+      "Casual luxury"
+    ],
+    "fit": [
+      "flowing"
+    ],
+    "fabric": [
+      "chiffon"
+    ],
+    "color_family": [
+      "jewel"
+    ],
+    "style": [
+      "Minimal Luxury"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tone": [
+      "Light",
+      "Medium"
+    ],
+    "body_shape": [
+      "Rectangle",
+      "Pear Shape"
+    ],
+    "age_range": [
+      "36-50"
+    ],
+    "description": "Chiffon wrap dress with adjustable tie, easy to style for brunches and day dates. Crafted in chiffon with a flowing profile and a jewel palette suited for Casual luxury moments across India. Fits Rectangle, Pear Shape bodies, complements Light, Medium skin tones, and is available in sizes S, M, L. Age guidance: 36-50 years.",
+    "image": "testiing_image_collection/100.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe, no other person in the background, wearing: Chiffon wrap dress with adjustable tie, easy to style for brunches and day dates. Crafted in chiffon with a flowing profile and a jewel palette suited for Casual luxury moments across India. Fits Rectangle, Pear Shape bodies, complements Light, Medium skin tones, and is available in sizes S, M, L. Age guidance: 36-50 years. Background: art gallery interior with soft spotlights."
+  },
+  {
+    "cloth_id": "C101",
+    "cloth_type": "kurta_jacket_set",
+    "occasion": [
+      "Formal"
+    ],
+    "fit": [
+      "structured"
+    ],
+    "fabric": [
+      "velvet"
+    ],
+    "color_family": [
+      "metallic"
+    ],
+    "style": [
+      "Traditional Luxury"
+    ],
+    "sizes": [
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "skin_tone": [
+      "Medium",
+      "Dusky",
+      "Deep"
+    ],
+    "body_shape": [
+      "Rectangle",
+      "Inverted Triangle"
+    ],
+    "age_range": [
+      "18-25"
+    ],
+    "description": "Velvet kurta with a longline jacket for winter formals and cultural events. Crafted in velvet with a structured profile and a metallic palette suited for Formal moments across India. Fits Rectangle, Inverted Triangle bodies, complements Medium, Dusky, Deep skin tones, and is available in sizes M, L, XL, XXL. Age guidance: 18-25 years.",
+    "image": "testiing_image_collection/img076.jpg",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe, no other person in the background, wearing: Velvet kurta with a longline jacket for winter formals and cultural events. Crafted in velvet with a structured profile and a metallic palette suited for Formal moments across India. Fits Rectangle, Inverted Triangle bodies, complements Medium, Dusky, Deep skin tones, and is available in sizes M, L, XL, XXL. Age guidance: 18-25 years. Background: heritage haveli courtyard at dusk."
+  },
+  {
+    "cloth_id": "C102",
+    "cloth_type": "palazzo_set",
+    "occasion": [
+      "Formal"
+    ],
+    "fit": [
+      "flowing"
+    ],
+    "fabric": [
+      "silk"
+    ],
+    "color_family": [
+      "black"
+    ],
+    "style": [
+      "Elegant"
+    ],
+    "sizes": [
+      "M",
+      "L",
+      "XL"
+    ],
+    "skin_tone": [
+      "Light",
+      "Medium"
+    ],
+    "body_shape": [
+      "Pear Shape",
+      "Hourglass"
+    ],
+    "age_range": [
+      "13-17"
+    ],
+    "description": "Silk palazzo set with a gently flared kurti and airy pants, ideal for Indian formal dinners. Crafted in silk with a flowing profile and a black palette suited for Formal moments across India. Fits Pear Shape, Hourglass bodies, complements Light, Medium skin tones, and is available in sizes M, L, XL. Age guidance: 13-17 years.",
+    "image": "testiing_image_collection/img077.jpg",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe, no other person in the background, wearing: Silk palazzo set with a gently flared kurti and airy pants, ideal for Indian formal dinners. Crafted in silk with a flowing profile and a black palette suited for Formal moments across India. Fits Pear Shape, Hourglass bodies, complements Light, Medium skin tones, and is available in sizes M, L, XL. Age guidance: 13-17 years. Background: modern Mumbai rooftop lounge at night."
+  },
+  {
+    "cloth_id": "C103",
+    "cloth_type": "co_ord_set",
+    "occasion": [
+      "Casual luxury"
+    ],
+    "fit": [
+      "structured"
+    ],
+    "fabric": [
+      "linen"
+    ],
+    "color_family": [
+      "neutral"
+    ],
+    "style": [
+      "Minimal Luxury"
+    ],
+    "sizes": [
+      "XS",
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tone": [
+      "Light",
+      "Medium",
+      "Dusky"
+    ],
+    "body_shape": [
+      "Rectangle",
+      "Pear Shape"
+    ],
+    "age_range": [
+      "13-17"
+    ],
+    "description": "Linen co-ord set with a cropped top and tailored trousers for weekend outings. Crafted in linen with a structured profile and a neutral palette suited for Casual luxury moments across India. Fits Rectangle, Pear Shape bodies, complements Light, Medium, Dusky skin tones, and is available in sizes XS, S, M, L. Age guidance: 13-17 years.",
+    "image": "testiing_image_collection/img078.jpg",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe, no other person in the background, wearing: Linen co-ord set with a cropped top and tailored trousers for weekend outings. Crafted in linen with a structured profile and a neutral palette suited for Casual luxury moments across India. Fits Rectangle, Pear Shape bodies, complements Light, Medium, Dusky skin tones, and is available in sizes XS, S, M, L. Age guidance: 13-17 years. Background: sunlit Jaipur palace corridor."
+  },
+  {
+    "cloth_id": "C104",
+    "cloth_type": "tunic_set",
+    "occasion": [
+      "Casual luxury"
+    ],
+    "fit": [
+      "relaxed"
+    ],
+    "fabric": [
+      "linen"
+    ],
+    "color_family": [
+      "metallic"
+    ],
+    "style": [
+      "Elegant"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "skin_tone": [
+      "Light",
+      "Medium"
+    ],
+    "body_shape": [
+      "Apple Shape",
+      "Rectangle"
+    ],
+    "age_range": [
+      "13-17"
+    ],
+    "description": "Linen tunic set with high-low hem and slim pants for easy daytime polish. Crafted in linen with a relaxed profile and a metallic palette suited for Casual luxury moments across India. Fits Apple Shape, Rectangle bodies, complements Light, Medium skin tones, and is available in sizes S, M, L, XL. Age guidance: 13-17 years.",
+    "image": "testiing_image_collection/img079.jpg",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe, no other person in the background, wearing: Linen tunic set with high-low hem and slim pants for easy daytime polish. Crafted in linen with a relaxed profile and a metallic palette suited for Casual luxury moments across India. Fits Apple Shape, Rectangle bodies, complements Light, Medium skin tones, and is available in sizes S, M, L, XL. Age guidance: 13-17 years. Background: Goan beach promenade at sunset."
+  },
+  {
+    "cloth_id": "C105",
+    "cloth_type": "peplum_set",
+    "occasion": [
+      "Party"
+    ],
+    "fit": [
+      "structured"
+    ],
+    "fabric": [
+      "satin"
+    ],
+    "color_family": [
+      "pastel"
+    ],
+    "style": [
+      "Elegant"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tone": [
+      "Light",
+      "Medium"
+    ],
+    "body_shape": [
+      "Pear Shape",
+      "Hourglass"
+    ],
+    "age_range": [
+      "26-35"
+    ],
+    "description": "Satin peplum set with fitted trousers, flattering the waist for festive dinners. Crafted in satin with a structured profile and a pastel palette suited for Party moments across India. Fits Pear Shape, Hourglass bodies, complements Light, Medium skin tones, and is available in sizes S, M, L. Age guidance: 26-35 years.",
+    "image": "testiing_image_collection/img080.jpg",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe, no other person in the background, wearing: Satin peplum set with fitted trousers, flattering the waist for festive dinners. Crafted in satin with a structured profile and a pastel palette suited for Party moments across India. Fits Pear Shape, Hourglass bodies, complements Light, Medium skin tones, and is available in sizes S, M, L. Age guidance: 26-35 years. Background: lush monsoon garden with stone path."
+  },
+  {
+    "cloth_id": "C106",
+    "cloth_type": "gown",
+    "occasion": [
+      "Wedding"
+    ],
+    "fit": [
+      "structured"
+    ],
+    "fabric": [
+      "velvet"
+    ],
+    "color_family": [
+      "metallic"
+    ],
+    "style": [
+      "Couture"
+    ],
+    "sizes": [
+      "M",
+      "L",
+      "XL"
+    ],
+    "skin_tone": [
+      "Medium",
+      "Dusky",
+      "Deep"
+    ],
+    "body_shape": [
+      "Hourglass",
+      "Inverted Triangle"
+    ],
+    "age_range": [
+      "18-25"
+    ],
+    "description": "Velvet evening gown with corseted bodice and sweeping skirt suited for receptions. Crafted in velvet with a structured profile and a metallic palette suited for Wedding moments across India. Fits Hourglass, Inverted Triangle bodies, complements Medium, Dusky, Deep skin tones, and is available in sizes M, L, XL. Age guidance: 18-25 years.",
+    "image": "testiing_image_collection/img081.jpg",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe, no other person in the background, wearing: Velvet evening gown with corseted bodice and sweeping skirt suited for receptions. Crafted in velvet with a structured profile and a metallic palette suited for Wedding moments across India. Fits Hourglass, Inverted Triangle bodies, complements Medium, Dusky, Deep skin tones, and is available in sizes M, L, XL. Age guidance: 18-25 years. Background: minimalist studio with warm lighting."
+  },
+  {
+    "cloth_id": "C107",
+    "cloth_type": "palazzo_set",
+    "occasion": [
+      "Formal"
+    ],
+    "fit": [
+      "flowing"
+    ],
+    "fabric": [
+      "silk"
+    ],
+    "color_family": [
+      "metallic"
+    ],
+    "style": [
+      "Elegant"
+    ],
+    "sizes": [
+      "M",
+      "L",
+      "XL"
+    ],
+    "skin_tone": [
+      "Light",
+      "Medium"
+    ],
+    "body_shape": [
+      "Pear Shape",
+      "Hourglass"
+    ],
+    "age_range": [
+      "51+"
+    ],
+    "description": "Silk palazzo set with a gently flared kurti and airy pants, ideal for Indian formal dinners. Crafted in silk with a flowing profile and a metallic palette suited for Formal moments across India. Fits Pear Shape, Hourglass bodies, complements Light, Medium skin tones, and is available in sizes M, L, XL. Age guidance: 51+ years.",
+    "image": "testiing_image_collection/img082.jpg",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe, no other person in the background, wearing: Silk palazzo set with a gently flared kurti and airy pants, ideal for Indian formal dinners. Crafted in silk with a flowing profile and a metallic palette suited for Formal moments across India. Fits Pear Shape, Hourglass bodies, complements Light, Medium skin tones, and is available in sizes M, L, XL. Age guidance: 51+ years. Background: luxury hotel lobby with marble floor."
+  },
+  {
+    "cloth_id": "C108",
+    "cloth_type": "palazzo_set",
+    "occasion": [
+      "Formal"
+    ],
+    "fit": [
+      "flowing"
+    ],
+    "fabric": [
+      "silk"
+    ],
+    "color_family": [
+      "pastel"
+    ],
+    "style": [
+      "Elegant"
+    ],
+    "sizes": [
+      "M",
+      "L",
+      "XL"
+    ],
+    "skin_tone": [
+      "Light",
+      "Medium"
+    ],
+    "body_shape": [
+      "Pear Shape",
+      "Hourglass"
+    ],
+    "age_range": [
+      "26-35"
+    ],
+    "description": "Silk palazzo set with a gently flared kurti and airy pants, ideal for Indian formal dinners. Crafted in silk with a flowing profile and a pastel palette suited for Formal moments across India. Fits Pear Shape, Hourglass bodies, complements Light, Medium skin tones, and is available in sizes M, L, XL. Age guidance: 26-35 years.",
+    "image": "testiing_image_collection/img083.jpg",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe, no other person in the background, wearing: Silk palazzo set with a gently flared kurti and airy pants, ideal for Indian formal dinners. Crafted in silk with a flowing profile and a pastel palette suited for Formal moments across India. Fits Pear Shape, Hourglass bodies, complements Light, Medium skin tones, and is available in sizes M, L, XL. Age guidance: 26-35 years. Background: old city street with pastel walls."
+  },
+  {
+    "cloth_id": "C109",
+    "cloth_type": "kurta_jacket_set",
+    "occasion": [
+      "Formal"
+    ],
+    "fit": [
+      "structured"
+    ],
+    "fabric": [
+      "velvet"
+    ],
+    "color_family": [
+      "jewel"
+    ],
+    "style": [
+      "Traditional Luxury"
+    ],
+    "sizes": [
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "skin_tone": [
+      "Medium",
+      "Dusky",
+      "Deep"
+    ],
+    "body_shape": [
+      "Rectangle",
+      "Inverted Triangle"
+    ],
+    "age_range": [
+      "13-17"
+    ],
+    "description": "Velvet kurta with a longline jacket for winter formals and cultural events. Crafted in velvet with a structured profile and a jewel palette suited for Formal moments across India. Fits Rectangle, Inverted Triangle bodies, complements Medium, Dusky, Deep skin tones, and is available in sizes M, L, XL, XXL. Age guidance: 13-17 years.",
+    "image": "testiing_image_collection/img084.jpg",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe, no other person in the background, wearing: Velvet kurta with a longline jacket for winter formals and cultural events. Crafted in velvet with a structured profile and a jewel palette suited for Formal moments across India. Fits Rectangle, Inverted Triangle bodies, complements Medium, Dusky, Deep skin tones, and is available in sizes M, L, XL, XXL. Age guidance: 13-17 years. Background: resort poolside deck with cabanas."
+  },
+  {
+    "cloth_id": "C110",
+    "cloth_type": "lace_dress",
+    "occasion": [
+      "Party"
+    ],
+    "fit": [
+      "slim"
+    ],
+    "fabric": [
+      "lace"
+    ],
+    "color_family": [
+      "pastel"
+    ],
+    "style": [
+      "Elegant"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tone": [
+      "Light",
+      "Medium"
+    ],
+    "body_shape": [
+      "Hourglass",
+      "Rectangle"
+    ],
+    "age_range": [
+      "18-25"
+    ],
+    "description": "Delicate lace dress with slip lining and side slit for evening receptions. Crafted in lace with a slim profile and a pastel palette suited for Party moments across India. Fits Hourglass, Rectangle bodies, complements Light, Medium skin tones, and is available in sizes S, M, L. Age guidance: 18-25 years.",
+    "image": "testiing_image_collection/img085.jpg",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe, no other person in the background, wearing: Delicate lace dress with slip lining and side slit for evening receptions. Crafted in lace with a slim profile and a pastel palette suited for Party moments across India. Fits Hourglass, Rectangle bodies, complements Light, Medium skin tones, and is available in sizes S, M, L. Age guidance: 18-25 years. Background: art gallery interior with soft spotlights."
+  },
+  {
+    "cloth_id": "C111",
+    "cloth_type": "saree",
+    "occasion": [
+      "Wedding"
+    ],
+    "fit": [
+      "flowing"
+    ],
+    "fabric": [
+      "silk"
+    ],
+    "color_family": [
+      "metallic"
+    ],
+    "style": [
+      "Traditional Luxury"
+    ],
+    "sizes": [
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "skin_tone": [
+      "Medium",
+      "Dusky",
+      "Deep"
+    ],
+    "body_shape": [
+      "Pear Shape",
+      "Hourglass",
+      "Rectangle"
+    ],
+    "age_range": [
+      "51+"
+    ],
+    "description": "Classic silk saree with hand-detailed borders and fluid pleats tailored for Indian wedding rituals. Crafted in silk with a flowing profile and a metallic palette suited for Wedding moments across India. Fits Pear Shape, Hourglass, Rectangle bodies, complements Medium, Dusky, Deep skin tones, and is available in sizes M, L, XL, XXL. Age guidance: 51+ years.",
+    "image": "testiing_image_collection/img086.jpg",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe, no other person in the background, wearing: Classic silk saree with hand-detailed borders and fluid pleats tailored for Indian wedding rituals. Crafted in silk with a flowing profile and a metallic palette suited for Wedding moments across India. Fits Pear Shape, Hourglass, Rectangle bodies, complements Medium, Dusky, Deep skin tones, and is available in sizes M, L, XL, XXL. Age guidance: 51+ years. Background: heritage haveli courtyard at dusk."
+  },
+  {
+    "cloth_id": "C112",
+    "cloth_type": "wrap_dress",
+    "occasion": [
+      "Casual luxury"
+    ],
+    "fit": [
+      "flowing"
+    ],
+    "fabric": [
+      "chiffon"
+    ],
+    "color_family": [
+      "metallic"
+    ],
+    "style": [
+      "Minimal Luxury"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tone": [
+      "Light",
+      "Medium"
+    ],
+    "body_shape": [
+      "Rectangle",
+      "Pear Shape"
+    ],
+    "age_range": [
+      "51+"
+    ],
+    "description": "Chiffon wrap dress with adjustable tie, easy to style for brunches and day dates. Crafted in chiffon with a flowing profile and a metallic palette suited for Casual luxury moments across India. Fits Rectangle, Pear Shape bodies, complements Light, Medium skin tones, and is available in sizes S, M, L. Age guidance: 51+ years.",
+    "image": "testiing_image_collection/img087.jpg",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe, no other person in the background, wearing: Chiffon wrap dress with adjustable tie, easy to style for brunches and day dates. Crafted in chiffon with a flowing profile and a metallic palette suited for Casual luxury moments across India. Fits Rectangle, Pear Shape bodies, complements Light, Medium skin tones, and is available in sizes S, M, L. Age guidance: 51+ years. Background: modern Mumbai rooftop lounge at night."
+  },
+  {
+    "cloth_id": "C113",
+    "cloth_type": "peplum_set",
+    "occasion": [
+      "Party"
+    ],
+    "fit": [
+      "structured"
+    ],
+    "fabric": [
+      "satin"
+    ],
+    "color_family": [
+      "black"
+    ],
+    "style": [
+      "Elegant"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tone": [
+      "Light",
+      "Medium"
+    ],
+    "body_shape": [
+      "Pear Shape",
+      "Hourglass"
+    ],
+    "age_range": [
+      "13-17"
+    ],
+    "description": "Satin peplum set with fitted trousers, flattering the waist for festive dinners. Crafted in satin with a structured profile and a black palette suited for Party moments across India. Fits Pear Shape, Hourglass bodies, complements Light, Medium skin tones, and is available in sizes S, M, L. Age guidance: 13-17 years.",
+    "image": "testiing_image_collection/img088.jpg",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe, no other person in the background, wearing: Satin peplum set with fitted trousers, flattering the waist for festive dinners. Crafted in satin with a structured profile and a black palette suited for Party moments across India. Fits Pear Shape, Hourglass bodies, complements Light, Medium skin tones, and is available in sizes S, M, L. Age guidance: 13-17 years. Background: sunlit Jaipur palace corridor."
+  },
+  {
+    "cloth_id": "C114",
+    "cloth_type": "anarkali",
+    "occasion": [
+      "Wedding"
+    ],
+    "fit": [
+      "flowing"
+    ],
+    "fabric": [
+      "chiffon"
+    ],
+    "color_family": [
+      "neutral"
+    ],
+    "style": [
+      "Traditional Luxury"
+    ],
+    "sizes": [
+      "M",
+      "L",
+      "XL"
+    ],
+    "skin_tone": [
+      "Light",
+      "Medium",
+      "Dusky"
+    ],
+    "body_shape": [
+      "Apple Shape",
+      "Pear Shape",
+      "Hourglass"
+    ],
+    "age_range": [
+      "36-50"
+    ],
+    "description": "Layered chiffon anarkali with soft ghera and yoke embroidery for festive Indian celebrations. Crafted in chiffon with a flowing profile and a neutral palette suited for Wedding moments across India. Fits Apple Shape, Pear Shape, Hourglass bodies, complements Light, Medium, Dusky skin tones, and is available in sizes M, L, XL. Age guidance: 36-50 years.",
+    "image": "testiing_image_collection/img089.jpg",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe, no other person in the background, wearing: Layered chiffon anarkali with soft ghera and yoke embroidery for festive Indian celebrations. Crafted in chiffon with a flowing profile and a neutral palette suited for Wedding moments across India. Fits Apple Shape, Pear Shape, Hourglass bodies, complements Light, Medium, Dusky skin tones, and is available in sizes M, L, XL. Age guidance: 36-50 years. Background: Goan beach promenade at sunset."
+  },
+  {
+    "cloth_id": "C115",
+    "cloth_type": "kaftan",
+    "occasion": [
+      "Resort"
+    ],
+    "fit": [
+      "relaxed"
+    ],
+    "fabric": [
+      "silk"
+    ],
+    "color_family": [
+      "metallic"
+    ],
+    "style": [
+      "Minimal Luxury"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tone": [
+      "Light",
+      "Medium",
+      "Dusky"
+    ],
+    "body_shape": [
+      "Apple Shape",
+      "Rectangle",
+      "Pear Shape"
+    ],
+    "age_range": [
+      "26-35"
+    ],
+    "description": "Silk kaftan with side slits and tassel tie, made for spa days and poolside ease. Crafted in silk with a relaxed profile and a metallic palette suited for Resort moments across India. Fits Apple Shape, Rectangle, Pear Shape bodies, complements Light, Medium, Dusky skin tones, and is available in sizes S, M, L. Age guidance: 26-35 years.",
+    "image": "testiing_image_collection/img090.jpg",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe, no other person in the background, wearing: Silk kaftan with side slits and tassel tie, made for spa days and poolside ease. Crafted in silk with a relaxed profile and a metallic palette suited for Resort moments across India. Fits Apple Shape, Rectangle, Pear Shape bodies, complements Light, Medium, Dusky skin tones, and is available in sizes S, M, L. Age guidance: 26-35 years. Background: lush monsoon garden with stone path."
+  },
+  {
+    "cloth_id": "C116",
+    "cloth_type": "kurta_jacket_set",
+    "occasion": [
+      "Formal"
+    ],
+    "fit": [
+      "structured"
+    ],
+    "fabric": [
+      "velvet"
+    ],
+    "color_family": [
+      "neutral"
+    ],
+    "style": [
+      "Traditional Luxury"
+    ],
+    "sizes": [
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "skin_tone": [
+      "Medium",
+      "Dusky",
+      "Deep"
+    ],
+    "body_shape": [
+      "Rectangle",
+      "Inverted Triangle"
+    ],
+    "age_range": [
+      "36-50"
+    ],
+    "description": "Velvet kurta with a longline jacket for winter formals and cultural events. Crafted in velvet with a structured profile and a neutral palette suited for Formal moments across India. Fits Rectangle, Inverted Triangle bodies, complements Medium, Dusky, Deep skin tones, and is available in sizes M, L, XL, XXL. Age guidance: 36-50 years.",
+    "image": "testiing_image_collection/img091.jpg",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe, no other person in the background, wearing: Velvet kurta with a longline jacket for winter formals and cultural events. Crafted in velvet with a structured profile and a neutral palette suited for Formal moments across India. Fits Rectangle, Inverted Triangle bodies, complements Medium, Dusky, Deep skin tones, and is available in sizes M, L, XL, XXL. Age guidance: 36-50 years. Background: minimalist studio with warm lighting."
+  },
+  {
+    "cloth_id": "C117",
+    "cloth_type": "anarkali",
+    "occasion": [
+      "Wedding"
+    ],
+    "fit": [
+      "flowing"
+    ],
+    "fabric": [
+      "chiffon"
+    ],
+    "color_family": [
+      "jewel"
+    ],
+    "style": [
+      "Traditional Luxury"
+    ],
+    "sizes": [
+      "M",
+      "L",
+      "XL"
+    ],
+    "skin_tone": [
+      "Light",
+      "Medium",
+      "Dusky"
+    ],
+    "body_shape": [
+      "Apple Shape",
+      "Pear Shape",
+      "Hourglass"
+    ],
+    "age_range": [
+      "13-17"
+    ],
+    "description": "Layered chiffon anarkali with soft ghera and yoke embroidery for festive Indian celebrations. Crafted in chiffon with a flowing profile and a jewel palette suited for Wedding moments across India. Fits Apple Shape, Pear Shape, Hourglass bodies, complements Light, Medium, Dusky skin tones, and is available in sizes M, L, XL. Age guidance: 13-17 years.",
+    "image": "testiing_image_collection/img092.jpg",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe, no other person in the background, wearing: Layered chiffon anarkali with soft ghera and yoke embroidery for festive Indian celebrations. Crafted in chiffon with a flowing profile and a jewel palette suited for Wedding moments across India. Fits Apple Shape, Pear Shape, Hourglass bodies, complements Light, Medium, Dusky skin tones, and is available in sizes M, L, XL. Age guidance: 13-17 years. Background: luxury hotel lobby with marble floor."
+  },
+  {
+    "cloth_id": "C118",
+    "cloth_type": "sharara_set",
+    "occasion": [
+      "Wedding"
+    ],
+    "fit": [
+      "relaxed"
+    ],
+    "fabric": [
+      "chiffon"
+    ],
+    "color_family": [
+      "pastel"
+    ],
+    "style": [
+      "Traditional Luxury"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "skin_tone": [
+      "Medium",
+      "Dusky"
+    ],
+    "body_shape": [
+      "Pear Shape",
+      "Apple Shape",
+      "Rectangle"
+    ],
+    "age_range": [
+      "13-17"
+    ],
+    "description": "Relaxed chiffon sharara set with light zari work and breezy pants made for mehendi comfort. Crafted in chiffon with a relaxed profile and a pastel palette suited for Wedding moments across India. Fits Pear Shape, Apple Shape, Rectangle bodies, complements Medium, Dusky skin tones, and is available in sizes S, M, L, XL. Age guidance: 13-17 years.",
+    "image": "testiing_image_collection/img093.jpg",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe, no other person in the background, wearing: Relaxed chiffon sharara set with light zari work and breezy pants made for mehendi comfort. Crafted in chiffon with a relaxed profile and a pastel palette suited for Wedding moments across India. Fits Pear Shape, Apple Shape, Rectangle bodies, complements Medium, Dusky skin tones, and is available in sizes S, M, L, XL. Age guidance: 13-17 years. Background: old city street with pastel walls."
+  },
+  {
+    "cloth_id": "C119",
+    "cloth_type": "palazzo_set",
+    "occasion": [
+      "Formal"
+    ],
+    "fit": [
+      "flowing"
+    ],
+    "fabric": [
+      "silk"
+    ],
+    "color_family": [
+      "jewel"
+    ],
+    "style": [
+      "Elegant"
+    ],
+    "sizes": [
+      "M",
+      "L",
+      "XL"
+    ],
+    "skin_tone": [
+      "Light",
+      "Medium"
+    ],
+    "body_shape": [
+      "Pear Shape",
+      "Hourglass"
+    ],
+    "age_range": [
+      "36-50"
+    ],
+    "description": "Silk palazzo set with a gently flared kurti and airy pants, ideal for Indian formal dinners. Crafted in silk with a flowing profile and a jewel palette suited for Formal moments across India. Fits Pear Shape, Hourglass bodies, complements Light, Medium skin tones, and is available in sizes M, L, XL. Age guidance: 36-50 years.",
+    "image": "testiing_image_collection/img094.jpg",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe, no other person in the background, wearing: Silk palazzo set with a gently flared kurti and airy pants, ideal for Indian formal dinners. Crafted in silk with a flowing profile and a jewel palette suited for Formal moments across India. Fits Pear Shape, Hourglass bodies, complements Light, Medium skin tones, and is available in sizes M, L, XL. Age guidance: 36-50 years. Background: resort poolside deck with cabanas."
+  },
+  {
+    "cloth_id": "C120",
+    "cloth_type": "fusion_gown",
+    "occasion": [
+      "Party"
+    ],
+    "fit": [
+      "structured"
+    ],
+    "fabric": [
+      "satin"
+    ],
+    "color_family": [
+      "neutral"
+    ],
+    "style": [
+      "Couture"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tone": [
+      "Medium",
+      "Dusky"
+    ],
+    "body_shape": [
+      "Inverted Triangle",
+      "Rectangle"
+    ],
+    "age_range": [
+      "26-35"
+    ],
+    "description": "Structured satin fusion gown with modern drape lines tailored for Indian cocktail nights. Crafted in satin with a structured profile and a neutral palette suited for Party moments across India. Fits Inverted Triangle, Rectangle bodies, complements Medium, Dusky skin tones, and is available in sizes S, M, L. Age guidance: 26-35 years.",
+    "image": "testiing_image_collection/img095.jpg",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe, no other person in the background, wearing: Structured satin fusion gown with modern drape lines tailored for Indian cocktail nights. Crafted in satin with a structured profile and a neutral palette suited for Party moments across India. Fits Inverted Triangle, Rectangle bodies, complements Medium, Dusky skin tones, and is available in sizes S, M, L. Age guidance: 26-35 years. Background: art gallery interior with soft spotlights."
+  },
+  {
+    "cloth_id": "C121",
+    "cloth_type": "cocktail_dress",
+    "occasion": [
+      "Party"
+    ],
+    "fit": [
+      "slim"
+    ],
+    "fabric": [
+      "satin"
+    ],
+    "color_family": [
+      "black"
+    ],
+    "style": [
+      "Elegant"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tone": [
+      "Light",
+      "Medium"
+    ],
+    "body_shape": [
+      "Hourglass",
+      "Rectangle"
+    ],
+    "age_range": [
+      "26-35"
+    ],
+    "description": "Satin cocktail dress with a sleek cut and side ruching for evening events. Crafted in satin with a slim profile and a black palette suited for Party moments across India. Fits Hourglass, Rectangle bodies, complements Light, Medium skin tones, and is available in sizes S, M, L. Age guidance: 26-35 years.",
+    "image": "testiing_image_collection/img096.jpg",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe, no other person in the background, wearing: Satin cocktail dress with a sleek cut and side ruching for evening events. Crafted in satin with a slim profile and a black palette suited for Party moments across India. Fits Hourglass, Rectangle bodies, complements Light, Medium skin tones, and is available in sizes S, M, L. Age guidance: 26-35 years. Background: heritage haveli courtyard at dusk."
+  },
+  {
+    "cloth_id": "C122",
+    "cloth_type": "cape_saree",
+    "occasion": [
+      "Party"
+    ],
+    "fit": [
+      "structured"
+    ],
+    "fabric": [
+      "silk"
+    ],
+    "color_family": [
+      "metallic"
+    ],
+    "style": [
+      "Couture"
+    ],
+    "sizes": [
+      "M",
+      "L",
+      "XL"
+    ],
+    "skin_tone": [
+      "Medium",
+      "Dusky"
+    ],
+    "body_shape": [
+      "Inverted Triangle",
+      "Rectangle"
+    ],
+    "age_range": [
+      "26-35"
+    ],
+    "description": "Pre-stitched silk cape saree that adds drama without heavy draping. Crafted in silk with a structured profile and a metallic palette suited for Party moments across India. Fits Inverted Triangle, Rectangle bodies, complements Medium, Dusky skin tones, and is available in sizes M, L, XL. Age guidance: 26-35 years.",
+    "image": "testiing_image_collection/img097.jpg",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe, no other person in the background, wearing: Pre-stitched silk cape saree that adds drama without heavy draping. Crafted in silk with a structured profile and a metallic palette suited for Party moments across India. Fits Inverted Triangle, Rectangle bodies, complements Medium, Dusky skin tones, and is available in sizes M, L, XL. Age guidance: 26-35 years. Background: modern Mumbai rooftop lounge at night."
+  },
+  {
+    "cloth_id": "C123",
+    "cloth_type": "saree",
+    "occasion": [
+      "Wedding"
+    ],
+    "fit": [
+      "flowing"
+    ],
+    "fabric": [
+      "silk"
+    ],
+    "color_family": [
+      "jewel"
+    ],
+    "style": [
+      "Traditional Luxury"
+    ],
+    "sizes": [
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "skin_tone": [
+      "Medium",
+      "Dusky",
+      "Deep"
+    ],
+    "body_shape": [
+      "Pear Shape",
+      "Hourglass",
+      "Rectangle"
+    ],
+    "age_range": [
+      "36-50"
+    ],
+    "description": "Classic silk saree with hand-detailed borders and fluid pleats tailored for Indian wedding rituals. Crafted in silk with a flowing profile and a jewel palette suited for Wedding moments across India. Fits Pear Shape, Hourglass, Rectangle bodies, complements Medium, Dusky, Deep skin tones, and is available in sizes M, L, XL, XXL. Age guidance: 36-50 years.",
+    "image": "testiing_image_collection/img098.jpg",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe, no other person in the background, wearing: Classic silk saree with hand-detailed borders and fluid pleats tailored for Indian wedding rituals. Crafted in silk with a flowing profile and a jewel palette suited for Wedding moments across India. Fits Pear Shape, Hourglass, Rectangle bodies, complements Medium, Dusky, Deep skin tones, and is available in sizes M, L, XL, XXL. Age guidance: 36-50 years. Background: sunlit Jaipur palace corridor."
+  },
+  {
+    "cloth_id": "C124",
+    "cloth_type": "anarkali",
+    "occasion": [
+      "Wedding"
+    ],
+    "fit": [
+      "flowing"
+    ],
+    "fabric": [
+      "chiffon"
+    ],
+    "color_family": [
+      "metallic"
+    ],
+    "style": [
+      "Traditional Luxury"
+    ],
+    "sizes": [
+      "M",
+      "L",
+      "XL"
+    ],
+    "skin_tone": [
+      "Light",
+      "Medium",
+      "Dusky"
+    ],
+    "body_shape": [
+      "Apple Shape",
+      "Pear Shape",
+      "Hourglass"
+    ],
+    "age_range": [
+      "18-25"
+    ],
+    "description": "Layered chiffon anarkali with soft ghera and yoke embroidery for festive Indian celebrations. Crafted in chiffon with a flowing profile and a metallic palette suited for Wedding moments across India. Fits Apple Shape, Pear Shape, Hourglass bodies, complements Light, Medium, Dusky skin tones, and is available in sizes M, L, XL. Age guidance: 18-25 years.",
+    "image": "testiing_image_collection/img099.jpg",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe, no other person in the background, wearing: Layered chiffon anarkali with soft ghera and yoke embroidery for festive Indian celebrations. Crafted in chiffon with a flowing profile and a metallic palette suited for Wedding moments across India. Fits Apple Shape, Pear Shape, Hourglass bodies, complements Light, Medium, Dusky skin tones, and is available in sizes M, L, XL. Age guidance: 18-25 years. Background: Goan beach promenade at sunset."
+  },
+  {
+    "cloth_id": "C125",
+    "cloth_type": "tunic_set",
+    "occasion": [
+      "Casual luxury"
+    ],
+    "fit": [
+      "relaxed"
+    ],
+    "fabric": [
+      "linen"
+    ],
+    "color_family": [
+      "neutral"
+    ],
+    "style": [
+      "Elegant"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "skin_tone": [
+      "Light",
+      "Medium"
+    ],
+    "body_shape": [
+      "Apple Shape",
+      "Rectangle"
+    ],
+    "age_range": [
+      "26-35"
+    ],
+    "description": "Linen tunic set with high-low hem and slim pants for easy daytime polish. Crafted in linen with a relaxed profile and a neutral palette suited for Casual luxury moments across India. Fits Apple Shape, Rectangle bodies, complements Light, Medium skin tones, and is available in sizes S, M, L, XL. Age guidance: 26-35 years.",
+    "image": "testiing_image_collection/img100.jpg",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe, no other person in the background, wearing: Linen tunic set with high-low hem and slim pants for easy daytime polish. Crafted in linen with a relaxed profile and a neutral palette suited for Casual luxury moments across India. Fits Apple Shape, Rectangle bodies, complements Light, Medium skin tones, and is available in sizes S, M, L, XL. Age guidance: 26-35 years. Background: lush monsoon garden with stone path."
+  }
+]

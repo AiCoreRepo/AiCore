@@ -2,15 +2,19 @@
   "age_divisor": 60.0,
   "categories": {
     "size": [
+      "xs",
       "small",
       "medium",
-      "large"
+      "large",
+      "xl",
+      "xxl"
     ],
     "body_shape": [
       "rectangle",
       "pear",
       "apple",
-      "hourglass"
+      "hourglass",
+      "inverted_triangle"
     ],
     "skin_tone": [
       "light",
@@ -19,9 +23,11 @@
       "deep"
     ],
     "occasion": [
-      "party",
       "formal",
-      "casual_luxury"
+      "casual_luxury",
+      "party",
+      "wedding",
+      "resort"
     ]
   }
 }
