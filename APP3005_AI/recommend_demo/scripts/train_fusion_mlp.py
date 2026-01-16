@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 from pathlib import Path
 from typing import Callable, Dict, List, Optional, Tuple
 
@@ -39,6 +40,19 @@ try:
 except ImportError as exc:  # pragma: no cover
     raise RuntimeError("Install sentence-transformers to run fusion training.") from exc
 
+try:
+    from pymilvus import Collection, CollectionSchema, DataType, FieldSchema, connections, utility
+
+    _MILVUS_AVAILABLE = True
+except ImportError:
+    Collection = None
+    CollectionSchema = None
+    DataType = None
+    FieldSchema = None
+    connections = None
+    utility = None
+    _MILVUS_AVAILABLE = False
+
 AGE_COL = "age"
 TEXT_COL = "cloth_description"
 TEXT_COL_FALLBACK = "clothing_description"
@@ -54,6 +68,11 @@ CAT_COLS = ["size", "body_shape", "skin_tone", "occasion"]
 AGE_DIVISOR_DEFAULT = 60.0
 DEFAULT_AGE = 25.0
 MAX_COMBOS_PER_ITEM = 50
+MILVUS_TEXT_MAX_LEN = 4096
+MILVUS_PATH_MAX_LEN = 512
+MILVUS_SMALL_MAX_LEN = 32
+MILVUS_ID_MAX_LEN = 128
+MILVUS_DEFAULT_BATCH_SIZE = 256
 
 PRIORITY_WEIGHTS = {1: 1.0, 2: 0.8, 3: 0.6}
 
@@ -107,6 +126,15 @@ def parse_args():
     parser.add_argument("--text-max-length", type=int, default=128)
     parser.add_argument("--clip-model", type=str, default="ViT-B-32")
     parser.add_argument("--clip-pretrained", type=str, default="laion2b_s34b_b79k")
+    parser.add_argument("--milvus-collection", type=str, default="")
+    parser.add_argument("--milvus-host", type=str, default="")
+    parser.add_argument("--milvus-port", type=str, default="")
+    parser.add_argument("--milvus-uri", type=str, default="")
+    parser.add_argument("--milvus-token", type=str, default="")
+    parser.add_argument("--milvus-user", type=str, default="")
+    parser.add_argument("--milvus-password", type=str, default="")
+    parser.add_argument("--milvus-batch-size", type=int, default=MILVUS_DEFAULT_BATCH_SIZE)
+    parser.add_argument("--milvus-reset", action="store_true")
     return parser.parse_args()
 
 
@@ -477,6 +505,223 @@ def embed_images(
     return embeddings, image_dim, missing
 
 
+def _env_flag(name: str) -> bool:
+    return os.getenv(name, "").strip().lower() in {"1", "true", "yes", "y"}
+
+
+def _finalize_milvus_config(config: Dict[str, object]) -> Optional[Dict[str, object]]:
+    collection = str(config.get("collection", "")).strip()
+    if not collection:
+        return None
+    config = dict(config)
+    config["collection"] = collection
+    config["uri"] = str(config.get("uri", "")).strip()
+    config["host"] = str(config.get("host", "")).strip()
+    config["port"] = str(config.get("port", "")).strip()
+    config["token"] = str(config.get("token", "")).strip()
+    config["username"] = str(config.get("username", "")).strip()
+    config["password"] = str(config.get("password", "")).strip()
+    config["batch_size"] = int(config.get("batch_size") or MILVUS_DEFAULT_BATCH_SIZE)
+    config["reset"] = bool(config.get("reset"))
+
+    if not config["uri"]:
+        if not config["host"]:
+            config["host"] = os.getenv("MILVUS_HOST", "").strip() or "localhost"
+        if not config["port"]:
+            config["port"] = os.getenv("MILVUS_PORT", "").strip() or "19530"
+    if not config["token"]:
+        config["token"] = os.getenv("MILVUS_TOKEN", "").strip()
+    if not config["username"]:
+        config["username"] = os.getenv("MILVUS_USER", "").strip()
+    if not config["password"]:
+        config["password"] = os.getenv("MILVUS_PASSWORD", "").strip()
+    return config
+
+
+def _resolve_milvus_config(
+    config: Optional[Dict[str, object]]
+) -> Optional[Dict[str, object]]:
+    if config is not None:
+        return _finalize_milvus_config(config)
+    collection = os.getenv("MILVUS_COLLECTION", "").strip()
+    if not collection:
+        return None
+    env_config = {
+        "collection": collection,
+        "uri": os.getenv("MILVUS_URI", "").strip(),
+        "host": os.getenv("MILVUS_HOST", "").strip(),
+        "port": os.getenv("MILVUS_PORT", "").strip(),
+        "token": os.getenv("MILVUS_TOKEN", "").strip(),
+        "username": os.getenv("MILVUS_USER", "").strip(),
+        "password": os.getenv("MILVUS_PASSWORD", "").strip(),
+        "batch_size": int(os.getenv("MILVUS_BATCH_SIZE", MILVUS_DEFAULT_BATCH_SIZE)),
+        "reset": _env_flag("MILVUS_RESET"),
+    }
+    return _finalize_milvus_config(env_config)
+
+
+def _milvus_config_from_args(args) -> Optional[Dict[str, object]]:
+    if not args.milvus_collection:
+        return None
+    return {
+        "collection": args.milvus_collection,
+        "uri": args.milvus_uri,
+        "host": args.milvus_host,
+        "port": args.milvus_port,
+        "token": args.milvus_token,
+        "username": args.milvus_user,
+        "password": args.milvus_password,
+        "batch_size": args.milvus_batch_size,
+        "reset": args.milvus_reset,
+    }
+
+
+def _connect_milvus(config: Dict[str, object]) -> None:
+    if not _MILVUS_AVAILABLE:
+        raise RuntimeError("Install pymilvus to store embeddings in Milvus.")
+    connect_kwargs = {"alias": "default"}
+    uri = str(config.get("uri", "")).strip()
+    if uri:
+        connect_kwargs["uri"] = uri
+    else:
+        connect_kwargs["host"] = str(config.get("host", "")).strip()
+        connect_kwargs["port"] = str(config.get("port", "")).strip()
+    token = str(config.get("token", "")).strip()
+    if token:
+        connect_kwargs["token"] = token
+    username = str(config.get("username", "")).strip()
+    password = str(config.get("password", "")).strip()
+    if username or password:
+        connect_kwargs["user"] = username
+        connect_kwargs["password"] = password
+    connections.connect(**connect_kwargs)
+
+
+def _get_field_dim(collection, field_name: str) -> int:
+    for field in collection.schema.fields:
+        if field.name == field_name:
+            return int(field.params.get("dim", 0))
+    return 0
+
+
+def _prepare_milvus_collection(
+    name: str, *, text_dim: int, image_dim: int, reset: bool
+):
+    if utility.has_collection(name):
+        if reset:
+            utility.drop_collection(name)
+        else:
+            collection = Collection(name)
+            required_fields = {
+                "row_index",
+                "cloth_id",
+                "age",
+                "size",
+                "body_shape",
+                "skin_tone",
+                "occasion",
+                "score",
+                "text",
+                "image_path",
+                "text_embedding",
+                "image_embedding",
+            }
+            existing_fields = {field.name for field in collection.schema.fields}
+            missing = required_fields - existing_fields
+            if missing:
+                raise ValueError(
+                    "Milvus collection schema missing fields. "
+                    f"Missing: {sorted(missing)}. Use --milvus-reset to recreate the collection."
+                )
+            existing_text = _get_field_dim(collection, "text_embedding")
+            existing_image = _get_field_dim(collection, "image_embedding")
+            if existing_text != text_dim or existing_image != image_dim:
+                raise ValueError(
+                    "Milvus collection dims do not match embeddings. "
+                    "Use --milvus-reset to recreate the collection."
+                )
+            return collection
+
+    fields = [
+        FieldSchema(name="pk", dtype=DataType.INT64, is_primary=True, auto_id=True),
+        FieldSchema(name="row_index", dtype=DataType.INT64),
+        FieldSchema(name="cloth_id", dtype=DataType.VARCHAR, max_length=MILVUS_ID_MAX_LEN),
+        FieldSchema(name="age", dtype=DataType.FLOAT),
+        FieldSchema(name="size", dtype=DataType.VARCHAR, max_length=MILVUS_SMALL_MAX_LEN),
+        FieldSchema(name="body_shape", dtype=DataType.VARCHAR, max_length=MILVUS_SMALL_MAX_LEN),
+        FieldSchema(name="skin_tone", dtype=DataType.VARCHAR, max_length=MILVUS_SMALL_MAX_LEN),
+        FieldSchema(name="occasion", dtype=DataType.VARCHAR, max_length=MILVUS_SMALL_MAX_LEN),
+        FieldSchema(name="score", dtype=DataType.FLOAT),
+        FieldSchema(name="text", dtype=DataType.VARCHAR, max_length=MILVUS_TEXT_MAX_LEN),
+        FieldSchema(name="image_path", dtype=DataType.VARCHAR, max_length=MILVUS_PATH_MAX_LEN),
+        FieldSchema(name="text_embedding", dtype=DataType.FLOAT_VECTOR, dim=text_dim),
+        FieldSchema(name="image_embedding", dtype=DataType.FLOAT_VECTOR, dim=image_dim),
+    ]
+    schema = CollectionSchema(fields, description="Fusion MLP training embeddings")
+    return Collection(name, schema)
+
+
+def _store_embeddings_in_milvus(
+    df: pd.DataFrame,
+    text_feats: np.ndarray,
+    image_feats: np.ndarray,
+    config: Dict[str, object],
+) -> None:
+    _connect_milvus(config)
+    collection = _prepare_milvus_collection(
+        str(config["collection"]),
+        text_dim=int(text_feats.shape[1]),
+        image_dim=int(image_feats.shape[1]),
+        reset=bool(config.get("reset")),
+    )
+
+    row_index = np.arange(len(df), dtype="int64")
+    cloth_ids = (
+        df.get("cloth_id", pd.Series([""] * len(df)))
+        .fillna("")
+        .astype(str)
+        .str.slice(0, MILVUS_ID_MAX_LEN)
+        .tolist()
+    )
+    ages = df[AGE_COL].astype(float).tolist()
+    sizes = df["size"].fillna("").astype(str).str.slice(0, MILVUS_SMALL_MAX_LEN).tolist()
+    body_shapes = (
+        df["body_shape"].fillna("").astype(str).str.slice(0, MILVUS_SMALL_MAX_LEN).tolist()
+    )
+    skin_tones = (
+        df["skin_tone"].fillna("").astype(str).str.slice(0, MILVUS_SMALL_MAX_LEN).tolist()
+    )
+    occasions = df["occasion"].fillna("").astype(str).str.slice(0, MILVUS_SMALL_MAX_LEN).tolist()
+    scores = df[LABEL_COL].astype(float).tolist()
+    texts = df[TEXT_COL].fillna("").astype(str).str.slice(0, MILVUS_TEXT_MAX_LEN).tolist()
+    image_paths = (
+        df[IMAGE_COL].fillna("").astype(str).str.slice(0, MILVUS_PATH_MAX_LEN).tolist()
+    )
+
+    batch_size = max(1, int(config.get("batch_size") or MILVUS_DEFAULT_BATCH_SIZE))
+    total_rows = len(df)
+    print(f"Storing {total_rows} embeddings in Milvus collection '{collection.name}'...")
+
+    for start in range(0, total_rows, batch_size):
+        end = min(start + batch_size, total_rows)
+        data = [
+            row_index[start:end].tolist(),
+            cloth_ids[start:end],
+            ages[start:end],
+            sizes[start:end],
+            body_shapes[start:end],
+            skin_tones[start:end],
+            occasions[start:end],
+            scores[start:end],
+            texts[start:end],
+            image_paths[start:end],
+            text_feats[start:end].tolist(),
+            image_feats[start:end].tolist(),
+        ]
+        collection.insert(data)
+    collection.flush()
+
+
 class FusionMLP(torch.nn.Module):
     def __init__(self, input_dim: int, hidden: Tuple[int, ...], dropout: float):
         super().__init__()
@@ -566,6 +811,7 @@ def run_training(
     text_max_length: int,
     age_divisor: float,
     progress_callback: Optional[ProgressCallback] = None,
+    milvus_config: Optional[Dict[str, object]] = None,
 ):
     torch.manual_seed(seed)
     np.random.seed(seed)
@@ -609,6 +855,10 @@ def run_training(
         [image_embs.get(path, zero_image) for path in df[IMAGE_COL].tolist()]
     ).astype("float32")
     labels = df[LABEL_COL].astype("float32").to_numpy()
+
+    milvus_config = _resolve_milvus_config(milvus_config)
+    if milvus_config:
+        _store_embeddings_in_milvus(df, text_feats, image_feats, milvus_config)
 
     features = np.concatenate([image_feats, text_feats, tabular], axis=1).astype("float32")
 
@@ -683,6 +933,7 @@ def run_training(
 def main():
     args = parse_args()
     hidden = parse_hidden(args.hidden)
+    milvus_config = _milvus_config_from_args(args)
     result = run_training(
         data_path=args.data,
         artifacts=args.artifacts,
@@ -698,6 +949,7 @@ def main():
         dropout=args.dropout,
         text_max_length=args.text_max_length,
         age_divisor=args.age_divisor,
+        milvus_config=milvus_config,
     )
     print(f"Saved model to {result['artifacts']}")
     print(f"Metrics: {result['metrics']}")

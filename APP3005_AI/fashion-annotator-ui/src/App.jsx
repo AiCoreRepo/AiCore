@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import * as XLSX from "xlsx";
 
 const LIST_FIELDS = [
   {
@@ -60,6 +61,7 @@ const LIST_KEYS = new Set(LIST_FIELDS.map((field) => field.key));
 
 const EMPTY_ROW = {
   image: "",
+  clothId: "",
   occasion: [""],
   bodyShape: [""],
   size: [""],
@@ -78,6 +80,7 @@ const HEADER_MAP = {
   imagepath: "image",
   imageurl: "image",
   img: "image",
+  clothid: "clothId",
   occasion: "occasion",
   recommendedbodyshape: "bodyShape",
   bodyshape: "bodyShape",
@@ -102,9 +105,17 @@ const HEADER_MAP = {
   rating: "score",
 };
 
+const DEFAULT_IMAGE_BASE = "testiing_image_collection/";
+const IMAGE_BASE = (() => {
+  const value = import.meta.env.VITE_IMAGE_BASE_URL || DEFAULT_IMAGE_BASE;
+  if (!value) return "";
+  return value.endsWith("/") ? value : `${value}/`;
+})();
+
 const DEFAULT_SHEET_URL =
   "https://docs.google.com/spreadsheets/d/e/2PACX-1vSqUSlmyyVwaFnFr-d-6rP7og23BK9ySH8_A78m_xPk3XvNSPSYyIDZ45YLvKrWHpIU7HXHQ92yILFo/pub?gid=783869189&single=true&output=csv";
 const SHEET_URL = import.meta.env.VITE_SHEET_URL || DEFAULT_SHEET_URL;
+const FILE_ACCEPT = ".csv,.xlsx,.xls";
 
 function normalizeHeader(value) {
   return value
@@ -173,6 +184,45 @@ function parseCSV(text) {
   return rows;
 }
 
+function readFileAsText(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(new Error("Unable to read the file."));
+    reader.readAsText(file);
+  });
+}
+
+function readFileAsArrayBuffer(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error("Unable to read the file."));
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+async function parseFile(file) {
+  const name = String(file?.name || "").toLowerCase();
+  if (name.endsWith(".csv")) {
+    const text = await readFileAsText(file);
+    return parseCSV(text);
+  }
+  if (name.endsWith(".xlsx") || name.endsWith(".xls")) {
+    const data = await readFileAsArrayBuffer(file);
+    const workbook = XLSX.read(data, { type: "array" });
+    const sheetName = workbook.SheetNames[0];
+    if (!sheetName) return [];
+    const sheet = workbook.Sheets[sheetName];
+    return XLSX.utils.sheet_to_json(sheet, {
+      header: 1,
+      raw: false,
+      defval: "",
+    });
+  }
+  return [];
+}
+
 function isRowEmpty(row) {
   return row.every((cell) => !String(cell || "").trim());
 }
@@ -187,6 +237,23 @@ function ensureListFields(row) {
       row[key] = [""];
     }
   });
+  return row;
+}
+
+function deriveImageFromClothId(value) {
+  const match = String(value || "").match(/\d+/);
+  if (!match) return "";
+  const numeric = Number(match[0]);
+  if (!Number.isFinite(numeric)) return "";
+  return `${numeric}.png`;
+}
+
+function applyImageFallback(row) {
+  if (row.image) return row;
+  const derived = deriveImageFromClothId(row.clothId);
+  if (derived) {
+    row.image = derived;
+  }
   return row;
 }
 
@@ -211,6 +278,7 @@ function buildRows(parsedRows) {
       }
     });
 
+    applyImageFallback(row);
     rows.push(ensureListFields(row));
   }
 
@@ -242,6 +310,18 @@ function buildCsvUrl(value) {
 
 function resolveImageSrc(value) {
   const trimmed = String(value || "").trim();
+  if (!trimmed) return "";
+  if (
+    trimmed.startsWith("/") ||
+    trimmed.startsWith("data:") ||
+    trimmed.startsWith("blob:") ||
+    /^https?:\/\//i.test(trimmed)
+  ) {
+    return trimmed;
+  }
+  if (IMAGE_BASE && !trimmed.includes("/")) {
+    return `${IMAGE_BASE}${trimmed}`;
+  }
   return trimmed;
 }
 
@@ -255,28 +335,35 @@ function buildSelectOptions(options, values = []) {
   return Array.from(optionSet).sort((a, b) => a.localeCompare(b));
 }
 
-function SelectField({ label, value, placeholder, options, onChange }) {
+function SelectField({ label, value, placeholder, options, onChange, listId }) {
   const selectOptions = buildSelectOptions(options, value ? [value] : []);
 
   return (
     <label className="field-label">
       {label}
-      <select
+      <input
+        list={listId}
         value={value}
         onChange={(event) => onChange(event.target.value)}
-      >
-        <option value="">{placeholder || `Select ${label}`}</option>
+        placeholder={placeholder || `Enter ${label}`}
+      />
+      <datalist id={listId}>
         {selectOptions.map((option) => (
-          <option key={option} value={option}>
-            {option}
-          </option>
+          <option key={option} value={option} />
         ))}
-      </select>
+      </datalist>
     </label>
   );
 }
 
-function SelectListField({ label, values, placeholder, options, onChange }) {
+function SelectListField({
+  label,
+  values,
+  placeholder,
+  options,
+  onChange,
+  listId,
+}) {
   const selectOptions = buildSelectOptions(options, values);
 
   const updateValue = (index, nextValue) => {
@@ -307,17 +394,12 @@ function SelectListField({ label, values, placeholder, options, onChange }) {
       <span className="field-label">{label}</span>
       {values.map((value, idx) => (
         <div className="list-row" key={`${label}-${idx}`}>
-          <select
+          <input
+            list={listId}
             value={value}
             onChange={(event) => updateValue(idx, event.target.value)}
-          >
-            <option value="">{placeholder || `Select ${label}`}</option>
-            {selectOptions.map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))}
-          </select>
+            placeholder={placeholder || `Enter ${label}`}
+          />
           <div className="list-controls">
             <button
               type="button"
@@ -346,6 +428,11 @@ function SelectListField({ label, values, placeholder, options, onChange }) {
           </div>
         </div>
       ))}
+      <datalist id={listId}>
+        {selectOptions.map((option) => (
+          <option key={option} value={option} />
+        ))}
+      </datalist>
       <div className="list-actions">
         <button type="button" className="button secondary" onClick={addValue}>
           Add value
@@ -361,6 +448,7 @@ export default function App() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [status, setStatus] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [sheetUrlInput, setSheetUrlInput] = useState(SHEET_URL || "");
 
   const currentRow = rows[currentIndex];
 
@@ -411,6 +499,40 @@ export default function App() {
       ])
     );
   }, [rows]);
+
+  const rowOptionsByKey = useMemo(() => {
+    const buckets = {};
+    LIST_FIELDS.forEach((field) => {
+      buckets[field.key] = new Set();
+    });
+    TEXT_FIELDS.forEach((field) => {
+      buckets[field.key] = new Set();
+    });
+    if (!currentRow) {
+      return Object.fromEntries(
+        Object.entries(buckets).map(([key, set]) => [
+          key,
+          Array.from(set),
+        ])
+      );
+    }
+    LIST_FIELDS.forEach((field) => {
+      (currentRow[field.key] || []).forEach((value) => {
+        const trimmed = String(value || "").trim();
+        if (trimmed) buckets[field.key].add(trimmed);
+      });
+    });
+    TEXT_FIELDS.forEach((field) => {
+      const trimmed = String(currentRow[field.key] || "").trim();
+      if (trimmed) buckets[field.key].add(trimmed);
+    });
+    return Object.fromEntries(
+      Object.entries(buckets).map(([key, set]) => [
+        key,
+        Array.from(set).sort((a, b) => a.localeCompare(b)),
+      ])
+    );
+  }, [currentRow]);
 
   const imageOptions = useMemo(
     () =>
@@ -490,6 +612,40 @@ export default function App() {
     }
   };
 
+  const handleLoadFromUrl = () => {
+    handleLoad(sheetUrlInput);
+  };
+
+  const handleFileChange = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsLoading(true);
+    setStatus({ type: "loading", message: "Loading file..." });
+
+    try {
+      const parsed = await parseFile(file);
+      const nextRows = buildRows(parsed);
+      if (!nextRows.length) {
+        throw new Error("No usable rows found in the file.");
+      }
+      setRows(nextRows);
+      setCurrentIndex(0);
+      setStatus({
+        type: "success",
+        message: `Loaded ${nextRows.length} rows from ${file.name}.`,
+      });
+    } catch (error) {
+      setStatus({
+        type: "error",
+        message: error.message || "Failed to load the file.",
+      });
+    } finally {
+      setIsLoading(false);
+      event.target.value = "";
+    }
+  };
+
   useEffect(() => {
     if (!SHEET_URL) {
       setStatus({
@@ -515,21 +671,61 @@ export default function App() {
       <header className="hero">
         <h1>Fashion Annotator Studio</h1>
         <p>
-          Review each row from the fixed sheet and let designers adjust body
-          shapes, skin tones, sizes, occasions, and descriptions with full
-          control.
+          Review each row from your sheet or Excel upload and let designers
+          adjust body shapes, skin tones, sizes, occasions, and descriptions
+          with full control.
         </p>
       </header>
 
       <div className="content-grid">
         <section className="panel">
+          <h2>Data Source</h2>
+          <p>
+            Load a published sheet or upload a local Excel file with Cloudinary
+            image links.
+          </p>
+          <div className="input-row">
+            <label className="field-label">Sheet or CSV URL</label>
+            <input
+              value={sheetUrlInput}
+              onChange={(event) => setSheetUrlInput(event.target.value)}
+              placeholder="https://docs.google.com/spreadsheets/d/..."
+            />
+            <button
+              className="button secondary"
+              type="button"
+              onClick={handleLoadFromUrl}
+              disabled={isLoading}
+            >
+              Load URL
+            </button>
+            <span className="helper">
+              Supports Google Sheets links or direct CSV URLs.
+            </span>
+          </div>
+          <div className="input-row">
+            <label className="field-label">Local Excel/CSV file</label>
+            <input type="file" accept={FILE_ACCEPT} onChange={handleFileChange} />
+            <span className="helper">
+              Use an Image or image_url column with Cloudinary links.
+            </span>
+          </div>
+          {status ? (
+            <div className={`status ${status.type}`}>{status.message}</div>
+          ) : (
+            <div className="data-hint">
+              Upload a sheet to start annotating rows.
+            </div>
+          )}
+        </section>
+
+        <section className="panel">
           <h2>Annotate Row</h2>
           {!rows.length ? (
             <div className="empty-state">
-              {status?.message ||
-                (isLoading
-                  ? "Loading data..."
-                  : "Waiting for the sheet to load. Rows will appear here with editable fields and a next button.")}
+              {isLoading
+                ? "Loading data..."
+                : "Select a data source to begin annotating."}
             </div>
           ) : (
             <div className="editor-shell">
@@ -602,7 +798,8 @@ export default function App() {
                       label={field.label}
                       values={currentRow[field.key]}
                       placeholder={field.placeholder}
-                      options={optionsByKey[field.key] || []}
+                      options={rowOptionsByKey[field.key] || []}
+                      listId={`list-${field.key}`}
                       onChange={(values) => updateListField(field.key, values)}
                     />
                   ))}
@@ -617,7 +814,8 @@ export default function App() {
                         label={field.label}
                         value={currentRow[field.key]}
                         placeholder={field.placeholder}
-                        options={optionsByKey[field.key] || []}
+                        options={rowOptionsByKey[field.key] || []}
+                        listId={`text-${field.key}`}
                         onChange={(value) =>
                           updateRow({ [field.key]: value })
                         }

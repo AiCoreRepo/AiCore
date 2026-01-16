@@ -9,6 +9,7 @@ dependencies = [
     "Pillow>=10.2.0",
     "pandas>=2.2.0",
     "scikit-learn>=1.4.0",
+    "cloudinary>=1.40.0",
     "fastapi>=0.110.0",
     "uvicorn[standard]>=0.29.0",
     "python-multipart>=0.0.9",
@@ -20,6 +21,7 @@ dependencies = [
     "clip @ git+https://github.com/openai/CLIP.git",
     "open_clip_torch>=2.24.0",
     "sentence-transformers>=2.6.0",
+    "pymilvus>=2.4.0",
 ]
 
 [build-system]
