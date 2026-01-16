@@ -2,82 +2,118 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
-import { LuxuryHeroSection } from "@/components/collection/LuxuryHeroSection";
-import { FilterDropdown } from "@/components/collection/FilterDropdown";
-import { PriceRangeSlider } from "@/components/collection/PriceRangeSlider";
+import { SearchBar } from "@/components/collection/SearchBar";
+import { Breadcrumb } from "@/components/collection/Breadcrumb";
+import { ActiveFilterChips } from "@/components/collection/ActiveFilterChips";
+import { ViewToggle } from "@/components/collection/ViewToggle";
+import { FilterAccordionSection } from "@/components/collection/FilterAccordionSection";
 import { ProductCard } from "@/components/collection/ProductCard";
 import { usePublicProducts } from "@/hooks/usePublicProducts";
 import { useAuth } from "@/context/AuthContext";
 import { auraGate } from "@/utils/auraGate";
-import { Grid3x3, Ruler, Palette, ArrowUpDown } from "lucide-react";
+import { colors, typography } from "@/utils/designSystem";
+import {
+    Grid3x3,
+    Ruler,
+    Palette,
+    DollarSign,
+    Star,
+    Package,
+    ChevronDown
+} from "lucide-react";
 
 const categories = ["All", "Dresses", "Outerwear", "Accessories", "Tops", "Bottoms"];
-const sizes = ["All Sizes", "XS", "S", "M", "L", "XL", "XXL"];
-const colors = ["All Colors", "Black", "White", "Beige", "Gold", "Navy", "Red"];
-const sortOptions = ["Featured", "Price: Low to High", "Price: High to Low", "Newest", "Most Popular"];
+const sizes = ["XS", "S", "M", "L", "XL", "XXL"];
+const colorOptions = ["Black", "White", "Beige", "Gold", "Navy", "Red", "Brown", "Gray"];
+const brands = ["AiVestire", "Luxury Brand", "Premium Label", "Designer Co"];
+const materials = ["Cotton", "Silk", "Wool", "Linen", "Polyester", "Cashmere"];
+const sortOptions = ["Best Match", "Price: Low to High", "Price: High to Low", "Newest", "Most Popular"];
 
 const CollectionPage = () => {
     const navigate = useNavigate();
     const { user } = useAuth();
-    const [activeCategory, setActiveCategory] = useState("All");
-    const [activeSize, setActiveSize] = useState("All Sizes");
-    const [activeColor, setActiveColor] = useState("All Colors");
-    const [sortBy, setSortBy] = useState("Featured");
-    const [priceRange, setPriceRange] = useState<[number, number]>([0, 20000]);
-    const [showLeftArrow, setShowLeftArrow] = useState(false);
-    const [showRightArrow, setShowRightArrow] = useState(true);
 
-    // Fetch products from backend
+    // Filter States
+    const [searchQuery, setSearchQuery] = useState("");
+    const [activeCategory, setActiveCategory] = useState("All");
+    const [selectedSizes, setSelectedSizes] = useState<string[]>([]);
+    const [selectedColors, setSelectedColors] = useState<string[]>([]);
+    const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
+    const [selectedMaterials, setSelectedMaterials] = useState<string[]>([]);
+    const [priceRange, setPriceRange] = useState<[number, number]>([0, 20000]);
+    const [minRating, setMinRating] = useState(0);
+    const [inStockOnly, setInStockOnly] = useState(false);
+    const [sortBy, setSortBy] = useState("Best Match");
+    const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+
+    // UI States
+    const [expandedSections, setExpandedSections] = useState({
+        category: true,
+        price: true,
+        color: true,
+        size: true,
+        brand: false,
+        rating: false,
+        material: false,
+        availability: false,
+    });
+
+    // Fetch products
     const { data, isLoading, error } = usePublicProducts(
         1,
         undefined,
         activeCategory === "All" ? undefined : activeCategory
     );
 
-    // Handle try-on with authentication and aura validation
-    const handleTryOn = async (productId: string) => {
-        // Check if token exists (user is logged in)
-        const token = localStorage.getItem('access_token');
-
-        if (!token) {
-            // No token = not logged in
-            navigate('/user-login');
-            return;
-        }
-
-        // Token exists, check if user has aura
-        const hasValidAura = await auraGate(navigate, '/aura-dashboard');
-
-        if (hasValidAura) {
-            // User is authenticated and has a ready aura, proceed to try-on
-            navigate(`/ai-try-on?productId=${productId}`);
-        }
-        // If aura check fails, auraGate will handle the redirect
+    // Helper functions
+    const extractSizes = (product: any): string[] => {
+        const text = `${product.title} ${product.description || ''}`.toUpperCase();
+        return sizes.filter(size => text.includes(size));
     };
 
-    // Handle scroll to show/hide arrows
-    const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
-        const container = e.currentTarget;
-        const scrollLeft = container.scrollLeft;
-        const maxScroll = container.scrollWidth - container.clientWidth;
-
-        setShowLeftArrow(scrollLeft > 10);
-        setShowRightArrow(scrollLeft < maxScroll - 10);
+    const extractColors = (product: any): string[] => {
+        const text = `${product.title} ${product.description || ''}`.toLowerCase();
+        return colorOptions.map(c => c.toLowerCase()).filter(color => text.includes(color));
     };
 
-    // Filter and sort products based on selected filters
+    // Filter and sort products
     const getFilteredProducts = () => {
         if (!data?.products) return [];
-
         let filtered = [...data.products];
 
-        // Filter by price range
+        // Search filter
+        if (searchQuery) {
+            filtered = filtered.filter(product =>
+                product.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                product.description?.toLowerCase().includes(searchQuery.toLowerCase())
+            );
+        }
+
+        // Size filter
+        if (selectedSizes.length > 0) {
+            filtered = filtered.filter(product => {
+                const productSizes = extractSizes(product);
+                return selectedSizes.some(size => productSizes.includes(size));
+            });
+        }
+
+        // Color filter
+        if (selectedColors.length > 0) {
+            filtered = filtered.filter(product => {
+                const productColors = extractColors(product);
+                return selectedColors.some(color =>
+                    productColors.includes(color.toLowerCase())
+                );
+            });
+        }
+
+        // Price filter
         filtered = filtered.filter(product => {
             const price = product.price_cents / 100;
             return price >= priceRange[0] && price <= priceRange[1];
         });
 
-        // Sort products
+        // Sort
         switch (sortBy) {
             case "Price: Low to High":
                 filtered.sort((a, b) => a.price_cents - b.price_cents);
@@ -89,11 +125,7 @@ const CollectionPage = () => {
                 filtered.sort((a, b) => b.likes - a.likes);
                 break;
             case "Newest":
-                // Assuming newer products have higher IDs
                 filtered.sort((a, b) => b.product_id.localeCompare(a.product_id));
-                break;
-            default:
-                // Featured - keep original order
                 break;
         }
 
@@ -102,163 +134,383 @@ const CollectionPage = () => {
 
     const filteredProducts = getFilteredProducts();
 
+    // Active filter chips
+    const getActiveFilterChips = () => {
+        const chips: any[] = [];
+
+        if (activeCategory !== "All") {
+            chips.push({
+                id: 'category',
+                label: 'Category',
+                value: activeCategory,
+                onRemove: () => setActiveCategory("All")
+            });
+        }
+
+        selectedSizes.forEach(size => {
+            chips.push({
+                id: `size-${size}`,
+                label: 'Size',
+                value: size,
+                onRemove: () => setSelectedSizes(prev => prev.filter(s => s !== size))
+            });
+        });
+
+        selectedColors.forEach(color => {
+            chips.push({
+                id: `color-${color}`,
+                label: 'Color',
+                value: color,
+                onRemove: () => setSelectedColors(prev => prev.filter(c => c !== color))
+            });
+        });
+
+        if (priceRange[0] > 0 || priceRange[1] < 20000) {
+            chips.push({
+                id: 'price',
+                label: 'Price',
+                value: `₹${priceRange[0]} - ₹${priceRange[1]}`,
+                onRemove: () => setPriceRange([0, 20000])
+            });
+        }
+
+        return chips;
+    };
+
+    const clearAllFilters = () => {
+        setActiveCategory("All");
+        setSelectedSizes([]);
+        setSelectedColors([]);
+        setSelectedBrands([]);
+        setSelectedMaterials([]);
+        setPriceRange([0, 20000]);
+        setMinRating(0);
+        setInStockOnly(false);
+        setSearchQuery("");
+    };
+
+    const handleTryOn = async (productId: string) => {
+        const token = localStorage.getItem('access_token');
+        if (!token) {
+            navigate('/user-login');
+            return;
+        }
+        const hasValidAura = await auraGate(navigate, '/aura-dashboard');
+        if (hasValidAura) {
+            navigate(`/ai-try-on?productId=${productId}`);
+        }
+    };
+
+    const toggleSection = (section: keyof typeof expandedSections) => {
+        setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }));
+    };
+
     return (
-        <div
-            className="min-h-screen overflow-x-hidden"
-            style={{
-                background: '#F5F0E6',
-            }}
-        >
+        <div className="min-h-screen" style={{ background: colors.sand }}>
             <Navbar />
 
             <main className="pt-20">
-                {/* Hero Section */}
-                <LuxuryHeroSection />
+                <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                    {/* Breadcrumb */}
+                    <Breadcrumb
+                        items={[
+                            { label: "Home", href: "/" },
+                            { label: "Collection", href: "/collection" },
+                            { label: activeCategory !== "All" ? activeCategory : "All Products" }
+                        ]}
+                        className="mb-6"
+                    />
 
-                {/* Filters Section */}
-                <section className="py-8 sticky top-20 z-40"
-                    style={{
-                        background: 'linear-gradient(180deg, #F5F0E6 0%, #F8F4EC 100%)',
-                        borderBottom: '1px solid rgba(212, 175, 55, 0.2)',
-                        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.05)',
-                    }}
-                >
-                    <div className="container-luxury">
-                        <div className="flex flex-wrap items-center gap-8 justify-center">
-                            <FilterDropdown
-                                label="Category"
-                                options={categories}
-                                value={activeCategory}
-                                onChange={setActiveCategory}
-                                icon={<Grid3x3 className="w-4 h-4" />}
-                            />
-                            <FilterDropdown
-                                label="Size"
-                                options={sizes}
-                                value={activeSize}
-                                onChange={setActiveSize}
-                                icon={<Ruler className="w-4 h-4" />}
-                            />
-                            <FilterDropdown
-                                label="Color"
-                                options={colors}
-                                value={activeColor}
-                                onChange={setActiveColor}
-                                icon={<Palette className="w-4 h-4" />}
-                            />
-                            <PriceRangeSlider
-                                min={0}
-                                max={20000}
-                                value={priceRange}
-                                onChange={setPriceRange}
-                                currency="₹"
-                            />
-                            <FilterDropdown
-                                label="Sort By"
-                                options={sortOptions}
-                                value={sortBy}
-                                onChange={setSortBy}
-                                icon={<ArrowUpDown className="w-4 h-4" />}
-                            />
-                        </div>
+                    {/* Collection Header */}
+                    <div className="mb-8">
+                        <h1
+                            className="text-4xl md:text-5xl font-bold mb-3"
+                            style={{
+                                fontFamily: typography.fontSerif,
+                                color: colors.charcoal
+                            }}
+                        >
+                            {activeCategory !== "All" ? activeCategory : "Collection"}
+                        </h1>
+                        <p
+                            className="text-base max-w-2xl"
+                            style={{
+                                fontFamily: typography.fontSans,
+                                color: colors.textSecondary
+                            }}
+                        >
+                            Discover our curated selection of premium fashion pieces, crafted with attention to detail and timeless elegance.
+                        </p>
                     </div>
-                </section>
 
-                {/* Products Grid */}
-                <section className="py-12 md:py-16">
-                    <div className="container-luxury">
-                        {/* Loading State */}
-                        {isLoading && (
-                            <div className="text-center py-20">
-                                <div className="inline-block animate-spin rounded-full h-16 w-16 border-4 border-gold border-t-transparent"></div>
-                                <p className="mt-6 text-charcoal/70 text-lg">Loading collection...</p>
-                            </div>
-                        )}
+                    {/* Main Layout */}
+                    <div className="flex gap-8">
+                        <aside className="hidden lg:block w-80 flex-shrink-0">
+                            <div
+                                className="sticky top-24 rounded-xl p-6 shadow-sm overflow-y-auto"
+                                style={{
+                                    background: colors.bgWhite,
+                                    border: `1px solid ${colors.border}`,
+                                    maxHeight: 'calc(100vh - 7rem)',
+                                }}
+                            >
+                                {/* Search */}
+                                <SearchBar
+                                    value={searchQuery}
+                                    onChange={setSearchQuery}
+                                    className="mb-6"
+                                />
 
-                        {/* Error State */}
-                        {error && (
-                            <div className="text-center py-20">
-                                <div
-                                    className="max-w-md mx-auto p-8 rounded-3xl"
-                                    style={{
-                                        background: 'linear-gradient(135deg, rgba(232, 220, 200, 0.9) 0%, rgba(242, 234, 216, 0.85) 100%)',
-                                        border: '1px solid rgba(201, 165, 92, 0.3)',
-                                    }}
-                                >
-                                    <p className="text-charcoal mb-6 text-lg">
-                                        {error.message.includes('401') || error.message.includes('403')
-                                            ? 'Please log in as a buyer to view our collection.'
-                                            : 'Failed to load products. Please try again later.'}
-                                    </p>
-                                    {(error.message.includes('401') || error.message.includes('403')) && (
-                                        <a
-                                            href="/user-login"
-                                            className="inline-block px-8 py-4 rounded-full font-medium text-sm transition-all duration-300 hover:scale-105"
-                                            style={{
-                                                background: 'linear-gradient(135deg, rgba(201, 165, 92, 0.9) 0%, rgba(201, 165, 92, 1) 100%)',
-                                                color: '#212121',
-                                                boxShadow: '0 4px 16px rgba(201, 165, 92, 0.4)',
-                                            }}
-                                        >
-                                            Log In
-                                        </a>
-                                    )}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Products Grid */}
-                        {!isLoading && !error && (
-                            <>
-                                {filteredProducts.length === 0 ? (
-                                    <div className="text-center py-20">
-                                        <p className="text-charcoal/70 text-lg">No products found matching your filters.</p>
-                                        <button
-                                            onClick={() => {
-                                                setActiveCategory("All");
-                                                setActiveSize("All Sizes");
-                                                setActiveColor("All Colors");
-                                                setPriceRange([0, 20000]);
-                                                setSortBy("Featured");
-                                            }}
-                                            className="mt-6 px-8 py-3 rounded-full font-medium text-sm transition-all duration-300 hover:scale-105"
-                                            style={{
-                                                background: 'linear-gradient(135deg, rgba(201, 165, 92, 0.9) 0%, rgba(201, 165, 92, 1) 100%)',
-                                                color: '#212121',
-                                                boxShadow: '0 4px 16px rgba(201, 165, 92, 0.4)',
-                                            }}
-                                        >
-                                            Clear All Filters
-                                        </button>
-                                    </div>
-                                ) : (
-                                    <>
-                                        {/* Results Count */}
-                                        <div className="mb-6 text-center">
-                                            <p className="text-charcoal/70 text-sm">
-                                                Showing <span className="font-semibold text-gold">{filteredProducts.length}</span> {filteredProducts.length === 1 ? 'product' : 'products'}
-                                            </p>
+                                {/* Filter Sections */}
+                                <div className="space-y-0">
+                                    {/* Category */}
+                                    <FilterAccordionSection
+                                        title="Category"
+                                        icon={<Grid3x3 className="w-4 h-4" />}
+                                        isExpanded={expandedSections.category}
+                                        onToggle={() => toggleSection('category')}
+                                        selectedCount={activeCategory !== "All" ? 1 : 0}
+                                        accentColor={colors.accent}
+                                    >
+                                        <div className="space-y-1.5">
+                                            {categories.map(cat => (
+                                                <button
+                                                    key={cat}
+                                                    onClick={() => setActiveCategory(cat)}
+                                                    className="w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-all duration-150"
+                                                    style={{
+                                                        background: activeCategory === cat ? colors.accentLight : 'transparent',
+                                                        color: activeCategory === cat ? colors.accent : colors.textSecondary,
+                                                        fontFamily: typography.fontSans,
+                                                    }}
+                                                >
+                                                    {cat}
+                                                </button>
+                                            ))}
                                         </div>
+                                    </FilterAccordionSection>
 
-                                        {/* Product Grid - Myntra Style */}
-                                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 px-4">
-                                            {filteredProducts.map((product) => (
-                                                <ProductCard
-                                                    key={product.product_id}
-                                                    product={product}
-                                                    onTryOn={() => handleTryOn(product.product_id)}
+                                    {/* Price Range */}
+                                    <FilterAccordionSection
+                                        title="Price Range"
+                                        icon={<DollarSign className="w-4 h-4" />}
+                                        isExpanded={expandedSections.price}
+                                        onToggle={() => toggleSection('price')}
+                                        accentColor={colors.gold}
+                                    >
+                                        <div className="space-y-4">
+                                            <div className="flex gap-3">
+                                                <div className="flex-1">
+                                                    <label className="text-xs font-medium mb-1 block" style={{ color: colors.textSecondary }}>Min</label>
+                                                    <input
+                                                        type="number"
+                                                        value={priceRange[0]}
+                                                        onChange={(e) => setPriceRange([Number(e.target.value), priceRange[1]])}
+                                                        className="w-full px-3 py-2 rounded-lg border text-sm"
+                                                        style={{ borderColor: colors.border }}
+                                                    />
+                                                </div>
+                                                <div className="flex-1">
+                                                    <label className="text-xs font-medium mb-1 block" style={{ color: colors.textSecondary }}>Max</label>
+                                                    <input
+                                                        type="number"
+                                                        value={priceRange[1]}
+                                                        onChange={(e) => setPriceRange([priceRange[0], Number(e.target.value)])}
+                                                        className="w-full px-3 py-2 rounded-lg border text-sm"
+                                                        style={{ borderColor: colors.border }}
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </FilterAccordionSection>
+
+                                    {/* Color */}
+                                    <FilterAccordionSection
+                                        title="Color"
+                                        icon={<Palette className="w-4 h-4" />}
+                                        isExpanded={expandedSections.color}
+                                        onToggle={() => toggleSection('color')}
+                                        selectedCount={selectedColors.length}
+                                        accentColor="#56CCF2"
+                                    >
+                                        <div className="grid grid-cols-4 gap-2">
+                                            {colorOptions.map(color => (
+                                                <button
+                                                    key={color}
+                                                    onClick={() => {
+                                                        setSelectedColors(prev =>
+                                                            prev.includes(color)
+                                                                ? prev.filter(c => c !== color)
+                                                                : [...prev, color]
+                                                        );
+                                                    }}
+                                                    className="w-10 h-10 rounded-full border-2 transition-all duration-150"
+                                                    style={{
+                                                        background: color.toLowerCase(),
+                                                        borderColor: selectedColors.includes(color) ? colors.accent : colors.border,
+                                                        transform: selectedColors.includes(color) ? 'scale(1.1)' : 'scale(1)',
+                                                    }}
+                                                    title={color}
                                                 />
                                             ))}
                                         </div>
-                                    </>
-                                )}
-                            </>
-                        )}
+                                    </FilterAccordionSection>
+
+                                    {/* Size */}
+                                    <FilterAccordionSection
+                                        title="Size"
+                                        icon={<Ruler className="w-4 h-4" />}
+                                        isExpanded={expandedSections.size}
+                                        onToggle={() => toggleSection('size')}
+                                        selectedCount={selectedSizes.length}
+                                        accentColor="#4ECDC4"
+                                    >
+                                        <div className="grid grid-cols-3 gap-2">
+                                            {sizes.map(size => (
+                                                <button
+                                                    key={size}
+                                                    onClick={() => {
+                                                        setSelectedSizes(prev =>
+                                                            prev.includes(size)
+                                                                ? prev.filter(s => s !== size)
+                                                                : [...prev, size]
+                                                        );
+                                                    }}
+                                                    className="px-3 py-2 rounded-lg text-sm font-bold border-2 transition-all duration-150"
+                                                    style={{
+                                                        background: selectedSizes.includes(size) ? '#4ECDC4' : colors.bgWhite,
+                                                        color: selectedSizes.includes(size) ? '#FFFFFF' : colors.textSecondary,
+                                                        borderColor: selectedSizes.includes(size) ? '#4ECDC4' : colors.border,
+                                                    }}
+                                                >
+                                                    {size}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </FilterAccordionSection>
+                                </div>
+
+                                {/* Apply/Clear Buttons */}
+                                <div className="mt-6 pt-6 border-t flex gap-3" style={{ borderColor: colors.border }}>
+                                    <button
+                                        onClick={clearAllFilters}
+                                        className="flex-1 px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors duration-150"
+                                        style={{
+                                            background: 'transparent',
+                                            color: colors.textSecondary,
+                                            border: `1px solid ${colors.border}`,
+                                        }}
+                                    >
+                                        Clear
+                                    </button>
+                                    <button
+                                        className="flex-1 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all duration-150"
+                                        style={{
+                                            background: colors.accent,
+                                            color: '#FFFFFF',
+                                        }}
+                                    >
+                                        Apply
+                                    </button>
+                                </div>
+                            </div>
+                        </aside>
+
+                        {/* Right Content - Products */}
+                        <div className="flex-1">
+                            {/* Results Header */}
+                            <div className="flex items-center justify-between mb-6">
+                                <div>
+                                    {!isLoading && !error && (
+                                        <p className="text-sm" style={{ fontFamily: typography.fontSans, color: colors.textSecondary }}>
+                                            <span className="font-semibold" style={{ color: colors.charcoal }}>
+                                                {filteredProducts.length}
+                                            </span> {filteredProducts.length === 1 ? 'product' : 'products'}
+                                        </p>
+                                    )}
+                                </div>
+
+                                <div className="flex items-center gap-4">
+                                    {/* Sort Dropdown */}
+                                    <select
+                                        value={sortBy}
+                                        onChange={(e) => setSortBy(e.target.value)}
+                                        className="px-4 py-2 rounded-lg border text-sm font-medium"
+                                        style={{
+                                            borderColor: colors.border,
+                                            fontFamily: typography.fontSans,
+                                        }}
+                                    >
+                                        {sortOptions.map(option => (
+                                            <option key={option} value={option}>{option}</option>
+                                        ))}
+                                    </select>
+
+                                    {/* View Toggle */}
+                                    <ViewToggle view={viewMode} onChange={setViewMode} />
+                                </div>
+                            </div>
+
+                            {/* Active Filter Chips */}
+                            <ActiveFilterChips
+                                chips={getActiveFilterChips()}
+                                onClearAll={clearAllFilters}
+                                className="mb-6"
+                            />
+
+                            {/* Products Grid */}
+                            {isLoading ? (
+                                <div className="text-center py-20">
+                                    <div className="inline-block animate-spin rounded-full h-16 w-16 border-4" style={{ borderColor: colors.accent, borderTopColor: 'transparent' }}></div>
+                                    <p className="mt-6" style={{ color: colors.textSecondary }}>Loading collection...</p>
+                                </div>
+                            ) : error ? (
+                                <div className="text-center py-20">
+                                    <p style={{ color: colors.textSecondary }}>Failed to load products</p>
+                                </div>
+                            ) : filteredProducts.length === 0 ? (
+                                <div className="text-center py-20">
+                                    <p className="text-lg mb-2" style={{ color: colors.charcoal }}>No products found</p>
+                                    <p style={{ color: colors.textSecondary }}>Try adjusting your filters</p>
+                                </div>
+                            ) : (
+                                <div className={`grid gap-6 ${viewMode === 'grid' ? 'grid-cols-2 md:grid-cols-3 xl:grid-cols-4' : 'grid-cols-1'}`}>
+                                    {filteredProducts.map(product => (
+                                        <ProductCard
+                                            key={product.product_id}
+                                            product={product}
+                                            onTryOn={() => handleTryOn(product.product_id)}
+                                        />
+                                    ))}
+                                </div>
+                            )}
+                        </div>
                     </div>
-                </section>
+                </div>
             </main>
 
             <Footer />
+
+            <style>{`
+                /* Custom Scrollbar for Sidebar */
+                .overflow-y-auto::-webkit-scrollbar {
+                    width: 6px;
+                }
+                
+                .overflow-y-auto::-webkit-scrollbar-track {
+                    background: ${colors.bgLight};
+                    border-radius: 10px;
+                }
+                
+                .overflow-y-auto::-webkit-scrollbar-thumb {
+                    background: ${colors.accent};
+                    border-radius: 10px;
+                }
+                
+                .overflow-y-auto::-webkit-scrollbar-thumb:hover {
+                    background: ${colors.accentHover};
+                }
+            `}</style>
         </div>
     );
 };
