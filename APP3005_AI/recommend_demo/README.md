@@ -14,6 +14,11 @@ uv sync
 uv run streamlit run app/main.py
 ```
 
+## Run recommender API only (Docker)
+```bash
+docker compose -f docker-compose.reco.yml up --build
+```
+
 ## Fusion MLP (attributes + text + image)
 Training CSV columns:
 - `age`
