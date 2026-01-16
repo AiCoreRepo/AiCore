@@ -291,7 +291,7 @@ export function TryOnResultModal({
                                         }}
                                     >
                                         <RefreshCw className={`w-5 h-5 ${generatingAngles ? 'animate-spin' : ''}`} />
-                                        {generatingAngles ? 'Spinning...' : '🔥 Spin It!'}
+                                        {generatingAngles ? '🔮 Rotating Reality...' : '🌀 Rotate 360°'}
                                     </button>
                                 )}
                             </div>

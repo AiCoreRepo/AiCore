@@ -184,6 +184,15 @@ model TryOn {
   provider         String   @default("unknown")
   angle            String?
   base_tryon_id    String?  @db.Uuid
+  
+  // Caching & Optimization fields
+  cloudinary_public_id String?  // Cloudinary public ID for transformations
+  thumbnail_url        String?  // Compressed thumbnail URL
+  compressed_url       String?  // Compressed version URL
+  metadata_cache       Json?    // Cached metadata (colors, dimensions, etc.)
+  processing_metrics   Json?    // Token usage, processing time, compression ratio
+  angles_generated     String[] @default([]) // Track which angles have been generated
+  
   aura             Aura     @relation(fields: [aura_id], references: [aura_id])
   try_ons          TryOn?   @relation("try_onsTotry_ons", fields: [base_tryon_id], references: [try_on_id])
   other_try_ons    TryOn[]  @relation("try_onsTotry_ons")
@@ -192,6 +201,7 @@ model TryOn {
 
   @@index([user_id])
   @@index([aura_id, product_id, angle])
+  @@index([cloudinary_public_id])
   @@map("try_ons")
 }
 

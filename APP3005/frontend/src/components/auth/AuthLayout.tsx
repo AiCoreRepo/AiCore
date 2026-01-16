@@ -75,13 +75,13 @@ export const AuthLayout = ({ children, heroImage, quote, quoteAuthor }: AuthLayo
           </Link>
         </motion.div>
 
-        {/* Form Content - Shifted Upwards */}
-        <div className="flex-1 flex items-start justify-center p-6 sm:p-12 lg:p-24 pt-2 sm:pt-4 lg:pt-6">
+        {/* Form Content - Optimized for Mobile */}
+        <div className="flex-1 flex items-start justify-center p-4 sm:p-8 lg:p-24 pt-2 sm:pt-4 lg:pt-6 overflow-y-auto">
           <motion.div
             initial={{ opacity: 0, scale: 0.98 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.6, delay: 0.2 }}
-            className="w-full max-w-md bg-white/5 lg:bg-transparent p-8 sm:p-10 lg:p-0 rounded-3xl border border-white/10 lg:border-none backdrop-blur-sm lg:backdrop-blur-none"
+            className="w-full max-w-md bg-white/5 lg:bg-transparent p-6 sm:p-8 lg:p-0 rounded-2xl sm:rounded-3xl border border-white/10 lg:border-none backdrop-blur-sm lg:backdrop-blur-none"
           >
             {children}
           </motion.div>

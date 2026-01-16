@@ -10,6 +10,7 @@ import { TryOn3DService } from './services/tryon-3d.service';
 import { TryOnController } from './controllers/tryon.controller';
 import { AuraGuard } from '../common/guards/aura.guard';
 import { CloudinaryService } from '../common/cloudinary.service';
+import { ImageOptimizerService } from '../common/image-optimizer.service';
 
 @Module({
     imports: [ConfigModule, PrismaModule],
@@ -23,8 +24,16 @@ import { CloudinaryService } from '../common/cloudinary.service';
         TryOn3DService,
         AuraGuard,
         CloudinaryService,
+        ImageOptimizerService,
     ],
-    exports: [GeminiTryOnService, VertexTryOnService, DirectVertexTryOnService, BodyAnalyzerService, TryOn3DService],
+    exports: [
+        GeminiTryOnService,
+        VertexTryOnService,
+        DirectVertexTryOnService,
+        BodyAnalyzerService,
+        TryOn3DService,
+        ImageOptimizerService,
+    ],
 })
 export class AiTryOnModule { }
 

@@ -16,6 +16,12 @@ from google.genai import types
 from dotenv import load_dotenv
 from color_helper import generate_angle_prompt
 from body_analyzer import analyze_user_image
+from body_analyzer_helpers import (
+    _decode_base64_image,
+    _load_image_bytes,
+    _build_body_analyze_response,
+    BodyAnalyzeResponse,
+)
 
 # Load environment variables from a .env file for local runs.
 load_dotenv()
@@ -315,15 +321,49 @@ async def gemini_try_on(
     person_image: UploadFile = File(..., description="JPEG person image"),
     garment_image: UploadFile = File(..., description="JPEG garment image"),
     prompt: str = Form(
-        "Virtual Try-On Task:\n"
-        "- Image 1: The Person (Target)\n"
-        "- Image 2: The Dress/Garment (Source)\n"
-        "Instruction: The person in Image 1 MUST COMPLETELY wear the full outfit shown in Image 2.\n"
-        "Constraints:\n"
-        "1. DO NOT change the person's face, hair, body, skin tone, or pose.\n"
-        "2. DO NOT change, modify, or hallucinate the background; keep it EXACTLY as in Image 1.\n"
-        "3. The garment from Image 2 must fit the person's body perfectly and realistically.\n"
-        "4. COMPLETELY replace the original clothes in Image 1 with the new garment.",
+        "🎯 VIRTUAL TRY-ON TASK:\n\n"
+        
+        "📸 IMAGE ANALYSIS:\n"
+        "- Image 1: The TARGET PERSON (who will wear the clothes)\n"
+        "- Image 2: The CLOTHING SOURCE (can be: person wearing clothes, mannequin, or standalone garment)\n\n"
+        
+        "🔍 STEP 1 - IDENTIFY THE CLOTHING:\n"
+        "First, carefully analyze Image 2 to identify the clothing item(s):\n"
+        "- If Image 2 shows a PERSON wearing clothes → Extract ONLY the clothing/outfit they are wearing\n"
+        "- If Image 2 shows a MANNEQUIN → Extract the clothing displayed on the mannequin\n"
+        "- If Image 2 shows a STANDALONE GARMENT → Use that garment directly\n"
+        "- Identify ALL pieces: top, bottom, dress, jacket, accessories, etc.\n"
+        "- Note the exact colors, patterns, textures, and style details\n\n"
+        
+        "✨ STEP 2 - APPLY TO TARGET PERSON:\n"
+        "Now, transfer the identified clothing to the person in Image 1:\n"
+        "- The person in Image 1 MUST wear the EXACT clothing identified from Image 2\n"
+        "- Fit the clothing perfectly to their body shape and size\n"
+        "- Maintain all clothing details: colors, patterns, textures, logos, buttons, zippers\n"
+        "- Ensure realistic draping, shadows, and fabric behavior\n\n"
+        
+        "🚫 CRITICAL CONSTRAINTS (ZERO TOLERANCE):\n"
+        "1. PRESERVE THE PERSON (Image 1):\n"
+        "   - DO NOT change face, facial features, skin tone, or ethnicity\n"
+        "   - DO NOT change hair color, style, or length\n"
+        "   - DO NOT change body shape, height, or proportions\n"
+        "   - DO NOT change pose or body position\n"
+        "   - DO NOT change gender or age\n\n"
+        
+        "2. PRESERVE THE BACKGROUND (Image 1):\n"
+        "   - Keep the background EXACTLY as it appears in Image 1\n"
+        "   - DO NOT add, remove, or modify any background elements\n"
+        "   - DO NOT change lighting or atmosphere\n\n"
+        
+        "3. CLOTHING TRANSFER ACCURACY:\n"
+        "   - Transfer ONLY the clothing from Image 2, nothing else\n"
+        "   - If Image 2 has a person, DO NOT copy their face, body, or background\n"
+        "   - Match the exact colors and patterns of the clothing\n"
+        "   - Ensure the clothing fits naturally on the target person's body\n\n"
+        
+        "✅ FINAL OUTPUT:\n"
+        "Generate an image showing the person from Image 1 wearing the clothing from Image 2, "
+        "with everything else (face, hair, body, background) remaining identical to Image 1.",
         description="Optional prompt; uses default if omitted.",
     ),
 ) -> GeminiResponse:
@@ -808,20 +848,75 @@ async def gemini_try_on_json(request: TryOnJSONRequest) -> StandardTryOnResponse
                 status_code=400, detail=f"Invalid base64 image data: {exc}"
             ) from exc
 
-        # Try-on: Last attempt with ultra-directive prompt
+        # Enhanced try-on prompt with better clothing detection
         params = request.additional_params or {}
         prompt = params.get(
             "prompt",
-            "Virtual Try-On Task:\n"
-            "- Image 1: The Person (Target)\n"
-            "- Image 2: The Dress/Garment (Source)\n"
-            "Instruction: The person in Image 1 MUST COMPLETELY wear the full outfit shown in Image 2.\n"
-            "Constraints:\n"
-            "1. DO NOT change the person's face, hair, body, skin tone, or pose.\n"
-            "2. DO NOT change, modify, or hallucinate the background; keep it EXACTLY as in Image 1.\n"
-            "3. The garment from Image 2 must fit the person's body perfectly and realistically.\n"
-            "4. COMPLETELY replace the original clothes in Image 1 with the new garment."
+            "🎯 VIRTUAL TRY-ON TASK:\n\n"
+            
+            "📸 IMAGE ANALYSIS:\n"
+            "- Image 1: The TARGET PERSON (who will wear the clothes)\n"
+            "- Image 2: The CLOTHING SOURCE (can be: person wearing clothes, mannequin, or standalone garment)\n\n"
+            
+            "🔍 STEP 1 - IDENTIFY THE CLOTHING:\n"
+            "First, carefully analyze Image 2 to identify the clothing item(s):\n"
+            "- If Image 2 shows a PERSON wearing clothes → Extract ONLY the clothing/outfit they are wearing\n"
+            "- If Image 2 shows a MANNEQUIN → Extract the clothing displayed on the mannequin\n"
+            "- If Image 2 shows a STANDALONE GARMENT → Use that garment directly\n"
+            "- Identify ALL pieces: top, bottom, dress, jacket, accessories, etc.\n"
+            "- Note the exact colors, patterns, textures, and style details\n\n"
+            
+            "✨ STEP 2 - APPLY TO TARGET PERSON:\n"
+            "Now, transfer the identified clothing to the person in Image 1:\n"
+            "- The person in Image 1 MUST wear the EXACT clothing identified from Image 2\n"
+            "- Fit the clothing perfectly to their body shape and size\n"
+            "- Maintain all clothing details: colors, patterns, textures, logos, buttons, zippers\n"
+            "- Ensure realistic draping, shadows, and fabric behavior\n\n"
+            
+            "🚫 CRITICAL CONSTRAINTS (ZERO TOLERANCE):\n"
+            "1. PRESERVE THE PERSON (Image 1):\n"
+            "   - DO NOT change face, facial features, skin tone, or ethnicity\n"
+            "   - DO NOT change hair color, style, or length\n"
+            "   - DO NOT change body shape, height, or proportions\n"
+            "   - DO NOT change pose or body position\n"
+            "   - DO NOT change gender or age\n\n"
+            
+            "2. PRESERVE THE BACKGROUND (Image 1):\n"
+            "   - Keep the background EXACTLY as it appears in Image 1\n"
+            "   - DO NOT add, remove, or modify any background elements\n"
+            "   - DO NOT change lighting or atmosphere\n\n"
+            
+            "3. CLOTHING TRANSFER ACCURACY:\n"
+            "   - Transfer ONLY the clothing from Image 2, nothing else\n"
+            "   - If Image 2 has a person, DO NOT copy their face, body, or background\n"
+            "   - Match the exact colors and patterns of the clothing\n"
+            "   - Ensure the clothing fits naturally on the target person's body\n\n"
+            
+            "✅ FINAL OUTPUT:\n"
+            "Generate an image showing the person from Image 1 wearing the clothing from Image 2, "
+            "with everything else (face, hair, body, background) remaining identical to Image 1."
         )
+
+        # Reset angle session for this user+product when starting a new try-on
+        # This ensures the first "Generate More Angles" click will start from "front"
+        user_id = params.get('user_id', 'unknown')
+        product_id = params.get('product_id', 'unknown')
+        session_key = f"{user_id}_{product_id}"
+        
+        # Import angle manager
+        from color_helper import _angle_manager
+        
+        # Log current state before reset
+        current_index = _angle_manager.get_current_index(session_key)
+        print(f"🔍 BEFORE RESET - Session: {session_key}, Current Index: {current_index}")
+        
+        # Reset the session to start fresh
+        _angle_manager.reset_session(session_key)
+        
+        # Verify reset worked
+        new_index = _angle_manager.get_current_index(session_key)
+        print(f"🔄 AFTER RESET - Session: {session_key}, New Index: {new_index}")
+        print(f"✅ Session reset successful! Next angle will be: front")
 
         client = genai.Client(api_key=api_key)
         model_id = "gemini-2.5-flash-image-preview"
@@ -893,6 +988,8 @@ async def generate_angles(request: GenerateAnglesRequest) -> StandardTryOnRespon
     """
     Generate more angles from an existing try-on image using Gemini AI.
     Expects base64 image without data URI prefix.
+    Optimized with metadata caching for reduced token consumption.
+    Tracks angle sequence per user+product for consistent progression.
     """
     import time
     start_time = time.time()
@@ -908,15 +1005,55 @@ async def generate_angles(request: GenerateAnglesRequest) -> StandardTryOnRespon
                 status_code=400, detail=f"Invalid base64 image data: {exc}"
             ) from exc
 
-        # Minimal token usage: let Gemini analyze image colors
+        # Extract parameters
         params = request.additional_params or {}
         
-        if "prompt" in params:
-            prompt = params["prompt"]
+        # Check if we're using cached metadata and thumbnail
+        cached_metadata = params.get('cached_metadata')
+        use_thumbnail = params.get('use_thumbnail', False)
+        
+        # Get user_id and product_id for angle tracking
+        user_id = params.get('user_id', 'unknown')
+        product_id = params.get('product_id', 'unknown')
+        
+        # Create a session key for this user+product combination
+        session_key = f"{user_id}_{product_id}"
+        
+        # Determine the next angle in sequence
+        # Check if an angle was explicitly requested
+        requested_angle = params.get('angle')
+        
+        if requested_angle:
+            # Use the explicitly requested angle
+            angle = requested_angle
+            print(f"✅ Using explicitly requested angle: {angle}")
         else:
-            # Ultra-minimal: Gemini sees image, analyzes colors, generates background
-            angle = params.get("angle")
-            prompt = generate_angle_prompt(angle=angle)
+            # Auto-determine next angle in sequence using session-based tracking
+            from color_helper import ANGLES, _angle_manager
+            
+            # Get the next angle in sequence for this specific session
+            angle = _angle_manager.get_next_angle(session_key)
+            current_index = _angle_manager.get_current_index(session_key)
+            
+            print(f"✅ Auto-selected next angle in sequence: {angle}")
+            print(f"   Session: {session_key}")
+            print(f"   Current index: {current_index - 1} (next will be {current_index})")
+            print(f"   Full sequence: {' → '.join(ANGLES)}")
+        
+        # Log optimization info
+        if cached_metadata:
+            print(f"✅ Using cached metadata: {cached_metadata}")
+        if use_thumbnail:
+            print(f"✅ Using thumbnail for reduced payload")
+        
+        # Generate prompt with the determined angle and session key
+        from color_helper import generate_angle_prompt
+        
+        if 'prompt' in params:
+            prompt = params['prompt']
+        else:
+            # Use cached metadata and session key for more efficient prompting
+            prompt = generate_angle_prompt(angle=angle, cached_metadata=cached_metadata, session_key=session_key)
 
         client = genai.Client(api_key=api_key)
         model_id = "gemini-2.5-flash-image-preview"
@@ -927,6 +1064,9 @@ async def generate_angles(request: GenerateAnglesRequest) -> StandardTryOnRespon
         ]
 
         print(f"DEBUG: Starting Gemini generate_content for angles. Image size: {len(image_bytes)} bytes")
+        print(f"DEBUG: Generating angle: {angle}")
+        print(f"DEBUG: Using optimized prompt: {prompt[:150]}...")
+        
         response = client.models.generate_content(
             model=model_id,
             contents=contents,
@@ -959,12 +1099,16 @@ async def generate_angles(request: GenerateAnglesRequest) -> StandardTryOnRespon
             success=True,
             result_image=images[0],  # Return first image
             processing_time=processing_time,
-            message="New angle generated successfully",
+            message=f"New angle '{angle}' generated successfully with optimized caching",
             metadata={
                 "model_id": model_id,
                 "provider": "gemini",
                 "num_images": len(images),
                 "texts": texts,
+                "cached_metadata_used": bool(cached_metadata),
+                "thumbnail_used": use_thumbnail,
+                "angle_generated": angle,
+                "session_key": session_key,
             },
         )
 

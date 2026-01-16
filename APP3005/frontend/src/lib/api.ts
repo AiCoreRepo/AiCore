@@ -4,6 +4,28 @@ export interface ApiError extends Error {
   status?: number;
 }
 
+// Helper function to handle API errors and trigger logout on 401
+function handleApiError(res: Response, bodyText: string, defaultMessage: string): never {
+  let message = defaultMessage;
+  try {
+    const err = JSON.parse(bodyText);
+    message = err.message || message;
+  } catch {
+    message = bodyText || message;
+  }
+
+  const error = new Error(message) as ApiError;
+  error.status = res.status;
+
+  // If it's a 401 Unauthorized, trigger auth-error event to logout
+  if (res.status === 401) {
+    console.log('🔒 401 Unauthorized - Triggering auth-error event');
+    window.dispatchEvent(new Event('auth-error'));
+  }
+
+  throw error;
+}
+
 export interface TryOnPermission {
   id: string;
   userId: string;
@@ -191,16 +213,7 @@ export async function getProfile() {
 
   if (!res.ok) {
     const bodyText = await res.text();
-    let message = 'Failed to fetch profile';
-    try {
-      const err = JSON.parse(bodyText);
-      message = err.message || message;
-    } catch {
-      message = bodyText || message;
-    }
-    const error = new Error(message) as ApiError;
-    error.status = res.status;
-    throw error;
+    handleApiError(res, bodyText, 'Failed to fetch profile');
   }
   return res.json();
 }
