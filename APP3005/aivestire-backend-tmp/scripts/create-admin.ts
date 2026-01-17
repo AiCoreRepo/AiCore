@@ -1,16 +1,15 @@
-import { PrismaClient, UserRole } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
 
-async function createAdminUser() {
-    try {
-        console.log('🔧 Creating admin user...\n');
+async function createAdmin() {
+    console.log('\n👑 Creating Admin Account\n');
+    console.log('='.repeat(60));
 
-        // Admin user details
+    try {
         const adminEmail = 'admin@aivestire.com';
-        const adminPassword = 'Admin@123456'; // Change this to a secure password
-        const saltRounds = 10;
+        const adminPassword = 'admin123'; // Simple password for testing
 
         // Check if admin already exists
         const existingAdmin = await prisma.user.findUnique({
@@ -18,60 +17,43 @@ async function createAdminUser() {
         });
 
         if (existingAdmin) {
-            console.log('⚠️  Admin user already exists with email:', adminEmail);
-
-            // Update role to ADMIN if not already
-            if (existingAdmin.role !== UserRole.ADMIN) {
-                await prisma.user.update({
-                    where: { email: adminEmail },
-                    data: { role: UserRole.ADMIN },
-                });
-                console.log('✅ Updated existing user to ADMIN role');
-            } else {
-                console.log('✅ User already has ADMIN role');
-            }
-
-            console.log('\n📧 Email:', adminEmail);
-            console.log('🔑 Password:', adminPassword);
-            return;
+            console.log('⚠️  Admin account already exists.');
+            console.log(`   Email: ${adminEmail}`);
+            // Update password just in case
+            const hashedPassword = await bcrypt.hash(adminPassword, 10);
+            await prisma.user.update({
+                where: { email: adminEmail },
+                data: {
+                    password_hash: hashedPassword,
+                    role: 'ADMIN', // Ensure role is ADMIN
+                },
+            });
+            console.log('   ✅ Password and role updated.');
+        } else {
+            const hashedPassword = await bcrypt.hash(adminPassword, 10);
+            await prisma.user.create({
+                data: {
+                    email: adminEmail,
+                    password_hash: hashedPassword,
+                    role: 'ADMIN',
+                    status: 'active',
+                },
+            });
+            console.log('✅ Created new admin account.');
         }
 
-        // Hash password
-        const hashedPassword = await bcrypt.hash(adminPassword, saltRounds);
-
-        // Create admin user
-        const adminUser = await prisma.user.create({
-            data: {
-                email: adminEmail,
-                password_hash: hashedPassword,
-                role: UserRole.ADMIN,
-                status: 'active',
-            },
-        });
-
-        console.log('✅ Admin user created successfully!\n');
-        console.log('📧 Email:', adminEmail);
-        console.log('🔑 Password:', adminPassword);
-        console.log('👤 User ID:', adminUser.user_id);
-        console.log('🎭 Role:', adminUser.role);
-        console.log('\n⚠️  IMPORTANT: Change the password after first login!');
-        console.log('💡 Use this email and password to login via POST /auth/login');
+        console.log('\n📝 ADMIN CREDENTIALS:');
+        console.log('='.repeat(60));
+        console.log(`   Email:    ${adminEmail}`);
+        console.log(`   Password: ${adminPassword}`);
+        console.log('='.repeat(60));
+        console.log('');
 
     } catch (error) {
-        console.error('❌ Error creating admin user:', error);
-        throw error;
+        console.error('❌ Failed to create admin:', error);
     } finally {
         await prisma.$disconnect();
     }
 }
 
-// Run the script
-createAdminUser()
-    .then(() => {
-        console.log('\n✨ Script completed successfully!');
-        process.exit(0);
-    })
-    .catch((error) => {
-        console.error('\n💥 Script failed:', error);
-        process.exit(1);
-    });
+createAdmin();

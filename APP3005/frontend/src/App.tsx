@@ -21,6 +21,8 @@ import UserSignup from "./pages/UserSignup";
 import UserForgotPassword from "./pages/UserForgotPassword";
 import AuraDashboard from "./pages/AuraDashboard";
 import AuraProfile from "./pages/AuraProfile";
+import LetAIDecidePage from "./pages/LetAIDecidePage";
+import BulkUploadPage from "./app/bulk-upload";
 import AdminDashboardPage from "./app/admin-dashboard/page";
 const AtelierApprovalPage = lazy(() => import("./app/admin-approvals/page"));
 import CollectionPage from "./pages/CollectionPage";
@@ -60,6 +62,7 @@ const App = () => (
                 <Route path="/forgot-password" element={<ForgotPassword />} />
                 <Route path="/creator-login" element={<CreatorLogin />} />
                 <Route path="/ai-try-on" element={<AiTryOn />} />
+                <Route path="/let-ai-decide" element={<LetAIDecidePage />} />
 
                 {/* Protected Creator Routes */}
                 <Route path="/creator-dashboard" element={
@@ -80,6 +83,11 @@ const App = () => (
                 <Route path="/analytics" element={
                   <ProtectedRoute requiredRole="CREATOR" redirectTo="/login">
                     <AnalyticsPage />
+                  </ProtectedRoute>
+                } />
+                <Route path="/bulk-upload" element={
+                  <ProtectedRoute requiredRole="CREATOR" redirectTo="/login">
+                    <BulkUploadPage />
                   </ProtectedRoute>
                 } />
 

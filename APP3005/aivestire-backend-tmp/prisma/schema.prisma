@@ -106,6 +106,10 @@ model Product {
   status          ProductStatus @default(PENDING)
   is_deleted      Boolean  @default(false)
   max_images      Int      @default(20)
+  
+  // Recommendation system metadata
+  metadata        Json?    // Stores recommendation attributes: occasions, body_shapes, skin_tones, sizes, fit, fabric, color_family, style
+  
   created_at      DateTime @default(now())
   updated_at      DateTime?
 

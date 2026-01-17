@@ -11,6 +11,7 @@ import {
   Delete,
 } from '@nestjs/common';
 import { ProductsService } from './products.service';
+import { BulkUploadService } from './bulk-upload.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { CreateCommentDto } from './dto/create-comment.dto';
@@ -19,9 +20,12 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 
 
-@Controller('products')
+@Controller('api/products')
 export class ProductsController {
-  constructor(private readonly productsService: ProductsService) { }
+  constructor(
+    private readonly productsService: ProductsService,
+    private readonly bulkUploadService: BulkUploadService,
+  ) { }
 
   /**
    * GET /products/approved
@@ -95,6 +99,22 @@ export class ProductsController {
   @Roles('CREATOR')
   create(@Body() dto: CreateProductDto) {
     return this.productsService.create(dto);
+  }
+
+  /**
+   * POST /products/bulk-upload
+   * Bulk upload products (up to 10 at once)
+   * Requires CREATOR role
+   */
+  @Post('bulk-upload')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('CREATOR')
+  async bulkUpload(
+    @Request() req,
+    @Body() body: { products: any[] },
+  ) {
+    const creatorId = req.user.user_id;
+    return this.bulkUploadService.bulkCreateProducts(body.products, creatorId);
   }
 
   /**

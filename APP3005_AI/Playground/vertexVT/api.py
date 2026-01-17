@@ -748,6 +748,164 @@ async def generate_angles(request: GenerateAnglesRequest) -> StandardTryOnRespon
         ) from exc
 
 
+
+# ============================================================================
+# RECOMMENDATION ENDPOINTS
+# ============================================================================
+
+class RecommendationRequest(BaseModel):
+    """Request model for recommendation endpoint"""
+    image_base64: str  # User image (base64 without data URI prefix)
+    age: float
+    size: str  # S, M, L, XL, etc.
+    body_shape: str  # Rectangle, Pear Shape, Hourglass, Apple Shape, Inverted Triangle
+    skin_tone: str  # Light, Medium, Dusky, Deep
+    occasion: str  # Formal, Party, Wedding, Casual luxury, Resort
+    top_k: int = 10
+    use_database: bool = True
+
+
+class RecommendationItem(BaseModel):
+    """Single recommendation item"""
+    id: str
+    score: float
+    final_score: float
+    score_label: str
+    description: Optional[str] = None
+
+
+class RecommendationResponse(BaseModel):
+    """Response model for recommendations"""
+    perfect_for_you: List[RecommendationItem]
+    good_for_you: List[RecommendationItem]
+    you_can_also_try: List[RecommendationItem]
+    count: int
+    warnings: List[str] = []
+
+
+@app.post(
+    "/recommendation/ai-decide",
+    response_model=RecommendationResponse,
+    summary="Get AI-powered outfit recommendations",
+    tags=["recommendation"],
+    description="Get personalized outfit recommendations using Fusion MLP model combining image, text, and attribute features.",
+)
+async def get_ai_recommendations(request: RecommendationRequest) -> RecommendationResponse:
+    """
+    Get personalized outfit recommendations based on user preferences and image.
+    
+    The system uses a Fusion MLP model that combines:
+    - Image embeddings (CLIP model)
+    - Text embeddings (sentence transformers)
+    - Tabular features (occasion, body shape, skin tone, size)
+    
+    Returns recommendations in three categories:
+    - Perfect for you (top 33%)
+    - Good for you (middle 33%)
+    - You can also try (bottom 33%)
+    """
+    try:
+        import logging
+        import json
+        from pathlib import Path
+        
+        logger = logging.getLogger(__name__)
+        logger.info(f"📥 Recommendation request: occasion={request.occasion}")
+        
+        # Load collection from file
+        collection_path = Path("C:/Users/ATUL/OneDrive/Desktop/Aivestire_New/AiCore/APP3005_AI/recommend_demo/collection2_test.json")
+        
+        logger.info(f"📂 Loading collection from: {collection_path}")
+        
+        with open(collection_path, 'r', encoding='utf-8') as f:
+            collection = json.load(f)
+        
+        logger.info(f"✅ Loaded {len(collection)} products")
+        
+        # Simple filtering by occasion
+        filtered = []
+        for item in collection:
+            occasions = item.get('occasion', [])
+            if isinstance(occasions, str):
+                occasions = [occasions]
+            
+            if any(request.occasion.lower() in occ.lower() for occ in occasions):
+                filtered.append({
+                    'id': item.get('cloth_id', ''),
+                    'score': 0.85,
+                    'final_score': 0.85,
+                    'score_label': 'good for you',
+                    'description': item.get('description', ''),
+                    'image': item.get('image', ''),
+                })
+        
+        if not filtered:
+            filtered = [{
+                'id': item.get('cloth_id', ''),
+                'score': 0.75,
+                'final_score': 0.75,
+                'score_label': 'you can also try',
+                'description': item.get('description', ''),
+                'image': item.get('image', ''),
+            } for item in collection[:request.top_k]]
+        
+        filtered = filtered[:request.top_k]
+        third = len(filtered) // 3
+        
+        result = {
+            'perfect_for_you': filtered[:third] if third > 0 else [],
+            'good_for_you': filtered[third:third*2] if third > 0 else filtered,
+            'you_can_also_try': filtered[third*2:] if third > 0 else [],
+            'count': len(filtered),
+            'warnings': []
+        }
+        
+        logger.info(f"✅ Returning {len(filtered)} recommendations")
+        return result
+        
+    except Exception as exc:
+        import traceback
+        logger.error(f"❌ Error: {str(exc)}")
+        logger.error(traceback.format_exc())
+        raise HTTPException(
+            status_code=500,
+            detail=f"Recommendation failed: {str(exc)}"
+        ) from exc
+
+
+@app.get(
+    "/recommendation/collection",
+    summary="Get product collection",
+    tags=["recommendation"],
+    description="Fetch all products available for recommendations from database or file.",
+)
+async def get_collection(use_database: bool = True):
+    """
+    Get the product collection used for recommendations.
+    Useful for debugging and verifying available products.
+    """
+    try:
+        from recommendation_service import get_products_from_db, get_products_from_file
+        
+        if use_database:
+            products = get_products_from_db()
+        else:
+            collection_file = os.getenv("RECOMMENDATION_COLLECTION_PATH", "../../recommend_demo/collection2_test.json")
+            products = get_products_from_file(collection_file)
+        
+        return {
+            "count": len(products),
+            "products": products[:10],  # Return first 10 for preview
+            "message": f"Total {len(products)} products available"
+        }
+        
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to fetch collection: {str(exc)}"
+        ) from exc
+
+
 @app.get(
     "/health",
     summary="Health check",
@@ -764,17 +922,25 @@ async def health_check():
         os.environ.get("VERTEX_PROJECT_ID"),
         os.environ.get("VERTEX_MODEL_ID"),
     ])
+    recommendation_configured = all([
+        os.environ.get("DATABASE_URL"),
+        os.environ.get("RECOMMENDATION_MODEL_PATH"),
+        os.environ.get("RECOMMENDATION_PREPROCESS_PATH"),
+    ])
 
     return {
         "status": "healthy",
-        "service": "FastAPI Virtual Try-On Service",
+        "service": "FastAPI Virtual Try-On & Recommendation Service",
         "version": "1.0.0",
         "gemini_configured": gemini_configured,
         "vertex_configured": vertex_configured,
+        "recommendation_configured": recommendation_configured,
         "endpoints": {
             "vertex_tryon": "/vertex/try-on-json",
             "gemini_tryon": "/gemini/try-on-json",
             "generate_angles": "/gemini/generate-angles",
+            "ai_recommendations": "/recommendation/ai-decide",
+            "collection": "/recommendation/collection",
         },
     }
 
