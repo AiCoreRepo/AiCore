@@ -70,66 +70,94 @@ def generate_angle_prompt(angle: str = None, cached_metadata: dict = None, sessi
     
     angle_instruction = angle_definitions.get(angle, f"{angle} view")
     
-    # Maximum detail prompt with facial feature preservation
-    base_prompt = f"""🎯 CRITICAL INSTRUCTION: Generate ONLY a {angle.upper()} camera angle rotation of the EXACT SAME PERSON.
+    # ULTRA-STRICT prompt to prevent cropping and zooming
+    base_prompt = f"""🚨 CRITICAL INSTRUCTION: Generate the EXACT SAME PERSON from a {angle.upper()} camera angle.
 
 📐 ANGLE SPECIFICATION:
 {angle_instruction}
 
-⚠️ ABSOLUTE REQUIREMENTS - ZERO TOLERANCE FOR CHANGES:
+🚫 ABSOLUTELY FORBIDDEN - DO NOT DO THESE:
+❌ DO NOT ZOOM IN on the person
+❌ DO NOT CROP the image closer
+❌ DO NOT cut off the head or feet
+❌ DO NOT make the person bigger in the frame
+❌ DO NOT change the camera distance
+❌ DO NOT focus only on upper body
+❌ DO NOT change facial features
+❌ DO NOT change the person's identity
 
-1. FACIAL IDENTITY (MUST BE IDENTICAL):
-   - EXACT same face shape and bone structure
-   - EXACT same eye shape, color, and spacing
-   - EXACT same nose shape and size
-   - EXACT same mouth shape and lip thickness
-   - EXACT same eyebrow shape and thickness
-   - EXACT same skin tone (no lighter/darker)
-   - EXACT same facial hair (if present)
-   - EXACT same age appearance
+✅ MANDATORY REQUIREMENTS:
+
+1. FULL BODY VISIBILITY (NON-NEGOTIABLE):
+   ⚠️ SHOW THE ENTIRE PERSON FROM HEAD TO FEET
+   ⚠️ Include space above the head (at least 10% of image height)
+   ⚠️ Include space below the feet (at least 10% of image height)
+   ⚠️ Include space on both sides (at least 10% of image width each side)
+   ⚠️ The person should occupy approximately 60-70% of the image height
+   ⚠️ NEVER let the person fill more than 80% of the frame
+   ⚠️ Keep the same distance - imagine a camera on a tripod rotating around the person
+
+2. FRAMING & COMPOSITION (CRITICAL):
+   - Maintain WIDE SHOT framing (not medium shot, not close-up)
+   - Keep the SAME zoom level as the original
+   - Keep the SAME camera distance (approximately 6-8 feet away)
+   - Show FULL LENGTH body shot
+   - Include background context around the person
+   - DO NOT fill the entire frame with just the person
+   - Leave breathing room on all sides
+
+3. FACIAL IDENTITY (MUST BE 100% IDENTICAL):
+   - EXACT same face (not similar, EXACT)
+   - EXACT same skin tone
+   - EXACT same facial features
+   - EXACT same age
    - EXACT same gender
    - EXACT same ethnicity
-   - EXACT same facial proportions
+   - If you change the face even slightly, this is WRONG
 
-2. HAIR (MUST BE IDENTICAL):
-   - EXACT same hair color
-   - EXACT same hairstyle
-   - EXACT same hair length
-   - EXACT same hair texture
-
-3. BODY (MUST BE IDENTICAL):
-   - EXACT same height
-   - EXACT same body build
-   - EXACT same skin tone on all visible skin
-   - EXACT same posture
-
-4. OUTFIT (MUST BE IDENTICAL):
-   - EXACT same clothing item
-   - EXACT same colors and patterns
-   - EXACT same fabric and texture
-   - EXACT same fit and draping
+4. BODY & OUTFIT (MUST BE IDENTICAL):
+   - EXACT same body build and height
+   - EXACT same clothing and colors
    - EXACT same accessories
+   - EXACT same posture
 
 5. ENVIRONMENT (MUST BE IDENTICAL):
    - EXACT same background
-   - EXACT same lighting direction and intensity
+   - EXACT same lighting
    - EXACT same floor/ground
-   - EXACT same atmosphere
 
-6. WHAT TO CHANGE:
-   - ONLY the camera viewing angle to {angle.upper()}
-   - Rotate the person's body to show the {angle} view as defined above
-   - Everything else stays EXACTLY the same
+6. WHAT TO CHANGE (ONLY THIS):
+   - ONLY rotate the camera viewing angle to {angle.upper()}
+   - Show the person from the {angle} side
+   - Keep everything else EXACTLY the same
 
-✅ VERIFICATION: After generation, the person must be instantly recognizable as the EXACT SAME INDIVIDUAL. If someone saw both images, they should say "that's the same person from a different angle" not "that's a different person in similar clothes".
+🎯 REFERENCE EXAMPLE:
+Think of this like a product photography turntable:
+- The person stands still on a platform
+- The camera rotates around them at a FIXED DISTANCE
+- The camera stays at the SAME HEIGHT
+- The camera stays the SAME DISTANCE away
+- The ENTIRE PERSON remains visible from head to toe
+- There is space around the person in the frame
 
-💡 IMPORTANT: This is a CAMERA ROTATION, not generating a new person. Think of it as rotating a camera around a statue - the statue doesn't change, only the viewing angle changes."""
+⚠️ FINAL CHECK BEFORE GENERATING:
+1. Can you see the person's HEAD? ✓
+2. Can you see the person's FEET? ✓
+3. Is there space ABOVE the head? ✓
+4. Is there space BELOW the feet? ✓
+5. Is there space on BOTH SIDES? ✓
+6. Is the person the SAME SIZE in the frame? ✓
+7. Is it the EXACT SAME FACE? ✓
+
+If ANY of these checks fail, DO NOT GENERATE. Start over.
+
+💡 REMEMBER: This is NOT a portrait photo. This is a FULL BODY fashion shot showing the complete outfit from head to toe with proper framing."""
     
     # Add color context if available from cached metadata
     if cached_metadata and cached_metadata.get('dominantColors'):
         colors = cached_metadata['dominantColors']
         colors_str = ', '.join(colors[:3]) if isinstance(colors, list) else str(colors)
-        return f"{base_prompt}\n\nREFERENCE DATA:\n- Outfit colors: {colors_str}\n- These MUST be preserved exactly in the {angle} view\n- Use this as verification that you're showing the same person"
+        return f"{base_prompt}\n\n📊 REFERENCE DATA:\n- Outfit colors: {colors_str}\n- These colors MUST be preserved exactly\n- Use this to verify you're showing the same person\n- If colors don't match, you generated the wrong image"
     
     return base_prompt
 
