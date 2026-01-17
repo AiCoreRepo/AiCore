@@ -13,6 +13,7 @@ import { CreatorDashboardModule } from './creator-dashboard/creator-dashboard.mo
 import { AuraModule } from './aura/aura.module';
 import { AdminModule } from './admin/admin.module';
 import { AiTryOnModule } from './ai-tryon/ai-tryon.module';
+import { RecommendationModule } from './recommendation/recommendation.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { AiTryOnModule } from './ai-tryon/ai-tryon.module';
     AuraModule,
     AdminModule,
     AiTryOnModule,
+    RecommendationModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -9,7 +9,7 @@ const navLinks = [
     { name: "Home", href: "/", isRoute: true },
     { name: "Collection", href: "/collection", isRoute: true },
     { name: "AI Try-On", href: "/ai-try-on", isRoute: true },
-    { name: "Let AI Decide", href: "/#ai-decide", isRoute: true },
+    { name: "Let AI Decide", href: "/let-ai-decide", isRoute: true },
     { name: "Lookbook", href: "/#lookbook", isRoute: true },
     { name: "About", href: "/#about", isRoute: true },
 ];

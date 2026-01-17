@@ -27,6 +27,7 @@
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
+    "@nestjs/axios": "^4.0.1",
     "@nestjs/bull": "^11.0.4",
     "@nestjs/cli": "^11.0.0",
     "@nestjs/common": "^11.1.9",
@@ -39,6 +40,7 @@
     "@nestjs/swagger": "^11.2.3",
     "@prisma/client": "^6.19.0",
     "@types/cookie-parser": "^1.4.10",
+    "axios": "^1.13.2",
     "bcrypt": "^6.0.0",
     "bull": "^4.16.5",
     "class-transformer": "^0.5.1",

@@ -30,15 +30,21 @@ export class CloudinaryService {
   async uploadImage(file: string): Promise<string> {
     return new Promise((resolve, reject) => {
       console.log('Starting Cloudinary upload...');
+      console.log('Image data length:', file.length);
+      console.log('Image data preview:', file.substring(0, 100));
+
       cloudinary.uploader.upload(
         file,
         CLOUDINARY_UPLOAD_OPTIONS,
         (error, result) => {
           if (error || !result) {
-            console.error('Cloudinary upload failed:', error);
-            reject(new Error('Failed to upload image to Cloudinary'));
+            console.error('❌ Cloudinary upload failed!');
+            console.error('Error details:', JSON.stringify(error, null, 2));
+            console.error('Error message:', error?.message);
+            console.error('Error http_code:', error?.http_code);
+            reject(new Error(`Failed to upload image to Cloudinary: ${error?.message || 'Unknown error'}`));
           } else {
-            console.log('Cloudinary upload success:', result.secure_url);
+            console.log('✅ Cloudinary upload success:', result.secure_url);
             resolve(result.secure_url);
           }
         },
