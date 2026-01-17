@@ -105,6 +105,22 @@ const HEADER_MAP = {
   rating: "score",
 };
 
+const EXPORT_COLUMNS = [
+  { key: "image", header: "Image" },
+  { key: "clothId", header: "Cloth ID" },
+  { key: "occasion", header: "Occasion" },
+  { key: "bodyShape", header: "Recommended Body Shape" },
+  { key: "size", header: "Recommended Size" },
+  { key: "skinTone", header: "Skin Tone" },
+  { key: "clothingType", header: "Clothing Type" },
+  { key: "fit", header: "Fit" },
+  { key: "fabric", header: "Fabric" },
+  { key: "colorFamily", header: "Color_family" },
+  { key: "style", header: "Style" },
+  { key: "description", header: "Description" },
+  { key: "score", header: "Score" },
+];
+
 const DEFAULT_IMAGE_BASE = "testiing_image_collection/";
 const IMAGE_BASE = (() => {
   const value = import.meta.env.VITE_IMAGE_BASE_URL || DEFAULT_IMAGE_BASE;
@@ -240,6 +256,17 @@ function ensureListFields(row) {
   return row;
 }
 
+function cloneRow(row) {
+  if (!row) return createEmptyRow();
+  const next = { ...row };
+  LIST_KEYS.forEach((key) => {
+    if (Array.isArray(next[key])) {
+      next[key] = [...next[key]];
+    }
+  });
+  return next;
+}
+
 function deriveImageFromClothId(value) {
   const match = String(value || "").match(/\d+/);
   if (!match) return "";
@@ -323,6 +350,42 @@ function resolveImageSrc(value) {
     return `${IMAGE_BASE}${trimmed}`;
   }
   return trimmed;
+}
+
+function joinListValue(value) {
+  if (Array.isArray(value)) {
+    const cleaned = value
+      .map((item) => String(item || "").trim())
+      .filter(Boolean);
+    return cleaned.join(", ");
+  }
+  return String(value || "").trim();
+}
+
+function buildExportData(rows) {
+  const headerRow = EXPORT_COLUMNS.map((col) => col.header);
+  const dataRows = rows.map((row) =>
+    EXPORT_COLUMNS.map((col) => {
+      const value = row[col.key];
+      if (LIST_KEYS.has(col.key)) {
+        return joinListValue(value);
+      }
+      return value == null ? "" : String(value).trim();
+    })
+  );
+  return [headerRow, ...dataRows];
+}
+
+function downloadBlob(data, filename, type) {
+  const blob = new Blob([data], { type });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
 }
 
 function buildSelectOptions(options, values = []) {
@@ -449,8 +512,12 @@ export default function App() {
   const [status, setStatus] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [sheetUrlInput, setSheetUrlInput] = useState(SHEET_URL || "");
+  const [exportName, setExportName] = useState("fashion_annotations");
+  const [draftRow, setDraftRow] = useState(createEmptyRow());
+  const [isDirty, setIsDirty] = useState(false);
+  const [editStatus, setEditStatus] = useState(null);
 
-  const currentRow = rows[currentIndex];
+  const currentRow = draftRow;
 
   const progressLabel = useMemo(() => {
     if (!rows.length) return "No rows loaded";
@@ -500,40 +567,6 @@ export default function App() {
     );
   }, [rows]);
 
-  const rowOptionsByKey = useMemo(() => {
-    const buckets = {};
-    LIST_FIELDS.forEach((field) => {
-      buckets[field.key] = new Set();
-    });
-    TEXT_FIELDS.forEach((field) => {
-      buckets[field.key] = new Set();
-    });
-    if (!currentRow) {
-      return Object.fromEntries(
-        Object.entries(buckets).map(([key, set]) => [
-          key,
-          Array.from(set),
-        ])
-      );
-    }
-    LIST_FIELDS.forEach((field) => {
-      (currentRow[field.key] || []).forEach((value) => {
-        const trimmed = String(value || "").trim();
-        if (trimmed) buckets[field.key].add(trimmed);
-      });
-    });
-    TEXT_FIELDS.forEach((field) => {
-      const trimmed = String(currentRow[field.key] || "").trim();
-      if (trimmed) buckets[field.key].add(trimmed);
-    });
-    return Object.fromEntries(
-      Object.entries(buckets).map(([key, set]) => [
-        key,
-        Array.from(set).sort((a, b) => a.localeCompare(b)),
-      ])
-    );
-  }, [currentRow]);
-
   const imageOptions = useMemo(
     () =>
       buildSelectOptions(
@@ -553,9 +586,9 @@ export default function App() {
   );
 
   const updateRow = (patch) => {
-    setRows((prev) =>
-      prev.map((row, idx) => (idx === currentIndex ? { ...row, ...patch } : row))
-    );
+    setDraftRow((prev) => ({ ...prev, ...patch }));
+    setIsDirty(true);
+    setEditStatus(null);
   };
 
   const updateListField = (key, values) => {
@@ -598,6 +631,9 @@ export default function App() {
 
       setRows(nextRows);
       setCurrentIndex(0);
+      setDraftRow(cloneRow(nextRows[0]));
+      setIsDirty(false);
+      setEditStatus(null);
       setStatus({
         type: "success",
         message: `Loaded ${nextRows.length} rows from your sheet.`,
@@ -631,6 +667,9 @@ export default function App() {
       }
       setRows(nextRows);
       setCurrentIndex(0);
+      setDraftRow(cloneRow(nextRows[0]));
+      setIsDirty(false);
+      setEditStatus(null);
       setStatus({
         type: "success",
         message: `Loaded ${nextRows.length} rows from ${file.name}.`,
@@ -646,6 +685,33 @@ export default function App() {
     }
   };
 
+  const getRowsForExport = () =>
+    rows.map((row, idx) => (idx === currentIndex ? draftRow : row));
+
+  const handleDownloadCsv = () => {
+    if (!rows.length) return;
+    const exportRows = buildExportData(getRowsForExport());
+    const worksheet = XLSX.utils.aoa_to_sheet(exportRows);
+    const csv = XLSX.utils.sheet_to_csv(worksheet);
+    const safeName = exportName.trim() || "fashion_annotations";
+    downloadBlob(csv, `${safeName}.csv`, "text/csv;charset=utf-8");
+  };
+
+  const handleDownloadXlsx = () => {
+    if (!rows.length) return;
+    const exportRows = buildExportData(getRowsForExport());
+    const worksheet = XLSX.utils.aoa_to_sheet(exportRows);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Annotations");
+    const buffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
+    const safeName = exportName.trim() || "fashion_annotations";
+    downloadBlob(
+      buffer,
+      `${safeName}.xlsx`,
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+  };
+
   useEffect(() => {
     if (!SHEET_URL) {
       setStatus({
@@ -658,11 +724,56 @@ export default function App() {
     handleLoad(SHEET_URL);
   }, []);
 
+  useEffect(() => {
+    if (!rows.length) {
+      setDraftRow(createEmptyRow());
+      setIsDirty(false);
+      return;
+    }
+    const nextRow = rows[currentIndex];
+    if (!nextRow) return;
+    setDraftRow(cloneRow(nextRow));
+    setIsDirty(false);
+  }, [rows, currentIndex]);
+
+  const handleSave = () => {
+    if (!rows.length) return;
+    setRows((prev) =>
+      prev.map((row, idx) => (idx === currentIndex ? draftRow : row))
+    );
+    setIsDirty(false);
+    setEditStatus({ type: "success", message: "Row saved." });
+  };
+
+  const handleSaveNext = () => {
+    if (!rows.length) return;
+    setRows((prev) =>
+      prev.map((row, idx) => (idx === currentIndex ? draftRow : row))
+    );
+    setIsDirty(false);
+    setEditStatus(null);
+    setCurrentIndex((prev) => Math.min(prev + 1, rows.length - 1));
+  };
+
   const handleNext = () => {
+    if (isDirty) {
+      setEditStatus({
+        type: "error",
+        message: "Unsaved changes. Use Save or Save & Next.",
+      });
+      return;
+    }
     setCurrentIndex((prev) => Math.min(prev + 1, rows.length - 1));
   };
 
   const handlePrev = () => {
+    if (isDirty) {
+      setEditStatus({
+        type: "error",
+        message: "Unsaved changes. Use Save before moving.",
+      });
+      return;
+    }
     setCurrentIndex((prev) => Math.max(prev - 1, 0));
   };
 
@@ -710,6 +821,36 @@ export default function App() {
               Use an Image or image_url column with Cloudinary links.
             </span>
           </div>
+          <div className="input-row">
+            <label className="field-label">Export file name</label>
+            <input
+              value={exportName}
+              onChange={(event) => setExportName(event.target.value)}
+              placeholder="fashion_annotations"
+            />
+            <div className="button-row">
+              <button
+                className="button secondary"
+                type="button"
+                onClick={handleDownloadCsv}
+                disabled={!rows.length}
+              >
+                Download CSV
+              </button>
+              <button
+                className="button secondary"
+                type="button"
+                onClick={handleDownloadXlsx}
+                disabled={!rows.length}
+              >
+                Download XLSX
+              </button>
+            </div>
+            <span className="helper">
+              Downloads your current annotations; it does not update the source
+              sheet.
+            </span>
+          </div>
           {status ? (
             <div className={`status ${status.type}`}>{status.message}</div>
           ) : (
@@ -735,6 +876,9 @@ export default function App() {
                   <div className="badge neutral">
                     Scored {scoredCount} of {rows.length}
                   </div>
+                  {isDirty ? (
+                    <div className="badge neutral">Unsaved changes</div>
+                  ) : null}
                 </div>
                 <div className="nav-buttons">
                   <button
@@ -746,15 +890,36 @@ export default function App() {
                     Previous
                   </button>
                   <button
+                    className="button secondary"
+                    type="button"
+                    onClick={handleSave}
+                    disabled={!rows.length || !isDirty}
+                  >
+                    Save
+                  </button>
+                  <button
                     className="button primary"
+                    type="button"
+                    onClick={handleSaveNext}
+                    disabled={currentIndex === rows.length - 1}
+                  >
+                    Save & Next
+                  </button>
+                  <button
+                    className="button ghost"
                     type="button"
                     onClick={handleNext}
                     disabled={currentIndex === rows.length - 1}
                   >
-                    Next
+                    Next (no save)
                   </button>
                 </div>
               </div>
+              {editStatus ? (
+                <div className={`status ${editStatus.type}`}>
+                  {editStatus.message}
+                </div>
+              ) : null}
 
               <div className="editor-grid">
                 <div className="field-group" style={{ "--i": 1 }}>
@@ -798,7 +963,7 @@ export default function App() {
                       label={field.label}
                       values={currentRow[field.key]}
                       placeholder={field.placeholder}
-                      options={rowOptionsByKey[field.key] || []}
+                      options={optionsByKey[field.key] || []}
                       listId={`list-${field.key}`}
                       onChange={(values) => updateListField(field.key, values)}
                     />
@@ -814,7 +979,7 @@ export default function App() {
                         label={field.label}
                         value={currentRow[field.key]}
                         placeholder={field.placeholder}
-                        options={rowOptionsByKey[field.key] || []}
+                        options={optionsByKey[field.key] || []}
                         listId={`text-${field.key}`}
                         onChange={(value) =>
                           updateRow({ [field.key]: value })

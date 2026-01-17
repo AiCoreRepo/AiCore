@@ -12,7 +12,7 @@ __pycache__/
 .coverage
 coverage.xml
 
-# Editors / OS
+# Editors / OS 
 .DS_Store
 .idea/
 .vscode/
@@ -31,3 +31,4 @@ Playground/Recommendation/val
 recommend_demo/train_image
 recommend_demo/test_image
 recommend_demo/testiing_image_collection
+recommend_demo/pulkit image
