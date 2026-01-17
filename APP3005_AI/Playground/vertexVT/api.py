@@ -919,7 +919,7 @@ async def gemini_try_on_json(request: TryOnJSONRequest) -> StandardTryOnResponse
         print(f"✅ Session reset successful! Next angle will be: front")
 
         client = genai.Client(api_key=api_key)
-        model_id = "gemini-2.5-flash-image-preview"
+        model_id = "gemini-2.0-flash-exp"
 
         contents = [
             types.Part(inline_data=types.Blob(data=person_bytes, mime_type="image/jpeg")),
@@ -1056,7 +1056,7 @@ async def generate_angles(request: GenerateAnglesRequest) -> StandardTryOnRespon
             prompt = generate_angle_prompt(angle=angle, cached_metadata=cached_metadata, session_key=session_key)
 
         client = genai.Client(api_key=api_key)
-        model_id = "gemini-2.5-flash-image-preview"
+        model_id = "gemini-2.0-flash-exp"
 
         contents = [
             types.Part(inline_data=types.Blob(data=image_bytes, mime_type="image/jpeg")),
@@ -1115,6 +1115,8 @@ async def generate_angles(request: GenerateAnglesRequest) -> StandardTryOnRespon
     except HTTPException:
         raise
     except Exception as exc:
+        import traceback
+        traceback.print_exc()
         raise HTTPException(
             status_code=500, detail=f"Angle generation failed: {str(exc)}"
         ) from exc

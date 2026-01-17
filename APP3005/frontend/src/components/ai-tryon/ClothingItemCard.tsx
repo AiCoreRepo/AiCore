@@ -1,4 +1,4 @@
-import { Sparkles, Zap } from 'lucide-react';
+import { Zap } from 'lucide-react';
 import { useState } from 'react';
 
 interface Product {
@@ -16,12 +16,11 @@ interface Product {
 
 interface ClothingItemCardProps {
     product: Product;
-    onTryOnGemini: () => void;
-    onTryOnVertex: () => void;
+    onTryOn: () => void;
     loading?: boolean;
 }
 
-export function ClothingItemCard({ product, onTryOnGemini, onTryOnVertex, loading = false }: ClothingItemCardProps) {
+export function ClothingItemCard({ product, onTryOn, loading = false }: ClothingItemCardProps) {
     const [imageLoaded, setImageLoaded] = useState(false);
 
     // Safely get the primary image - handle both array and undefined cases
@@ -86,10 +85,10 @@ export function ClothingItemCard({ product, onTryOnGemini, onTryOnVertex, loadin
                     </div>
                 </div>
 
-                <div className="mt-auto space-y-3">
-                    {/* Primary Button */}
+                <div className="mt-auto">
+                    {/* Vestire Try On Button */}
                     <button
-                        onClick={onTryOnVertex}
+                        onClick={onTryOn}
                         disabled={loading}
                         className="w-full py-3 px-4 rounded-xl font-medium text-[10px] tracking-widest uppercase transition-all duration-300 hover:shadow-gold/20 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                         style={{
@@ -99,37 +98,8 @@ export function ClothingItemCard({ product, onTryOnGemini, onTryOnVertex, loadin
                         }}
                     >
                         <Zap className="w-3.5 h-3.5 fill-white" />
-                        {loading ? 'Processing...' : 'Virtual Try-On'}
+                        {loading ? 'Processing...' : 'Vestire Try On'}
                     </button>
-
-                    {/* Secondary Row */}
-                    <div className="grid grid-cols-2 gap-2">
-                        <button
-                            onClick={onTryOnGemini}
-                            disabled={loading}
-                            className="py-2.5 px-3 rounded-xl font-medium text-[9px] tracking-wider uppercase transition-all duration-300 hover:bg-neutral-50 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
-                            style={{
-                                border: '1px solid rgba(0, 0, 0, 0.05)',
-                                color: '#737373',
-                            }}
-                        >
-                            <Sparkles className="w-3 h-3 text-luxury-gold" />
-                            Gemini
-                        </button>
-
-                        <button
-                            onClick={onTryOnVertex}
-                            disabled={loading}
-                            className="py-2.5 px-3 rounded-xl font-medium text-[9px] tracking-wider uppercase transition-all duration-300 hover:bg-neutral-50 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
-                            style={{
-                                border: '1px solid rgba(0, 0, 0, 0.05)',
-                                color: '#737373',
-                            }}
-                        >
-                            <Zap className="w-3 h-3 text-luxury-gold" />
-                            Vertex
-                        </button>
-                    </div>
                 </div>
             </div>
 

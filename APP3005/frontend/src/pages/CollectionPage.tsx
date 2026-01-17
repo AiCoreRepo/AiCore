@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
@@ -8,7 +8,7 @@ import { ActiveFilterChips } from "@/components/collection/ActiveFilterChips";
 import { ViewToggle } from "@/components/collection/ViewToggle";
 import { FilterAccordionSection } from "@/components/collection/FilterAccordionSection";
 import { ProductCard } from "@/components/collection/ProductCard";
-import { usePublicProducts } from "@/hooks/usePublicProducts";
+import { useInfinitePublicProducts } from "@/hooks/useInfinitePublicProducts";
 import { useAuth } from "@/context/AuthContext";
 import { auraGate } from "@/utils/auraGate";
 import { colors, typography } from "@/utils/designSystem";
@@ -58,12 +58,41 @@ const CollectionPage = () => {
         availability: false,
     });
 
-    // Fetch products
-    const { data, isLoading, error } = usePublicProducts(
-        1,
+    // Fetch products with infinite scroll
+    const {
+        data,
+        isLoading,
+        error,
+        fetchNextPage,
+        hasNextPage,
+        isFetchingNextPage,
+    } = useInfinitePublicProducts(
         undefined,
         activeCategory === "All" ? undefined : activeCategory
     );
+
+    // Intersection Observer for infinite scroll
+    const loadMoreRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (!loadMoreRef.current || !hasNextPage || isFetchingNextPage) return;
+
+        const observer = new IntersectionObserver(
+            (entries) => {
+                if (entries[0].isIntersecting && hasNextPage) {
+                    fetchNextPage();
+                }
+            },
+            { threshold: 0.1 }
+        );
+
+        observer.observe(loadMoreRef.current);
+
+        return () => observer.disconnect();
+    }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+    // Flatten paginated products
+    const allProducts = data?.pages.flatMap(page => page.products) ?? [];
 
     // Helper functions
     const extractSizes = (product: any): string[] => {
@@ -78,8 +107,8 @@ const CollectionPage = () => {
 
     // Filter and sort products
     const getFilteredProducts = () => {
-        if (!data?.products) return [];
-        let filtered = [...data.products];
+        if (!allProducts.length) return [];
+        let filtered = [...allProducts];
 
         // Search filter
         if (searchQuery) {
@@ -474,15 +503,54 @@ const CollectionPage = () => {
                                     <p style={{ color: colors.textSecondary }}>Try adjusting your filters</p>
                                 </div>
                             ) : (
-                                <div className={`grid gap-6 ${viewMode === 'grid' ? 'grid-cols-2 md:grid-cols-3 xl:grid-cols-4' : 'grid-cols-1'}`}>
-                                    {filteredProducts.map(product => (
-                                        <ProductCard
-                                            key={product.product_id}
-                                            product={product}
-                                            onTryOn={() => handleTryOn(product.product_id)}
-                                        />
-                                    ))}
-                                </div>
+                                <>
+                                    <div className={`grid gap-6 ${viewMode === 'grid' ? 'grid-cols-2 md:grid-cols-3 xl:grid-cols-4' : 'grid-cols-1'}`}>
+                                        {filteredProducts.map(product => (
+                                            <ProductCard
+                                                key={product.product_id}
+                                                product={product}
+                                                onTryOn={() => handleTryOn(product.product_id)}
+                                            />
+                                        ))}
+                                    </div>
+
+                                    {/* Infinite Scroll Trigger */}
+                                    <div ref={loadMoreRef} className="h-20" />
+
+                                    {/* Loading More Indicator */}
+                                    {isFetchingNextPage && (
+                                        <div className="text-center py-8">
+                                            <div className="inline-block animate-spin rounded-full h-12 w-12 border-4" style={{ borderColor: colors.accent, borderTopColor: 'transparent' }}></div>
+                                            <p className="mt-4 text-sm" style={{ color: colors.textSecondary }}>Loading more products...</p>
+                                        </div>
+                                    )}
+
+                                    {/* Load More Button (Fallback) */}
+                                    {hasNextPage && !isFetchingNextPage && (
+                                        <div className="text-center py-8">
+                                            <button
+                                                onClick={() => fetchNextPage()}
+                                                className="px-8 py-3 rounded-lg font-semibold text-sm transition-all duration-300 hover:scale-105"
+                                                style={{
+                                                    background: colors.accent,
+                                                    color: '#FFFFFF',
+                                                    boxShadow: '0 4px 12px rgba(212, 175, 55, 0.3)',
+                                                }}
+                                            >
+                                                Load More Products
+                                            </button>
+                                        </div>
+                                    )}
+
+                                    {/* End of Results */}
+                                    {!hasNextPage && allProducts.length > 0 && (
+                                        <div className="text-center py-8">
+                                            <p className="text-sm" style={{ color: colors.textSecondary }}>
+                                                You've reached the end of our collection
+                                            </p>
+                                        </div>
+                                    )}
+                                </>
                             )}
                         </div>
                     </div>

@@ -356,8 +356,7 @@ const AiTryOn = () => {
                               <ClothingItemCard
                                 key={product.product_id}
                                 product={product}
-                                onTryOnGemini={() => handleTryOn(product.product_id, 'gemini')}
-                                onTryOnVertex={() => handleTryOn(product.product_id, 'vertex')}
+                                onTryOn={() => handleTryOn(product.product_id, 'vertex')}
                                 loading={selectedProduct === product.product_id && tryOnLoading}
                               />
                             ))}
