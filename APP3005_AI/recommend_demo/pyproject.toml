@@ -1,0 +1,32 @@
+[project]
+name = "compat-recommender"
+version = "0.1.0"
+description = "Attribute-aware image compatibility recommender (Streamlit + uv + Docker)"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "streamlit>=1.36.0",
+    "Pillow>=10.2.0",
+    "pandas>=2.2.0",
+    "scikit-learn>=1.4.0",
+    "cloudinary>=1.40.0",
+    "fastapi>=0.110.0",
+    "uvicorn[standard]>=0.29.0",
+    "python-multipart>=0.0.9",
+    "mediapipe==0.10.9",
+    "numpy>=1.26.0,<2.0",
+    "torch==2.2.0+cpu",
+    "torchvision==0.17.0+cpu",
+    "transformers>=4.38.0",
+    "clip @ git+https://github.com/openai/CLIP.git",
+    "open_clip_torch>=2.24.0",
+    "sentence-transformers>=2.6.0",
+    "pymilvus>=2.4.0",
+]
+
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["app", "scripts"]

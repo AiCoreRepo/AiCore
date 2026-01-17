@@ -30,8 +30,10 @@ Playground/Recommendation/archive/images/
 Playground/Recommendation/archive/myntradataset/images/
 Playground/vertexVT/service_account.json
 Playground/Recommendation/val
-
 Playground/Recommendation/women fashion
 recommend_demo/data
 recommend_demo/training data
 recommend_demo
+recommend_demo/train_image
+recommend_demo/test_image
+recommend_demo/testiing_image_collection

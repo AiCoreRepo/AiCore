@@ -66,6 +66,7 @@ model Product {
   inventory_count Int               @default(0)
   is_deleted      Boolean           @default(false)
   max_images      Int               @default(20)
+  metadata        Json?             // Recommendation attributes
   created_at      DateTime          @default(now())
   updated_at      DateTime?
   status          ProductStatus     @default(PENDING)

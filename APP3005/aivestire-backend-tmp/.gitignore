@@ -45,9 +45,10 @@ build-log.txt
 check-env.ps1
 test-env.js
 
-# Service account credentials
+# Secrets & Credentials
 service_account.json
 **/service_account.json
+src/service_account.json
 
 # Python uv package manager
 uv.lock

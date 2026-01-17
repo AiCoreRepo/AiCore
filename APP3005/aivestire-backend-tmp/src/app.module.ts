@@ -14,6 +14,7 @@ import { AuraModule } from './aura/aura.module';
 import { AdminModule } from './admin/admin.module';
 import { AiTryOnModule } from './ai-tryon/ai-tryon.module';
 import { AdminSeederService } from './common/admin-seeder.service';
+import { RecommendationModule } from './recommendation/recommendation.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { AdminSeederService } from './common/admin-seeder.service';
     AuraModule,
     AdminModule,
     AiTryOnModule,
+    RecommendationModule,
   ],
   controllers: [AppController],
   providers: [AppService, AdminSeederService],
