@@ -12,9 +12,3 @@ yarn-error.log*
 .idea
 *.tsbuildinfo
 
-APP3005_AI/recommend_demo/new_data
-APP3005_AI/recommend_demo/training data
-
-APP3005_AI/Playground/vertexVT/service_account.json
-APP3005_AI/recommend_demo/milvus
-APP3005_AI/recommend_demo/minio

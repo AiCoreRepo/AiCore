@@ -60,24 +60,23 @@ const DashboardPage: React.FC = () => {
 
 
 
-  const fetchData = async () => {
-    setLoading(true);
+  const fetchProfileData = async () => {
     try {
-      // Fetch profile
-      try {
-        const profile = await getProfile();
-        setUser({
-          name: profile.name || profile.store_name || "Creator",
-          avatar: profile.avatar || "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&h=200&fit=crop&crop=face",
-          role: profile.role || "Creator",
-          subtitle: profile.subtitle || "",
-        });
-      } catch (err) {
-        console.error("Failed to fetch profile", err);
-      }
+      const profile = await getProfile();
+      setUser({
+        name: profile.name || profile.store_name || "Creator",
+        avatar: profile.avatar || "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&h=200&fit=crop&crop=face",
+        role: profile.role || "Creator",
+        subtitle: profile.subtitle || "",
+      });
+    } catch (err) {
+      console.error("Failed to fetch profile", err);
+    }
+  };
 
+  const fetchMetricsData = async () => {
+    try {
       const metrics = await getDashboardMetrics();
-      // Map backend metrics to expected frontend fields for StatsCards
       setStats({
         rating: metrics.rating ?? metrics.averageRating ?? "NA",
         ranking: metrics.ranking ?? metrics.rank ?? "NA",
@@ -86,68 +85,104 @@ const DashboardPage: React.FC = () => {
         revenueLastMonthCents: metrics.revenueLastMonthCents ?? metrics.earnings ?? 0,
         latestImages: metrics.latestImages || [],
       });
+    } catch (err) {
+      console.error("Failed to fetch metrics", err);
+    }
+  };
 
-      const response = await getCreatorProducts(currentPage);
+  const mapProduct = (p: any) => {
+    const currency = p.currency || 'INR';
+    const priceValue = p.price_cents ? p.price_cents / 100 : (p.price || 0);
+    const formattedPrice = typeof priceValue === 'string' ? priceValue : new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: currency,
+      minimumFractionDigits: 2
+    }).format(priceValue);
+
+    const statusMap: Record<string, "Draft" | "Pending" | "Active"> = {
+      'DRAFT': 'Draft',
+      'PENDING': 'Pending',
+      'APPROVED': 'Active',
+      'REJECTED': 'Pending',
+      'Draft': 'Draft',
+      'Pending': 'Pending',
+      'Active': 'Active',
+    };
+    const mappedStatus = statusMap[p.status] || 'Pending';
+
+    return {
+      ...p,
+      price: formattedPrice,
+      status: mappedStatus,
+      image: p.image_url ?? (p.images && p.images[0]) ?? 'https://placehold.co/400x600/F5F2EB/8B7355?text=No+Image',
+      images: p.images && p.images.length > 0 ? p.images : (p.image_url ? [p.image_url] : []),
+      name: p.name ?? p.title ?? 'Unnamed',
+      tags: p.tags?.map((t: any) => typeof t === 'string' ? t : t.name) ?? [],
+      isNew: p.is_new ?? false,
+    };
+  };
+
+  const fetchProductsData = async (page: number, isSilent = false) => {
+    if (!isSilent) setLoading(true);
+    try {
+      const response = await getCreatorProducts(page);
       let products = [];
       let meta = { totalPages: 1 };
 
       if (Array.isArray(response)) {
-        // Handle legacy API response (backend not restarted yet)
         products = response;
       } else {
-        // Handle new paginated API response
         products = response.data || [];
         meta = response.meta || { totalPages: 1 };
       }
 
       setTotalPages(meta?.totalPages || 1);
-
-      setUploads(products.map((p: any) => {
-        const currency = p.currency || 'INR';
-        const priceValue = p.price_cents ? p.price_cents / 100 : (p.price || 0);
-        const formattedPrice = new Intl.NumberFormat('en-US', {
-          style: 'currency',
-          currency: currency,
-          minimumFractionDigits: 2
-        }).format(priceValue);
-
-        // Map backend status (DRAFT, PENDING, APPROVED) to frontend status (Draft, Pending, Active)
-        const statusMap: Record<string, "Draft" | "Pending" | "Active"> = {
-          'DRAFT': 'Draft',
-          'PENDING': 'Pending',
-          'APPROVED': 'Active',
-          'REJECTED': 'Pending', // Fallback for rejected
-          // Backend returns title case, so handle both
-          'Draft': 'Draft',
-          'Pending': 'Pending',
-          'Active': 'Active',
-        };
-        const mappedStatus = statusMap[p.status] || 'Pending';
-
-        // Debug logging
-        console.log('Product:', p.title, 'Backend Status:', p.status, 'Mapped Status:', mappedStatus);
-
-        return {
-          ...p,
-          price: formattedPrice,
-          status: mappedStatus,
-          image: p.image_url ?? 'https://placehold.co/400x600/F5F2EB/8B7355?text=No+Image',
-          images: p.images && p.images.length > 0 ? p.images : (p.image_url ? [p.image_url] : []),
-          name: p.name ?? 'Unnamed',
-          tags: p.tags?.map((t: any) => t.name) ?? [],
-          isNew: p.is_new ?? false,
-        };
-      }));
+      setUploads(products.map(mapProduct));
     } catch (error) {
-      console.error("Failed to fetch dashboard data", error);
+      console.error("Failed to fetch products", error);
     } finally {
-      setLoading(false);
+      if (!isSilent) setLoading(false);
     }
   };
 
+  const fetchData = async () => {
+    setLoading(true);
+    await Promise.all([
+      fetchProfileData(),
+      fetchMetricsData(),
+      fetchProductsData(currentPage, true)
+    ]);
+    setLoading(false);
+  };
+
   useEffect(() => {
-    fetchData();
+    if (currentPage === 1 && uploads.length === 0) {
+      fetchData();
+    } else {
+      fetchProductsData(currentPage);
+    }
   }, [currentPage]);
+
+  const handleUploadSuccess = (newProduct?: any) => {
+    if (newProduct) {
+      // Optimistic update
+      const mapped = mapProduct(newProduct);
+      setUploads(prev => [mapped, ...prev.slice(0, 9)]); // Keep page size roughly consistent
+
+      // Update stats optimistically
+      setStats((prev: any) => ({
+        ...prev,
+        uploads: (prev.uploads || 0) + 1,
+        latestImages: [mapped.image, ...(prev.latestImages || [])].slice(0, 5)
+      }));
+
+      // Refresh data in background to ensure everything is in sync
+      fetchMetricsData();
+      fetchProductsData(currentPage, true);
+    } else {
+      fetchData();
+    }
+  };
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
@@ -277,7 +312,7 @@ const DashboardPage: React.FC = () => {
       <UploadCollectionModal
         open={isUploadFormOpen}
         onOpenChange={setIsUploadFormOpen}
-        onSuccess={fetchData}
+        onSuccess={handleUploadSuccess}
         initialData={editingProduct}
       />
 

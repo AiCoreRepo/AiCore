@@ -5,6 +5,7 @@ import {
     Body,
     UseInterceptors,
     UploadedFiles,
+    UploadedFile,
     HttpCode,
     HttpStatus,
     Query,
@@ -12,7 +13,7 @@ import {
     UseGuards,
     Request,
 } from '@nestjs/common';
-import { FileFieldsInterceptor } from '@nestjs/platform-express';
+import { FileFieldsInterceptor, FileInterceptor } from '@nestjs/platform-express';
 import {
     ApiTags,
     ApiOperation,
@@ -26,14 +27,17 @@ import {
     TryOnErrorResponseDto,
     HealthCheckResponseDto,
 } from '../dto/tryon-response.dto';
+import { AnalyzeBodyDto, BodyAnalysisResultDto } from '../dto/body-analyzer.dto';
 import { AIProvider } from '../enums/ai-provider.enum';
 import { GeminiTryOnService } from '../services/providers/gemini-tryon.service';
 import { VertexTryOnService } from '../services/providers/vertex-tryon.service';
+import { BodyAnalyzerService } from '../services/body-analyzer.service';
 import { TryOn3DService } from '../services/tryon-3d.service';
 import { AuraGuard } from '../../common/guards/aura.guard';
 import { CurrentAura } from '../../common/decorators/aura.decorator';
 import type { Aura } from '@prisma/client';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { TryOnPermissionGuard } from '../../auth/guards/tryon-permission.guard';
 
 @ApiTags('AI Try-On')
 @Controller('api/v1/tryon')
@@ -43,6 +47,7 @@ export class TryOnController {
     constructor(
         private readonly geminiService: GeminiTryOnService,
         private readonly vertexService: VertexTryOnService,
+        private readonly bodyAnalyzerService: BodyAnalyzerService,
         private readonly tryOn3DService: TryOn3DService,
     ) { }
 
@@ -71,6 +76,7 @@ export class TryOnController {
         description: 'Internal server error',
         type: TryOnErrorResponseDto,
     })
+    @UseGuards(JwtAuthGuard, TryOnPermissionGuard)
     async tryOnWithVertex(
         @Body() request: TryOnRequestDto,
     ): Promise<TryOnResponseDto> {
@@ -107,6 +113,7 @@ export class TryOnController {
         description: 'Internal server error',
         type: TryOnErrorResponseDto,
     })
+    @UseGuards(JwtAuthGuard, TryOnPermissionGuard)
     async tryOnWithGemini(
         @Body() request: TryOnRequestDto,
     ): Promise<TryOnResponseDto> {
@@ -143,6 +150,7 @@ export class TryOnController {
         description: 'No AI providers available',
         type: TryOnErrorResponseDto,
     })
+    @UseGuards(JwtAuthGuard, TryOnPermissionGuard)
     async tryOnAuto(
         @Body() request: TryOnRequestDto,
     ): Promise<TryOnResponseDto> {
@@ -219,6 +227,7 @@ export class TryOnController {
         description: 'Try-on completed successfully',
         type: TryOnResponseDto,
     })
+    @UseGuards(JwtAuthGuard, TryOnPermissionGuard)
     async tryOnWithUpload(
         @UploadedFiles()
         files: {
@@ -272,6 +281,7 @@ export class TryOnController {
         description: 'User does not have Aura avatar',
         type: TryOnErrorResponseDto,
     })
+    @UseGuards(AuraGuard, TryOnPermissionGuard)
     async tryOn3DWithVertex(
         @Body() request: TryOn3DRequestDto,
         @CurrentAura() aura: Aura,
@@ -305,6 +315,7 @@ export class TryOnController {
         description: 'User does not have Aura avatar',
         type: TryOnErrorResponseDto,
     })
+    @UseGuards(AuraGuard, TryOnPermissionGuard)
     async tryOn3DWithGemini(
         @Body() request: TryOn3DRequestDto,
         @CurrentAura() aura: Aura,
@@ -338,6 +349,7 @@ export class TryOnController {
         description: 'User does not have Aura avatar',
         type: TryOnErrorResponseDto,
     })
+    @UseGuards(AuraGuard, TryOnPermissionGuard)
     async generateMoreAngles(
         @Body() request: GenerateAnglesRequestDto,
         @CurrentAura() aura: Aura,
@@ -407,5 +419,97 @@ export class TryOnController {
             },
             timestamp: new Date().toISOString(),
         };
+    }
+
+    /**
+     * Analyze body attributes from image (JSON base64)
+     */
+    @Post('analyze-body')
+    @HttpCode(HttpStatus.OK)
+    @UseGuards(JwtAuthGuard)
+    @ApiOperation({
+        summary: 'Analyze body attributes from image',
+        description:
+            'Analyze a user image to detect skin tone, body shape, and other attributes. Accepts base64 encoded image.',
+    })
+    @ApiResponse({
+        status: 200,
+        description: 'Body analysis completed successfully',
+        type: BodyAnalysisResultDto,
+    })
+    @ApiResponse({
+        status: 400,
+        description: 'Invalid image data',
+        type: TryOnErrorResponseDto,
+    })
+    async analyzeBody(
+        @Body() request: AnalyzeBodyDto,
+    ): Promise<BodyAnalysisResultDto> {
+        this.logger.log('Processing body analysis request (JSON base64)');
+        return this.bodyAnalyzerService.analyzeImage(request.imageBase64);
+    }
+
+    /**
+     * Analyze body attributes from image (file upload)
+     */
+    @Post('analyze-body/upload')
+    @HttpCode(HttpStatus.OK)
+    @UseGuards(JwtAuthGuard)
+    @UseInterceptors(FileInterceptor('image'))
+    @ApiConsumes('multipart/form-data')
+    @ApiOperation({
+        summary: 'Analyze body attributes from uploaded image',
+        description:
+            'Upload an image file to analyze skin tone, body shape, and other attributes.',
+    })
+    @ApiBody({
+        schema: {
+            type: 'object',
+            properties: {
+                image: {
+                    type: 'string',
+                    format: 'binary',
+                    description: 'Image file (JPEG, PNG, or WebP)',
+                },
+            },
+            required: ['image'],
+        },
+    })
+    @ApiResponse({
+        status: 200,
+        description: 'Body analysis completed successfully',
+        type: BodyAnalysisResultDto,
+    })
+    @ApiResponse({
+        status: 400,
+        description: 'Invalid image file',
+        type: TryOnErrorResponseDto,
+    })
+    async analyzeBodyUpload(
+        @UploadedFile() file: Express.Multer.File,
+    ): Promise<BodyAnalysisResultDto> {
+        this.logger.log('Processing body analysis request (file upload)');
+
+        if (!file) {
+            return {
+                success: false,
+                skinHexes: [],
+                fullBody: false,
+                error: 'No image file provided',
+            };
+        }
+
+        // Validate file type
+        const allowedMimeTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+        if (!allowedMimeTypes.includes(file.mimetype)) {
+            return {
+                success: false,
+                skinHexes: [],
+                fullBody: false,
+                error: 'Invalid file type. Only JPEG, PNG, and WebP images are allowed.',
+            };
+        }
+
+        return this.bodyAnalyzerService.analyzeImageBuffer(file.buffer, file.mimetype);
     }
 }

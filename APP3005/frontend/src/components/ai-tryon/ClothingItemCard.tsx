@@ -1,4 +1,4 @@
-import { Sparkles, Zap } from 'lucide-react';
+import { Zap } from 'lucide-react';
 import { useState } from 'react';
 
 interface Product {
@@ -16,12 +16,11 @@ interface Product {
 
 interface ClothingItemCardProps {
     product: Product;
-    onTryOnGemini: () => void;
-    onTryOnVertex: () => void;
+    onTryOn: () => void;
     loading?: boolean;
 }
 
-export function ClothingItemCard({ product, onTryOnGemini, onTryOnVertex, loading = false }: ClothingItemCardProps) {
+export function ClothingItemCard({ product, onTryOn, loading = false }: ClothingItemCardProps) {
     const [imageLoaded, setImageLoaded] = useState(false);
 
     // Safely get the primary image - handle both array and undefined cases
@@ -33,22 +32,22 @@ export function ClothingItemCard({ product, onTryOnGemini, onTryOnVertex, loadin
 
     return (
         <div
-            className="clothing-item-card group"
+            className="clothing-item-card group h-full flex flex-col"
             style={{
-                background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(250, 247, 240, 0.95) 100%)',
-                border: '1px solid rgba(201, 165, 92, 0.15)',
-                borderRadius: '20px',
+                background: '#FFFFFF',
+                border: '1px solid rgba(212, 175, 55, 0.1)',
+                borderRadius: '24px',
                 overflow: 'hidden',
-                transition: 'all 0.3s ease',
-                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.05)',
+                transition: 'all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1)',
+                boxShadow: '0 4px 20px rgba(0, 0, 0, 0.03)',
             }}
         >
             {/* Product Image */}
             <div
-                className="relative overflow-hidden"
+                className="relative overflow-hidden shrink-0"
                 style={{
-                    aspectRatio: '3/4',
-                    background: 'linear-gradient(135deg, #F5F0E6 0%, #F8F4EC 100%)',
+                    aspectRatio: '4/5',
+                    background: '#F8F4EC',
                 }}
             >
                 {imageUrl && (
@@ -66,74 +65,41 @@ export function ClothingItemCard({ product, onTryOnGemini, onTryOnVertex, loadin
 
                 {/* Hover Overlay */}
                 <div
-                    className="absolute inset-0 bg-gradient-to-t from-charcoal/80 via-charcoal/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                    className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
                 />
             </div>
 
             {/* Product Info */}
-            <div className="p-4">
-                {/* Title & Price */}
-                <div className="mb-3">
-                    <h3 className="text-sm font-semibold text-charcoal line-clamp-2 mb-1">
-                        {product.title}
+            <div className="p-4 flex flex-col flex-grow">
+                <div className="mb-4">
+                    <h3 className="text-sm font-serif text-luxury-black line-clamp-1 mb-1 group-hover:text-luxury-gold transition-colors">
+                        {product.title || 'Exquisite Design'}
                     </h3>
                     <div className="flex items-center justify-between">
-                        <p className="text-lg font-bold text-gold">
+                        <p className="text-base font-bold text-luxury-gold">
                             {product.currency} {price}
                         </p>
-                        <p className="text-xs text-charcoal/60">
-                            by {product.creator.store_name}
+                        <p className="text-[10px] uppercase tracking-widest text-neutral-400 font-medium">
+                            {product.creator?.store_name || 'Aivestire'}
                         </p>
                     </div>
                 </div>
 
-                {/* Try-On Buttons */}
-                <div className="space-y-2">
-                    {/* Primary Button - Vertex AI (Default) */}
+                <div className="mt-auto">
+                    {/* Vestire Try On Button */}
                     <button
-                        onClick={onTryOnVertex}
+                        onClick={onTryOn}
                         disabled={loading}
-                        className="w-full py-2.5 px-4 rounded-xl font-medium text-sm transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                        className="w-full py-3 px-4 rounded-xl font-medium text-[10px] tracking-widest uppercase transition-all duration-300 hover:shadow-gold/20 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                         style={{
-                            background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.95) 0%, rgba(59, 130, 246, 1) 100%)',
+                            background: '#D4AF37',
                             color: '#FFFFFF',
-                            boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)',
+                            boxShadow: '0 4px 15px rgba(212, 175, 55, 0.2)',
                         }}
                     >
-                        <Zap className="w-4 h-4" />
-                        {loading ? 'Processing...' : 'AI Try-On'}
+                        <Zap className="w-3.5 h-3.5 fill-white" />
+                        {loading ? 'Processing...' : 'Vestire Try On'}
                     </button>
-
-                    {/* Secondary Buttons Row */}
-                    <div className="grid grid-cols-2 gap-2">
-                        <button
-                            onClick={onTryOnGemini}
-                            disabled={loading}
-                            className="py-2 px-3 rounded-lg font-medium text-xs transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
-                            style={{
-                                background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(139, 92, 246, 0.15) 100%)',
-                                border: '1px solid rgba(139, 92, 246, 0.3)',
-                                color: '#8B5CF6',
-                            }}
-                        >
-                            <Sparkles className="w-3.5 h-3.5" />
-                            Try Gemini
-                        </button>
-
-                        <button
-                            onClick={onTryOnVertex}
-                            disabled={loading}
-                            className="py-2 px-3 rounded-lg font-medium text-xs transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
-                            style={{
-                                background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(59, 130, 246, 0.15) 100%)',
-                                border: '1px solid rgba(59, 130, 246, 0.3)',
-                                color: '#3B82F6',
-                            }}
-                        >
-                            <Zap className="w-3.5 h-3.5" />
-                            Vertex
-                        </button>
-                    </div>
                 </div>
             </div>
 
@@ -148,7 +114,7 @@ export function ClothingItemCard({ product, onTryOnGemini, onTryOnVertex, loadin
                 >
                     <div className="text-center">
                         <div
-                            className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-gold border-t-transparent mb-3"
+                            className="inline-block animate-spin rounded-full h-10 w-10 border-2 border-luxury-gold border-t-transparent mb-3"
                         />
                         <p className="text-sm font-medium text-charcoal">
                             Creating your try-on...

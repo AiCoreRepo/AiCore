@@ -14,7 +14,7 @@ import { compressImage } from "@/lib/utils";
 interface UploadCollectionModalProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    onSuccess?: () => void;
+    onSuccess?: (product?: any) => void;
     initialData?: any;
 }
 
@@ -94,10 +94,11 @@ const UploadCollectionModal = ({ open, onOpenChange, onSuccess, initialData }: U
                 tags: tags.length > 0 ? tags : undefined,
             };
 
+            let response;
             if (initialData) {
-                await updateProduct(initialData.product_id, productData);
+                response = await updateProduct(initialData.product_id, productData);
             } else {
-                await createProduct(productData);
+                response = await createProduct(productData);
             }
 
             toast({
@@ -116,7 +117,7 @@ const UploadCollectionModal = ({ open, onOpenChange, onSuccess, initialData }: U
             setImages([]);
             setImageFiles([]);
             onOpenChange(false);
-            if (onSuccess) onSuccess();
+            if (onSuccess) onSuccess(response);
         } catch (error: any) {
             toast({
                 title: "Error",

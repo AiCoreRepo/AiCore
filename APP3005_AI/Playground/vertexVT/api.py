@@ -1,16 +1,27 @@
 import base64
+from io import BytesIO
 import os
-import subprocess
-from typing import Dict, List, Optional
+from pathlib import Path
+from typing import Dict, List, Optional, Literal
 
 import requests
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import Body, FastAPI, File, Form, HTTPException, UploadFile
+from google.auth.transport.requests import Request
+from google.oauth2 import service_account
 from pydantic import BaseModel
+from PIL import Image
 
 from google import genai
 from google.genai import types
 from dotenv import load_dotenv
 from color_helper import generate_angle_prompt
+from body_analyzer import analyze_user_image
+from body_analyzer_helpers import (
+    _decode_base64_image,
+    _load_image_bytes,
+    _build_body_analyze_response,
+    BodyAnalyzeResponse,
+)
 
 # Load environment variables from a .env file for local runs.
 load_dotenv()
@@ -20,6 +31,39 @@ app = FastAPI(
     version="1.0.0",
     description="Accepts two JPEGs (person + garment) and returns base64 outputs from Vertex AI.",
 )
+
+BODY_SHAPE_OPTIONS = [
+    "Rectangle",
+    "Pear Shape",
+    "Apple Shape",
+    "Hourglass",
+    "Inverted Triangle",
+]
+
+SKIN_TONE_OPTIONS = [
+    "Light",
+    "Medium",
+    "Dusky",
+    "Deep",
+]
+
+_BODY_SHAPE_LABELS = {
+    "rectangle": BODY_SHAPE_OPTIONS[0],
+    "pear": BODY_SHAPE_OPTIONS[1],
+    "pear_shape": BODY_SHAPE_OPTIONS[1],
+    "apple": BODY_SHAPE_OPTIONS[2],
+    "apple_shape": BODY_SHAPE_OPTIONS[2],
+    "hourglass": BODY_SHAPE_OPTIONS[3],
+    "inverted_triangle": BODY_SHAPE_OPTIONS[4],
+    "inverted triangle": BODY_SHAPE_OPTIONS[4],
+}
+
+_SKIN_TONE_LABELS = {
+    "light": SKIN_TONE_OPTIONS[0],
+    "medium": SKIN_TONE_OPTIONS[1],
+    "dusky": SKIN_TONE_OPTIONS[2],
+    "deep": SKIN_TONE_OPTIONS[3],
+}
 
 
 class TryOnResponse(BaseModel):
@@ -58,6 +102,21 @@ class GenerateAnglesRequest(BaseModel):
     additional_params: Optional[Dict] = None
 
 
+class BodyAnalyzeRequest(BaseModel):
+    image_base64: Optional[str] = None
+
+
+class BodyAnalyzeResponse(BaseModel):
+    skin_tone_label: Optional[
+        Literal["Light", "Medium", "Dusky", "Deep"]
+    ] = None
+    skin_hexes: List[str]
+    body_shape: Optional[
+        Literal["Rectangle", "Pear Shape", "Apple Shape", "Hourglass", "Inverted Triangle"]
+    ] = None
+    full_body: bool
+
+
 class StandardTryOnResponse(BaseModel):
     """Standardized response format for NestJS integration"""
     success: bool
@@ -68,30 +127,73 @@ class StandardTryOnResponse(BaseModel):
 
 
 def _get_access_token(manual_token: Optional[str]) -> Optional[str]:
-    """Use provided token, env var, or gcloud to obtain a bearer token."""
-    if manual_token:
-        return manual_token.strip()
+    """
+    Obtain a bearer token strictly from a service account JSON file.
+    Checks VERTEX_SA_KEY or GOOGLE_APPLICATION_CREDENTIALS for a path, otherwise
+    uses a local service_account.json in this folder. If no file is found or readable,
+    returns None (callers will raise 401).
+    """
+    import logging
+    logger = logging.getLogger(__name__)
     
-    # Reload .env file to pick up fresh tokens without restarting service
+    # Reload .env file to pick up fresh paths without restarting service
     load_dotenv(override=True)
-    
-    env_token = os.environ.get("VERTEX_TOKEN")
-    if env_token:
-        return env_token.strip()
-    
-    # Hardcoded fallback token removed for security
-    # Set VERTEX_TOKEN in your .env file or use gcloud CLI
-    hardcoded_token = None
-    if hardcoded_token:
-        return hardcoded_token.strip()
-    
+
+    scopes = ["https://www.googleapis.com/auth/cloud-platform"]
+    default_sa_path = Path(__file__).resolve().parent / "service_account.json"
+    sa_path = (
+        os.environ.get("VERTEX_SA_KEY")
+        or os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
+        or (str(default_sa_path) if default_sa_path.exists() else None)
+    )
+
+    if not sa_path:
+        logger.error("❌ No service account path found. Checked:")
+        logger.error(f"   - VERTEX_SA_KEY: {os.environ.get('VERTEX_SA_KEY')}")
+        logger.error(f"   - GOOGLE_APPLICATION_CREDENTIALS: {os.environ.get('GOOGLE_APPLICATION_CREDENTIALS')}")
+        logger.error(f"   - Default path exists: {default_sa_path.exists()}")
+        return None
+
+    sa_path_resolved = str(Path(sa_path).expanduser())
+    if not Path(sa_path_resolved).exists():
+        logger.error(f"❌ Service account file not found at: {sa_path_resolved}")
+        return None
+
+    logger.info(f"✅ Using service account file: {sa_path_resolved}")
+
     try:
-        return (
-            subprocess.check_output(
-                ["gcloud", "auth", "print-access-token"], text=True
-            ).strip()
+        creds = service_account.Credentials.from_service_account_file(
+            sa_path_resolved, scopes=scopes
         )
-    except Exception:
+        
+        logger.info(f"✅ Service account loaded successfully")
+        logger.info(f"   - Service account email: {creds.service_account_email}")
+        logger.info(f"   - Project ID: {creds.project_id}")
+
+        # Always refresh to ensure we have a valid token
+        if not creds.token or not creds.valid or creds.expired:
+            logger.info("🔄 Token not present or expired, refreshing...")
+            creds.refresh(Request())
+            logger.info("✅ Token refreshed successfully")
+
+        if creds.token:
+            logger.info(f"✅ Access token generated (length: {len(creds.token)} chars)")
+            logger.debug(f"   - Token preview: {creds.token[:20]}...")
+            return creds.token
+        else:
+            logger.error("❌ Token generation failed - credentials.token is None")
+            return None
+            
+    except FileNotFoundError as e:
+        logger.error(f"❌ Service account file not found: {e}")
+        return None
+    except ValueError as e:
+        logger.error(f"❌ Invalid service account JSON format: {e}")
+        return None
+    except Exception as e:
+        logger.error(f"❌ Unexpected error during token generation: {type(e).__name__}: {e}")
+        import traceback
+        logger.error(f"   Traceback: {traceback.format_exc()}")
         return None
 
 
@@ -119,6 +221,24 @@ def _encode_bytes(data: bytes) -> str:
     return base64.b64encode(data).decode("utf-8")
 
 
+def _load_image_bytes(image_bytes: bytes) -> Image.Image:
+    try:
+        return Image.open(BytesIO(image_bytes)).convert("RGB")
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"Invalid image data: {exc}") from exc
+
+
+def _decode_base64_image(data: Optional[str]) -> bytes:
+    if not data:
+        raise HTTPException(status_code=400, detail="Missing image_base64.")
+    if data.startswith("data:"):
+        _, _, data = data.partition(",")
+    try:
+        return base64.b64decode(data)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"Invalid base64: {exc}") from exc
+
+
 def _require_api_key() -> str:
     api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key:
@@ -127,6 +247,35 @@ def _require_api_key() -> str:
             detail="GEMINI_API_KEY is required in the environment for Gemini calls.",
         )
     return api_key.strip()
+
+
+def _normalize_label(value: Optional[str]) -> Optional[str]:
+    if not value:
+        return None
+    return value.strip().lower().replace(" ", "_")
+
+
+def _format_body_shape(value: Optional[str]) -> Optional[str]:
+    key = _normalize_label(value)
+    if not key:
+        return None
+    return _BODY_SHAPE_LABELS.get(key)
+
+
+def _format_skin_tone(value: Optional[str]) -> Optional[str]:
+    key = _normalize_label(value)
+    if not key:
+        return None
+    return _SKIN_TONE_LABELS.get(key)
+
+
+def _build_body_analyze_response(result: Dict) -> BodyAnalyzeResponse:
+    return BodyAnalyzeResponse(
+        skin_tone_label=_format_skin_tone(result.get("skin_tone_label")),
+        skin_hexes=result.get("skin_hexes") or [],
+        body_shape=_format_body_shape(result.get("body_shape")),
+        full_body=bool(result.get("full_body")),
+    )
 
 
 async def _read_jpeg(upload: UploadFile, field_name: str) -> bytes:
@@ -172,7 +321,49 @@ async def gemini_try_on(
     person_image: UploadFile = File(..., description="JPEG person image"),
     garment_image: UploadFile = File(..., description="JPEG garment image"),
     prompt: str = Form(
-        "Virtual try-on task: Replace ONLY the clothing on the person in image 1 with the garment from image 2. CRITICAL: Copy the entire background from image 1 pixel-by-pixel. Do NOT generate, modify, or replace any background elements. Background must be 100% identical to image 1.",
+        "🎯 VIRTUAL TRY-ON TASK:\n\n"
+        
+        "📸 IMAGE ANALYSIS:\n"
+        "- Image 1: The TARGET PERSON (who will wear the clothes)\n"
+        "- Image 2: The CLOTHING SOURCE (can be: person wearing clothes, mannequin, or standalone garment)\n\n"
+        
+        "🔍 STEP 1 - IDENTIFY THE CLOTHING:\n"
+        "First, carefully analyze Image 2 to identify the clothing item(s):\n"
+        "- If Image 2 shows a PERSON wearing clothes → Extract ONLY the clothing/outfit they are wearing\n"
+        "- If Image 2 shows a MANNEQUIN → Extract the clothing displayed on the mannequin\n"
+        "- If Image 2 shows a STANDALONE GARMENT → Use that garment directly\n"
+        "- Identify ALL pieces: top, bottom, dress, jacket, accessories, etc.\n"
+        "- Note the exact colors, patterns, textures, and style details\n\n"
+        
+        "✨ STEP 2 - APPLY TO TARGET PERSON:\n"
+        "Now, transfer the identified clothing to the person in Image 1:\n"
+        "- The person in Image 1 MUST wear the EXACT clothing identified from Image 2\n"
+        "- Fit the clothing perfectly to their body shape and size\n"
+        "- Maintain all clothing details: colors, patterns, textures, logos, buttons, zippers\n"
+        "- Ensure realistic draping, shadows, and fabric behavior\n\n"
+        
+        "🚫 CRITICAL CONSTRAINTS (ZERO TOLERANCE):\n"
+        "1. PRESERVE THE PERSON (Image 1):\n"
+        "   - DO NOT change face, facial features, skin tone, or ethnicity\n"
+        "   - DO NOT change hair color, style, or length\n"
+        "   - DO NOT change body shape, height, or proportions\n"
+        "   - DO NOT change pose or body position\n"
+        "   - DO NOT change gender or age\n\n"
+        
+        "2. PRESERVE THE BACKGROUND (Image 1):\n"
+        "   - Keep the background EXACTLY as it appears in Image 1\n"
+        "   - DO NOT add, remove, or modify any background elements\n"
+        "   - DO NOT change lighting or atmosphere\n\n"
+        
+        "3. CLOTHING TRANSFER ACCURACY:\n"
+        "   - Transfer ONLY the clothing from Image 2, nothing else\n"
+        "   - If Image 2 has a person, DO NOT copy their face, body, or background\n"
+        "   - Match the exact colors and patterns of the clothing\n"
+        "   - Ensure the clothing fits naturally on the target person's body\n\n"
+        
+        "✅ FINAL OUTPUT:\n"
+        "Generate an image showing the person from Image 1 wearing the clothing from Image 2, "
+        "with everything else (face, hair, body, background) remaining identical to Image 1.",
         description="Optional prompt; uses default if omitted.",
     ),
 ) -> GeminiResponse:
@@ -466,29 +657,54 @@ async def vertex_try_on_json(request: TryOnJSONRequest) -> StandardTryOnResponse
     Expects base64 images without data URI prefix.
     """
     import time
+    import logging
+    logger = logging.getLogger(__name__)
     start_time = time.time()
 
     try:
+        print("=" * 60)
+        print("🔵 VERTEX TRY-ON JSON REQUEST RECEIVED")
+        print("=" * 60)
+        
+        # Debug: Log incoming request details
+        print("📥 INCOMING REQUEST DEBUG:")
+        print(f"   - avatar_image length: {len(request.avatar_image) if request.avatar_image else 0} chars")
+        print(f"   - avatar_image starts with: {request.avatar_image[:50] if request.avatar_image else 'None'}...")
+        print(f"   - clothing_image length: {len(request.clothing_image) if request.clothing_image else 0} chars")
+        print(f"   - clothing_image starts with: {request.clothing_image[:50] if request.clothing_image else 'None'}...")
+        print(f"   - additional_params: {request.additional_params}")
+        
         # Get access token
+        print("Step 1: Generating access token...")
         token = _get_access_token(None)
         if not token:
+            print("❌ Failed to generate access token!")
             raise HTTPException(
                 status_code=401,
                 detail="Could not obtain an access token. Set VERTEX_TOKEN or configure gcloud.",
             )
+        print(f"✅ Access token generated (length: {len(token)} chars)")
+        print(f"   Token preview: {token[:30]}...")
 
         # Get Vertex AI configuration
+        logger.info("Step 2: Loading Vertex AI configuration...")
         project_val = _resolve_param(None, "VERTEX_PROJECT_ID", "VERTEX_PROJECT_ID")
         location_val = _resolve_param(
             None, "VERTEX_LOCATION", "VERTEX_LOCATION", default="us-central1"
         )
         model_val = _resolve_param(None, "VERTEX_MODEL_ID", "VERTEX_MODEL_ID")
+        
+        logger.info(f"✅ Configuration loaded:")
+        logger.info(f"   - Project: {project_val}")
+        logger.info(f"   - Location: {location_val}")
+        logger.info(f"   - Model: {model_val}")
 
         endpoint = (
             f"https://{location_val}-aiplatform.googleapis.com/v1/projects/"
             f"{project_val}/locations/{location_val}/publishers/google/models/"
             f"{model_val}:predict"
         )
+        logger.info(f"   - Endpoint: {endpoint}")
 
         # Build parameters from additional_params or use defaults
         params = request.additional_params or {}
@@ -504,18 +720,24 @@ async def vertex_try_on_json(request: TryOnJSONRequest) -> StandardTryOnResponse
             compression_quality=params.get("compression_quality", 90),
         )
 
-        # Build payload
+        # Build payload - clean and convert images to JPEG
+        print("Step 3: Cleaning and converting images to JPEG...")
+        avatar_clean = _clean_and_convert_to_jpeg(request.avatar_image, "avatar_image")
+        clothing_clean = _clean_and_convert_to_jpeg(request.clothing_image, "clothing_image")
+        
+        print("Step 4: Building request payload...")
         payload = {
             "instances": [
                 {
-                    "personImage": {"image": {"bytesBase64Encoded": request.avatar_image}},
+                    "personImage": {"image": {"bytesBase64Encoded": avatar_clean}},
                     "productImages": [
-                        {"image": {"bytesBase64Encoded": request.clothing_image}}
+                        {"image": {"bytesBase64Encoded": clothing_clean}}
                     ],
                 }
             ],
             "parameters": parameters,
         }
+        print(f"✅ Payload built (avatar: {len(avatar_clean)} chars, clothing: {len(clothing_clean)} chars)")
 
         headers = {
             "Authorization": f"Bearer {token}",
@@ -523,7 +745,13 @@ async def vertex_try_on_json(request: TryOnJSONRequest) -> StandardTryOnResponse
         }
 
         # Call Vertex AI
+        print("Step 5: Calling Vertex AI API...")
+        print(f"   Request URL: {endpoint}")
+        print(f"   Request headers: Authorization=Bearer {token[:30]}..., Content-Type=application/json")
+        
         response = requests.post(endpoint, headers=headers, json=payload, timeout=120)
+        
+        print(f"✅ Vertex AI responded with status: {response.status_code}")
 
         try:
             body = response.json()
@@ -531,8 +759,36 @@ async def vertex_try_on_json(request: TryOnJSONRequest) -> StandardTryOnResponse
             body = {}
 
         if not response.ok:
-            detail = body.get("error", {}).get("message", response.text)
-            raise HTTPException(status_code=response.status_code, detail=detail)
+            # Enhanced error logging for Vertex AI errors
+            error_detail = body.get("error", {})
+            error_message = error_detail.get("message", response.text)
+            error_code = error_detail.get("code", response.status_code)
+            error_status = error_detail.get("status", "UNKNOWN")
+            
+            # Log detailed error information
+            print(f"❌ Vertex AI API Error:")
+            print(f"   - Status Code: {response.status_code}")
+            print(f"   - Error Code: {error_code}")
+            print(f"   - Error Status: {error_status}")
+            print(f"   - Error Message: {error_message}")
+            print(f"   - Full Response: {body}")
+            logger.error(f"   - Request endpoint: {endpoint}")
+            logger.error(f"   - Token used: {token[:50]}...")
+            
+            # Return detailed error to client
+            raise HTTPException(
+                status_code=response.status_code, 
+                detail={
+                    "errorCode": "VERTEX_AI_ERROR",
+                    "message": f"Vertex AI request failed: {error_message}",
+                    "details": {
+                        "statusCode": response.status_code,
+                        "errorCode": error_code,
+                        "errorStatus": error_status,
+                        "vertexError": error_detail
+                    }
+                }
+            )
 
         predictions: List[Dict] = body.get("predictions", [])
         images_b64 = _extract_base64_images(predictions)
@@ -592,15 +848,78 @@ async def gemini_try_on_json(request: TryOnJSONRequest) -> StandardTryOnResponse
                 status_code=400, detail=f"Invalid base64 image data: {exc}"
             ) from exc
 
-        # Try-on: Last attempt with ultra-directive prompt
+        # Enhanced try-on prompt with better clothing detection
         params = request.additional_params or {}
         prompt = params.get(
             "prompt",
-            "Virtual try-on task: Replace ONLY the clothing on the person in image 1 with the garment from image 2. CRITICAL: Copy the entire background from image 1 pixel-by-pixel. Do NOT generate, modify, or replace any background elements. Background must be 100% identical to image 1.",
+            "🎯 VIRTUAL TRY-ON TASK:\n\n"
+            
+            "📸 IMAGE ANALYSIS:\n"
+            "- Image 1: The TARGET PERSON (who will wear the clothes)\n"
+            "- Image 2: The CLOTHING SOURCE (can be: person wearing clothes, mannequin, or standalone garment)\n\n"
+            
+            "🔍 STEP 1 - IDENTIFY THE CLOTHING:\n"
+            "First, carefully analyze Image 2 to identify the clothing item(s):\n"
+            "- If Image 2 shows a PERSON wearing clothes → Extract ONLY the clothing/outfit they are wearing\n"
+            "- If Image 2 shows a MANNEQUIN → Extract the clothing displayed on the mannequin\n"
+            "- If Image 2 shows a STANDALONE GARMENT → Use that garment directly\n"
+            "- Identify ALL pieces: top, bottom, dress, jacket, accessories, etc.\n"
+            "- Note the exact colors, patterns, textures, and style details\n\n"
+            
+            "✨ STEP 2 - APPLY TO TARGET PERSON:\n"
+            "Now, transfer the identified clothing to the person in Image 1:\n"
+            "- The person in Image 1 MUST wear the EXACT clothing identified from Image 2\n"
+            "- Fit the clothing perfectly to their body shape and size\n"
+            "- Maintain all clothing details: colors, patterns, textures, logos, buttons, zippers\n"
+            "- Ensure realistic draping, shadows, and fabric behavior\n\n"
+            
+            "🚫 CRITICAL CONSTRAINTS (ZERO TOLERANCE):\n"
+            "1. PRESERVE THE PERSON (Image 1):\n"
+            "   - DO NOT change face, facial features, skin tone, or ethnicity\n"
+            "   - DO NOT change hair color, style, or length\n"
+            "   - DO NOT change body shape, height, or proportions\n"
+            "   - DO NOT change pose or body position\n"
+            "   - DO NOT change gender or age\n\n"
+            
+            "2. PRESERVE THE BACKGROUND (Image 1):\n"
+            "   - Keep the background EXACTLY as it appears in Image 1\n"
+            "   - DO NOT add, remove, or modify any background elements\n"
+            "   - DO NOT change lighting or atmosphere\n\n"
+            
+            "3. CLOTHING TRANSFER ACCURACY:\n"
+            "   - Transfer ONLY the clothing from Image 2, nothing else\n"
+            "   - If Image 2 has a person, DO NOT copy their face, body, or background\n"
+            "   - Match the exact colors and patterns of the clothing\n"
+            "   - Ensure the clothing fits naturally on the target person's body\n\n"
+            
+            "✅ FINAL OUTPUT:\n"
+            "Generate an image showing the person from Image 1 wearing the clothing from Image 2, "
+            "with everything else (face, hair, body, background) remaining identical to Image 1."
         )
 
+        # Reset angle session for this user+product when starting a new try-on
+        # This ensures the first "Generate More Angles" click will start from "front"
+        user_id = params.get('user_id', 'unknown')
+        product_id = params.get('product_id', 'unknown')
+        session_key = f"{user_id}_{product_id}"
+        
+        # Import angle manager
+        from color_helper import _angle_manager
+        
+        # Log current state before reset
+        current_index = _angle_manager.get_current_index(session_key)
+        print(f"🔍 BEFORE RESET - Session: {session_key}, Current Index: {current_index}")
+        
+        # Reset the session to start fresh
+        _angle_manager.reset_session(session_key)
+        
+        # Verify reset worked
+        new_index = _angle_manager.get_current_index(session_key)
+        print(f"🔄 AFTER RESET - Session: {session_key}, New Index: {new_index}")
+        print(f"✅ Session reset successful! Next angle will be: front")
+
         client = genai.Client(api_key=api_key)
-        model_id = "gemini-2.5-flash-image-preview"
+        model_id = "gemini-2.0-flash-exp"
 
         contents = [
             types.Part(inline_data=types.Blob(data=person_bytes, mime_type="image/jpeg")),
@@ -608,11 +927,13 @@ async def gemini_try_on_json(request: TryOnJSONRequest) -> StandardTryOnResponse
             types.Part.from_text(text=prompt),
         ]
 
+        print(f"DEBUG: Starting Gemini try-on. Person size: {len(person_bytes)}, Garment size: {len(garment_bytes)}")
         response = client.models.generate_content(
             model=model_id,
             contents=contents,
             config=types.GenerateContentConfig(response_modalities=["IMAGE", "TEXT"]),
         )
+        print(f"DEBUG: Gemini try-on finished in {int((time.time() - start_time) * 1000)}ms")
 
         images: List[str] = []
         texts: List[str] = []
@@ -667,6 +988,8 @@ async def generate_angles(request: GenerateAnglesRequest) -> StandardTryOnRespon
     """
     Generate more angles from an existing try-on image using Gemini AI.
     Expects base64 image without data URI prefix.
+    Optimized with metadata caching for reduced token consumption.
+    Tracks angle sequence per user+product for consistent progression.
     """
     import time
     start_time = time.time()
@@ -682,29 +1005,74 @@ async def generate_angles(request: GenerateAnglesRequest) -> StandardTryOnRespon
                 status_code=400, detail=f"Invalid base64 image data: {exc}"
             ) from exc
 
-        # Minimal token usage: let Gemini analyze image colors
+        # Extract parameters
         params = request.additional_params or {}
         
-        if "prompt" in params:
-            prompt = params["prompt"]
+        # Check if we're using cached metadata and thumbnail
+        cached_metadata = params.get('cached_metadata')
+        use_thumbnail = params.get('use_thumbnail', False)
+        
+        # Get user_id and product_id for angle tracking
+        user_id = params.get('user_id', 'unknown')
+        product_id = params.get('product_id', 'unknown')
+        
+        # Create a session key for this user+product combination
+        session_key = f"{user_id}_{product_id}"
+        
+        # Determine the next angle in sequence
+        # Check if an angle was explicitly requested
+        requested_angle = params.get('angle')
+        
+        if requested_angle:
+            # Use the explicitly requested angle
+            angle = requested_angle
+            print(f"✅ Using explicitly requested angle: {angle}")
         else:
-            # Ultra-minimal: Gemini sees image, analyzes colors, generates background
-            angle = params.get("angle")
-            prompt = generate_angle_prompt(angle=angle)
+            # Auto-determine next angle in sequence using session-based tracking
+            from color_helper import ANGLES, _angle_manager
+            
+            # Get the next angle in sequence for this specific session
+            angle = _angle_manager.get_next_angle(session_key)
+            current_index = _angle_manager.get_current_index(session_key)
+            
+            print(f"✅ Auto-selected next angle in sequence: {angle}")
+            print(f"   Session: {session_key}")
+            print(f"   Current index: {current_index - 1} (next will be {current_index})")
+            print(f"   Full sequence: {' → '.join(ANGLES)}")
+        
+        # Log optimization info
+        if cached_metadata:
+            print(f"✅ Using cached metadata: {cached_metadata}")
+        if use_thumbnail:
+            print(f"✅ Using thumbnail for reduced payload")
+        
+        # Generate prompt with the determined angle and session key
+        from color_helper import generate_angle_prompt
+        
+        if 'prompt' in params:
+            prompt = params['prompt']
+        else:
+            # Use cached metadata and session key for more efficient prompting
+            prompt = generate_angle_prompt(angle=angle, cached_metadata=cached_metadata, session_key=session_key)
 
         client = genai.Client(api_key=api_key)
-        model_id = "gemini-2.5-flash-image-preview"
+        model_id = "gemini-2.0-flash-exp"
 
         contents = [
             types.Part(inline_data=types.Blob(data=image_bytes, mime_type="image/jpeg")),
             types.Part.from_text(text=prompt),
         ]
 
+        print(f"DEBUG: Starting Gemini generate_content for angles. Image size: {len(image_bytes)} bytes")
+        print(f"DEBUG: Generating angle: {angle}")
+        print(f"DEBUG: Using optimized prompt: {prompt[:150]}...")
+        
         response = client.models.generate_content(
             model=model_id,
             contents=contents,
             config=types.GenerateContentConfig(response_modalities=["IMAGE", "TEXT"]),
         )
+        print(f"DEBUG: Gemini generate_content finished in {int((time.time() - start_time) * 1000)}ms")
 
         images: List[str] = []
         texts: List[str] = []
@@ -731,22 +1099,76 @@ async def generate_angles(request: GenerateAnglesRequest) -> StandardTryOnRespon
             success=True,
             result_image=images[0],  # Return first image
             processing_time=processing_time,
-            message="New angle generated successfully",
+            message=f"New angle '{angle}' generated successfully with optimized caching",
             metadata={
                 "model_id": model_id,
                 "provider": "gemini",
                 "num_images": len(images),
                 "texts": texts,
+                "cached_metadata_used": bool(cached_metadata),
+                "thumbnail_used": use_thumbnail,
+                "angle_generated": angle,
+                "session_key": session_key,
             },
         )
 
     except HTTPException:
         raise
     except Exception as exc:
+        import traceback
+        traceback.print_exc()
         raise HTTPException(
             status_code=500, detail=f"Angle generation failed: {str(exc)}"
         ) from exc
 
+
+@app.post(
+    "/body_analyze",
+    summary="Analyze body attributes via file upload or form base64",
+    tags=["body-analyze"],
+    response_model=BodyAnalyzeResponse,
+)
+async def body_analyze(
+    file: UploadFile | None = File(
+        None, description="Image file upload (png/jpg). Leave empty if using base64."
+    ),
+    image_base64: str | None = Form(
+        None, description="Base64 image string (use when not uploading a file)."
+    ),
+):
+    image_bytes = None
+    if file is not None:
+        image_bytes = await file.read()
+    elif image_base64:
+        image_bytes = _decode_base64_image(image_base64)
+    else:
+        raise HTTPException(status_code=400, detail="Provide an image file or image_base64.")
+
+    if not image_bytes:
+        raise HTTPException(status_code=400, detail="Uploaded image is empty.")
+
+    image = _load_image_bytes(image_bytes)
+    result = analyze_user_image(image)
+    if "error" in result:
+        raise HTTPException(status_code=500, detail=result["error"])
+    return _build_body_analyze_response(result)
+
+
+@app.post(
+    "/body_analyze_json",
+    summary="Analyze body attributes via JSON base64",
+    tags=["body-analyze"],
+    response_model=BodyAnalyzeResponse,
+)
+async def body_analyze_json(
+    payload: BodyAnalyzeRequest = Body(..., description="JSON with image_base64"),
+):
+    image_bytes = _decode_base64_image(payload.image_base64)
+    image = _load_image_bytes(image_bytes)
+    result = analyze_user_image(image)
+    if "error" in result:
+        raise HTTPException(status_code=500, detail=result["error"])
+    return _build_body_analyze_response(result)
 
 
 # ============================================================================
@@ -772,6 +1194,9 @@ class RecommendationItem(BaseModel):
     final_score: float
     score_label: str
     description: Optional[str] = None
+    image: Optional[str] = None
+    title: Optional[str] = None
+    price_cents: Optional[int] = None
 
 
 class RecommendationResponse(BaseModel):
@@ -939,8 +1364,15 @@ async def health_check():
             "vertex_tryon": "/vertex/try-on-json",
             "gemini_tryon": "/gemini/try-on-json",
             "generate_angles": "/gemini/generate-angles",
+            "body_analyze": "/body_analyze",
+            "body_analyze_json": "/body_analyze_json",
             "ai_recommendations": "/recommendation/ai-decide",
             "collection": "/recommendation/collection",
         },
     }
 
+
+@app.get("/test_endpoint")
+async def test_endpoint():
+    """Simple test endpoint to verify new routes are registered"""
+    return {"message": "This endpoint works!", "version": "new"}

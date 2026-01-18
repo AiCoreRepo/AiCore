@@ -29,12 +29,11 @@ export class ProductsController {
 
   /**
    * GET /products/approved
-   * Requires authentication - BUYER role only
+   * Public endpoint - No authentication required
    * Returns approved products for the collection page
+   * Non-logged-in users can browse products
    */
   @Get('approved')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('BUYER')
   getApprovedProducts(
     @Query('page') page?: string,
     @Query('limit') limit?: string,

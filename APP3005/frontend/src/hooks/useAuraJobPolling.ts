@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import type { JobStatus } from '@/constants/queue.constants';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
+
 interface JobStatusResponse {
     status: JobStatus;
     progress: number;
@@ -24,8 +26,8 @@ export const useAuraJobPolling = (jobId: string | null, enabled: boolean = true)
             // Get auth token
             const token = localStorage.getItem('access_token');
 
-            // Use full backend URL instead of /api proxy
-            const response = await axios.get(`http://localhost:3000/aura/job/${jobId}`, {
+            // Use API_BASE_URL for both local and production
+            const response = await axios.get(`${API_BASE_URL}/aura/job/${jobId}`, {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                 },

@@ -33,41 +33,35 @@ export const FilterDropdown = ({ label, options, value, onChange, icon }: Filter
         <div className="relative" ref={dropdownRef}>
             <button
                 onClick={() => setIsOpen(!isOpen)}
-                className="group px-5 py-3 rounded-xl font-medium text-sm transition-all duration-300 flex items-center gap-3 min-w-[160px] border"
+                className="group px-4 py-2.5 rounded-lg font-normal text-sm transition-all duration-200 flex items-center gap-2.5 min-w-[140px] border"
                 style={{
-                    background: isOpen
-                        ? '#FFFFFF'
-                        : 'linear-gradient(135deg, #FFFFFF 0%, #FAFAF8 100%)',
-                    borderColor: isOpen ? '#D4AF37' : 'rgba(0, 0, 0, 0.1)',
+                    background: '#FFFFFF',
+                    borderColor: 'rgba(0, 0, 0, 0.12)',
                     color: '#2C2C2C',
-                    boxShadow: isOpen
-                        ? '0 8px 24px rgba(212, 175, 55, 0.2)'
-                        : '0 2px 8px rgba(0, 0, 0, 0.08)',
                 }}
             >
-                {icon && <span style={{ color: '#D4AF37' }}>{icon}</span>}
+                {icon && <span style={{ color: '#D4AF37', opacity: 0.8 }}>{icon}</span>}
                 <div className="flex-1 text-left">
-                    <div className="text-xs text-gray-500 mb-0.5">{label}</div>
-                    <div className="text-sm font-semibold truncate" style={{ color: '#2C2C2C' }}>
+                    <div className="text-xs text-gray-400 uppercase tracking-wider mb-0.5">{label}</div>
+                    <div className="text-sm font-medium" style={{ color: '#2C2C2C' }}>
                         {value}
                     </div>
                 </div>
                 <ChevronDown
-                    className={`w-4 h-4 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`}
-                    style={{ color: '#D4AF37' }}
+                    className={`w-3.5 h-3.5 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
+                    style={{ color: '#999' }}
                 />
             </button>
 
             {isOpen && (
                 <div
-                    className="absolute top-full mt-2 w-full md:min-w-[220px] rounded-xl shadow-2xl z-50 overflow-hidden"
+                    className="absolute top-full mt-1 w-full min-w-[200px] rounded-lg shadow-lg z-50 overflow-hidden"
                     style={{
                         background: '#FFFFFF',
-                        border: '2px solid #D4AF37',
-                        boxShadow: '0 12px 32px rgba(0, 0, 0, 0.15)',
+                        border: '1px solid rgba(0, 0, 0, 0.1)',
                     }}
                 >
-                    <div className="py-2 max-h-[300px] overflow-y-auto custom-scrollbar">
+                    <div className="py-1 max-h-[280px] overflow-y-auto custom-scrollbar">
                         {options.map((option) => (
                             <button
                                 key={option}
@@ -75,29 +69,25 @@ export const FilterDropdown = ({ label, options, value, onChange, icon }: Filter
                                     onChange(option);
                                     setIsOpen(false);
                                 }}
-                                className="w-full px-4 py-3 text-left text-sm transition-all duration-200 flex items-center justify-between group"
+                                className="w-full px-4 py-2.5 text-left text-sm transition-colors duration-150 flex items-center justify-between"
                                 style={{
-                                    background: value === option
-                                        ? 'rgba(212, 175, 55, 0.1)'
-                                        : 'transparent',
+                                    background: value === option ? 'rgba(212, 175, 55, 0.08)' : 'transparent',
                                     color: value === option ? '#D4AF37' : '#2C2C2C',
                                 }}
                                 onMouseEnter={(e) => {
                                     if (value !== option) {
-                                        e.currentTarget.style.background = 'rgba(212, 175, 55, 0.05)';
-                                        e.currentTarget.style.color = '#D4AF37';
+                                        e.currentTarget.style.background = 'rgba(0, 0, 0, 0.03)';
                                     }
                                 }}
                                 onMouseLeave={(e) => {
                                     if (value !== option) {
                                         e.currentTarget.style.background = 'transparent';
-                                        e.currentTarget.style.color = '#2C2C2C';
                                     }
                                 }}
                             >
-                                <span className="font-medium">{option}</span>
+                                <span className="font-normal">{option}</span>
                                 {value === option && (
-                                    <Check className="w-4 h-4" style={{ color: '#D4AF37' }} />
+                                    <Check className="w-3.5 h-3.5" style={{ color: '#D4AF37' }} />
                                 )}
                             </button>
                         ))}
@@ -107,18 +97,17 @@ export const FilterDropdown = ({ label, options, value, onChange, icon }: Filter
 
             <style>{`
                 .custom-scrollbar::-webkit-scrollbar {
-                    width: 6px;
+                    width: 4px;
                 }
                 .custom-scrollbar::-webkit-scrollbar-track {
-                    background: rgba(0, 0, 0, 0.05);
-                    border-radius: 10px;
+                    background: rgba(0, 0, 0, 0.03);
                 }
                 .custom-scrollbar::-webkit-scrollbar-thumb {
-                    background: linear-gradient(180deg, #D4AF37 0%, #C9A55C 100%);
+                    background: rgba(0, 0, 0, 0.15);
                     border-radius: 10px;
                 }
                 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-                    background: linear-gradient(180deg, #E5C158 0%, #D4AF37 100%);
+                    background: rgba(0, 0, 0, 0.25);
                 }
             `}</style>
         </div>

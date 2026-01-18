@@ -159,9 +159,9 @@ const UploadsGrid = ({ uploads, onEdit, onDelete, onPublish }: UploadsGridProps)
                         No products found matching your filter.
                     </div>
                 ) : (
-                    filteredAndSortedUploads.map((product, index) => (
+                    filteredAndSortedUploads.map((product) => (
                         <ProductCard
-                            key={index}
+                            key={product.product_id || product.id}
                             product_id={product.product_id}
                             image={product.image}
                             images={product.images}

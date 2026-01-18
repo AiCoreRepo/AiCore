@@ -23,12 +23,21 @@ coverage.xml
 .streamlit/
 
 # Local datasets / media
+Playground/Recommendation/data/women fashion
+Playground/Recommendation/data/val
 Playground/Recommendation/data/images/
 Playground/Recommendation/archive/images/
 Playground/Recommendation/archive/myntradataset/images/
-Playground/Recommendation/women fashion
+Playground/vertexVT/service_account.json
 Playground/Recommendation/val
+Playground/Recommendation/women fashion
+recommend_demo/data
+recommend_demo/training data
+recommend_demo
 recommend_demo/train_image
 recommend_demo/test_image
 recommend_demo/testiing_image_collection
+<<<<<<< HEAD
 recommend_demo/pulkit image
+=======
+>>>>>>> 94307f0e027e333c87f0fcad3cfc927e16ec54f6

@@ -1,6 +1,6 @@
 import type { CookieOptions } from 'express';
 
-export const JWT_ACCESS_TOKEN_EXPIRES_IN = '15m';
+export const JWT_ACCESS_TOKEN_EXPIRES_IN = '24h';
 export const JWT_REFRESH_TOKEN_EXPIRES_IN = '7d';
 
 export const REFRESH_TOKEN_COOKIE_OPTIONS: CookieOptions = {

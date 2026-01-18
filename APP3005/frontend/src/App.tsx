@@ -27,6 +27,7 @@ import AdminDashboardPage from "./app/admin-dashboard/page";
 const AtelierApprovalPage = lazy(() => import("./app/admin-approvals/page"));
 import CollectionPage from "./pages/CollectionPage";
 import AdminCollectionPage from "./app/admin-collection/page";
+import AdminTryOnApprovals from "./app/admin-tryon-approvals/page";
 import ArtisansPage from "./app/admin-artisans/page";
 import ClientelePage from "./app/admin-clientele/page";
 import AdminSettingsPage from "./app/admin-settings/page";
@@ -108,6 +109,7 @@ const App = () => (
                     <AtelierApprovalPage />
                   </Suspense>
                 } />
+                <Route path="/admin-tryon-approvals" element={<AdminTryOnApprovals />} />
                 <Route path="/admin-collection" element={<AdminCollectionPage />} />
                 <Route path="/admin-artisans" element={<ArtisansPage />} />
                 <Route path="/admin-clientele" element={<ClientelePage />} />

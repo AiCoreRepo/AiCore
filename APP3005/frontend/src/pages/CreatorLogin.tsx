@@ -5,6 +5,9 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { creatorLogin } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
+import { getErrorMessage } from "@/lib/error-utils";
+import { AuthLayout } from "@/components/auth/AuthLayout";
+import heroImage from "@/assets/auth-hero-login.jpg"; // Using a consistent high-quality asset
 
 const CreatorLogin = () => {
   const [email, setEmail] = useState("");
@@ -22,13 +25,13 @@ const CreatorLogin = () => {
       }
       toast({
         title: "Logged in as Creator!",
-        description: "You are now logged in as a creator.",
+        description: "Welcome back to your workspace.",
       });
       navigate("/creator-dashboard");
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
-        title: "Error",
-        description: error.message || "Login failed.",
+        title: "Login Failed",
+        description: getErrorMessage(error, "Login failed."),
         variant: "destructive",
       });
     } finally {
@@ -37,21 +40,38 @@ const CreatorLogin = () => {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen">
-      <h1 className="text-3xl font-bold mb-4">Creator Login</h1>
-      <form onSubmit={handleLogin} className="w-full max-w-xs flex flex-col gap-4">
-        <Input
-          type="email"
-          placeholder="Enter your email"
-          value={email}
-          onChange={e => setEmail(e.target.value)}
-          required
-        />
-        <Button type="submit" disabled={isLoading || !email}>
-          {isLoading ? "Logging in..." : "Login as Creator"}
-        </Button>
-      </form>
-    </div>
+    <AuthLayout
+      heroImage={heroImage}
+      quote="Empowering creators to shape the future of digital fashion."
+      quoteAuthor="AiVestire Creative"
+    >
+      <div className="space-y-6">
+        <div className="space-y-2 text-center lg:text-left">
+          <h1 className="text-3xl font-serif text-luxury-cream">Creator Access</h1>
+          <p className="text-neutral-400">Enter your credentials to manage your store.</p>
+        </div>
+
+        <form onSubmit={handleLogin} className="space-y-4">
+          <div className="space-y-2">
+            <Input
+              type="email"
+              placeholder="Enter your creator email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              required
+              className="bg-luxury-cream border-neutral-200 text-luxury-black placeholder:text-neutral-500 h-12 rounded-xl shadow-sm focus:border-luxury-gold/50 focus:ring-4 focus:ring-luxury-gold/5 transition-all duration-300"
+            />
+          </div>
+          <Button
+            type="submit"
+            disabled={isLoading || !email}
+            className="w-full bg-luxury-gold hover:bg-luxury-gold/90 text-luxury-black font-semibold h-12 transition-all duration-300"
+          >
+            {isLoading ? "Authenticating..." : "Login as Creator"}
+          </Button>
+        </form>
+      </div>
+    </AuthLayout>
   );
 };
 

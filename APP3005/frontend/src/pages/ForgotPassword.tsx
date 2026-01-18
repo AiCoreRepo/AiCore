@@ -62,8 +62,8 @@ const ForgotPassword = () => {
             </div>
 
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-              <div className="space-y-2">
-                <Label htmlFor="email" className="text-luxury-cream">
+              <div className="space-y-2 px-1">
+                <Label htmlFor="email" className="text-xs uppercase tracking-widest text-luxury-gold font-medium">
                   Email Address
                 </Label>
                 <Input
@@ -71,10 +71,10 @@ const ForgotPassword = () => {
                   type="email"
                   placeholder="designer@aivestire.com"
                   {...register("email")}
-                  className="bg-white border-luxury-charcoal text-charcoal placeholder:text-gray-400 focus:border-luxury-gold focus:ring-luxury-gold transition-all duration-300"
+                  className="bg-luxury-cream border-neutral-200 text-luxury-black placeholder:text-neutral-500 h-12 rounded-xl shadow-sm focus:border-luxury-gold/50 focus:ring-4 focus:ring-luxury-gold/5 transition-all duration-300"
                 />
                 {errors.email && (
-                  <p className="text-sm text-destructive">{errors.email.message}</p>
+                  <p className="text-xs text-red-500 mt-1 ml-1">{errors.email.message}</p>
                 )}
               </div>
 

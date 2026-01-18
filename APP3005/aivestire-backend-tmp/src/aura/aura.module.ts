@@ -7,11 +7,13 @@ import { AuraProcessor } from './aura.processor';
 import { PrismaModule } from '../prisma/prisma.module';
 import { CloudinaryService } from '../common/cloudinary.service';
 import { GeminiAIService } from '../common/gemini-ai.service';
+import { AiTryOnModule } from '../ai-tryon/ai-tryon.module';
 import { QUEUE_NAMES } from '../common/constants/queue.constants';
 
 @Module({
     imports: [
         PrismaModule,
+        AiTryOnModule,
         BullModule.registerQueue({
             name: QUEUE_NAMES.AURA_GENERATION,
         }),

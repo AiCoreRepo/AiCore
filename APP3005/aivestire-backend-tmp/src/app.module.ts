@@ -13,6 +13,7 @@ import { CreatorDashboardModule } from './creator-dashboard/creator-dashboard.mo
 import { AuraModule } from './aura/aura.module';
 import { AdminModule } from './admin/admin.module';
 import { AiTryOnModule } from './ai-tryon/ai-tryon.module';
+import { AdminSeederService } from './common/admin-seeder.service';
 import { RecommendationModule } from './recommendation/recommendation.module';
 
 @Module({
@@ -32,6 +33,7 @@ import { RecommendationModule } from './recommendation/recommendation.module';
     RecommendationModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService, AdminSeederService],
 })
 export class AppModule { }
+

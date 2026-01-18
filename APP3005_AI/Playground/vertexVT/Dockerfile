@@ -1,22 +1,30 @@
-# Use Astral's uv image for fast installs across platforms.
-FROM ghcr.io/astral-sh/uv:python3.11-bookworm
+FROM python:3.11-slim
 
 WORKDIR /app
 
-# Build essentials for any wheels that need compilation.
+# System deps
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends build-essential \
+    && apt-get install -y --no-install-recommends build-essential libglib2.0-0 libgl1 libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 
-# Install dependencies with uv (cache wheel downloads between builds).
-COPY requirements.txt uv.lock ./
-RUN --mount=type=cache,target=/root/.cache/uv \
-    uv pip install --system -r requirements.txt
+# Install Python deps
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
 # App source
 COPY api.py app.py README.md pyproject.toml uv.lock ./
-COPY .env.example .env.example
-
 EXPOSE 8000
 
-CMD ["python", "-m", "uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8000"]
+# Environment variables loaded at runtime
+ENV PYTHONUNBUFFERED=1
+
+# These will be populated from docker-compose env_file or environment section
+# Declaring them here ensures they're available to the application
+ENV VERTEX_TOKEN=""
+ENV VERTEX_PROJECT_ID=""
+ENV VERTEX_LOCATION="us-central1"
+ENV VERTEX_MODEL_ID=""
+ENV GEMINI_API_KEY=""
+ENV GOOGLE_APPLICATION_CREDENTIALS=""
+
+CMD ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8000"]

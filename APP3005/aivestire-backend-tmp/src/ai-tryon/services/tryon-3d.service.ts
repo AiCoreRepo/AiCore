@@ -1,12 +1,14 @@
 import { Injectable, Logger, HttpException, HttpStatus } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
-import { VertexTryOnService } from './providers/vertex-tryon.service';
+import { DirectVertexTryOnService } from './providers/direct-vertex-tryon.service';
 import { GeminiTryOnService } from './providers/gemini-tryon.service';
-import { CloudinaryService } from '../../common/cloudinary.service'; // Corrected path for CloudinaryService
+import { CloudinaryService, CloudinaryMetadata } from '../../common/cloudinary.service';
+import { ImageOptimizerService } from '../../common/image-optimizer.service';
 import { Aura } from '@prisma/client';
 import { TryOnResponseDto } from '../dto/tryon-response.dto';
 import { AIProvider, TryOnStatus } from '../enums/ai-provider.enum';
+import { GEMINI_AI_TIMEOUT } from '../constants/tryon.constants';
 
 /**
  * 3D Virtual Try-On Service
@@ -19,10 +21,11 @@ export class TryOn3DService {
 
     constructor(
         private readonly prisma: PrismaService,
-        private readonly vertexService: VertexTryOnService,
+        private readonly directVertexService: DirectVertexTryOnService,
         private readonly geminiService: GeminiTryOnService,
         private readonly configService: ConfigService,
-        private readonly cloudinaryService: CloudinaryService, // Injected CloudinaryService
+        private readonly cloudinaryService: CloudinaryService,
+        private readonly imageOptimizer: ImageOptimizerService,
     ) {
         // Get Gemini angles endpoint from environment
         this.geminiAnglesUrl =
@@ -81,41 +84,113 @@ export class TryOn3DService {
         productId: string,
         auraId: string,
         resultImageUrl: string,
+        provider: string = 'unknown',
+        angle?: string,
     ) {
+        const startTime = Date.now();
         this.logger.log(`💾 Saving try-on result to database...`);
         this.logger.log(`💾 User: ${userId}, Product: ${productId}, Aura: ${auraId}`);
 
-        // Upload image to Cloudinary
-        let cloudinaryUrl: string;
         try {
-            this.logger.log(`☁️ Uploading try-on image to Cloudinary...`);
-            cloudinaryUrl = await this.cloudinaryService.uploadImage(resultImageUrl);
-            this.logger.log(`✅ Image uploaded to Cloudinary: ${cloudinaryUrl}`);
+            // Extract image metadata for caching
+            this.logger.log(`📊 Extracting image metadata...`);
+            const imageMetadata = await this.imageOptimizer.extractImageMetadata(resultImageUrl);
+            const dominantColors = await this.imageOptimizer.extractDominantColors(resultImageUrl, 3);
+
+            // Compress image if needed
+            let imageToUpload = resultImageUrl;
+            if (this.imageOptimizer.shouldCompress(resultImageUrl, 2048)) {
+                this.logger.log(`🔄 Compressing large image before upload...`);
+                imageToUpload = await this.imageOptimizer.compressImage(resultImageUrl, {
+                    quality: 85,
+                    maxWidth: 2048,
+                    maxHeight: 2048,
+                });
+            }
+
+            // Upload to Cloudinary with metadata
+            this.logger.log(`☁️ Uploading try-on image to Cloudinary with metadata...`);
+            const cloudinaryMetadata: CloudinaryMetadata = {
+                userId,
+                productId,
+                auraId,
+                dominantColors,
+                imageType: angle ? 'angle' : 'try-on',
+                angle,
+                processingTime: Date.now() - startTime,
+            };
+
+            const uploadResult = await this.cloudinaryService.uploadWithMetadata(
+                imageToUpload,
+                cloudinaryMetadata,
+                'try-ons',
+            );
+
+            // Create thumbnail for faster angle generation
+            const thumbnailUrl = this.cloudinaryService.getThumbnailUrl(uploadResult.publicId, 512);
+            const compressedUrl = this.cloudinaryService.getCompressedUrl(uploadResult.publicId, 75);
+
+            this.logger.log(`✅ Image uploaded to Cloudinary: ${uploadResult.secureUrl}`);
+            this.logger.log(`✅ Thumbnail URL: ${thumbnailUrl}`);
+
+            // Save try-on result with caching metadata
+            const tryOn = await this.prisma.tryOn.create({
+                data: {
+                    user_id: userId,
+                    product_id: productId,
+                    aura_id: auraId,
+                    result_image_url: uploadResult.secureUrl,
+                    provider: provider,
+                    angle: angle,
+                    cloudinary_public_id: uploadResult.publicId,
+                    thumbnail_url: thumbnailUrl,
+                    compressed_url: compressedUrl,
+                    metadata_cache: {
+                        width: imageMetadata.width,
+                        height: imageMetadata.height,
+                        format: imageMetadata.format,
+                        dominantColors,
+                        uploadedAt: new Date().toISOString(),
+                    },
+                    processing_metrics: {
+                        uploadTime: Date.now() - startTime,
+                        originalSize: imageMetadata.size,
+                        compressedSize: uploadResult.bytes,
+                        compressionRatio: ((1 - uploadResult.bytes / imageMetadata.size) * 100).toFixed(2),
+                    },
+                },
+            });
+
+            this.logger.log(`✅ Try-on saved with ID: ${tryOn.try_on_id}`);
+
+            // Increment user's try-on counter
+            await this.prisma.user.update({
+                where: { user_id: userId },
+                data: { try_ons_used: { increment: 1 } },
+            });
+
+            return tryOn;
         } catch (error) {
-            this.logger.error(`Failed to upload to Cloudinary: ${error.message}`);
-            // Fallback to base64 if Cloudinary upload fails
-            cloudinaryUrl = resultImageUrl;
+            this.logger.error(`Failed to save try-on result: ${error.message}`);
+            // Fallback: save without caching metadata
+            const tryOn = await this.prisma.tryOn.create({
+                data: {
+                    user_id: userId,
+                    product_id: productId,
+                    aura_id: auraId,
+                    result_image_url: resultImageUrl,
+                    provider: provider,
+                    angle: angle,
+                },
+            });
+
+            await this.prisma.user.update({
+                where: { user_id: userId },
+                data: { try_ons_used: { increment: 1 } },
+            });
+
+            return tryOn;
         }
-
-        // Save try-on result with Cloudinary URL
-        const tryOn = await this.prisma.tryOn.create({
-            data: {
-                user_id: userId,
-                product_id: productId,
-                aura_id: auraId,
-                result_image_url: cloudinaryUrl,
-            },
-        });
-
-        this.logger.log(` Try-on saved with ID: ${tryOn.try_on_id}`);
-
-        // Increment user's try-on counter
-        await this.prisma.user.update({
-            where: { user_id: userId },
-            data: { try_ons_used: { increment: 1 } },
-        });
-
-        return tryOn;
     }
 
     /**
@@ -162,8 +237,8 @@ export class TryOn3DService {
             aura_attributes: auraAttributes,
         };
 
-        // Call Vertex service with GENERATED AVATAR (model_url) instead of original image
-        const result = await this.vertexService.processTryOn(
+        // Call Direct Vertex service with GENERATED AVATAR (model_url) instead of original image
+        const result = await this.directVertexService.processTryOn(
             aura.model_url!,
             clothingImageUrl,
             enhancedParams,
@@ -175,6 +250,7 @@ export class TryOn3DService {
             clothingItemId,
             aura.aura_id,
             result.resultImage,
+            'vertex',
         );
 
         this.logger.log(`✅ 3D Vertex try-on completed for user ${aura.user_id}`);
@@ -220,10 +296,12 @@ export class TryOn3DService {
             ...(aura.extra_attributes && typeof aura.extra_attributes === 'object' ? aura.extra_attributes : {}),
         };
 
-        // Merge with additional params
+        // Merge with additional params and add user/product IDs for session tracking
         const enhancedParams = {
             ...additionalParams,
             aura_attributes: auraAttributes,
+            user_id: aura.user_id,  // For angle session tracking
+            product_id: clothingItemId,  // For angle session tracking
         };
 
         // Call Gemini service with GENERATED AVATAR (model_url) instead of original image
@@ -239,6 +317,7 @@ export class TryOn3DService {
             clothingItemId,
             aura.aura_id,
             result.resultImage,
+            'gemini',
         );
 
         this.logger.log(`✅ 3D Gemini try-on completed for user ${aura.user_id}`);
@@ -248,18 +327,71 @@ export class TryOn3DService {
 
     /**
      * Generate more angles from existing try-on image
+     * Uses cached metadata and thumbnails to reduce token consumption
      */
     async generateMoreAngles(
         aura: Aura,
         productId: string,
         previousImageUrl: string,
-        additionalParams?: Record<string, any>,
+        additionalParams: any,
     ): Promise<TryOnResponseDto> {
-        this.logger.log(`🟢 GEMINI AI - Generating more angles for user ${aura.user_id}`);
-        this.logger.log(`🟢 GEMINI AI - Using Gemini AI for angle generation`);
+        const startTime = Date.now();
 
+        this.logger.log(`🟢 GEMINI AI - Generating more angles for user ${aura.user_id}`);
+        this.logger.log(`🟢 GEMINI AI - Using optimized caching strategy`);
         try {
-            // Extract base64 data from previous image
+            // Try to get cached metadata from database
+            let cachedMetadata: any = null;
+            let thumbnailToUse = previousImageUrl;
+            let cloudinaryPublicId: string | null = null;
+
+            // Check if previous image is from Cloudinary
+            if (previousImageUrl.includes('cloudinary.com')) {
+                cloudinaryPublicId = this.cloudinaryService.extractPublicId(previousImageUrl);
+
+                if (cloudinaryPublicId) {
+                    this.logger.log(`📦 Found Cloudinary image, extracting cached data...`);
+
+                    // Get cached metadata from database
+                    const existingTryOn = await this.prisma.tryOn.findFirst({
+                        where: { cloudinary_public_id: cloudinaryPublicId },
+                        orderBy: { created_at: 'desc' },
+                    });
+
+                    if (existingTryOn?.metadata_cache) {
+                        cachedMetadata = existingTryOn.metadata_cache;
+                        this.logger.log(`✅ Using cached metadata from database`);
+                    }
+
+                    // Use thumbnail URL instead of full image (massive token reduction)
+                    if (existingTryOn?.thumbnail_url) {
+                        thumbnailToUse = existingTryOn.thumbnail_url;
+                        this.logger.log(`✅ Using thumbnail URL for faster processing`);
+                    } else {
+                        // Generate thumbnail URL on-the-fly
+                        thumbnailToUse = this.cloudinaryService.getThumbnailUrl(cloudinaryPublicId, 512);
+                        this.logger.log(`✅ Generated thumbnail URL from Cloudinary`);
+                    }
+                }
+            }
+
+            // If no cached data, extract from image
+            if (!cachedMetadata) {
+                this.logger.log(`📊 No cached metadata found, extracting from image...`);
+                const imageMetadata = await this.imageOptimizer.extractImageMetadata(previousImageUrl);
+                const dominantColors = await this.imageOptimizer.extractDominantColors(previousImageUrl, 3);
+
+                cachedMetadata = {
+                    width: imageMetadata.width,
+                    height: imageMetadata.height,
+                    dominantColors,
+                };
+
+                // Create thumbnail for processing
+                thumbnailToUse = await this.imageOptimizer.createThumbnail(previousImageUrl, 512);
+            }
+
+            // Extract base64 data helper
             const extractBase64Data = (base64String: string): string => {
                 if (base64String.startsWith('data:')) {
                     const matches = base64String.match(/^data:[^;]+;base64,(.+)$/);
@@ -268,13 +400,18 @@ export class TryOn3DService {
                 return base64String;
             };
 
-            const previousImageData = extractBase64Data(previousImageUrl);
+            // Use FULL RESOLUTION image for better quality and facial feature preservation
+            const fullImageData = extractBase64Data(previousImageUrl);
+            const fullImageSizeKB = Math.round(fullImageData.length / 1024);
 
-            // Call FastAPI Gemini angles endpoint directly
-            this.logger.log('🔄 Calling FastAPI Gemini angles service...');
+            this.logger.log(`📦 Using FULL RESOLUTION image for angle generation: ${fullImageSizeKB} KB`);
+            this.logger.log(`   ✅ This ensures high quality and accurate facial features`);
+
+            // Call FastAPI Gemini angles endpoint with full-resolution image and metadata
+            this.logger.log(`🔄 Calling FastAPI Gemini angles service at ${this.geminiAnglesUrl}...`);
 
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s timeout
+            const timeoutId = setTimeout(() => controller.abort(), GEMINI_AI_TIMEOUT);
 
             const response = await fetch(this.geminiAnglesUrl, {
                 method: 'POST',
@@ -282,8 +419,14 @@ export class TryOn3DService {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    previous_image: previousImageData,
-                    additional_params: additionalParams,
+                    previous_image: fullImageData, // Use full resolution image
+                    additional_params: {
+                        ...additionalParams,
+                        cached_metadata: cachedMetadata,
+                        use_full_resolution: true,
+                        user_id: aura.user_id,  // Pass user_id for angle tracking
+                        product_id: productId,  // Pass product_id for angle tracking
+                    },
                 }),
                 signal: controller.signal,
             });
@@ -312,28 +455,25 @@ export class TryOn3DService {
                 ? result.result_image
                 : `data:image/jpeg;base64,${result.result_image}`;
 
-            this.logger.log('✅ More angles generated successfully');
+            this.logger.log('✅ More angles generated successfully with optimized caching');
 
             // Upload angle-generated image to Cloudinary and save to database
+            const angle = additionalParams?.angle || 'unknown';
             try {
-                this.logger.log(`☁️ Uploading angle-generated image to Cloudinary...`);
-                const cloudinaryUrl = await this.cloudinaryService.uploadImage(resultImage);
-                this.logger.log(`✅ Angle image uploaded to Cloudinary: ${cloudinaryUrl}`);
-
-                const savedTryOn = await this.prisma.tryOn.create({
-                    data: {
-                        user_id: aura.user_id,
-                        aura_id: aura.aura_id,
-                        product_id: productId,
-                        result_image_url: cloudinaryUrl,
-                    },
-                });
-                this.logger.log(`💾 Saved angle-generated image to database: ${savedTryOn.try_on_id}`);
+                await this.saveTryOnResult(
+                    aura.user_id,
+                    productId,
+                    aura.aura_id,
+                    resultImage,
+                    'gemini',
+                    angle,
+                );
             } catch (error) {
-                this.logger.error(`Failed to save angle-generated image: ${error.message}`);
                 // Don't fail the request if save fails
             }
 
+            // Return angle generation result
+            const processingTime = Date.now() - startTime;
             return {
                 success: true,
                 status: TryOnStatus.SUCCESS,
@@ -341,7 +481,12 @@ export class TryOn3DService {
                 resultImage: resultImage,
                 processingTimeMs: result.processing_time || 0,
                 timestamp: new Date().toISOString(),
-                metadata: result.metadata,
+                metadata: {
+                    ...result.metadata,
+                    cachingUsed: !!cachedMetadata,
+                    fullResolutionUsed: true,
+                    imageSizeKB: fullImageSizeKB,
+                },
             };
 
         } catch (error: any) {
@@ -404,6 +549,7 @@ export class TryOn3DService {
                     productTitle: tryOn.product.title,
                     productImage: tryOn.product.images[0]?.url || null,
                     resultImage: tryOn.result_image_url,
+                    provider: tryOn.provider,
                     createdAt: tryOn.created_at,
                 })),
                 count: tryOns.length,

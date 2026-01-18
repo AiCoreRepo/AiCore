@@ -82,11 +82,19 @@ export const ProductCard = ({ product, onTryOn }: ProductCardProps) => {
                 onClick={() => setShowDetails(true)}
             >
                 <div
-                    className="relative overflow-hidden rounded-xl mb-3 transition-all duration-500 hover:-translate-y-2 hover:shadow-2xl"
+                    className="relative overflow-hidden rounded-xl mb-3 transition-all duration-500 hover:-translate-y-2"
                     style={{
                         background: '#FFFFFF',
                         boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)',
                         border: '1px solid rgba(0, 0, 0, 0.06)',
+                    }}
+                    onMouseEnter={(e) => {
+                        e.currentTarget.style.boxShadow = '0 12px 32px rgba(0, 0, 0, 0.15)';
+                        e.currentTarget.style.borderColor = 'rgba(212, 175, 55, 0.2)';
+                    }}
+                    onMouseLeave={(e) => {
+                        e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.08)';
+                        e.currentTarget.style.borderColor = 'rgba(0, 0, 0, 0.06)';
                     }}
                 >
                     {/* Wishlist Heart Icon */}
@@ -103,7 +111,7 @@ export const ProductCard = ({ product, onTryOn }: ProductCardProps) => {
                         disabled={isLiking}
                     >
                         <Heart
-                            className={`w-4 h-4 transition-colors ${isLiked ? 'text-red-500 fill-red-500' : 'text-gray-400'}`}
+                            className={`w-4 h-4 transition-all duration-300 ${isLiked ? 'text-red-500 fill-red-500 scale-110' : 'text-gray-400'}`}
                             strokeWidth={2}
                         />
                     </button>
@@ -117,17 +125,17 @@ export const ProductCard = ({ product, onTryOn }: ProductCardProps) => {
                         />
 
                         {/* Hover Overlay */}
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end justify-center p-4">
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-end justify-center p-4">
                             <button
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     if (onTryOn) onTryOn();
                                 }}
-                                className="px-6 py-2.5 rounded-lg font-medium text-xs uppercase tracking-wider transition-all duration-300 hover:scale-105"
+                                className="px-6 py-2.5 rounded-lg font-medium text-xs uppercase tracking-wider transition-all duration-300 hover:scale-105 transform translate-y-4 group-hover:translate-y-0"
                                 style={{
                                     background: 'linear-gradient(135deg, #D4AF37 0%, #C9A55C 100%)',
                                     color: '#1a1a1a',
-                                    boxShadow: '0 4px 16px rgba(212, 175, 55, 0.4)',
+                                    boxShadow: '0 4px 16px rgba(212, 175, 55, 0.5)',
                                 }}
                             >
                                 Try on with AI

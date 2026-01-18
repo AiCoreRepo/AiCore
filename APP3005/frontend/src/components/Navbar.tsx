@@ -4,6 +4,8 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import { getAuraStatus } from "@/lib/api";
 import { LogoutConfirmDialog } from "@/components/LogoutConfirmDialog";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/context/AuthContext";
+import { cn } from "@/utils/cn";
 
 const navLinks = [
     { name: "Home", href: "/", isRoute: true },
@@ -26,6 +28,7 @@ export const Navbar = () => {
     const location = useLocation();
     const menuRef = useRef<HTMLDivElement>(null);
     const { toast } = useToast();
+    const { user, logout: authLogout } = useAuth();
 
     useEffect(() => {
         const handleScroll = () => {
@@ -142,13 +145,27 @@ export const Navbar = () => {
                             {/* Desktop Navigation */}
                             <div className="hidden lg:flex items-center space-x-1">
                                 {navLinks.map((link) => {
+                                    const isActive = location.pathname === link.href || (location.hash && location.hash === link.href.split('#')[1]);
+                                    const isHashLink = link.href.startsWith('/#');
+                                    const activeLink = isHashLink
+                                        ? location.hash === link.href.replace('/', '')
+                                        : location.pathname === link.href;
+
                                     const linkContent = (
                                         <>
-                                            <span className="relative z-10">{link.name}</span>
-                                            {/* Hover background */}
-                                            <div className="absolute inset-0 rounded-full bg-gradient-to-r from-gold/20 via-gold/30 to-gold/20 opacity-0 group-hover:opacity-100 transition-all duration-300 scale-90 group-hover:scale-100" />
-                                            {/* Bottom border on hover */}
-                                            <div className="absolute bottom-1 left-1/2 -translate-x-1/2 w-0 h-0.5 bg-gold group-hover:w-3/4 transition-all duration-300 rounded-full" />
+                                            <span className={`relative z-10 transition-colors duration-300 ${activeLink ? 'text-gold font-semibold' : 'text-charcoal'}`}>
+                                                {link.name}
+                                            </span>
+                                            {/* Highlight background */}
+                                            <div className={cn(
+                                                "absolute inset-0 rounded-full bg-gradient-to-r from-gold/10 via-gold/20 to-gold/10 transition-all duration-500",
+                                                activeLink ? "opacity-100 scale-100" : "opacity-0 scale-90 group-hover:opacity-100 group-hover:scale-100"
+                                            )} />
+                                            {/* Bottom border/underline */}
+                                            <div className={cn(
+                                                "absolute bottom-1 left-1/2 -translate-x-1/2 h-0.5 bg-gold transition-all duration-500 rounded-full",
+                                                activeLink ? "w-3/4" : "w-0 group-hover:w-3/4"
+                                            )} />
                                         </>
                                     );
 
@@ -156,7 +173,7 @@ export const Navbar = () => {
                                         <Link
                                             key={link.name}
                                             to={link.href}
-                                            className="relative px-4 py-2 text-sm font-medium text-charcoal tracking-wide uppercase transition-all duration-300 group"
+                                            className="relative px-4 py-2 text-sm font-medium tracking-wide uppercase transition-all duration-300 group"
                                         >
                                             {linkContent}
                                         </Link>
@@ -164,7 +181,7 @@ export const Navbar = () => {
                                         <a
                                             key={link.name}
                                             href={link.href}
-                                            className="relative px-4 py-2 text-sm font-medium text-charcoal tracking-wide uppercase transition-all duration-300 group"
+                                            className="relative px-4 py-2 text-sm font-medium tracking-wide uppercase transition-all duration-300 group"
                                         >
                                             {linkContent}
                                         </a>
@@ -333,7 +350,8 @@ export const Navbar = () => {
             <LogoutConfirmDialog
                 isOpen={showLogoutDialog}
                 onConfirm={() => {
-                    localStorage.removeItem('access_token');
+                    // Use centralized logout function from AuthContext
+                    authLogout();
                     setIsLoggedIn(false);
                     setHasAura(false);
                     setAura(null);

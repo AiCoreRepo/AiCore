@@ -1,4 +1,4 @@
-import { X, Download, Sparkles, RefreshCw } from 'lucide-react';
+import { X, Download, Sparkles } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { LOADING_QUOTES } from './loading-quotes';
 
@@ -278,7 +278,7 @@ export function TryOnResultModal({
                                     Download Image
                                 </button>
 
-                                {/* Spin It Button */}
+                                {/* Generate Different Angles Button */}
                                 {onGenerateMoreAngles && (
                                     <button
                                         onClick={onGenerateMoreAngles}
@@ -290,8 +290,8 @@ export function TryOnResultModal({
                                             color: '#8B5CF6',
                                         }}
                                     >
-                                        <RefreshCw className={`w-5 h-5 ${generatingAngles ? 'animate-spin' : ''}`} />
-                                        {generatingAngles ? 'Spinning...' : '🔥 Spin It!'}
+                                        <Sparkles className="w-5 h-5" />
+                                        {generatingAngles ? 'Generating...' : 'Generate Different Angles'}
                                     </button>
                                 )}
                             </div>

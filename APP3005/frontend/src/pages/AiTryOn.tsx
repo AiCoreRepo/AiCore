@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/context/AuthContext';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { AuraDisplayCard } from '@/components/ai-tryon/AuraDisplayCard';
@@ -8,8 +9,8 @@ import { TryOnResultModal } from '@/components/ai-tryon/TryOnResultModal';
 import { TryOnGalleryModal } from '@/components/ai-tryon/TryOnGalleryModal';
 import { AuraPromptDialog } from '@/components/aura/AuraPromptDialog';
 import { usePublicProducts } from '@/hooks/usePublicProducts';
-import { getAura, tryOnWithGemini, tryOnWithVertex, generateMoreAngles, getTryOnHistory } from '@/lib/api';
-import { Sparkles, AlertCircle, Images } from 'lucide-react';
+import { getAura, tryOnWithGemini, tryOnWithVertex, generateMoreAngles, getTryOnHistory, requestTryOnAccess } from '@/lib/api';
+import { Sparkles, AlertCircle, Images, Lock, Clock } from 'lucide-react';
 import '@/components/ai-tryon/ai-tryon-styles.css';
 
 interface AuraData {
@@ -30,6 +31,7 @@ interface AuraData {
 
 const AiTryOn = () => {
   const navigate = useNavigate();
+  const { user, loading: authLoading, fetchUser } = useAuth();
   const [aura, setAura] = useState<AuraData | null>(null);
   const [loadingAura, setLoadingAura] = useState(true);
   const [showAuraPrompt, setShowAuraPrompt] = useState(false);
@@ -42,14 +44,27 @@ const AiTryOn = () => {
   const [generatingAngles, setGeneratingAngles] = useState(false);
   const [showGallery, setShowGallery] = useState(false);
   const [tryOnHistory, setTryOnHistory] = useState<any[]>([]);
+  const [requestingAccess, setRequestingAccess] = useState(false);
+  const [requestSuccess, setRequestSuccess] = useState(false);
 
   // Fetch products
   const { data: productsData, isLoading: productsLoading, error: productsError } = usePublicProducts(1);
 
-  // Check Aura status on mount
+  // Check authentication and Aura status on mount
   useEffect(() => {
+    // Wait for auth to load
+    if (authLoading) return;
+
+    // Check if user is logged in
+    if (!user) {
+      console.log('❌ User not logged in, redirecting to login');
+      navigate('/user-login');
+      return;
+    }
+
+    // User is logged in, check aura
     checkAuraStatus();
-  }, []);
+  }, [authLoading, user]);
 
   const checkAuraStatus = async () => {
     try {
@@ -101,6 +116,8 @@ const AiTryOn = () => {
           ? result.resultImage
           : `data:image/jpeg;base64,${result.resultImage}`;
         setResultImage(imageData);
+        // Refresh user data to update try-on count
+        fetchUser();
       } else {
         throw new Error(result.message || 'Try-on failed');
       }
@@ -131,6 +148,8 @@ const AiTryOn = () => {
           ? result.resultImage
           : `data:image/jpeg;base64,${result.resultImage}`;
         setResultImage(imageData);
+        // Refresh user data to update try-on count
+        fetchUser();
       } else {
         throw new Error(result.message || 'Failed to generate more angles');
       }
@@ -139,6 +158,20 @@ const AiTryOn = () => {
       setTryOnError(error.message || 'Failed to generate more angles. Please try again.');
     } finally {
       setGeneratingAngles(false);
+    }
+  };
+
+  const handleRequestAccess = async () => {
+    try {
+      setRequestingAccess(true);
+      await requestTryOnAccess();
+      setRequestSuccess(true);
+      // Optional: re-fetch user profile if it's cached in context
+    } catch (error: any) {
+      console.error('Request access error:', error);
+      alert(error.message || 'Failed to request access');
+    } finally {
+      setRequestingAccess(false);
     }
   };
 
@@ -157,118 +190,179 @@ const AiTryOn = () => {
     >
       <Navbar />
 
-      <main className="pt-20 pb-12">
+      <main className="pt-32 pb-12">
         {/* Header */}
-        <section className="py-8 border-b border-gold/20">
-          <div className="container mx-auto px-4">
-            <div className="text-center max-w-3xl mx-auto relative">
-              <div className="flex items-center justify-center gap-3 mb-4">
-                <Sparkles className="w-8 h-8 text-gold" />
-                <h1 className="text-4xl md:text-5xl font-bold text-charcoal">
-                  AI Virtual Try-On
-                </h1>
+        <section className="py-8 border-b border-[#D4AF37]/10 bg-[#F8F4EC]">
+          <div className="max-w-[1600px] mx-auto px-6 md:px-12">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="flex-1">
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-center gap-3">
+                    <Sparkles className="w-5 h-5 text-luxury-gold" />
+                    <h1 className="text-3xl md:text-4xl font-serif text-luxury-black">
+                      AI Virtual Try-On
+                    </h1>
+                  </div>
+                  <p className="text-sm md:text-base text-neutral-500 font-light tracking-wide">
+                    See how clothes look on your AI avatar before you buy
+                  </p>
+                </div>
               </div>
-              <p className="text-lg text-charcoal/70">
-                See how clothes look on your AI avatar before you buy
-              </p>
 
-              {/* Gallery Button - Top Right */}
-              <button
-                onClick={() => {
-                  console.log('Gallery button clicked!');
-                  getTryOnHistory()
-                    .then((history) => {
-                      console.log('Got history:', history);
-                      setTryOnHistory(history.tryOns || []);
-                      setShowGallery(true);
-                    })
-                    .catch((error) => {
-                      console.error('Failed to load gallery:', error);
-                      alert('Failed to load gallery: ' + error.message);
-                    });
-                }}
-                className="absolute top-0 right-0 flex items-center gap-2 px-4 py-2 rounded-xl font-medium text-sm transition-all duration-300 hover:scale-[1.05]"
-                style={{
-                  background: 'linear-gradient(135deg, rgba(201, 165, 92, 0.95) 0%, rgba(201, 165, 92, 1) 100%)',
-                  color: '#FFFFFF',
-                  boxShadow: '0 4px 12px rgba(201, 165, 92, 0.3)',
-                }}
-              >
-                <Images className="w-5 h-5" />
-                My Gallery
-              </button>
+              <div className="flex shrink-0">
+                <button
+                  onClick={() => {
+                    console.log('Gallery button clicked!');
+                    getTryOnHistory()
+                      .then((history) => {
+                        console.log('Got history:', history);
+                        setTryOnHistory(history.tryOns || []);
+                        setShowGallery(true);
+                      })
+                      .catch((error) => {
+                        console.error('Failed to load gallery:', error);
+                        alert('Failed to load gallery: ' + error.message);
+                      });
+                  }}
+                  className="flex items-center gap-2 px-7 py-3 rounded-xl font-medium text-xs tracking-[0.2em] uppercase transition-all duration-300 hover:shadow-gold/10 active:scale-[0.98] group"
+                  style={{
+                    background: '#D4AF37',
+                    color: '#FFFFFF',
+                  }}
+                >
+                  <Images className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                  <span>My Gallery</span>
+                </button>
+              </div>
             </div>
           </div>
         </section>
 
         {/* Main Content */}
         <section className="py-8">
-          <div className="container mx-auto px-4">
+          <div className="max-w-[1600px] mx-auto px-6 md:px-12">
             {/* Loading State */}
             {loadingAura && (
               <div className="text-center py-20">
-                <div className="inline-block animate-spin rounded-full h-16 w-16 border-4 border-gold border-t-transparent mb-4" />
-                <p className="text-charcoal/70">Loading your Aura...</p>
+                <div className="inline-block animate-spin rounded-full h-12 w-12 border-2 border-luxury-gold border-t-transparent mb-6" />
+                <p className="text-xs uppercase tracking-[0.2em] text-neutral-400 font-medium italic">Summoning your digital twin...</p>
               </div>
             )}
 
             {/* Main Layout */}
             {!loadingAura && aura && (
-              <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-                {/* Left Sidebar - Aura Display */}
-                <div className="lg:col-span-1">
-                  <AuraDisplayCard aura={aura} />
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+                {/* Left Sidebar - Aura Display (3/12) */}
+                <div className="lg:col-span-3">
+                  <AuraDisplayCard
+                    aura={aura}
+                    tryOnCount={user?.try_ons_used || 0}
+                  />
                 </div>
 
-                {/* Right Content - Clothing Grid */}
-                <div className="lg:col-span-3">
-                  {/* Products Loading */}
-                  {productsLoading && (
-                    <div className="text-center py-20">
-                      <div className="inline-block animate-spin rounded-full h-16 w-16 border-4 border-gold border-t-transparent mb-4" />
-                      <p className="text-charcoal/70">Loading clothing items...</p>
-                    </div>
-                  )}
-
-                  {/* Products Error */}
-                  {productsError && (
+                {/* Right Content - Clothing Grid or Permission Gate */}
+                {/* Right Content - Clothing Grid (9/12) */}
+                <div className="lg:col-span-9">
+                  {user?.role !== 'ADMIN' && user?.try_on_permission !== 'APPROVED' ? (
                     <div
-                      className="p-8 rounded-2xl text-center"
+                      className="p-16 rounded-[40px] text-center flex flex-col items-center justify-center gap-8 shadow-sm"
                       style={{
-                        background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(239, 68, 68, 0.15) 100%)',
-                        border: '1px solid rgba(239, 68, 68, 0.3)',
+                        background: '#FFFFFF',
+                        border: '1px solid rgba(212, 175, 55, 0.15)',
                       }}
                     >
-                      <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-                      <p className="text-charcoal font-medium">
-                        Failed to load clothing items. Please try again later.
-                      </p>
+                      {user?.try_on_permission === 'PENDING' || requestSuccess ? (
+                        <>
+                          <div className="w-24 h-24 rounded-full bg-[#F8F4EC] flex items-center justify-center mb-2">
+                            <Clock className="w-10 h-10 text-luxury-gold animate-pulse" />
+                          </div>
+                          <h2 className="text-4xl font-serif text-luxury-black">Access Under Review</h2>
+                          <p className="text-charcoal/60 max-w-md mx-auto">
+                            Your request to use Virtual Try-On is being reviewed by our team.
+                            We will notify you once you have been granted access.
+                          </p>
+                          <button
+                            onClick={() => navigate('/collection')}
+                            className="px-10 py-3.5 rounded-xl font-medium text-xs tracking-widest uppercase border border-luxury-gold text-luxury-gold hover:bg-luxury-gold/5 transition-all"
+                          >
+                            Browse Collection
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <div className="w-24 h-24 rounded-full bg-[#F8F4EC] flex items-center justify-center mb-2">
+                            <Lock className="w-10 h-10 text-luxury-gold" />
+                          </div>
+                          <h2 className="text-4xl font-serif text-luxury-black">Access Required</h2>
+                          <p className="text-charcoal/60 max-w-md mx-auto">
+                            Virtual Try-On is currently restricted to approved users during this phase.
+                            Request access now to try on outfits with your AI avatar.
+                          </p>
+                          <button
+                            onClick={handleRequestAccess}
+                            disabled={requestingAccess}
+                            className="px-12 py-4 rounded-xl font-medium text-xs tracking-[0.2em] uppercase text-white transition-all shadow-lg hover:shadow-gold/20 active:scale-[0.98]"
+                            style={{
+                              background: '#D4AF37',
+                            }}
+                          >
+                            {requestingAccess ? 'Requesting...' : 'Request Try-On Access'}
+                          </button>
+                        </>
+                      )}
                     </div>
-                  )}
-
-                  {/* Products Grid */}
-                  {!productsLoading && !productsError && productsData?.products && (
+                  ) : (
                     <>
-                      <div className="mb-6">
-                        <h2 className="text-2xl font-bold text-charcoal mb-2">
-                          Choose an Outfit to Try On
-                        </h2>
-                        <p className="text-charcoal/60">
-                          {productsData.products.length} items available
-                        </p>
-                      </div>
+                      {/* Products Loading */}
+                      {productsLoading && (
+                        <div className="text-center py-24">
+                          <div className="inline-block animate-spin rounded-full h-10 w-10 border-2 border-luxury-gold border-t-transparent mb-6" />
+                          <p className="text-xs uppercase tracking-widest text-neutral-400 italic">Curating your selection...</p>
+                        </div>
+                      )}
 
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
-                        {productsData.products.map((product: any) => (
-                          <ClothingItemCard
-                            key={product.product_id}
-                            product={product}
-                            onTryOnGemini={() => handleTryOn(product.product_id, 'gemini')}
-                            onTryOnVertex={() => handleTryOn(product.product_id, 'vertex')}
-                            loading={selectedProduct === product.product_id && tryOnLoading}
-                          />
-                        ))}
-                      </div>
+                      {/* Products Error */}
+                      {productsError && (
+                        <div
+                          className="p-8 rounded-2xl text-center"
+                          style={{
+                            background: 'rgba(239, 68, 68, 0.05)',
+                            border: '1px solid rgba(239, 68, 68, 0.2)',
+                          }}
+                        >
+                          <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+                          <p className="text-charcoal font-medium">
+                            Failed to load clothing items. Please try again later.
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Products Grid */}
+                      {!productsLoading && !productsError && productsData?.products && (
+                        <>
+                          <div className="mb-8 flex items-end justify-between border-b border-neutral-100 pb-5">
+                            <div>
+                              <h2 className="text-2xl md:text-3xl font-serif text-luxury-black italic mb-1">
+                                Select Your Masterpiece
+                              </h2>
+                              <p className="text-[11px] uppercase tracking-[0.2em] text-neutral-400 font-medium">
+                                {productsData.products.length} Designs Curated for Your Aura
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                            {productsData.products.map((product: any) => (
+                              <ClothingItemCard
+                                key={product.product_id}
+                                product={product}
+                                onTryOn={() => handleTryOn(product.product_id, 'vertex')}
+                                loading={selectedProduct === product.product_id && tryOnLoading}
+                              />
+                            ))}
+                          </div>
+                        </>
+                      )}
                     </>
                   )}
                 </div>
