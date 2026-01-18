@@ -7,10 +7,6 @@ export const SKIN_TONE_OPTIONS = [
     { value: 'medium', label: 'Medium' },
     { value: 'dusky', label: 'Dusky' },
     { value: 'deep', label: 'Deep' },
-    { value: 'fair', label: 'Fair' },
-    { value: 'olive', label: 'Olive' },
-    { value: 'tan', label: 'Tan' },
-    { value: 'dark', label: 'Dark' },
 ];
 
 export const BODY_SHAPE_OPTIONS = [
@@ -19,11 +15,16 @@ export const BODY_SHAPE_OPTIONS = [
     { value: 'apple_shape', label: 'Apple Shape' },
     { value: 'hourglass', label: 'Hourglass' },
     { value: 'inverted_triangle', label: 'Inverted Triangle' },
-    { value: 'athletic', label: 'Athletic' },
+];
+
+export const BODY_TYPE_OPTIONS = [
     { value: 'slim', label: 'Slim' },
-    { value: 'average', label: 'Average' },
+    { value: 'athletic', label: 'Athletic' },
     { value: 'curvy', label: 'Curvy' },
-    { value: 'plus', label: 'Plus Size' },
+    { value: 'plus_size', label: 'Plus-size' },
+    { value: 'petite', label: 'Petite' },
+    { value: 'tall', label: 'Tall' },
+    { value: 'regular', label: 'Regular' },
 ];
 
 export const GENDER_OPTIONS = [
@@ -33,19 +34,9 @@ export const GENDER_OPTIONS = [
 ];
 
 export const AGE_RANGE_OPTIONS = [
-    { value: '18-25', label: '18-25 years' },
-    { value: '26-35', label: '26-35 years' },
-    { value: '36-45', label: '36-45 years' },
-    { value: '46-55', label: '46-55 years' },
-    { value: '56+', label: '56+ years' },
-];
-
-export const HAIR_STYLE_OPTIONS = [
-    { value: 'short', label: 'Short' },
-    { value: 'medium', label: 'Medium Length' },
-    { value: 'long', label: 'Long' },
-    { value: 'bald', label: 'Bald' },
-    { value: 'curly', label: 'Curly' },
-    { value: 'straight', label: 'Straight' },
-    { value: 'wavy', label: 'Wavy' },
+    { value: '13-17', label: 'Teen (13-17)' },
+    { value: '18-25', label: 'Young Adult (18-25)' },
+    { value: '26-35', label: 'Adult (26-35)' },
+    { value: '36-50', label: 'Mature Adult (36-50)' },
+    { value: '51+', label: 'Senior (51+)' },
 ];

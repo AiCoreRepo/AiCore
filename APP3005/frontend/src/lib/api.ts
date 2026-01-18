@@ -405,7 +405,7 @@ export async function likeProduct(productId: string) {
     throw new Error('Please login to like products');
   }
 
-  const res = await fetch(`${BASE_URL}/products/like`, {
+  const res = await fetch(`${BASE_URL}/api/products/like`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -433,7 +433,7 @@ export async function addComment(productId: string, commentText: string) {
     throw new Error('Please login to comment');
   }
 
-  const res = await fetch(`${BASE_URL}/products/comment`, {
+  const res = await fetch(`${BASE_URL}/api/products/comment`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -462,7 +462,7 @@ export async function getProductLikes(productId: string) {
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  const res = await fetch(`${BASE_URL}/products/${productId}/likes`, {
+  const res = await fetch(`${BASE_URL}/api/products/${productId}/likes`, {
     method: 'GET',
     headers,
   });
@@ -481,7 +481,7 @@ export async function getProductLikes(productId: string) {
 
 // Get product comments
 export async function getProductComments(productId: string) {
-  const res = await fetch(`${BASE_URL}/products/${productId}/comments`, {
+  const res = await fetch(`${BASE_URL}/api/products/${productId}/comments`, {
     method: 'GET',
     headers: { 'Content-Type': 'application/json' },
   });
@@ -505,7 +505,7 @@ export async function deleteComment(commentId: string) {
     throw new Error('Please login to delete comments');
   }
 
-  const res = await fetch(`${BASE_URL}/products/comment/${commentId}`, {
+  const res = await fetch(`${BASE_URL}/api/products/comment/${commentId}`, {
     method: 'DELETE',
     headers: {
       'Authorization': `Bearer ${token}`,

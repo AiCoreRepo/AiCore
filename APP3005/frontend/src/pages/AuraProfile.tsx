@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useToast } from "@/hooks/use-toast"; // Import toast hook
 import { EditableAttributeCard } from "@/components/aura/EditableAttributeCard";
 import { AvatarDisplay } from "@/components/aura/AvatarDisplay";
+import { BODY_TYPE_OPTIONS, SKIN_TONE_OPTIONS, BODY_SHAPE_OPTIONS, AGE_RANGE_OPTIONS } from "@/constants/aura.constants";
 import "@/components/aura/aura-styles.css";
 
 interface AuraData {
@@ -14,6 +16,7 @@ interface AuraData {
     skin_tone?: string;
     gender?: string;
     body_shape?: string;
+    body_type?: string; // Added new field
     age_range?: string;
     hair_style?: string;
     status: string;
@@ -22,10 +25,14 @@ interface AuraData {
 
 interface AttributeValues {
     bodyShape: string;
+    bodyType: string;
     height: string;
+    weight: string;
     skinTone: string;
-    faceShape: string;
+    gender: string;
+    ageRange: string;
     hairType: string;
+    beardStyle?: string;
 }
 
 export default function AuraProfile() {
@@ -35,22 +42,29 @@ export default function AuraProfile() {
     const [isSaving, setIsSaving] = useState(false);
     const [userName, setUserName] = useState<string>('');
     const navigate = useNavigate();
+    const { toast } = useToast();
 
     // Editable attributes state
     const [attributes, setAttributes] = useState<AttributeValues>({
         bodyShape: '',
+        bodyType: '',
         height: '',
+        weight: '',
         skinTone: '',
-        faceShape: '',
+        gender: '',
+        ageRange: '',
         hairType: '',
     });
 
     // Store original values for cancel functionality
     const [originalAttributes, setOriginalAttributes] = useState<AttributeValues>({
         bodyShape: '',
+        bodyType: '',
         height: '',
+        weight: '',
         skinTone: '',
-        faceShape: '',
+        gender: '',
+        ageRange: '',
         hairType: '',
     });
 
@@ -90,9 +104,12 @@ export default function AuraProfile() {
                 // Initialize attribute values
                 const initialAttributes = {
                     bodyShape: data.body_shape || '',
+                    bodyType: data.body_type || '',
                     height: data.height_cm ? data.height_cm.toString() : '',
+                    weight: data.weight_kg ? data.weight_kg.toString() : '',
                     skinTone: data.skin_tone || '',
-                    faceShape: data.gender || '', // Using gender as face shape for now
+                    gender: data.gender || '',
+                    ageRange: data.age_range || '',
                     hairType: data.hair_style || '',
                 };
                 setAttributes(initialAttributes);
@@ -122,9 +139,12 @@ export default function AuraProfile() {
 
             const updateData = {
                 bodyShape: attributes.bodyShape,
+                bodyType: attributes.bodyType,
                 height: attributes.height ? parseInt(attributes.height) : undefined,
+                weight: attributes.weight ? parseInt(attributes.weight) : undefined,
                 skinTone: attributes.skinTone,
-                gender: attributes.faceShape,
+                gender: attributes.gender,
+                ageRange: attributes.ageRange,
                 hairStyle: attributes.hairType,
                 beardStyle: attributes.beardStyle,
             };
@@ -147,11 +167,26 @@ export default function AuraProfile() {
             setOriginalAttributes(attributes);
             setIsEditing(false);
 
-            // Show success message
-            alert('Aura updated successfully!');
+            setOriginalAttributes(attributes);
+            setIsEditing(false);
+
+            // Show success toast
+            toast({
+                title: "Attributes Updated",
+                description: "Your Aura profile has been successfully updated.",
+                duration: 3000,
+                className: "bg-[#F5F0E6] border-[#D4B76E] text-[#1A1A1A]", // Custom luxury styling
+            });
+
         } catch (error) {
             console.error('Error updating Aura:', error);
-            alert('Failed to update Aura. Please try again.');
+
+            toast({
+                variant: "destructive",
+                title: "Update Failed",
+                description: "Failed to update Aura attributes. Please try again.",
+                duration: 4000,
+            });
         } finally {
             setIsSaving(false);
         }
@@ -226,48 +261,74 @@ export default function AuraProfile() {
                     </div>
 
                     <div className="attributes-grid">
+                        {/* Body Shape */}
                         <EditableAttributeCard
-                            label="BODY TYPE"
+                            label="BODY SHAPE"
                             value={attributes.bodyShape}
                             isEditing={isEditing}
                             onChange={(value) => handleAttributeChange('bodyShape', value)}
                             type="select"
-                            options={['Slim', 'Athletic', 'Average', 'Muscular', 'Heavy']}
+                            options={BODY_SHAPE_OPTIONS}
                         />
 
+                        {/* Body Type */}
+                        <EditableAttributeCard
+                            label="BODY TYPE"
+                            value={attributes.bodyType}
+                            isEditing={isEditing}
+                            onChange={(value) => handleAttributeChange('bodyType', value)}
+                            type="select"
+                            options={BODY_TYPE_OPTIONS}
+                        />
+
+                        {/* Height */}
                         <EditableAttributeCard
                             label="HEIGHT"
                             value={attributes.height}
                             isEditing={isEditing}
                             onChange={(value) => handleAttributeChange('height', value)}
                             type="text"
+                            unit="cm"
                         />
 
+                        {/* Weight */}
+                        <EditableAttributeCard
+                            label="WEIGHT"
+                            value={attributes.weight}
+                            isEditing={isEditing}
+                            onChange={(value) => handleAttributeChange('weight', value)}
+                            type="text"
+                            unit="kg"
+                        />
+
+                        {/* Skin Tone */}
                         <EditableAttributeCard
                             label="SKIN TONE"
                             value={attributes.skinTone}
                             isEditing={isEditing}
                             onChange={(value) => handleAttributeChange('skinTone', value)}
                             type="select"
-                            options={['Fair', 'Light', 'Medium', 'Medium/Dusk', 'Olive', 'Tan', 'Brown', 'Dark']}
+                            options={SKIN_TONE_OPTIONS}
                         />
 
+                        {/* Gender */}
                         <EditableAttributeCard
-                            label="FACE SHAPE"
-                            value={attributes.faceShape}
+                            label="GENDER"
+                            value={attributes.gender}
                             isEditing={isEditing}
-                            onChange={(value) => handleAttributeChange('faceShape', value)}
+                            onChange={(value) => handleAttributeChange('gender', value)}
                             type="select"
-                            options={['Oval', 'Round', 'Square', 'Heart', 'Diamond', 'Oblong']}
+                            options={['Male', 'Female', 'Other']}
                         />
 
+                        {/* Age Range */}
                         <EditableAttributeCard
-                            label="HAIR TYPE"
-                            value={attributes.hairType}
+                            label="AGE RANGE"
+                            value={attributes.ageRange}
                             isEditing={isEditing}
-                            onChange={(value) => handleAttributeChange('hairType', value)}
+                            onChange={(value) => handleAttributeChange('ageRange', value)}
                             type="select"
-                            options={['Straight', 'Wavy', 'Curly', 'Coily', 'Bald', 'Short', 'Medium', 'Long', 'Thick, short']}
+                            options={AGE_RANGE_OPTIONS}
                         />
                     </div>
 

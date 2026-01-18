@@ -1,13 +1,19 @@
-import { Heart, Star, Eye, MessageCircle, X } from "lucide-react";
+import { Heart, Star, Eye, MessageCircle, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { useState, useEffect } from "react";
 import { CommentsModal } from "./CommentsModal";
 import { likeProduct, getProductLikes } from "../../lib/api";
+import { useToast } from "@/hooks/use-toast";
 
 interface ProductCardProps {
     product: {
         product_id: string;
         title: string;
         thumbnail: string | null;
+        images?: Array<{
+            url: string;
+            is_primary: boolean;
+            order_index: number;
+        }>;
         price_cents: number;
         currency: string;
         is_featured: boolean;
@@ -24,11 +30,19 @@ interface ProductCardProps {
 }
 
 export const ProductCard = ({ product, onTryOn }: ProductCardProps) => {
+    const { toast } = useToast();
     const [showDetails, setShowDetails] = useState(false);
     const [showComments, setShowComments] = useState(false);
     const [isLiked, setIsLiked] = useState(false);
     const [likesCount, setLikesCount] = useState(product.likes);
+    const [commentsCount, setCommentsCount] = useState(product.reviews);
     const [isLiking, setIsLiking] = useState(false);
+    const [currentImageIndex, setCurrentImageIndex] = useState(0);
+
+    // Prepare images array (use images if available, fallback to thumbnail)
+    const productImages = product.images && product.images.length > 0
+        ? product.images
+        : (product.thumbnail ? [{ url: product.thumbnail, is_primary: true, order_index: 0 }] : []);
 
     // Fetch like status on mount
     useEffect(() => {
@@ -53,8 +67,21 @@ export const ProductCard = ({ product, onTryOn }: ProductCardProps) => {
             const result = await likeProduct(product.product_id);
             setIsLiked(result.liked);
             setLikesCount(prev => result.liked ? prev + 1 : prev - 1);
+
+            // Success toast
+            toast({
+                title: result.liked ? "Added to favorites!" : "Removed from favorites",
+                description: result.liked ? "Product added to your liked items" : "Product removed from liked items",
+                duration: 2000,
+            });
         } catch (err) {
-            alert(err instanceof Error ? err.message : 'Failed to like product');
+            // Error toast instead of alert
+            toast({
+                variant: "destructive",
+                title: "Action failed",
+                description: err instanceof Error ? err.message : 'Failed to like product',
+                duration: 3000,
+            });
         } finally {
             setIsLiking(false);
         }
@@ -116,13 +143,60 @@ export const ProductCard = ({ product, onTryOn }: ProductCardProps) => {
                         />
                     </button>
 
-                    {/* Product Image */}
-                    <div className="relative overflow-hidden">
+                    {/* Product Image Carousel */}
+                    <div className="relative overflow-hidden group/images">
                         <img
-                            src={product.thumbnail || 'https://via.placeholder.com/400x500?text=No+Image'}
+                            src={productImages[currentImageIndex]?.url || 'https://via.placeholder.com/400x500?text=No+Image'}
                             alt={product.title}
                             className="w-full h-[320px] object-cover transition-transform duration-700 group-hover:scale-110"
                         />
+
+                        {/* Image Navigation Dots */}
+                        {productImages.length > 1 && (
+                            <div className="absolute bottom-3 left-0 right-0 flex justify-center gap-1.5 z-10">
+                                {productImages.map((_, index) => (
+                                    <button
+                                        key={index}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setCurrentImageIndex(index);
+                                        }}
+                                        className={`transition-all duration-300 rounded-full ${index === currentImageIndex
+                                            ? 'bg-white w-6 h-1.5'
+                                            : 'bg-white/50 hover:bg-white/75 w-1.5 h-1.5'
+                                            }`}
+                                    />
+                                ))}
+                            </div>
+                        )}
+
+                        {/* Previous/Next Arrows - Always visible when multiple images */}
+                        {productImages.length > 1 && (
+                            <>
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setCurrentImageIndex((prev) =>
+                                            prev === 0 ? productImages.length - 1 : prev - 1
+                                        );
+                                    }}
+                                    className="absolute left-2 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-white/70 flex items-center justify-center opacity-60 group-hover/images:opacity-100 group-hover/images:w-8 group-hover/images:h-8 transition-all z-10 hover:bg-white shadow-md"
+                                >
+                                    <ChevronLeft className="w-3 h-3 group-hover/images:w-4 group-hover/images:h-4 text-gray-800 transition-all" />
+                                </button>
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setCurrentImageIndex((prev) =>
+                                            prev === productImages.length - 1 ? 0 : prev + 1
+                                        );
+                                    }}
+                                    className="absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-white/70 flex items-center justify-center opacity-60 group-hover/images:opacity-100 group-hover/images:w-8 group-hover/images:h-8 transition-all z-10 hover:bg-white shadow-md"
+                                >
+                                    <ChevronRight className="w-3 h-3 group-hover/images:w-4 group-hover/images:h-4 text-gray-800 transition-all" />
+                                </button>
+                            </>
+                        )}
 
                         {/* Hover Overlay */}
                         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-end justify-center p-4">
@@ -181,7 +255,7 @@ export const ProductCard = ({ product, onTryOn }: ProductCardProps) => {
                                 />
                             ))}
                             <span className="text-xs text-gray-500 ml-1">
-                                ({product.reviews})
+                                ({commentsCount})
                             </span>
                         </div>
 
@@ -211,7 +285,7 @@ export const ProductCard = ({ product, onTryOn }: ProductCardProps) => {
                                 className="flex items-center gap-1 hover:text-gray-700 transition-colors px-2 py-1 -mx-2 -my-1"
                             >
                                 <MessageCircle className="w-3.5 h-3.5" />
-                                <span>{product.reviews}</span>
+                                <span>{commentsCount}</span>
                             </button>
                         </div>
                     </div>
@@ -251,14 +325,36 @@ export const ProductCard = ({ product, onTryOn }: ProductCardProps) => {
                         </button>
 
                         <div className="grid md:grid-cols-2 gap-8 p-8">
-                            {/* Image Section */}
-                            <div>
+                            {/* Image Gallery Section */}
+                            <div className="space-y-3">
                                 <img
-                                    src={product.thumbnail || 'https://via.placeholder.com/600x800?text=No+Image'}
+                                    src={productImages[currentImageIndex]?.url || 'https://via.placeholder.com/600x800?text=No+Image'}
                                     alt={product.title}
                                     className="w-full rounded-xl object-cover"
                                     style={{ maxHeight: '600px' }}
                                 />
+
+                                {/* Thumbnail Strip */}
+                                {productImages.length > 1 && (
+                                    <div className="flex gap-2 overflow-x-auto pb-2">
+                                        {productImages.map((img, index) => (
+                                            <button
+                                                key={index}
+                                                onClick={() => setCurrentImageIndex(index)}
+                                                className={`flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border-2 transition-all ${index === currentImageIndex
+                                                    ? 'border-[#D4AF37] scale-105'
+                                                    : 'border-gray-200 hover:border-gray-300'
+                                                    }`}
+                                            >
+                                                <img
+                                                    src={img.url}
+                                                    alt={`${product.title} - ${index + 1}`}
+                                                    className="w-full h-full object-cover"
+                                                />
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
 
                             {/* Details Section */}
@@ -407,6 +503,7 @@ export const ProductCard = ({ product, onTryOn }: ProductCardProps) => {
                 productTitle={product.title}
                 isOpen={showComments}
                 onClose={() => setShowComments(false)}
+                onCommentCountChange={setCommentsCount}
             />
         </>
     );

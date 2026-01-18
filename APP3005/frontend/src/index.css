@@ -294,6 +294,24 @@
     .scrollbar-hide::-webkit-scrollbar {
         display: none;
     }
+
+    .hide-scrollbar {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+    }
+
+    .hide-scrollbar::-webkit-scrollbar {
+        display: none;
+    }
+
+    /* Animation utilities */
+    .animate-fadeIn {
+        animation: fadeIn 0.3s ease-out;
+    }
+
+    .animate-slideDown {
+        animation: slideDown 0.3s ease-out;
+    }
 }
 
 @keyframes fade-up {
@@ -329,6 +347,28 @@
 
     50% {
         box-shadow: 0 0 0 10px rgba(201, 165, 92, 0);
+    }
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
     }
 }
 

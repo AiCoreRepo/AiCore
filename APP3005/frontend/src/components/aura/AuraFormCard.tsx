@@ -16,7 +16,7 @@ interface BodyAttributes {
     gender?: string;
     bodyShape?: string;
     ageRange?: string;
-    hairStyle?: string;
+    bodyType?: string;
 }
 
 interface AuraFormCardProps {

@@ -1,30 +1,18 @@
 import { Navbar } from "@/components/Navbar";
 import { Hero } from "@/components/Hero";
-import { Features } from "@/components/Features";
 import { Collection } from "@/components/Collection";
-import { AITryOn } from "@/components/AITryOn";
-import { LetAIDecide } from "@/components/LetAIDecide";
-import { CreatorsCTA } from "@/components/CreatorsCTA";
-import { Testimonials } from "@/components/Testimonials";
+import { HowItWorks } from "@/components/HowItWorks";
 import { Footer } from "@/components/Footer";
 
 const Index = () => {
     return (
-        <div
-            className="min-h-screen overflow-x-hidden"
-            style={{
-                background: 'linear-gradient(180deg, rgba(232, 220, 200, 0.5) 0%, rgba(242, 234, 216, 0.7) 50%, rgba(232, 220, 200, 0.5) 100%)',
-            }}
-        >
+        <div className="min-h-screen overflow-x-hidden bg-[#F8F4EC]">
             <Navbar />
-            <main>
+            {/* Removed padding-top so Hero sits behind Navbar for immersive look */}
+            <main className="relative">
                 <Hero />
-                <Features />
                 <Collection />
-                <AITryOn />
-                <LetAIDecide />
-                <CreatorsCTA />
-                <Testimonials />
+                <HowItWorks />
             </main>
             <Footer />
         </div>
