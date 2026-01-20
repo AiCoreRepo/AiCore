@@ -39,10 +39,28 @@ export class ProductsController {
     @Query('limit') limit?: string,
     @Query('search') search?: string,
     @Query('category') category?: string,
+    @Query('minPrice') minPrice?: string,
+    @Query('maxPrice') maxPrice?: string,
+    @Query('sortBy') sortBy?: string,
+    @Query('sizes') sizes?: string,
+    @Query('colors') colors?: string,
   ) {
     const pageNum = page ? parseInt(page, 10) : 1;
     const limitNum = limit ? parseInt(limit, 10) : 20;
-    return this.productsService.getApprovedProducts(pageNum, limitNum, search, category);
+    const minP = minPrice ? parseInt(minPrice, 10) : undefined;
+    const maxP = maxPrice ? parseInt(maxPrice, 10) : undefined;
+
+    return this.productsService.getApprovedProducts(
+      pageNum,
+      limitNum,
+      search,
+      category,
+      minP,
+      maxP,
+      sortBy,
+      sizes,
+      colors,
+    );
   }
 
   /**
@@ -76,6 +94,7 @@ export class ProductsController {
       req.user.user_id,
       createCommentDto.product_id,
       createCommentDto.comment_text,
+      createCommentDto.images,
     );
   }
 

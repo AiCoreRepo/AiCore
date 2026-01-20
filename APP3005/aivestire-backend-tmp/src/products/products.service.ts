@@ -137,80 +137,142 @@ export class ProductsService {
     });
   }
 
+
   /**
    * Get approved products for public display (Collection page)
    * No authentication required
+   * Implementing in-memory filtering for JSON metadata reliability
    */
   async getApprovedProducts(
     page: number = 1,
     limit: number = 20,
     search?: string,
     category?: string,
+    minPrice?: number,
+    maxPrice?: number,
+    sortBy?: string,
+    sizes?: string,
+    colors?: string,
   ) {
-    const skip = (page - 1) * limit;
-
-    // Build where clause
-    const where: any = {
-      status: ProductStatus.APPROVED,
-      is_deleted: false,
-    };
-
-    // Add search filter
-    if (search) {
-      where.OR = [
-        { title: { contains: search, mode: 'insensitive' } },
-        { description: { contains: search, mode: 'insensitive' } },
-      ];
-    }
-
-    // Add category filter
-    if (category && category !== 'All') {
-      where.category = category;
-    }
-
-    // Fetch products and total count in parallel
-    const [products, total] = await Promise.all([
-      this.prisma.product.findMany({
-        where,
-        include: {
-          creator: {
-            select: {
-              creator_id: true,
-              store_name: true,
-              verified: true,
-            },
-          },
-          images: {
-            orderBy: [
-              { is_primary: 'desc' },
-              { order_index: 'asc' },
-            ],
-            // Fetch all images for carousel
-          },
-          stats: {
-            select: {
-              views: true,
-              likes_count: true,
-              comments_count: true,
-            },
+    // Fetch all approved products to filter in memory (efficient for < 5000 items)
+    const allProducts = await this.prisma.product.findMany({
+      where: {
+        status: ProductStatus.APPROVED,
+        is_deleted: false,
+      },
+      include: {
+        creator: {
+          select: {
+            creator_id: true,
+            store_name: true,
+            verified: true,
           },
         },
-        orderBy: { updated_at: 'desc' },
-        skip,
-        take: limit,
-      }),
-      this.prisma.product.count({ where }),
-    ]);
+        images: {
+          orderBy: [{ is_primary: 'desc' }, { order_index: 'asc' }],
+        },
+        stats: {
+          select: {
+            views: true,
+            likes_count: true,
+            comments_count: true,
+          },
+        },
+      },
+      orderBy: { updated_at: 'desc' },
+    });
+
+    let filtered = allProducts;
+
+    // 1. Search Filter
+    if (search) {
+      const searchLower = search.toLowerCase();
+      filtered = filtered.filter(
+        (p) =>
+          p.title.toLowerCase().includes(searchLower) ||
+          p.description?.toLowerCase().includes(searchLower),
+      );
+    }
+
+    // 2. Category Filter
+    if (category && category !== 'All') {
+      filtered = filtered.filter((p) => p.category === category);
+    }
+
+    // 3. Price Filter
+    if (minPrice !== undefined) {
+      filtered = filtered.filter((p) => p.price_cents >= minPrice * 100);
+    }
+    if (maxPrice !== undefined) {
+      filtered = filtered.filter((p) => p.price_cents <= maxPrice * 100);
+    }
+
+    // 4. Size Filter (from JSON metadata)
+    if (sizes) {
+      const sizeList = sizes.split(',').map((s) => s.trim().toLowerCase());
+      filtered = filtered.filter((p) => {
+        const meta = p.metadata as any;
+        if (!meta || !meta.size) return false;
+        // Check if product size string contains any of the selected sizes
+        // meta.size might be "S, M, L" string
+        const productSizes = String(meta.size).toLowerCase();
+        return sizeList.some((s) => productSizes.includes(s));
+      });
+    }
+
+    // 5. Color Filter (from JSON metadata)
+    if (colors) {
+      const colorList = colors.split(',').map((c) => c.trim().toLowerCase());
+      filtered = filtered.filter((p) => {
+        const meta = p.metadata as any;
+        if (!meta || !meta.color) return false;
+        const productColors = String(meta.color).toLowerCase();
+        return colorList.some((c) => productColors.includes(c));
+      });
+    }
+
+    // 6. Sorting
+    if (sortBy) {
+      switch (sortBy) {
+        case 'Price: Low to High':
+          filtered.sort((a, b) => a.price_cents - b.price_cents);
+          break;
+        case 'Price: High to Low':
+          filtered.sort((a, b) => b.price_cents - a.price_cents);
+          break;
+        case 'Most Popular':
+          filtered.sort(
+            (a, b) =>
+              (b.stats?.likes_count || 0) - (a.stats?.likes_count || 0),
+          );
+          break;
+        case 'Newest':
+          filtered.sort((a, b) => {
+            const dateA = new Date(a.created_at).getTime();
+            const dateB = new Date(b.created_at).getTime();
+            return dateB - dateA;
+          });
+          break;
+        default:
+          // Default to updated_at desc (already sorted by DB query mostly, but ensure)
+          break;
+      }
+    }
+
+    // 7. Pagination
+    const total = filtered.length;
+    const skip = (page - 1) * limit;
+    const paginatedProducts = filtered.slice(skip, skip + limit);
 
     return {
-      products: products.map((product) => ({
+      products: paginatedProducts.map((product) => ({
         product_id: product.product_id,
         title: product.title,
         description: product.description,
         price_cents: product.price_cents,
         currency: product.currency,
         thumbnail: product.images[0]?.url || null,
-        images: product.images.map(img => ({
+        images: product.images.map((img) => ({
           url: img.url,
           is_primary: img.is_primary,
           order_index: img.order_index,
@@ -296,7 +358,7 @@ export class ProductsService {
   /**
    * Add a comment to a product
    */
-  async addComment(userId: string, productId: string, commentText: string) {
+  async addComment(userId: string, productId: string, commentText: string, images?: string[]) {
     // Check if product exists
     const product = await this.prisma.product.findUnique({
       where: { product_id: productId },
@@ -306,11 +368,37 @@ export class ProductsService {
       throw new NotFoundException('Product not found');
     }
 
+    // Upload images to Cloudinary if provided
+    const imageUrls: string[] = [];
+    if (images && Array.isArray(images) && images.length > 0) {
+      // Limit to 5 images per comment
+      const imagesToUpload = images.slice(0, 5);
+
+      for (const base64Image of imagesToUpload) {
+        try {
+          const uploadedUrl = await this.cloudinaryService.uploadWithMetadata(
+            base64Image,
+            {
+              userId,
+              productId,
+              imageType: 'review',
+            },
+            'review-images'  // Separate folder for review images
+          );
+          imageUrls.push(uploadedUrl.secureUrl);
+        } catch (error) {
+          console.error('Failed to upload review image:', error);
+          // Continue with other images even if one fails
+        }
+      }
+    }
+
     const comment = await this.prisma.productComment.create({
       data: {
         product_id: productId,
         user_id: userId,
         comment_text: commentText,
+        image_urls: imageUrls,
       },
       include: {
         user: {

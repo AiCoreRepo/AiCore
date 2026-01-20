@@ -4,6 +4,7 @@ import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { ProductCard } from "@/components/collection/ProductCard";
 import { useInfinitePublicProducts } from "@/hooks/useInfinitePublicProducts";
+import { useDebounce } from "@/hooks/useDebounce";
 import { useAuth } from "@/context/AuthContext";
 import { auraGate } from "@/utils/auraGate";
 import { ChevronDown, Heart, Search, X, SlidersHorizontal, ArrowUpDown } from "lucide-react";
@@ -27,6 +28,9 @@ const CollectionPage = () => {
     const [sortBy, setSortBy] = useState("Price: Low to High");
     const [showFilters, setShowFilters] = useState(false);
 
+    // Debounce search
+    const debouncedSearch = useDebounce(searchQuery, 500);
+
     // Fetch products with infinite scroll
     const {
         data,
@@ -36,8 +40,13 @@ const CollectionPage = () => {
         hasNextPage,
         isFetchingNextPage,
     } = useInfinitePublicProducts(
-        undefined,
-        activeCategory === "All" ? undefined : activeCategory
+        debouncedSearch,
+        activeCategory === "All" ? undefined : activeCategory,
+        priceRange[0] === 0 ? undefined : priceRange[0],
+        priceRange[1] === 5000 ? undefined : priceRange[1],
+        sortBy,
+        selectedSizes,
+        selectedColors
     );
 
     // Intersection Observer for infinite scroll
@@ -60,77 +69,11 @@ const CollectionPage = () => {
         return () => observer.disconnect();
     }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
-    // Flatten paginated products
-    const allProducts = data?.pages.flatMap(page => page.products) ?? [];
-
     // Helper functions
-    const extractSizes = (product: any): string[] => {
-        const text = `${product.title} ${product.description || ''}`.toUpperCase();
-        return sizes.filter(size => text.includes(size));
-    };
+    // ... kept for potential usage or removed if unused. 
+    // Since local filtering is removed, we just use the data directly.
 
-    const extractColors = (product: any): string[] => {
-        const text = `${product.title} ${product.description || ''}`.toLowerCase();
-        return colorOptions.map(c => c.toLowerCase()).filter(color => text.includes(color));
-    };
-
-    // Filter and sort products
-    const getFilteredProducts = () => {
-        if (!allProducts.length) return [];
-        let filtered = [...allProducts];
-
-        // Search filter
-        if (searchQuery) {
-            filtered = filtered.filter(product =>
-                product.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                product.description?.toLowerCase().includes(searchQuery.toLowerCase())
-            );
-        }
-
-        // Size filter
-        if (selectedSizes.length > 0) {
-            filtered = filtered.filter(product => {
-                const productSizes = extractSizes(product);
-                return selectedSizes.some(size => productSizes.includes(size));
-            });
-        }
-
-        // Color filter
-        if (selectedColors.length > 0) {
-            filtered = filtered.filter(product => {
-                const productColors = extractColors(product);
-                return selectedColors.some(color =>
-                    productColors.includes(color.toLowerCase())
-                );
-            });
-        }
-
-        // Price filter
-        filtered = filtered.filter(product => {
-            const price = product.price_cents / 100;
-            return price >= priceRange[0] && price <= priceRange[1];
-        });
-
-        // Sort
-        switch (sortBy) {
-            case "Price: Low to High":
-                filtered.sort((a, b) => a.price_cents - b.price_cents);
-                break;
-            case "Price: High to Low":
-                filtered.sort((a, b) => b.price_cents - a.price_cents);
-                break;
-            case "Most Popular":
-                filtered.sort((a, b) => b.likes - a.likes);
-                break;
-            case "Newest":
-                filtered.sort((a, b) => b.product_id.localeCompare(a.product_id));
-                break;
-        }
-
-        return filtered;
-    };
-
-    const filteredProducts = getFilteredProducts();
+    const filteredProducts = data?.pages.flatMap(page => page.products) ?? [];
 
     // Count active filters for badge
     const activeFilterCount =
@@ -424,7 +367,7 @@ const CollectionPage = () => {
                             )}
 
                             {/* End of Results */}
-                            {!hasNextPage && allProducts.length > 0 && (
+                            {!hasNextPage && filteredProducts.length > 0 && (
                                 <div className="text-center py-8">
                                     <p className="text-sm text-[#6B5D4F]">
                                         You've reached the end of our collection

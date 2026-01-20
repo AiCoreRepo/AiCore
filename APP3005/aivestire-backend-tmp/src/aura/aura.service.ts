@@ -43,6 +43,7 @@ export class AuraService {
                     gender: attributes.gender,
                     body_shape: attributes.bodyShape,
                     body_type: attributes.bodyType, // Added mapping
+                    body_size: attributes.bodySize, // Added mapping for body size
                     age_range: attributes.ageRange,
                     hair_style: attributes.hairStyle,
                     status: AuraStatus.PENDING, // Changed from READY
@@ -133,6 +134,7 @@ export class AuraService {
                     gender: updateDto.gender,
                     body_shape: updateDto.bodyShape,
                     body_type: updateDto.bodyType, // Added mapping
+                    body_size: updateDto.bodySize, // Added mapping for body size
                     age_range: updateDto.ageRange,
                     hair_style: updateDto.hairStyle,
                 },

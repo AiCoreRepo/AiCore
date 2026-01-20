@@ -1,5 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { Sparkles, ScanFace, Shirt, Rotate3D, Bot } from "lucide-react";
+import iconAura from "@/assets/icon-aura.png";
+import iconTryon from "@/assets/icon-tryon.png";
+import icon360 from "@/assets/icon-360.png";
+import iconStylist from "@/assets/icon-stylist.png";
 
 export const HowItWorks = () => {
     const [visibleItems, setVisibleItems] = useState<number[]>([]);
@@ -13,6 +17,7 @@ export const HowItWorks = () => {
             description: "Upload a single photo. Our advanced AI scans your measurements and posture to create a hyper-realistic digital twin—your 'Aura'. It's not just an avatar; it's you.",
             image: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=800&auto=format&fit=crop",
             icon: ScanFace,
+            cartoonIcon: iconAura,
             align: "left"
         },
         {
@@ -22,6 +27,7 @@ export const HowItWorks = () => {
             description: "Browse our premium collection and tap to try. Watch as fabrics drape naturally over your Aura, respecting gravity, texture, and your unique body shape.",
             image: "https://images.unsplash.com/photo-1483985988355-763728e1935b?q=80&w=800&auto=format&fit=crop",
             icon: Shirt,
+            cartoonIcon: iconTryon,
             align: "right"
         },
         {
@@ -31,6 +37,7 @@ export const HowItWorks = () => {
             description: "Don't just guess. View your outfit from the front, side, and back. Ensure the fit is perfect from every perspective before you buy.",
             image: "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?q=80&w=800&auto=format&fit=crop",
             icon: Rotate3D,
+            cartoonIcon: icon360,
             align: "left"
         },
         {
@@ -40,6 +47,7 @@ export const HowItWorks = () => {
             description: "Not sure what matches? Our AI suggests accessories, shoes, and complementary pieces to complete your look based on your Aura's style profile.",
             image: "https://images.unsplash.com/photo-1485217988980-11786ced9454?q=80&w=800&auto=format&fit=crop",
             icon: Bot,
+            cartoonIcon: iconStylist,
             align: "right"
         }
     ];
@@ -83,35 +91,43 @@ export const HowItWorks = () => {
                         Embark on a personalized fashion journey where technology meets elegance.
                     </p>
 
-                    {/* NEW: Process Flow Overview - Premium Glass Design */}
+                    {/* NEW: Process Flow Overview - Premium Realistic Design */}
                     <div className="hidden md:block relative max-w-6xl mx-auto mb-24 animate-fadeIn">
-                        {/* Glass Container */}
-                        <div className="relative px-12 py-10 bg-white/40 backdrop-blur-md rounded-2xl border border-white/50 shadow-xl">
-                            {/* Connecting Line - Animated Gradient */}
-                            <div className="absolute top-1/2 left-0 w-full h-px bg-[#E8DCC4] -translate-y-1/2 z-0" />
-                            <div className="absolute top-1/2 left-0 w-full h-0.5 bg-gradient-to-r from-transparent via-[#D4AF37] to-transparent -translate-y-1/2 z-0 animate-pulse" />
+                        {/* Realistic Glass Card */}
+                        <div className="relative px-16 py-14 bg-white/60 backdrop-blur-2xl rounded-3xl border border-white/60 shadow-[0_20px_50px_rgba(212,175,55,0.15)] overflow-visible">
+
+                            {/* Connecting Line - Gold Thread Effect */}
+                            <div className="absolute top-1/2 left-0 w-full h-[2px] bg-[#E8DCC4] -translate-y-1/2 z-0" />
+                            <div className="absolute top-1/2 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-[#D4AF37] to-transparent -translate-y-1/2 z-0 animate-shimmer opacity-80" />
 
                             <div className="relative z-10 flex justify-between items-start">
                                 {steps.map((step) => (
-                                    <div key={step.id} className="flex flex-col items-center group cursor-pointer w-48 transition-transform duration-500 hover:-translate-y-2">
-                                        {/* Step Number Badge */}
-                                        <div className="mb-4 relative">
-                                            <span className="absolute -top-3 -right-3 w-6 h-6 rounded-full bg-[#D4AF37] text-white text-[10px] font-bold flex items-center justify-center shadow-md z-20">
-                                                0{step.id}
+                                    <div key={step.id} className="flex flex-col items-center group cursor-pointer w-48 transition-all duration-500 hover:-translate-y-3">
+                                        {/* Step Number Floating Badge */}
+                                        <div className="mb-2 relative">
+                                            <span className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-gradient-to-br from-[#D4AF37] to-[#B4941F] text-white text-sm font-bold flex items-center justify-center shadow-lg shadow-[#D4AF37]/30 z-20 border-2 border-white">
+                                                {step.id}
                                             </span>
-                                            {/* Icon Circle */}
-                                            <div className="w-20 h-20 rounded-full bg-gradient-to-br from-white to-[#F8F4EC] border border-[#D4C5A9] flex items-center justify-center shadow-[0_8px_30px_rgb(212,175,55,0.15)] group-hover:shadow-[0_8px_30px_rgb(212,175,55,0.4)] group-hover:border-[#D4AF37] transition-all duration-500">
-                                                <step.icon className="w-8 h-8 text-[#6B5D4F] group-hover:text-[#D4AF37] transition-colors duration-500" strokeWidth={1.5} />
+
+                                            {/* Realistic Button/Icon Circle with Image */}
+                                            <div className="relative w-28 h-28 rounded-full bg-white flex items-center justify-center transition-all duration-500 group-hover:scale-110 z-10 shadow-[0_15px_35px_rgba(0,0,0,0.1)] group-hover:shadow-[0_20px_40px_rgba(212,175,55,0.25)] ring-4 ring-white overflow-hidden">
+                                                {/* Soft outer glow */}
+                                                <div className="absolute inset-0 rounded-full bg-[#D4AF37] opacity-0 blur-xl group-hover:opacity-20 transition-opacity duration-500" />
+
+                                                {/* Button body */}
+                                                <div className="absolute inset-0 rounded-full bg-gradient-to-b from-white to-[#F9F6F0]" />
+
+                                                {/* Cartoon Icon Image - Full Fit */}
+                                                <img
+                                                    src={step.cartoonIcon}
+                                                    alt={step.title}
+                                                    className="relative z-10 w-full h-full object-cover rounded-full animate-float group-hover:scale-110 transition-transform duration-700"
+                                                />
+
+                                                {/* Gold Ring Overlay */}
+                                                <div className="absolute inset-0 rounded-full border-4 border-[#D4AF37]/20 group-hover:border-[#D4AF37] transition-colors duration-500 z-20 pointer-events-none" />
                                             </div>
                                         </div>
-
-                                        {/* Content */}
-                                        <h4 className="font-serif text-lg font-bold text-[#2C2416] mb-2 group-hover:text-[#D4AF37] transition-colors duration-300">
-                                            {step.title}
-                                        </h4>
-                                        <p className="text-xs text-[#6B5D4F] text-center leading-relaxed opacity-0 group-hover:opacity-100 transition-opacity duration-300 -translate-y-2 group-hover:translate-y-0">
-                                            {step.subtitle}
-                                        </p>
                                     </div>
                                 ))}
                             </div>

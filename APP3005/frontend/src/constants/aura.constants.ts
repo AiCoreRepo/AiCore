@@ -40,3 +40,12 @@ export const AGE_RANGE_OPTIONS = [
     { value: '36-50', label: 'Mature Adult (36-50)' },
     { value: '51+', label: 'Senior (51+)' },
 ];
+
+export const BODY_SIZE_OPTIONS = [
+    { value: 'petite', label: 'Petite' },
+    { value: 'small', label: 'Small' },
+    { value: 'medium', label: 'Medium' },
+    { value: 'large', label: 'Large' },
+    { value: 'tall', label: 'Tall' },
+    { value: 'extra_large', label: 'Extra Large' },
+];

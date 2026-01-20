@@ -1,11 +1,15 @@
+import { useState } from "react";
 import { motion } from "framer-motion";
+import { HelpCircle } from "lucide-react";
 import {
     SKIN_TONE_OPTIONS,
     BODY_SHAPE_OPTIONS,
+    BODY_SIZE_OPTIONS,
     GENDER_OPTIONS,
-    AGE_RANGE_OPTIONS,
-    BODY_TYPE_OPTIONS
+    AGE_RANGE_OPTIONS
 } from "@/constants/aura.constants";
+import { BodyShapeGuideModal } from "./BodyShapeGuideModal";
+import { SkinToneGuideModal } from "./SkinToneGuideModal";
 
 interface BodyAttributes {
     height?: number;
@@ -13,8 +17,8 @@ interface BodyAttributes {
     skinTone?: string;
     gender?: string;
     bodyShape?: string;
+    bodySize?: string;
     ageRange?: string;
-    bodyType?: string;
 }
 
 interface BodyAttributesFormProps {
@@ -23,6 +27,9 @@ interface BodyAttributesFormProps {
 }
 
 export const BodyAttributesForm = ({ attributes, onChange }: BodyAttributesFormProps) => {
+    const [showBodyShapeGuide, setShowBodyShapeGuide] = useState(false);
+    const [showSkinToneGuide, setShowSkinToneGuide] = useState(false);
+
     const handleChange = (field: keyof BodyAttributes, value: string | number) => {
         onChange({ ...attributes, [field]: value });
     };
@@ -38,45 +45,55 @@ export const BodyAttributesForm = ({ attributes, onChange }: BodyAttributesFormP
                 <h3 className="text-base font-bold text-charcoal">Your Attributes</h3>
             </div>
 
-            {/* Row 1: Body Shape & Body Type */}
-            <div className="grid grid-cols-2 gap-4">
-                <motion.div
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.1 }}
-                >
+            {/* Row 1: Body Shape */}
+            <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+            >
+                <div className="flex items-center justify-between mb-2">
                     <label className={labelClass}>Body Shape</label>
-                    <select
-                        value={attributes.bodyShape || ""}
-                        onChange={(e) => handleChange("bodyShape", e.target.value)}
-                        className={inputClass}
+                    <button
+                        type="button"
+                        onClick={() => setShowBodyShapeGuide(true)}
+                        className="flex items-center gap-1 text-xs text-gold hover:text-gold/80 transition-colors group"
                     >
-                        <option value="">Select Shape</option>
-                        {BODY_SHAPE_OPTIONS.map(opt => (
-                            <option key={opt.value} value={opt.value}>{opt.label}</option>
-                        ))}
-                    </select>
-                </motion.div>
-                <motion.div
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.1 }}
+                        <HelpCircle className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                        <span className="font-medium">Guide</span>
+                    </button>
+                </div>
+                <select
+                    value={attributes.bodyShape || ""}
+                    onChange={(e) => handleChange("bodyShape", e.target.value)}
+                    className={inputClass}
                 >
-                    <label className={labelClass}>Body Type</label>
-                    <select
-                        value={attributes.bodyType || ""}
-                        onChange={(e) => handleChange("bodyType", e.target.value)}
-                        className={inputClass}
-                    >
-                        <option value="">Select Body Type</option>
-                        {BODY_TYPE_OPTIONS.map(opt => (
-                            <option key={opt.value} value={opt.value}>{opt.label}</option>
-                        ))}
-                    </select>
-                </motion.div>
-            </div>
+                    <option value="">Select Shape</option>
+                    {BODY_SHAPE_OPTIONS.map(opt => (
+                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                </select>
+            </motion.div>
 
-            {/* Row 2: Height & Weight */}
+            {/* Row 2: Body Size */}
+            <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.15 }}
+            >
+                <label className={labelClass}>Body Size</label>
+                <select
+                    value={attributes.bodySize || ""}
+                    onChange={(e) => handleChange("bodySize", e.target.value)}
+                    className={inputClass}
+                >
+                    <option value="">Select Size</option>
+                    {BODY_SIZE_OPTIONS.map(opt => (
+                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                </select>
+            </motion.div>
+
+            {/* Row 3: Height & Weight */}
             <div className="grid grid-cols-2 gap-4">
                 <motion.div
                     initial={{ opacity: 0, x: -20 }}
@@ -108,14 +125,24 @@ export const BodyAttributesForm = ({ attributes, onChange }: BodyAttributesFormP
                 </motion.div>
             </div>
 
-            {/* Row 3: Skin Tone & Gender */}
+            {/* Row 4: Skin Tone & Gender */}
             <div className="grid grid-cols-2 gap-4">
                 <motion.div
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: 0.3 }}
                 >
-                    <label className={labelClass}>Skin Tone</label>
+                    <div className="flex items-center justify-between mb-2">
+                        <label className={labelClass}>Skin Tone</label>
+                        <button
+                            type="button"
+                            onClick={() => setShowSkinToneGuide(true)}
+                            className="flex items-center gap-1 text-xs text-gold hover:text-gold/80 transition-colors group"
+                        >
+                            <HelpCircle className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                            <span className="font-medium">Guide</span>
+                        </button>
+                    </div>
                     <select
                         value={attributes.skinTone || ""}
                         onChange={(e) => handleChange("skinTone", e.target.value)}
@@ -146,7 +173,7 @@ export const BodyAttributesForm = ({ attributes, onChange }: BodyAttributesFormP
                 </motion.div>
             </div>
 
-            {/* Row 4: Age Range (Full Width) */}
+            {/* Row 5: Age Range (Full Width) */}
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -164,6 +191,16 @@ export const BodyAttributesForm = ({ attributes, onChange }: BodyAttributesFormP
                     ))}
                 </select>
             </motion.div>
+
+            {/* Visual Guide Modals */}
+            <BodyShapeGuideModal
+                isOpen={showBodyShapeGuide}
+                onClose={() => setShowBodyShapeGuide(false)}
+            />
+            <SkinToneGuideModal
+                isOpen={showSkinToneGuide}
+                onClose={() => setShowSkinToneGuide(false)}
+            />
         </div>
     );
 };

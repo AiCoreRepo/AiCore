@@ -34,6 +34,10 @@ export class CreateAuraDto {
 
     @IsOptional()
     @IsString()
+    bodySize?: string; // Added new field for body size
+
+    @IsOptional()
+    @IsString()
     ageRange?: string;
 
     @IsOptional()

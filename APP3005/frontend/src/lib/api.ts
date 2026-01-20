@@ -427,7 +427,7 @@ export async function likeProduct(productId: string) {
 }
 
 // Add a comment to a product
-export async function addComment(productId: string, commentText: string) {
+export async function addComment(productId: string, commentText: string, images?: string[]) {
   const token = localStorage.getItem('access_token');
   if (!token) {
     throw new Error('Please login to comment');
@@ -439,7 +439,11 @@ export async function addComment(productId: string, commentText: string) {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${token}`,
     },
-    body: JSON.stringify({ product_id: productId, comment_text: commentText }),
+    body: JSON.stringify({
+      product_id: productId,
+      comment_text: commentText,
+      images: images || [],
+    }),
   });
 
   if (!res.ok) {

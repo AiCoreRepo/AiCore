@@ -142,6 +142,7 @@ model ProductComment {
   product_id   String   @db.Uuid
   user_id      String   @db.Uuid
   comment_text String
+  image_urls   String[] @default([])
   created_at   DateTime @default(now())
   updated_at   DateTime @updatedAt
   product      Product  @relation(fields: [product_id], references: [product_id], onDelete: Cascade)
@@ -160,6 +161,7 @@ model Aura {
   gender                String?
   body_shape            String?
   body_type             String?
+  body_size             String?
   age_range             String?
   hair_style            String?
   beard                 Boolean?
