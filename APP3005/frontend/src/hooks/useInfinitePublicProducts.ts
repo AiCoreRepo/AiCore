@@ -7,6 +7,11 @@ export interface PublicProduct {
     price_cents: number;
     currency: string;
     thumbnail: string | null;
+    images?: Array<{
+        url: string;
+        is_primary: boolean;
+        order_index: number;
+    }>;
     category: string | null;
     is_featured: boolean;
     likes: number;

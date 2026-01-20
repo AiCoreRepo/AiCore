@@ -1,12 +1,17 @@
 import React from 'react';
 
+export interface Option {
+    label: string;
+    value: string;
+}
+
 interface EditableAttributeCardProps {
     label: string;
     value: string;
     isEditing: boolean;
     onChange: (value: string) => void;
     type?: 'text' | 'number' | 'select';
-    options?: string[];
+    options?: string[] | Option[];
     unit?: string;
 }
 
@@ -19,6 +24,21 @@ export const EditableAttributeCard: React.FC<EditableAttributeCardProps> = ({
     options = [],
     unit = '',
 }) => {
+    // Helper to get display text for a value when not editing
+    const getDisplayValue = () => {
+        if (!value) return 'Not specified';
+
+        if (type === 'select' && options.length > 0) {
+            // Check if options are objects
+            const isObjectOptions = typeof options[0] !== 'string';
+            if (isObjectOptions) {
+                const found = (options as Option[]).find(opt => opt.value === value);
+                return found ? found.label : value;
+            }
+        }
+        return value;
+    };
+
     return (
         <div className="editable-attribute-card">
             <div className="attribute-label">{label}</div>
@@ -30,11 +50,16 @@ export const EditableAttributeCard: React.FC<EditableAttributeCardProps> = ({
                         className="attribute-input attribute-select"
                     >
                         <option value="">Select {label}</option>
-                        {options.map((option) => (
-                            <option key={option} value={option}>
-                                {option}
-                            </option>
-                        ))}
+                        {options.map((option) => {
+                            const isString = typeof option === 'string';
+                            const optValue = isString ? option : option.value;
+                            const optLabel = isString ? option : option.label;
+                            return (
+                                <option key={optValue} value={optValue}>
+                                    {optLabel}
+                                </option>
+                            );
+                        })}
                     </select>
                 ) : (
                     <div className="attribute-input-wrapper">
@@ -50,7 +75,7 @@ export const EditableAttributeCard: React.FC<EditableAttributeCardProps> = ({
                 )
             ) : (
                 <div className="attribute-value">
-                    {value || 'Not specified'}
+                    {getDisplayValue()}
                     {unit && value && ` ${unit}`}
                 </div>
             )}

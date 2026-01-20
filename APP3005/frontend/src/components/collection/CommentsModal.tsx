@@ -1,6 +1,7 @@
 import { X, Send, Trash2, MessageCircle } from "lucide-react";
 import { useState, useEffect } from "react";
 import { getProductComments, addComment, deleteComment } from "../../lib/api";
+import { useToast } from "@/hooks/use-toast";
 
 interface Comment {
     comment_id: string;
@@ -17,9 +18,11 @@ interface CommentsModalProps {
     productTitle: string;
     isOpen: boolean;
     onClose: () => void;
+    onCommentCountChange?: (count: number) => void;
 }
 
-export const CommentsModal = ({ productId, productTitle, isOpen, onClose }: CommentsModalProps) => {
+export const CommentsModal = ({ productId, productTitle, isOpen, onClose, onCommentCountChange }: CommentsModalProps) => {
+    const { toast } = useToast();
     const [comments, setComments] = useState<Comment[]>([]);
     const [newComment, setNewComment] = useState("");
     const [loading, setLoading] = useState(false);
@@ -53,6 +56,10 @@ export const CommentsModal = ({ productId, productTitle, isOpen, onClose }: Comm
         try {
             const data = await getProductComments(productId);
             setComments(Array.isArray(data) ? data : []);
+            // Update parent component's count
+            if (onCommentCountChange) {
+                onCommentCountChange(Array.isArray(data) ? data.length : 0);
+            }
         } catch (err) {
             console.error('Error fetching comments:', err);
             const errorMessage = err instanceof Error ? err.message : 'Failed to load comments';
@@ -64,7 +71,15 @@ export const CommentsModal = ({ productId, productTitle, isOpen, onClose }: Comm
     };
 
     const handleSubmitComment = async () => {
-        if (!newComment.trim()) return;
+        if (!newComment.trim()) {
+            toast({
+                variant: "destructive",
+                title: "Comment is empty",
+                description: "Please write something before posting",
+                duration: 2000,
+            });
+            return;
+        }
 
         setSubmitting(true);
         setError(null);
@@ -72,21 +87,61 @@ export const CommentsModal = ({ productId, productTitle, isOpen, onClose }: Comm
             const comment = await addComment(productId, newComment.trim());
             setComments([comment, ...comments]);
             setNewComment("");
+
+            // Update parent component's count
+            if (onCommentCountChange) {
+                onCommentCountChange(comments.length + 1);
+            }
+
+            // Success toast
+            toast({
+                title: "Comment posted!",
+                description: "Your review has been added successfully",
+                duration: 2000,
+            });
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to add comment');
+            const errorMessage = err instanceof Error ? err.message : 'Failed to add comment';
+            setError(errorMessage);
+
+            // Error toast
+            toast({
+                variant: "destructive",
+                title: "Failed to post comment",
+                description: errorMessage,
+                duration: 3000,
+            });
         } finally {
             setSubmitting(false);
         }
     };
 
     const handleDeleteComment = async (commentId: string) => {
-        if (!confirm('Are you sure you want to delete this comment?')) return;
-
         try {
             await deleteComment(commentId);
             setComments(comments.filter(c => c.comment_id !== commentId));
+
+            // Update parent component's count
+            if (onCommentCountChange) {
+                onCommentCountChange(comments.length - 1);
+            }
+
+            // Success toast
+            toast({
+                title: "Comment deleted",
+                description: "Your comment has been removed",
+                duration: 2000,
+            });
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to delete comment');
+            const errorMessage = err instanceof Error ? err.message : 'Failed to delete comment';
+            setError(errorMessage);
+
+            // Error toast
+            toast({
+                variant: "destructive",
+                title: "Failed to delete comment",
+                description: errorMessage,
+                duration: 3000,
+            });
         }
     };
 

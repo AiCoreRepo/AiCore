@@ -42,6 +42,7 @@ export class AuraService {
                     skin_tone: attributes.skinTone,
                     gender: attributes.gender,
                     body_shape: attributes.bodyShape,
+                    body_type: attributes.bodyType, // Added mapping
                     age_range: attributes.ageRange,
                     hair_style: attributes.hairStyle,
                     status: AuraStatus.PENDING, // Changed from READY
@@ -131,9 +132,9 @@ export class AuraService {
                     skin_tone: updateDto.skinTone,
                     gender: updateDto.gender,
                     body_shape: updateDto.bodyShape,
+                    body_type: updateDto.bodyType, // Added mapping
                     age_range: updateDto.ageRange,
                     hair_style: updateDto.hairStyle,
-                    // Note: beard_style will be added when schema is updated
                 },
             });
 

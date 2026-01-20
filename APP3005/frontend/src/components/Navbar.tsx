@@ -115,31 +115,25 @@ export const Navbar = () => {
     return (
         <>
             <div
-                className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${isScrolled ? "py-2" : "py-4"
-                    }`}
-                style={{
-                    background: 'linear-gradient(180deg, rgba(0, 0, 0, 0.3) 0%, rgba(0, 0, 0, 0.1) 70%, transparent 100%)',
-                    pointerEvents: 'none'
-                }}
+                className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${isScrolled ? "py-1" : "py-2"}`}
+                style={{ pointerEvents: 'none' }}
             >
-                <div className="w-full px-4 md:px-6" style={{ pointerEvents: 'auto' }}>
+                <div className="w-full px-4 md:px-8 max-w-[1920px] mx-auto" style={{ pointerEvents: 'auto' }}>
                     <div
-                        className="relative backdrop-blur-xl rounded-full px-8 md:px-12 py-3 md:py-4 transition-all duration-500 w-full"
+                        className={`relative backdrop-blur-xl px-6 md:px-10 py-2.5 transition-all duration-500 w-full ${isMobileMenuOpen ? 'rounded-3xl' : 'rounded-2xl'}`}
                         style={{
-                            background: 'linear-gradient(135deg, rgba(232, 220, 200, 0.95) 0%, rgba(242, 234, 216, 0.92) 50%, rgba(232, 220, 200, 0.95) 100%)',
-                            boxShadow: isScrolled
-                                ? '0 8px 32px rgba(201, 165, 92, 0.25), 0 2px 8px rgba(0, 0, 0, 0.1)'
-                                : '0 4px 20px rgba(201, 165, 92, 0.15), 0 1px 4px rgba(0, 0, 0, 0.05)',
-                            border: '1px solid rgba(201, 165, 92, 0.3)',
+                            background: 'rgba(255, 255, 255, 0.9)', // Crisp White Glass
+                            boxShadow: '0 8px 32px rgba(212, 175, 55, 0.1), 0 2px 8px rgba(0, 0, 0, 0.02)', // Golden Glow
+                            border: '1px solid rgba(212, 175, 55, 0.25)', // The Golden Touch
                         }}
                     >
                         <div className="flex items-center justify-between">
                             {/* Logo */}
                             <a
                                 href="#hero"
-                                className="font-serif text-2xl md:text-3xl font-semibold text-charcoal tracking-tight transition-all duration-300 hover:scale-105"
+                                className="font-serif text-2xl md:text-3xl font-bold tracking-tight transition-transform duration-300 hover:scale-105"
                             >
-                                <span className="text-gold">Ai</span>Vestire
+                                <span className="text-[#D4AF37]">Ai</span><span className="text-[#2C2416]">Vestire</span>
                             </a>
 
                             {/* Desktop Navigation */}
@@ -153,19 +147,19 @@ export const Navbar = () => {
 
                                     const linkContent = (
                                         <>
-                                            <span className={`relative z-10 transition-colors duration-300 ${activeLink ? 'text-gold font-semibold' : 'text-charcoal'}`}>
+                                            <span className={`relative z-10 transition-colors duration-300 text-xs md:text-sm font-bold tracking-[0.1em] uppercase ${activeLink ? 'text-[#2C2416]' : 'text-[#8A8A8A] group-hover:text-[#2C2416]'}`}>
                                                 {link.name}
                                             </span>
-                                            {/* Highlight background */}
-                                            <div className={cn(
-                                                "absolute inset-0 rounded-full bg-gradient-to-r from-gold/10 via-gold/20 to-gold/10 transition-all duration-500",
-                                                activeLink ? "opacity-100 scale-100" : "opacity-0 scale-90 group-hover:opacity-100 group-hover:scale-100"
-                                            )} />
-                                            {/* Bottom border/underline */}
-                                            <div className={cn(
-                                                "absolute bottom-1 left-1/2 -translate-x-1/2 h-0.5 bg-gold transition-all duration-500 rounded-full",
-                                                activeLink ? "w-3/4" : "w-0 group-hover:w-3/4"
-                                            )} />
+
+                                            {/* Active Underline Highlight */}
+                                            {activeLink && (
+                                                <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 w-1/2 h-0.5 bg-[#2C2416] rounded-full shadow-[0_1px_2px_rgba(44,36,22,0.2)]" />
+                                            )}
+
+                                            {/* Hover Underline (Animated) - Hidden if active */}
+                                            {!activeLink && (
+                                                <div className="absolute bottom-0 left-0 w-0 h-[1px] bg-[#2C2416] transition-all duration-300 group-hover:w-full opacity-50" />
+                                            )}
                                         </>
                                     );
 
@@ -195,7 +189,7 @@ export const Navbar = () => {
                                 {!isLoggedIn && (
                                     <Link to="/login">
                                         <button
-                                            className="hidden md:inline-flex items-center px-6 py-2.5 text-sm font-medium text-charcoal bg-gradient-to-r from-gold/20 to-gold/30 rounded-full border border-gold/40 transition-all duration-300 hover:shadow-lg hover:shadow-gold/30 hover:scale-105 hover:border-gold"
+                                            className="hidden md:inline-flex items-center px-6 py-2.5 text-sm font-medium text-[#2C2416] bg-[#D4AF37]/10 rounded-full border border-[#D4AF37]/40 transition-all duration-300 hover:shadow-lg hover:shadow-[#D4AF37]/20 hover:scale-105 hover:bg-[#D4AF37]/20"
                                             aria-label="Join as a Creator"
                                         >
                                             Join as Creator
@@ -204,10 +198,10 @@ export const Navbar = () => {
                                 )}
 
                                 <button
-                                    className="p-2.5 rounded-full bg-ivory/50 border border-gold/20 hover:bg-gold/20 hover:border-gold/40 hover:shadow-md hover:shadow-gold/20 transition-all duration-300 hover:scale-110"
+                                    className="p-2.5 rounded-full bg-white/50 border border-[#D4AF37]/20 hover:bg-[#D4AF37]/20 hover:border-[#D4AF37]/40 hover:shadow-md hover:shadow-[#D4AF37]/10 transition-all duration-300 hover:scale-110"
                                     aria-label="Shopping cart"
                                 >
-                                    <ShoppingBag className="w-5 h-5 text-charcoal" />
+                                    <ShoppingBag className="w-5 h-5 text-[#6B5D4F] hover:text-[#2C2416]" />
                                 </button>
 
                                 {isLoggedIn ? (
@@ -224,7 +218,7 @@ export const Navbar = () => {
                                                     className="w-5 h-5 rounded-full object-cover"
                                                 />
                                             ) : (
-                                                <User className="w-5 h-5 text-charcoal" />
+                                                <User className="w-5 h-5 text-[#6B5D4F] hover:text-[#2C2416]" />
                                             )}
                                         </button>
 
@@ -344,10 +338,10 @@ export const Navbar = () => {
                         </div>
                     </div>
                 </div>
-            </div>
+            </div >
 
             {/* Logout Confirmation Dialog */}
-            <LogoutConfirmDialog
+            < LogoutConfirmDialog
                 isOpen={showLogoutDialog}
                 onConfirm={() => {
                     // Use centralized logout function from AuthContext

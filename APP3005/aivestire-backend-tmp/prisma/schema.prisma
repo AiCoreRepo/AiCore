@@ -159,6 +159,7 @@ model Aura {
   skin_tone             String?
   gender                String?
   body_shape            String?
+  body_type             String?
   age_range             String?
   hair_style            String?
   beard                 Boolean?

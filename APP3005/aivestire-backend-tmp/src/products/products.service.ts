@@ -185,7 +185,7 @@ export class ProductsService {
               { is_primary: 'desc' },
               { order_index: 'asc' },
             ],
-            take: 1,
+            // Fetch all images for carousel
           },
           stats: {
             select: {
@@ -210,6 +210,11 @@ export class ProductsService {
         price_cents: product.price_cents,
         currency: product.currency,
         thumbnail: product.images[0]?.url || null,
+        images: product.images.map(img => ({
+          url: img.url,
+          is_primary: img.is_primary,
+          order_index: img.order_index,
+        })),
         category: product.category,
         is_featured: product.is_featured,
         likes: product.stats?.likes_count || 0,

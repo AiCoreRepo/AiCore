@@ -4,7 +4,7 @@ import {
     BODY_SHAPE_OPTIONS,
     GENDER_OPTIONS,
     AGE_RANGE_OPTIONS,
-    HAIR_STYLE_OPTIONS
+    BODY_TYPE_OPTIONS
 } from "@/constants/aura.constants";
 
 interface BodyAttributes {
@@ -14,7 +14,7 @@ interface BodyAttributes {
     gender?: string;
     bodyShape?: string;
     ageRange?: string;
-    hairStyle?: string;
+    bodyType?: string;
 }
 
 interface BodyAttributesFormProps {
@@ -32,23 +32,61 @@ export const BodyAttributesForm = ({ attributes, onChange }: BodyAttributesFormP
 
     return (
         <div className="space-y-5">
-            {/* Section Header - Lighter divider */}
+            {/* Section Header */}
             <div className="flex items-center gap-3 pb-3 border-b border-gold/10">
                 <div className="w-1 h-6 bg-gradient-to-b from-gold to-gold/50 rounded-full"></div>
-                <h3 className="text-base font-bold text-charcoal">Body Attributes</h3>
+                <h3 className="text-base font-bold text-charcoal">Your Attributes</h3>
             </div>
 
-            {/* Row 1: Height & Weight */}
+            {/* Row 1: Body Shape & Body Type */}
             <div className="grid grid-cols-2 gap-4">
                 <motion.div
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: 0.1 }}
                 >
+                    <label className={labelClass}>Body Shape</label>
+                    <select
+                        value={attributes.bodyShape || ""}
+                        onChange={(e) => handleChange("bodyShape", e.target.value)}
+                        className={inputClass}
+                    >
+                        <option value="">Select Shape</option>
+                        {BODY_SHAPE_OPTIONS.map(opt => (
+                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
+                    </select>
+                </motion.div>
+                <motion.div
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.1 }}
+                >
+                    <label className={labelClass}>Body Type</label>
+                    <select
+                        value={attributes.bodyType || ""}
+                        onChange={(e) => handleChange("bodyType", e.target.value)}
+                        className={inputClass}
+                    >
+                        <option value="">Select Body Type</option>
+                        {BODY_TYPE_OPTIONS.map(opt => (
+                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
+                    </select>
+                </motion.div>
+            </div>
+
+            {/* Row 2: Height & Weight */}
+            <div className="grid grid-cols-2 gap-4">
+                <motion.div
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.2 }}
+                >
                     <label className={labelClass}>Height (cm)</label>
                     <input
                         type="number"
-                        placeholder="170"
+                        placeholder="162"
                         value={attributes.height || ""}
                         onChange={(e) => handleChange("height", parseInt(e.target.value) || 0)}
                         className={inputClass}
@@ -57,12 +95,12 @@ export const BodyAttributesForm = ({ attributes, onChange }: BodyAttributesFormP
                 <motion.div
                     initial={{ opacity: 0, x: 20 }}
                     animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.1 }}
+                    transition={{ delay: 0.2 }}
                 >
                     <label className={labelClass}>Weight (kg)</label>
                     <input
                         type="number"
-                        placeholder="65"
+                        placeholder="55"
                         value={attributes.weight || ""}
                         onChange={(e) => handleChange("weight", parseInt(e.target.value) || 0)}
                         className={inputClass}
@@ -70,45 +108,7 @@ export const BodyAttributesForm = ({ attributes, onChange }: BodyAttributesFormP
                 </motion.div>
             </div>
 
-            {/* Row 2: Gender & Age Range */}
-            <div className="grid grid-cols-2 gap-4">
-                <motion.div
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.2 }}
-                >
-                    <label className={labelClass}>Gender</label>
-                    <select
-                        value={attributes.gender || ""}
-                        onChange={(e) => handleChange("gender", e.target.value)}
-                        className={inputClass}
-                    >
-                        <option value="">Select Gender</option>
-                        {GENDER_OPTIONS.map(opt => (
-                            <option key={opt.value} value={opt.value}>{opt.label}</option>
-                        ))}
-                    </select>
-                </motion.div>
-                <motion.div
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.2 }}
-                >
-                    <label className={labelClass}>Age Range</label>
-                    <select
-                        value={attributes.ageRange || ""}
-                        onChange={(e) => handleChange("ageRange", e.target.value)}
-                        className={inputClass}
-                    >
-                        <option value="">Select Age</option>
-                        {AGE_RANGE_OPTIONS.map(opt => (
-                            <option key={opt.value} value={opt.value}>{opt.label}</option>
-                        ))}
-                    </select>
-                </motion.div>
-            </div>
-
-            {/* Row 3: Skin Tone & Body Shape */}
+            {/* Row 3: Skin Tone & Gender */}
             <div className="grid grid-cols-2 gap-4">
                 <motion.div
                     initial={{ opacity: 0, x: -20 }}
@@ -132,34 +132,34 @@ export const BodyAttributesForm = ({ attributes, onChange }: BodyAttributesFormP
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: 0.3 }}
                 >
-                    <label className={labelClass}>Body Shape</label>
+                    <label className={labelClass}>Gender</label>
                     <select
-                        value={attributes.bodyShape || ""}
-                        onChange={(e) => handleChange("bodyShape", e.target.value)}
+                        value={attributes.gender || ""}
+                        onChange={(e) => handleChange("gender", e.target.value)}
                         className={inputClass}
                     >
-                        <option value="">Select Shape</option>
-                        {BODY_SHAPE_OPTIONS.map(opt => (
+                        <option value="">Select Gender</option>
+                        {GENDER_OPTIONS.map(opt => (
                             <option key={opt.value} value={opt.value}>{opt.label}</option>
                         ))}
                     </select>
                 </motion.div>
             </div>
 
-            {/* Row 4: Hair Style (Full Width) */}
+            {/* Row 4: Age Range (Full Width) */}
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.4 }}
             >
-                <label className={labelClass}>Hair Style</label>
+                <label className={labelClass}>Age Range</label>
                 <select
-                    value={attributes.hairStyle || ""}
-                    onChange={(e) => handleChange("hairStyle", e.target.value)}
+                    value={attributes.ageRange || ""}
+                    onChange={(e) => handleChange("ageRange", e.target.value)}
                     className={inputClass}
                 >
-                    <option value="">Select Hair Style</option>
-                    {HAIR_STYLE_OPTIONS.map(opt => (
+                    <option value="">Select Age Range</option>
+                    {AGE_RANGE_OPTIONS.map(opt => (
                         <option key={opt.value} value={opt.value}>{opt.label}</option>
                     ))}
                 </select>

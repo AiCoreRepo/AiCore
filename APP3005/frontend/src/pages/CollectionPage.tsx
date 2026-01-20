@@ -2,32 +2,17 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
-import { SearchBar } from "@/components/collection/SearchBar";
-import { Breadcrumb } from "@/components/collection/Breadcrumb";
-import { ActiveFilterChips } from "@/components/collection/ActiveFilterChips";
-import { ViewToggle } from "@/components/collection/ViewToggle";
-import { FilterAccordionSection } from "@/components/collection/FilterAccordionSection";
 import { ProductCard } from "@/components/collection/ProductCard";
 import { useInfinitePublicProducts } from "@/hooks/useInfinitePublicProducts";
 import { useAuth } from "@/context/AuthContext";
 import { auraGate } from "@/utils/auraGate";
-import { colors, typography } from "@/utils/designSystem";
-import {
-    Grid3x3,
-    Ruler,
-    Palette,
-    DollarSign,
-    Star,
-    Package,
-    ChevronDown
-} from "lucide-react";
+import { ChevronDown, Heart, Search, X, SlidersHorizontal, ArrowUpDown } from "lucide-react";
+import collectionHeaderImage from "@/assets/collectionHeader.jpeg";
 
 const categories = ["All", "Dresses", "Outerwear", "Accessories", "Tops", "Bottoms"];
 const sizes = ["XS", "S", "M", "L", "XL", "XXL"];
 const colorOptions = ["Black", "White", "Beige", "Gold", "Navy", "Red", "Brown", "Gray"];
-const brands = ["AiVestire", "Luxury Brand", "Premium Label", "Designer Co"];
-const materials = ["Cotton", "Silk", "Wool", "Linen", "Polyester", "Cashmere"];
-const sortOptions = ["Best Match", "Price: Low to High", "Price: High to Low", "Newest", "Most Popular"];
+const sortOptions = ["Price: Low to High", "Price: High to Low", "Newest", "Most Popular"];
 
 const CollectionPage = () => {
     const navigate = useNavigate();
@@ -38,25 +23,9 @@ const CollectionPage = () => {
     const [activeCategory, setActiveCategory] = useState("All");
     const [selectedSizes, setSelectedSizes] = useState<string[]>([]);
     const [selectedColors, setSelectedColors] = useState<string[]>([]);
-    const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
-    const [selectedMaterials, setSelectedMaterials] = useState<string[]>([]);
-    const [priceRange, setPriceRange] = useState<[number, number]>([0, 20000]);
-    const [minRating, setMinRating] = useState(0);
-    const [inStockOnly, setInStockOnly] = useState(false);
-    const [sortBy, setSortBy] = useState("Best Match");
-    const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
-
-    // UI States
-    const [expandedSections, setExpandedSections] = useState({
-        category: true,
-        price: true,
-        color: true,
-        size: true,
-        brand: false,
-        rating: false,
-        material: false,
-        availability: false,
-    });
+    const [priceRange, setPriceRange] = useState<[number, number]>([0, 5000]);
+    const [sortBy, setSortBy] = useState("Price: Low to High");
+    const [showFilters, setShowFilters] = useState(false);
 
     // Fetch products with infinite scroll
     const {
@@ -163,60 +132,12 @@ const CollectionPage = () => {
 
     const filteredProducts = getFilteredProducts();
 
-    // Active filter chips
-    const getActiveFilterChips = () => {
-        const chips: any[] = [];
-
-        if (activeCategory !== "All") {
-            chips.push({
-                id: 'category',
-                label: 'Category',
-                value: activeCategory,
-                onRemove: () => setActiveCategory("All")
-            });
-        }
-
-        selectedSizes.forEach(size => {
-            chips.push({
-                id: `size-${size}`,
-                label: 'Size',
-                value: size,
-                onRemove: () => setSelectedSizes(prev => prev.filter(s => s !== size))
-            });
-        });
-
-        selectedColors.forEach(color => {
-            chips.push({
-                id: `color-${color}`,
-                label: 'Color',
-                value: color,
-                onRemove: () => setSelectedColors(prev => prev.filter(c => c !== color))
-            });
-        });
-
-        if (priceRange[0] > 0 || priceRange[1] < 20000) {
-            chips.push({
-                id: 'price',
-                label: 'Price',
-                value: `₹${priceRange[0]} - ₹${priceRange[1]}`,
-                onRemove: () => setPriceRange([0, 20000])
-            });
-        }
-
-        return chips;
-    };
-
-    const clearAllFilters = () => {
-        setActiveCategory("All");
-        setSelectedSizes([]);
-        setSelectedColors([]);
-        setSelectedBrands([]);
-        setSelectedMaterials([]);
-        setPriceRange([0, 20000]);
-        setMinRating(0);
-        setInStockOnly(false);
-        setSearchQuery("");
-    };
+    // Count active filters for badge
+    const activeFilterCount =
+        (activeCategory !== 'All' ? 1 : 0) +
+        selectedSizes.length +
+        selectedColors.length +
+        (priceRange[0] !== 0 || priceRange[1] !== 5000 ? 1 : 0);
 
     const handleTryOn = async (productId: string) => {
         const token = localStorage.getItem('access_token');
@@ -230,355 +151,292 @@ const CollectionPage = () => {
         }
     };
 
-    const toggleSection = (section: keyof typeof expandedSections) => {
-        setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }));
-    };
-
     return (
-        <div className="min-h-screen" style={{ background: colors.sand }}>
+        <div className="min-h-screen bg-[#F5F0E6]">
             <Navbar />
 
-            <main className="pt-20">
-                <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                    {/* Breadcrumb */}
-                    <Breadcrumb
-                        items={[
-                            { label: "Home", href: "/" },
-                            { label: "Collection", href: "/collection" },
-                            { label: activeCategory !== "All" ? activeCategory : "All Products" }
-                        ]}
-                        className="mb-6"
-                    />
+            {/* Hero Header Image - Includes both hero and quote */}
+            <section className="relative w-full bg-white pt-16 md:pt-20">
+                <img
+                    src={collectionHeaderImage}
+                    alt="Crafted for the Confident"
+                    className="w-full h-auto object-contain"
+                />
+            </section>
 
-                    {/* Collection Header */}
-                    <div className="mb-8">
-                        <h1
-                            className="text-4xl md:text-5xl font-bold mb-3"
-                            style={{
-                                fontFamily: typography.fontSerif,
-                                color: colors.charcoal
-                            }}
-                        >
-                            {activeCategory !== "All" ? activeCategory : "Collection"}
-                        </h1>
-                        <p
-                            className="text-base max-w-2xl"
-                            style={{
-                                fontFamily: typography.fontSans,
-                                color: colors.textSecondary
-                            }}
-                        >
-                            Discover our curated selection of premium fashion pieces, crafted with attention to detail and timeless elegance.
-                        </p>
-                    </div>
+            {/* Elegant Search Bar Section */}
+            <section className="bg-[#F8F4EC] border-b border-[#E8DCC4]">
+                <div className="max-w-7xl mx-auto px-6 py-6">
+                    <div className="max-w-3xl mx-auto">
+                        {/* Compact Search Title */}
+                        <h2 className="text-center text-xs uppercase tracking-[0.25em] text-[#6B5D4F] mb-4 font-light">
+                            Discover Your Style
+                        </h2>
 
-                    {/* Main Layout */}
-                    <div className="flex gap-8">
-                        <aside className="hidden lg:block w-80 flex-shrink-0">
-                            <div
-                                className="sticky top-24 rounded-xl p-6 shadow-sm overflow-y-auto"
-                                style={{
-                                    background: colors.bgWhite,
-                                    border: `1px solid ${colors.border}`,
-                                    maxHeight: 'calc(100vh - 7rem)',
-                                }}
-                            >
-                                {/* Search */}
-                                <SearchBar
+
+                        {/* Compact Search Input */}
+                        <div className="relative group">
+                            <div className="relative">
+                                {/* Search Icon - Compact */}
+                                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                                    <Search className="h-5 w-5 text-[#9B8B7E] group-focus-within:text-[#D4AF37] transition-colors duration-300" />
+                                </div>
+
+                                {/* Input - Smaller, Elegant */}
+                                <input
+                                    type="text"
+                                    placeholder="Search by designer, style, or occasion..."
                                     value={searchQuery}
-                                    onChange={setSearchQuery}
-                                    className="mb-6"
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    className="w-full pl-12 pr-12 py-3 bg-white border border-[#D4C5A9] rounded-full text-[#2C2416] placeholder-[#9B8B7E]/60 focus:outline-none focus:border-[#D4AF37] focus:shadow-[0_4px_12px_rgba(212,175,55,0.15)] transition-all duration-300 text-sm font-light"
                                 />
 
-                                {/* Filter Sections */}
-                                <div className="space-y-0">
-                                    {/* Category */}
-                                    <FilterAccordionSection
-                                        title="Category"
-                                        icon={<Grid3x3 className="w-4 h-4" />}
-                                        isExpanded={expandedSections.category}
-                                        onToggle={() => toggleSection('category')}
-                                        selectedCount={activeCategory !== "All" ? 1 : 0}
-                                        accentColor={colors.accent}
-                                    >
-                                        <div className="space-y-1.5">
-                                            {categories.map(cat => (
-                                                <button
-                                                    key={cat}
-                                                    onClick={() => setActiveCategory(cat)}
-                                                    className="w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-all duration-150"
-                                                    style={{
-                                                        background: activeCategory === cat ? colors.accentLight : 'transparent',
-                                                        color: activeCategory === cat ? colors.accent : colors.textSecondary,
-                                                        fontFamily: typography.fontSans,
-                                                    }}
-                                                >
-                                                    {cat}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </FilterAccordionSection>
-
-                                    {/* Price Range */}
-                                    <FilterAccordionSection
-                                        title="Price Range"
-                                        icon={<DollarSign className="w-4 h-4" />}
-                                        isExpanded={expandedSections.price}
-                                        onToggle={() => toggleSection('price')}
-                                        accentColor={colors.gold}
-                                    >
-                                        <div className="space-y-4">
-                                            <div className="flex gap-3">
-                                                <div className="flex-1">
-                                                    <label className="text-xs font-medium mb-1 block" style={{ color: colors.textSecondary }}>Min</label>
-                                                    <input
-                                                        type="number"
-                                                        value={priceRange[0]}
-                                                        onChange={(e) => setPriceRange([Number(e.target.value), priceRange[1]])}
-                                                        className="w-full px-3 py-2 rounded-lg border text-sm"
-                                                        style={{ borderColor: colors.border }}
-                                                    />
-                                                </div>
-                                                <div className="flex-1">
-                                                    <label className="text-xs font-medium mb-1 block" style={{ color: colors.textSecondary }}>Max</label>
-                                                    <input
-                                                        type="number"
-                                                        value={priceRange[1]}
-                                                        onChange={(e) => setPriceRange([priceRange[0], Number(e.target.value)])}
-                                                        className="w-full px-3 py-2 rounded-lg border text-sm"
-                                                        style={{ borderColor: colors.border }}
-                                                    />
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </FilterAccordionSection>
-
-                                    {/* Color */}
-                                    <FilterAccordionSection
-                                        title="Color"
-                                        icon={<Palette className="w-4 h-4" />}
-                                        isExpanded={expandedSections.color}
-                                        onToggle={() => toggleSection('color')}
-                                        selectedCount={selectedColors.length}
-                                        accentColor="#56CCF2"
-                                    >
-                                        <div className="grid grid-cols-4 gap-2">
-                                            {colorOptions.map(color => (
-                                                <button
-                                                    key={color}
-                                                    onClick={() => {
-                                                        setSelectedColors(prev =>
-                                                            prev.includes(color)
-                                                                ? prev.filter(c => c !== color)
-                                                                : [...prev, color]
-                                                        );
-                                                    }}
-                                                    className="w-10 h-10 rounded-full border-2 transition-all duration-150"
-                                                    style={{
-                                                        background: color.toLowerCase(),
-                                                        borderColor: selectedColors.includes(color) ? colors.accent : colors.border,
-                                                        transform: selectedColors.includes(color) ? 'scale(1.1)' : 'scale(1)',
-                                                    }}
-                                                    title={color}
-                                                />
-                                            ))}
-                                        </div>
-                                    </FilterAccordionSection>
-
-                                    {/* Size */}
-                                    <FilterAccordionSection
-                                        title="Size"
-                                        icon={<Ruler className="w-4 h-4" />}
-                                        isExpanded={expandedSections.size}
-                                        onToggle={() => toggleSection('size')}
-                                        selectedCount={selectedSizes.length}
-                                        accentColor="#4ECDC4"
-                                    >
-                                        <div className="grid grid-cols-3 gap-2">
-                                            {sizes.map(size => (
-                                                <button
-                                                    key={size}
-                                                    onClick={() => {
-                                                        setSelectedSizes(prev =>
-                                                            prev.includes(size)
-                                                                ? prev.filter(s => s !== size)
-                                                                : [...prev, size]
-                                                        );
-                                                    }}
-                                                    className="px-3 py-2 rounded-lg text-sm font-bold border-2 transition-all duration-150"
-                                                    style={{
-                                                        background: selectedSizes.includes(size) ? '#4ECDC4' : colors.bgWhite,
-                                                        color: selectedSizes.includes(size) ? '#FFFFFF' : colors.textSecondary,
-                                                        borderColor: selectedSizes.includes(size) ? '#4ECDC4' : colors.border,
-                                                    }}
-                                                >
-                                                    {size}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </FilterAccordionSection>
-                                </div>
-
-                                {/* Apply/Clear Buttons */}
-                                <div className="mt-6 pt-6 border-t flex gap-3" style={{ borderColor: colors.border }}>
+                                {/* Clear Button - Compact */}
+                                {searchQuery && (
                                     <button
-                                        onClick={clearAllFilters}
-                                        className="flex-1 px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors duration-150"
-                                        style={{
-                                            background: 'transparent',
-                                            color: colors.textSecondary,
-                                            border: `1px solid ${colors.border}`,
-                                        }}
+                                        onClick={() => setSearchQuery("")}
+                                        className="absolute inset-y-0 right-0 pr-4 flex items-center text-[#9B8B7E] hover:text-[#D4AF37] transition-colors"
                                     >
-                                        Clear
+                                        <X className="h-4 w-4" />
                                     </button>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Active Search Indicator - Compact */}
+                        {searchQuery && (
+                            <div className="mt-3 text-center animate-fadeIn">
+                                <p className="text-xs text-[#6B5D4F] font-light">
+                                    <span className="opacity-60">Searching for</span>
+                                    <span className="mx-2 text-[#D4AF37] font-normal">"{searchQuery}"</span>
+                                    <span className="opacity-60">• {filteredProducts.length} {filteredProducts.length === 1 ? 'result' : 'results'}</span>
+                                </p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </section>
+
+            {/* Premium Filter Bar */}
+            {/* Premium Filter Bar */}
+            <section className="bg-[#F8F4EC] border-b border-[#E8DCC4] shadow-sm">
+                <div className="max-w-7xl mx-auto px-6 py-4">
+                    <div className="flex items-center justify-between gap-4 flex-wrap">
+                        {/* Filter Toggle Button - Left */}
+                        <button
+                            onClick={() => setShowFilters(!showFilters)}
+                            className="flex items-center gap-2 px-4 py-2 bg-white rounded-full border border-[#D4C5A9] hover:border-[#D4AF37] hover:bg-[#FDFBF7] transition-all group shadow-sm"
+                        >
+                            <SlidersHorizontal className="w-4 h-4 text-[#6B5D4F] group-hover:text-[#D4AF37] transition-colors" />
+                            <span className="text-sm font-medium text-[#2C2416]">Filters</span>
+                            {activeFilterCount > 0 && (
+                                <span className="ml-1 px-2 py-0.5 bg-[#D4AF37] text-white text-xs rounded-full font-medium">
+                                    {activeFilterCount}
+                                </span>
+                            )}
+                        </button>
+
+                        {/* Active Filters Pills - Center */}
+                        <div className="flex-1 flex items-center gap-2 overflow-x-auto hide-scrollbar">
+                            {activeCategory !== 'All' && (
+                                <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-[#D4C5A9] rounded-full text-sm whitespace-nowrap shadow-sm">
+                                    <span className="text-[#2C2416]">{activeCategory}</span>
                                     <button
-                                        className="flex-1 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all duration-150"
-                                        style={{
-                                            background: colors.accent,
-                                            color: '#FFFFFF',
-                                        }}
+                                        onClick={() => setActiveCategory('All')}
+                                        className="text-[#9B8B7E] hover:text-[#D4AF37] transition-colors"
                                     >
-                                        Apply
+                                        <X className="w-3.5 h-3.5" />
                                     </button>
                                 </div>
-                            </div>
-                        </aside>
-
-                        {/* Right Content - Products */}
-                        <div className="flex-1">
-                            {/* Results Header */}
-                            <div className="flex items-center justify-between mb-6">
-                                <div>
-                                    {!isLoading && !error && (
-                                        <p className="text-sm" style={{ fontFamily: typography.fontSans, color: colors.textSecondary }}>
-                                            <span className="font-semibold" style={{ color: colors.charcoal }}>
-                                                {filteredProducts.length}
-                                            </span> {filteredProducts.length === 1 ? 'product' : 'products'}
-                                        </p>
-                                    )}
-                                </div>
-
-                                <div className="flex items-center gap-4">
-                                    {/* Sort Dropdown */}
-                                    <select
-                                        value={sortBy}
-                                        onChange={(e) => setSortBy(e.target.value)}
-                                        className="px-4 py-2 rounded-lg border text-sm font-medium"
-                                        style={{
-                                            borderColor: colors.border,
-                                            fontFamily: typography.fontSans,
-                                        }}
+                            )}
+                            {selectedSizes.map(size => (
+                                <div key={size} className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-[#D4C5A9] rounded-full text-sm whitespace-nowrap shadow-sm">
+                                    <span className="text-[#2C2416]">Size: {size}</span>
+                                    <button
+                                        onClick={() => setSelectedSizes(selectedSizes.filter(s => s !== size))}
+                                        className="text-[#9B8B7E] hover:text-[#D4AF37] transition-colors"
                                     >
-                                        {sortOptions.map(option => (
-                                            <option key={option} value={option}>{option}</option>
-                                        ))}
-                                    </select>
-
-                                    {/* View Toggle */}
-                                    <ViewToggle view={viewMode} onChange={setViewMode} />
+                                        <X className="w-3.5 h-3.5" />
+                                    </button>
                                 </div>
-                            </div>
-
-                            {/* Active Filter Chips */}
-                            <ActiveFilterChips
-                                chips={getActiveFilterChips()}
-                                onClearAll={clearAllFilters}
-                                className="mb-6"
-                            />
-
-                            {/* Products Grid */}
-                            {isLoading ? (
-                                <div className="text-center py-20">
-                                    <div className="inline-block animate-spin rounded-full h-16 w-16 border-4" style={{ borderColor: colors.accent, borderTopColor: 'transparent' }}></div>
-                                    <p className="mt-6" style={{ color: colors.textSecondary }}>Loading collection...</p>
+                            ))}
+                            {selectedColors.map(color => (
+                                <div key={color} className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-[#D4C5A9] rounded-full text-sm whitespace-nowrap shadow-sm">
+                                    <span className="text-[#2C2416]">{color}</span>
+                                    <button
+                                        onClick={() => setSelectedColors(selectedColors.filter(c => c !== color))}
+                                        className="text-[#9B8B7E] hover:text-[#D4AF37] transition-colors"
+                                    >
+                                        <X className="w-3.5 h-3.5" />
+                                    </button>
                                 </div>
-                            ) : error ? (
-                                <div className="text-center py-20">
-                                    <p style={{ color: colors.textSecondary }}>Failed to load products</p>
+                            ))}
+                            {(priceRange[0] !== 0 || priceRange[1] !== 5000) && (
+                                <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-[#D4C5A9] rounded-full text-sm whitespace-nowrap shadow-sm">
+                                    <span className="text-[#2C2416]">₹{priceRange[0]} - ₹{priceRange[1]}</span>
+                                    <button
+                                        onClick={() => setPriceRange([0, 5000])}
+                                        className="text-[#9B8B7E] hover:text-[#D4AF37] transition-colors"
+                                    >
+                                        <X className="w-3.5 h-3.5" />
+                                    </button>
                                 </div>
-                            ) : filteredProducts.length === 0 ? (
-                                <div className="text-center py-20">
-                                    <p className="text-lg mb-2" style={{ color: colors.charcoal }}>No products found</p>
-                                    <p style={{ color: colors.textSecondary }}>Try adjusting your filters</p>
-                                </div>
-                            ) : (
-                                <>
-                                    <div className={`grid gap-6 ${viewMode === 'grid' ? 'grid-cols-2 md:grid-cols-3 xl:grid-cols-4' : 'grid-cols-1'}`}>
-                                        {filteredProducts.map(product => (
-                                            <ProductCard
-                                                key={product.product_id}
-                                                product={product}
-                                                onTryOn={() => handleTryOn(product.product_id)}
-                                            />
-                                        ))}
-                                    </div>
-
-                                    {/* Infinite Scroll Trigger */}
-                                    <div ref={loadMoreRef} className="h-20" />
-
-                                    {/* Loading More Indicator */}
-                                    {isFetchingNextPage && (
-                                        <div className="text-center py-8">
-                                            <div className="inline-block animate-spin rounded-full h-12 w-12 border-4" style={{ borderColor: colors.accent, borderTopColor: 'transparent' }}></div>
-                                            <p className="mt-4 text-sm" style={{ color: colors.textSecondary }}>Loading more products...</p>
-                                        </div>
-                                    )}
-
-                                    {/* Load More Button (Fallback) */}
-                                    {hasNextPage && !isFetchingNextPage && (
-                                        <div className="text-center py-8">
-                                            <button
-                                                onClick={() => fetchNextPage()}
-                                                className="px-8 py-3 rounded-lg font-semibold text-sm transition-all duration-300 hover:scale-105"
-                                                style={{
-                                                    background: colors.accent,
-                                                    color: '#FFFFFF',
-                                                    boxShadow: '0 4px 12px rgba(212, 175, 55, 0.3)',
-                                                }}
-                                            >
-                                                Load More Products
-                                            </button>
-                                        </div>
-                                    )}
-
-                                    {/* End of Results */}
-                                    {!hasNextPage && allProducts.length > 0 && (
-                                        <div className="text-center py-8">
-                                            <p className="text-sm" style={{ color: colors.textSecondary }}>
-                                                You've reached the end of our collection
-                                            </p>
-                                        </div>
-                                    )}
-                                </>
                             )}
                         </div>
+
+                        {/* Sort Dropdown - Right */}
+                        <div className="relative">
+                            <select
+                                value={sortBy}
+                                onChange={(e) => setSortBy(e.target.value)}
+                                className="flex items-center gap-2 px-4 py-2 pr-10 rounded-full border border-[#D4C5A9] hover:border-[#D4AF37] transition-all text-sm bg-white appearance-none cursor-pointer focus:outline-none focus:border-[#D4AF37] shadow-sm text-[#2C2416]"
+                            >
+                                {sortOptions.map(option => (
+                                    <option key={option} value={option}>{option}</option>
+                                ))}
+                            </select>
+                            <ArrowUpDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#9B8B7E] pointer-events-none" />
+                        </div>
                     </div>
+
+                    {/* Expandable Filter Panel */}
+                    {showFilters && (
+                        <div className="mt-4 pt-4 border-t border-[#E8DCC4] animate-slideDown">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                                {/* Category */}
+                                <div>
+                                    <label className="block text-xs font-medium text-[#6B5D4F] mb-2 uppercase tracking-wide">Category</label>
+                                    <div className="relative">
+                                        <select
+                                            value={activeCategory}
+                                            onChange={(e) => setActiveCategory(e.target.value)}
+                                            className="w-full px-4 py-2.5 bg-white border border-[#E8DCC4] rounded-lg text-sm text-[#2C2416] focus:outline-none focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/20 appearance-none cursor-pointer transition-all"
+                                        >
+                                            {categories.map(cat => (
+                                                <option key={cat} value={cat}>{cat}</option>
+                                            ))}
+                                        </select>
+                                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#6B5D4F] pointer-events-none" />
+                                    </div>
+                                </div>
+
+                                {/* Size */}
+                                <div>
+                                    <label className="block text-xs font-medium text-[#6B5D4F] mb-2 uppercase tracking-wide">Size</label>
+                                    <div className="relative">
+                                        <select
+                                            value={selectedSizes[0] || ""}
+                                            onChange={(e) => setSelectedSizes(e.target.value ? [e.target.value] : [])}
+                                            className="w-full px-4 py-2.5 bg-white border border-[#E8DCC4] rounded-lg text-sm text-[#2C2416] focus:outline-none focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/20 appearance-none cursor-pointer transition-all"
+                                        >
+                                            <option value="">All Sizes</option>
+                                            {sizes.map(size => (
+                                                <option key={size} value={size}>{size}</option>
+                                            ))}
+                                        </select>
+                                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#6B5D4F] pointer-events-none" />
+                                    </div>
+                                </div>
+
+                                {/* Color */}
+                                <div>
+                                    <label className="block text-xs font-medium text-[#6B5D4F] mb-2 uppercase tracking-wide">Color</label>
+                                    <div className="relative">
+                                        <select
+                                            value={selectedColors[0] || ""}
+                                            onChange={(e) => setSelectedColors(e.target.value ? [e.target.value] : [])}
+                                            className="w-full px-4 py-2.5 bg-white border border-[#E8DCC4] rounded-lg text-sm text-[#2C2416] focus:outline-none focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/20 appearance-none cursor-pointer transition-all"
+                                        >
+                                            <option value="">All Colors</option>
+                                            {colorOptions.map(color => (
+                                                <option key={color} value={color}>{color}</option>
+                                            ))}
+                                        </select>
+                                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#6B5D4F] pointer-events-none" />
+                                    </div>
+                                </div>
+
+                                {/* Price Range */}
+                                <div>
+                                    <label className="block text-xs font-medium text-[#6B5D4F] mb-2 uppercase tracking-wide">Price Range</label>
+                                    <div className="flex gap-2">
+                                        <input
+                                            type="number"
+                                            placeholder="Min"
+                                            value={priceRange[0]}
+                                            onChange={(e) => setPriceRange([Number(e.target.value), priceRange[1]])}
+                                            className="w-full px-3 py-2.5 bg-white border border-[#E8DCC4] rounded-lg text-sm text-[#2C2416] focus:outline-none focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/20 transition-all"
+                                        />
+                                        <input
+                                            type="number"
+                                            placeholder="Max"
+                                            value={priceRange[1]}
+                                            onChange={(e) => setPriceRange([priceRange[0], Number(e.target.value)])}
+                                            className="w-full px-3 py-2.5 bg-white border border-[#E8DCC4] rounded-lg text-sm text-[#2C2416] focus:outline-none focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/20 transition-all"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </section>
+
+            {/* Products Section */}
+            <main className="py-12">
+                <div className="max-w-7xl mx-auto px-4">
+                    {/* Products Grid */}
+                    {isLoading ? (
+                        <div className="text-center py-20">
+                            <div className="inline-block animate-spin rounded-full h-16 w-16 border-4 border-[#D4AF37] border-t-transparent"></div>
+                            <p className="mt-6 text-[#6B5D4F]">Loading collection...</p>
+                        </div>
+                    ) : error ? (
+                        <div className="text-center py-20">
+                            <p className="text-[#6B5D4F]">Failed to load products</p>
+                        </div>
+                    ) : filteredProducts.length === 0 ? (
+                        <div className="text-center py-20">
+                            <p className="text-lg mb-2 text-[#2C2416]">No products found</p>
+                            <p className="text-[#6B5D4F]">Try adjusting your filters</p>
+                        </div>
+                    ) : (
+                        <>
+                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                                {filteredProducts.map(product => (
+                                    <ProductCard
+                                        key={product.product_id}
+                                        product={product}
+                                        onTryOn={() => handleTryOn(product.product_id)}
+                                    />
+                                ))}
+                            </div>
+
+                            {/* Infinite Scroll Trigger */}
+                            <div ref={loadMoreRef} className="h-20" />
+
+                            {/* Loading More Indicator */}
+                            {isFetchingNextPage && (
+                                <div className="text-center py-8">
+                                    <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-[#D4AF37] border-t-transparent"></div>
+                                    <p className="mt-4 text-sm text-[#6B5D4F]">Loading more products...</p>
+                                </div>
+                            )}
+
+                            {/* End of Results */}
+                            {!hasNextPage && allProducts.length > 0 && (
+                                <div className="text-center py-8">
+                                    <p className="text-sm text-[#6B5D4F]">
+                                        You've reached the end of our collection
+                                    </p>
+                                </div>
+                            )}
+                        </>
+                    )}
                 </div>
             </main>
 
             <Footer />
-
-            <style>{`
-                /* Custom Scrollbar for Sidebar */
-                .overflow-y-auto::-webkit-scrollbar {
-                    width: 6px;
-                }
-                
-                .overflow-y-auto::-webkit-scrollbar-track {
-                    background: ${colors.bgLight};
-                    border-radius: 10px;
-                }
-                
-                .overflow-y-auto::-webkit-scrollbar-thumb {
-                    background: ${colors.accent};
-                    border-radius: 10px;
-                }
-                
-                .overflow-y-auto::-webkit-scrollbar-thumb:hover {
-                    background: ${colors.accentHover};
-                }
-            `}</style>
         </div>
     );
 };
