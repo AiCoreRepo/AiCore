@@ -115,6 +115,7 @@ class BodyAnalyzeResponse(BaseModel):
         Literal["Rectangle", "Pear Shape", "Apple Shape", "Hourglass", "Inverted Triangle"]
     ] = None
     full_body: bool
+    full_body_method: Optional[Literal["mediapipe", "heuristic"]] = None
 
 
 class StandardTryOnResponse(BaseModel):
@@ -275,6 +276,7 @@ def _build_body_analyze_response(result: Dict) -> BodyAnalyzeResponse:
         skin_hexes=result.get("skin_hexes") or [],
         body_shape=_format_body_shape(result.get("body_shape")),
         full_body=bool(result.get("full_body")),
+        full_body_method=result.get("full_body_method"),
     )
 
 

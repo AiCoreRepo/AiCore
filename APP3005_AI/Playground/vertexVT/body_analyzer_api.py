@@ -31,6 +31,7 @@ class BodyAnalyzeResponse(BaseModel):
     skin_hexes: List[str]
     body_shape: Optional[Literal["Rectangle", "Pear Shape", "Apple Shape", "Hourglass", "Inverted Triangle"]] = None
     full_body: bool
+    full_body_method: Optional[Literal["mediapipe", "heuristic"]] = None
 
 
 def _decode_base64_image(data: Optional[str]) -> bytes:
@@ -87,6 +88,7 @@ def _build_response(result: Dict) -> BodyAnalyzeResponse:
         skin_hexes=result.get("skin_hexes", []),
         body_shape=shape_map.get(raw_shape) if raw_shape else None,
         full_body=result.get("full_body", False),
+        full_body_method=result.get("full_body_method"),
     )
 
 
@@ -104,6 +106,7 @@ async def body_analyze_json(payload: BodyAnalyzeRequest):
     - skin_hexes: List of 3 hex colors representing skin tones
     - body_shape: Rectangle, Pear Shape, Apple Shape, Hourglass, or Inverted Triangle
     - full_body: Whether a full body was detected
+    - full_body_method: "mediapipe" or "heuristic"
     """
     start_time = time.time()
     print("🔍 Received body analysis request...")
