@@ -266,6 +266,15 @@ body::after {
   display: block;
 }
 
+.helper-image {
+  width: 30%;
+  height: auto;
+  display: block;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: #f2e6d6;
+}
+
 .field-group {
   display: grid;
   gap: 12px;

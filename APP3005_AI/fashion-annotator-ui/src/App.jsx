@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
+import bodyAnalyzeImage from "../images/body_analyze.webp";
 
 const LIST_FIELDS = [
   {
@@ -1176,18 +1177,26 @@ export default function App() {
                     </div>
                   </div>
 
-                  <div className="field-group" style={{ "--i": 2 }}>
-                    <h3>Tags</h3>
-                    {LIST_FIELDS.map((field) => (
+                <div className="field-group" style={{ "--i": 2 }}>
+                  <h3>Tags</h3>
+                  {LIST_FIELDS.map((field) => (
+                    <Fragment key={field.key}>
+                      {field.key === "bodyShape" ? (
+                        <img
+                          className="helper-image"
+                          src={bodyAnalyzeImage}
+                          alt="Body shape guide"
+                        />
+                      ) : null}
                       <SelectListField
-                        key={field.key}
                         label={field.label}
                         values={currentRow[field.key]}
                         options={optionsByKey[field.key] || []}
                         onChange={(values) => updateListField(field.key, values)}
                       />
-                    ))}
-                  </div>
+                    </Fragment>
+                  ))}
+                </div>
 
                   <div className="field-group" style={{ "--i": 4 }}>
                     <h3>Story and Score</h3>
