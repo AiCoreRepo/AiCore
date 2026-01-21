@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
 
 const LIST_FIELDS = [
@@ -52,14 +52,34 @@ const TEXT_FIELDS = [
   },
 ];
 
-const SCORE_OPTIONS = Array.from({ length: 21 }, (_, index) => {
-  const value = (index / 20).toFixed(2);
-  return String(Number(value));
-});
+const EDITABLE_LIST_KEYS = LIST_FIELDS.map((field) => field.key);
+const EDITABLE_TEXT_KEYS = TEXT_FIELDS.map((field) => field.key);
 
 const LIST_KEYS = new Set(LIST_FIELDS.map((field) => field.key));
 
+const STATIC_OPTIONS = {
+  occasion: ["Formal", "Casual luxury", "Party", "Wedding", "Resort"],
+  style: ["Minimal Luxury", "Elegant", "Couture", "Traditional Luxury"],
+  size: ["XS", "S", "M", "L", "XL"],
+  skinTone: ["Light", "Medium", "Dusky", "Deep"],
+  bodyShape: [
+    "Rectangle",
+    "Pear Shape",
+    "Apple Shape",
+    "Hourglass",
+    "Inverted Triangle",
+  ],
+};
+
+const DATA_DRIVEN_OPTION_KEYS = new Set([
+  "clothingType",
+  "fit",
+  "fabric",
+  "colorFamily",
+]);
+
 const EMPTY_ROW = {
+  id: "",
   image: "",
   clothId: "",
   occasion: [""],
@@ -76,6 +96,7 @@ const EMPTY_ROW = {
 };
 
 const HEADER_MAP = {
+  id: "id",
   image: "image",
   imagepath: "image",
   imageurl: "image",
@@ -106,6 +127,7 @@ const HEADER_MAP = {
 };
 
 const EXPORT_COLUMNS = [
+  { key: "id", header: "ID" },
   { key: "image", header: "Image" },
   { key: "clothId", header: "Cloth ID" },
   { key: "occasion", header: "Occasion" },
@@ -131,7 +153,53 @@ const IMAGE_BASE = (() => {
 const DEFAULT_SHEET_URL =
   "https://docs.google.com/spreadsheets/d/e/2PACX-1vSqUSlmyyVwaFnFr-d-6rP7og23BK9ySH8_A78m_xPk3XvNSPSYyIDZ45YLvKrWHpIU7HXHQ92yILFo/pub?gid=783869189&single=true&output=csv";
 const SHEET_URL = import.meta.env.VITE_SHEET_URL || DEFAULT_SHEET_URL;
+const SHEET_WRITE_URL = import.meta.env.VITE_SHEET_WRITE_URL || "";
+
 const FILE_ACCEPT = ".csv,.xlsx,.xls";
+const SUBMITTED_EMAILS_STORAGE_KEY = "fashion-annotator-submitted-emails";
+
+function normalizeEmail(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+const EMAIL_SHEET_REGISTRY = {
+  [normalizeEmail("rushabh@aivestire.com")]:
+    "https://docs.google.com/spreadsheets/d/1RhkVlosO1BfqVvIa8kJzL-7eZ4BsJuMFhbmY9Cy-GdM/edit?gid=318082982#gid=318082982",
+  [normalizeEmail("pulkit@aivestire.com")]:
+    "https://docs.google.com/spreadsheets/d/1RhkVlosO1BfqVvIa8kJzL-7eZ4BsJuMFhbmY9Cy-GdM/edit?gid=1984328199#gid=1984328199",
+  [normalizeEmail("pragya@aivestire.com")]:
+    "https://docs.google.com/spreadsheets/d/1RhkVlosO1BfqVvIa8kJzL-7eZ4BsJuMFhbmY9Cy-GdM/edit?gid=153983295#gid=153983295",
+};
+
+function resolveSheetUrl(email) {
+  return EMAIL_SHEET_REGISTRY[normalizeEmail(email)] || "";
+}
+
+function isEmailAllowed(value) {
+  return Boolean(resolveSheetUrl(value));
+}
+
+function loadSubmittedEmails() {
+  if (typeof window === "undefined") return new Set();
+  try {
+    const raw = window.localStorage.getItem(SUBMITTED_EMAILS_STORAGE_KEY);
+    if (!raw) return new Set();
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return new Set();
+    return new Set(parsed.map((email) => normalizeEmail(email)).filter(Boolean));
+  } catch {
+    return new Set();
+  }
+}
+
+function persistSubmittedEmails(emails) {
+  if (typeof window === "undefined") return;
+  const values = Array.from(emails || []);
+  window.localStorage.setItem(
+    SUBMITTED_EMAILS_STORAGE_KEY,
+    JSON.stringify(values)
+  );
+}
 
 function normalizeHeader(value) {
   return value
@@ -153,6 +221,16 @@ function splitList(value) {
     .map((item) => item.trim())
     .filter(Boolean);
   return items.length ? items : [""];
+}
+
+function formatOptionLabel(value) {
+  const trimmed = String(value || "").trim();
+  if (!trimmed) return "";
+  const withSpaces = trimmed.replace(/_/g, " ").replace(/\s+/g, " ");
+  return withSpaces
+    .split(" ")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join(" ");
 }
 
 function parseCSV(text) {
@@ -299,9 +377,11 @@ function buildRows(parsedRows) {
       if (!key) return;
       const value = rawRow[idx] ?? "";
       if (LIST_KEYS.has(key)) {
-        row[key] = splitList(value);
+        row[key] = splitList(value).map((item) =>
+          normalizeInputValue(key, item)
+        );
       } else {
-        row[key] = String(value || "").trim();
+        row[key] = normalizeInputValue(key, value);
       }
     });
 
@@ -362,59 +442,107 @@ function joinListValue(value) {
   return String(value || "").trim();
 }
 
-function buildExportData(rows) {
-  const headerRow = EXPORT_COLUMNS.map((col) => col.header);
-  const dataRows = rows.map((row) =>
-    EXPORT_COLUMNS.map((col) => {
-      const value = row[col.key];
-      if (LIST_KEYS.has(col.key)) {
-        return joinListValue(value);
-      }
-      return value == null ? "" : String(value).trim();
-    })
-  );
-  return [headerRow, ...dataRows];
+function isBlank(value) {
+  return !String(value ?? "").trim();
 }
 
-function downloadBlob(data, filename, type) {
-  const blob = new Blob([data], { type });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(url);
+function hasEmptyListValue(values) {
+  if (!Array.isArray(values) || values.length === 0) return true;
+  return values.some((value) => isBlank(value));
+}
+
+function isScoreValid(value) {
+  if (isBlank(value)) return false;
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return false;
+  return numeric >= 0 && numeric <= 100;
+}
+
+function isRowComplete(row) {
+  if (!row) return false;
+  if (EDITABLE_LIST_KEYS.some((key) => hasEmptyListValue(row[key]))) {
+    return false;
+  }
+  if (EDITABLE_TEXT_KEYS.some((key) => isBlank(row[key]))) {
+    return false;
+  }
+  if (isBlank(row.description)) return false;
+  return isScoreValid(row.score);
+}
+
+function buildSheetUpdatePayload(row) {
+  return EXPORT_COLUMNS.map((col) => {
+    const value = row[col.key];
+    if (LIST_KEYS.has(col.key)) {
+      return { header: col.header, value: joinListValue(value) };
+    }
+    return {
+      header: col.header,
+      value: value == null ? "" : String(value).trim(),
+    };
+  });
+}
+
+function normalizeOptionKey(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[_\s-]+/g, " ")
+    .trim();
+}
+
+function normalizeToStaticOption(key, value) {
+  const trimmed = String(value || "").trim();
+  if (!trimmed) return "";
+  const options = STATIC_OPTIONS[key];
+  if (!options || !options.length) return trimmed;
+  const normalized = normalizeOptionKey(trimmed);
+  const match = options.find(
+    (option) => normalizeOptionKey(option) === normalized
+  );
+  return match || trimmed;
+}
+
+function normalizeInputValue(key, value) {
+  const trimmed = String(value || "").trim();
+  if (!trimmed) return "";
+  if (DATA_DRIVEN_OPTION_KEYS.has(key)) {
+    return formatOptionLabel(trimmed);
+  }
+  return normalizeToStaticOption(key, trimmed);
 }
 
 function buildSelectOptions(options, values = []) {
-  const optionSet = new Set((options || []).filter(Boolean));
+  const optionMap = new Map();
+  const addOption = (value) => {
+    const trimmed = String(value || "").trim();
+    if (!trimmed) return;
+    const key = normalizeOptionKey(trimmed);
+    if (!optionMap.has(key)) {
+      optionMap.set(key, trimmed);
+    }
+  };
+  (options || []).forEach(addOption);
   const valueList = Array.isArray(values) ? values : [values];
-  valueList
-    .map((value) => String(value || "").trim())
-    .filter(Boolean)
-    .forEach((value) => optionSet.add(value));
-  return Array.from(optionSet).sort((a, b) => a.localeCompare(b));
+  valueList.forEach(addOption);
+  return Array.from(optionMap.values()).sort((a, b) => a.localeCompare(b));
 }
 
-function SelectField({ label, value, placeholder, options, onChange, listId }) {
+function SelectField({ label, value, options, onChange }) {
   const selectOptions = buildSelectOptions(options, value ? [value] : []);
 
   return (
     <label className="field-label">
       {label}
-      <input
-        list={listId}
+      <select
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        placeholder={placeholder || `Enter ${label}`}
-      />
-      <datalist id={listId}>
+      >
+        <option value="">{`Select ${label}`}</option>
         {selectOptions.map((option) => (
           <option key={option} value={option} />
         ))}
-      </datalist>
+      </select>
     </label>
   );
 }
@@ -422,12 +550,13 @@ function SelectField({ label, value, placeholder, options, onChange, listId }) {
 function SelectListField({
   label,
   values,
-  placeholder,
   options,
   onChange,
-  listId,
 }) {
   const selectOptions = buildSelectOptions(options, values);
+  const selectedKeys = new Set(
+    values.map((value) => normalizeOptionKey(value)).filter(Boolean)
+  );
 
   const updateValue = (index, nextValue) => {
     const next = [...values];
@@ -455,47 +584,57 @@ function SelectListField({
   return (
     <div className="list-field">
       <span className="field-label">{label}</span>
-      {values.map((value, idx) => (
-        <div className="list-row" key={`${label}-${idx}`}>
-          <input
-            list={listId}
-            value={value}
-            onChange={(event) => updateValue(idx, event.target.value)}
-            placeholder={placeholder || `Enter ${label}`}
-          />
-          <div className="list-controls">
-            <button
-              type="button"
-              onClick={() => moveValue(idx, idx - 1)}
-              disabled={idx === 0}
-              aria-label={`Move ${label} up`}
-            >
-              Up
-            </button>
-            <button
-              type="button"
-              onClick={() => moveValue(idx, idx + 1)}
-              disabled={idx === values.length - 1}
-              aria-label={`Move ${label} down`}
-            >
-              Down
-            </button>
-            <button
-              type="button"
-              onClick={() => removeValue(idx)}
-              disabled={values.length <= 1}
-              aria-label={`Remove ${label}`}
-            >
-              Remove
-            </button>
-          </div>
-        </div>
-      ))}
-      <datalist id={listId}>
-        {selectOptions.map((option) => (
-          <option key={option} value={option} />
-        ))}
-      </datalist>
+      {values.map((value, idx) => {
+        const currentKey = normalizeOptionKey(value);
+        const inputOptions = selectOptions.filter((option) => {
+          const optionKey = normalizeOptionKey(option);
+          if (!selectedKeys.has(optionKey)) return true;
+          return optionKey === currentKey;
+        });
+        return (
+          <Fragment key={`${label}-${idx}`}>
+            <div className="list-row">
+              <select
+                value={value}
+                onChange={(event) => updateValue(idx, event.target.value)}
+              >
+                <option value="">{`Select ${label}`}</option>
+                {inputOptions.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+              <div className="list-controls">
+                <button
+                  type="button"
+                  onClick={() => moveValue(idx, idx - 1)}
+                  disabled={idx === 0}
+                  aria-label={`Move ${label} up`}
+                >
+                  Up
+                </button>
+                <button
+                  type="button"
+                  onClick={() => moveValue(idx, idx + 1)}
+                  disabled={idx === values.length - 1}
+                  aria-label={`Move ${label} down`}
+                >
+                  Down
+                </button>
+                <button
+                  type="button"
+                  onClick={() => removeValue(idx)}
+                  disabled={values.length <= 1}
+                  aria-label={`Remove ${label}`}
+                >
+                  Remove
+                </button>
+              </div>
+            </div>
+          </Fragment>
+        );
+      })}
       <div className="list-actions">
         <button type="button" className="button secondary" onClick={addValue}>
           Add value
@@ -506,13 +645,28 @@ function SelectListField({
   );
 }
 
+function postSheetWrite(payload) {
+  return fetch(SHEET_WRITE_URL, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
 export default function App() {
   const [rows, setRows] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [status, setStatus] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isAuthorizing, setIsAuthorizing] = useState(false);
+  const [emailInput, setEmailInput] = useState("");
+  const [activeEmail, setActiveEmail] = useState("");
+  const [isAuthorized, setIsAuthorized] = useState(false);
+  const [authStatus, setAuthStatus] = useState(null);
+  const [submittedEmails, setSubmittedEmails] = useState(() =>
+    loadSubmittedEmails()
+  );
   const [sheetUrlInput, setSheetUrlInput] = useState(SHEET_URL || "");
-  const [exportName, setExportName] = useState("fashion_annotations");
   const [draftRow, setDraftRow] = useState(createEmptyRow());
   const [isDirty, setIsDirty] = useState(false);
   const [editStatus, setEditStatus] = useState(null);
@@ -524,66 +678,34 @@ export default function App() {
     return `Row ${currentIndex + 1} of ${rows.length}`;
   }, [rows.length, currentIndex]);
 
-  const scoredCount = useMemo(
-    () =>
-      rows.filter((row) => String(row.score || "").trim().length > 0).length,
-    [rows]
+  const isCurrentRowComplete = useMemo(
+    () => isRowComplete(draftRow),
+    [draftRow]
   );
 
   const optionsByKey = useMemo(() => {
-    if (!rows.length) return {};
     const buckets = {};
     LIST_FIELDS.forEach((field) => {
-      buckets[field.key] = new Set();
+      buckets[field.key] = new Set(STATIC_OPTIONS[field.key] || []);
     });
     TEXT_FIELDS.forEach((field) => {
-      buckets[field.key] = new Set();
+      buckets[field.key] = new Set(STATIC_OPTIONS[field.key] || []);
     });
-    buckets.image = new Set();
-    buckets.score = new Set();
 
-    rows.forEach((row) => {
-      LIST_FIELDS.forEach((field) => {
-        (row[field.key] || []).forEach((value) => {
-          const trimmed = String(value || "").trim();
-          if (trimmed) buckets[field.key].add(trimmed);
+    if (rows.length) {
+      rows.forEach((row) => {
+        TEXT_FIELDS.forEach((field) => {
+          if (!DATA_DRIVEN_OPTION_KEYS.has(field.key)) return;
+          const value = normalizeInputValue(field.key, row[field.key]);
+          if (value) buckets[field.key].add(value);
         });
       });
-      TEXT_FIELDS.forEach((field) => {
-        const trimmed = String(row[field.key] || "").trim();
-        if (trimmed) buckets[field.key].add(trimmed);
-      });
-      const imageValue = String(row.image || "").trim();
-      if (imageValue) buckets.image.add(imageValue);
-      const scoreValue = String(row.score || "").trim();
-      if (scoreValue) buckets.score.add(scoreValue);
-    });
+    }
 
     return Object.fromEntries(
-      Object.entries(buckets).map(([key, set]) => [
-        key,
-        Array.from(set).sort((a, b) => a.localeCompare(b)),
-      ])
+      Object.entries(buckets).map(([key, set]) => [key, Array.from(set)])
     );
   }, [rows]);
-
-  const imageOptions = useMemo(
-    () =>
-      buildSelectOptions(
-        optionsByKey.image || [],
-        currentRow?.image ? [currentRow.image] : []
-      ),
-    [currentRow?.image, optionsByKey.image]
-  );
-
-  const scoreOptions = useMemo(
-    () =>
-      buildSelectOptions(
-        [...SCORE_OPTIONS, ...(optionsByKey.score || [])],
-        currentRow?.score ? [currentRow.score] : []
-      ),
-    [currentRow?.score, optionsByKey.score]
-  );
 
   const updateRow = (patch) => {
     setDraftRow((prev) => ({ ...prev, ...patch }));
@@ -593,6 +715,67 @@ export default function App() {
 
   const updateListField = (key, values) => {
     updateRow({ [key]: values.length ? values : [""] });
+  };
+
+  const handleAuthorize = () => {
+    const normalized = normalizeEmail(emailInput);
+    if (!normalized) {
+      setAuthStatus({ type: "error", message: "Enter your email to continue." });
+      return;
+    }
+    const sheetUrl = resolveSheetUrl(normalized);
+    if (!sheetUrl) {
+      setAuthStatus({
+        type: "error",
+        message: "This email is not allowed to access the annotator.",
+      });
+      return;
+    }
+    if (submittedEmails.has(normalized)) {
+      setAuthStatus({
+        type: "error",
+        message: "Final submission already completed for this email.",
+      });
+      return;
+    }
+    if (!SHEET_WRITE_URL) {
+      setIsAuthorized(true);
+      setActiveEmail(normalized);
+      setSheetUrlInput(sheetUrl);
+      setAuthStatus({
+        type: "success",
+        message: "Access granted. Loading your data...",
+      });
+      return;
+    }
+    setIsAuthorizing(true);
+    setAuthStatus({ type: "loading", message: "Checking access..." });
+    postSheetWrite({ action: "checkEmail", email: normalized })
+      .then(async (response) => {
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || data.ok === false) {
+          throw new Error(data.message || "Unable to verify access.");
+        }
+        if (data.submitted) {
+          throw new Error("Final submission already completed for this email.");
+        }
+        setIsAuthorized(true);
+        setActiveEmail(normalized);
+        setSheetUrlInput(sheetUrl);
+        setAuthStatus({
+          type: "success",
+          message: "Access granted. Loading your data...",
+        });
+      })
+      .catch((error) => {
+        setAuthStatus({
+          type: "error",
+          message: error.message || "Unable to verify access.",
+        });
+      })
+      .finally(() => {
+        setIsAuthorizing(false);
+      });
   };
 
   const handleLoad = async (sourceUrl = SHEET_URL) => {
@@ -685,35 +868,10 @@ export default function App() {
     }
   };
 
-  const getRowsForExport = () =>
-    rows.map((row, idx) => (idx === currentIndex ? draftRow : row));
-
-  const handleDownloadCsv = () => {
-    if (!rows.length) return;
-    const exportRows = buildExportData(getRowsForExport());
-    const worksheet = XLSX.utils.aoa_to_sheet(exportRows);
-    const csv = XLSX.utils.sheet_to_csv(worksheet);
-    const safeName = exportName.trim() || "fashion_annotations";
-    downloadBlob(csv, `${safeName}.csv`, "text/csv;charset=utf-8");
-  };
-
-  const handleDownloadXlsx = () => {
-    if (!rows.length) return;
-    const exportRows = buildExportData(getRowsForExport());
-    const worksheet = XLSX.utils.aoa_to_sheet(exportRows);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Annotations");
-    const buffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
-    const safeName = exportName.trim() || "fashion_annotations";
-    downloadBlob(
-      buffer,
-      `${safeName}.xlsx`,
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    );
-  };
-
   useEffect(() => {
-    if (!SHEET_URL) {
+    if (!isAuthorized) return;
+    const sheetUrl = resolveSheetUrl(activeEmail) || SHEET_URL;
+    if (!sheetUrl) {
       setStatus({
         type: "error",
         message: "Sheet URL is not configured for this annotator.",
@@ -721,8 +879,8 @@ export default function App() {
       return;
     }
 
-    handleLoad(SHEET_URL);
-  }, []);
+    handleLoad(sheetUrl);
+  }, [isAuthorized, activeEmail]);
 
   useEffect(() => {
     if (!rows.length) {
@@ -738,21 +896,174 @@ export default function App() {
 
   const handleSave = () => {
     if (!rows.length) return;
-    setRows((prev) =>
-      prev.map((row, idx) => (idx === currentIndex ? draftRow : row))
-    );
-    setIsDirty(false);
-    setEditStatus({ type: "success", message: "Row saved." });
+    if (!SHEET_WRITE_URL) {
+      setEditStatus({
+        type: "error",
+        message: "Sheet write URL is not configured.",
+      });
+      return;
+    }
+    if (!draftRow.id) {
+      setEditStatus({
+        type: "error",
+        message: "Row ID is missing. Unable to save.",
+      });
+      return;
+    }
+    const sheetUrlForWrite =
+      sheetUrlInput || resolveSheetUrl(activeEmail) || SHEET_URL;
+    setIsSaving(true);
+    setEditStatus({ type: "loading", message: "Saving to sheet..." });
+    const payload = {
+      action: "saveRow",
+      email: activeEmail,
+      sheetUrl: sheetUrlForWrite,
+      id: String(draftRow.id).trim(),
+      values: buildSheetUpdatePayload(draftRow),
+    };
+    postSheetWrite(payload)
+      .then(async (response) => {
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || data.ok === false) {
+          throw new Error(data.message || "Failed to save row.");
+        }
+        setRows((prev) =>
+          prev.map((row, idx) => (idx === currentIndex ? draftRow : row))
+        );
+        setIsDirty(false);
+        setEditStatus({ type: "success", message: "Row saved to sheet." });
+      })
+      .catch((error) => {
+        setEditStatus({
+          type: "error",
+          message: error.message || "Failed to save row.",
+        });
+      })
+      .finally(() => {
+        setIsSaving(false);
+      });
   };
 
   const handleSaveNext = () => {
     if (!rows.length) return;
-    setRows((prev) =>
-      prev.map((row, idx) => (idx === currentIndex ? draftRow : row))
+    if (!SHEET_WRITE_URL) {
+      setEditStatus({
+        type: "error",
+        message: "Sheet write URL is not configured.",
+      });
+      return;
+    }
+    if (!draftRow.id) {
+      setEditStatus({
+        type: "error",
+        message: "Row ID is missing. Unable to save.",
+      });
+      return;
+    }
+    const sheetUrlForWrite =
+      sheetUrlInput || resolveSheetUrl(activeEmail) || SHEET_URL;
+    setIsSaving(true);
+    setEditStatus({ type: "loading", message: "Saving to sheet..." });
+    const nextRows = rows.map((row, idx) =>
+      idx === currentIndex ? draftRow : row
     );
-    setIsDirty(false);
-    setEditStatus(null);
-    setCurrentIndex((prev) => Math.min(prev + 1, rows.length - 1));
+    const payload = {
+      action: "saveRow",
+      email: activeEmail,
+      sheetUrl: sheetUrlForWrite,
+      id: String(draftRow.id).trim(),
+      values: buildSheetUpdatePayload(draftRow),
+    };
+    postSheetWrite(payload)
+      .then(async (response) => {
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || data.ok === false) {
+          throw new Error(data.message || "Failed to save row.");
+        }
+        setRows(nextRows);
+        setIsDirty(false);
+        setEditStatus(null);
+        setCurrentIndex((prev) => Math.min(prev + 1, rows.length - 1));
+      })
+      .catch((error) => {
+        setEditStatus({
+          type: "error",
+          message: error.message || "Failed to save row.",
+        });
+      })
+      .finally(() => {
+        setIsSaving(false);
+      });
+  };
+
+  const handleFinalSubmission = () => {
+    if (!rows.length || !activeEmail) return;
+    if (!SHEET_WRITE_URL) {
+      setEditStatus({
+        type: "error",
+        message: "Sheet write URL is not configured.",
+      });
+      return;
+    }
+    if (!draftRow.id) {
+      setEditStatus({
+        type: "error",
+        message: "Row ID is missing. Unable to submit.",
+      });
+      return;
+    }
+    const sheetUrlForWrite =
+      sheetUrlInput || resolveSheetUrl(activeEmail) || SHEET_URL;
+    setIsSaving(true);
+    setEditStatus({ type: "loading", message: "Submitting final..." });
+    const savePayload = {
+      action: "saveRow",
+      email: activeEmail,
+      sheetUrl: sheetUrlForWrite,
+      id: String(draftRow.id).trim(),
+      values: buildSheetUpdatePayload(draftRow),
+    };
+    const submitPayload = {
+      action: "finalSubmit",
+      email: activeEmail,
+    };
+    postSheetWrite(savePayload)
+      .then(async (response) => {
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || data.ok === false) {
+          throw new Error(data.message || "Failed to save row.");
+        }
+        return postSheetWrite(submitPayload);
+      })
+      .then(async (response) => {
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || data.ok === false) {
+          throw new Error(data.message || "Failed to submit.");
+        }
+        const updated = new Set(submittedEmails);
+        updated.add(activeEmail);
+        persistSubmittedEmails(updated);
+        setSubmittedEmails(updated);
+        setIsAuthorized(false);
+        setActiveEmail("");
+        setRows([]);
+        setCurrentIndex(0);
+        setDraftRow(createEmptyRow());
+        setAuthStatus({
+          type: "success",
+          message: "Final submission completed. Access is now closed.",
+        });
+        setEditStatus(null);
+      })
+      .catch((error) => {
+        setEditStatus({
+          type: "error",
+          message: error.message || "Failed to submit.",
+        });
+      })
+      .finally(() => {
+        setIsSaving(false);
+      });
   };
 
   const handleNext = () => {
@@ -781,111 +1092,137 @@ export default function App() {
     <div className="app">
       <header className="hero">
         <h1>Fashion Annotator Studio</h1>
-        <p>
-          Review each row from your sheet or Excel upload and let designers
-          adjust body shapes, skin tones, sizes, occasions, and descriptions
-          with full control.
-        </p>
+
       </header>
 
       <div className="content-grid">
-        <section className="panel">
-          <h2>Data Source</h2>
-          <p>
-            Load a published sheet or upload a local Excel file with Cloudinary
-            image links.
-          </p>
-          <div className="input-row">
-            <label className="field-label">Sheet or CSV URL</label>
-            <input
-              value={sheetUrlInput}
-              onChange={(event) => setSheetUrlInput(event.target.value)}
-              placeholder="https://docs.google.com/spreadsheets/d/..."
-            />
-            <button
-              className="button secondary"
-              type="button"
-              onClick={handleLoadFromUrl}
-              disabled={isLoading}
+        {!isAuthorized ? (
+          <section className="panel">
+            <h2>Access</h2>
+            <p>Enter your email to start annotating.</p>
+            <form
+              className="input-row"
+              onSubmit={(event) => {
+                event.preventDefault();
+                handleAuthorize();
+              }}
             >
-              Load URL
-            </button>
-            <span className="helper">
-              Supports Google Sheets links or direct CSV URLs.
-            </span>
-          </div>
-          <div className="input-row">
-            <label className="field-label">Local Excel/CSV file</label>
-            <input type="file" accept={FILE_ACCEPT} onChange={handleFileChange} />
-            <span className="helper">
-              Use an Image or image_url column with Cloudinary links.
-            </span>
-          </div>
-          <div className="input-row">
-            <label className="field-label">Export file name</label>
-            <input
-              value={exportName}
-              onChange={(event) => setExportName(event.target.value)}
-              placeholder="fashion_annotations"
-            />
-            <div className="button-row">
+              <label className="field-label">
+                Email
+                <input
+                  type="email"
+                  value={emailInput}
+                  onChange={(event) => setEmailInput(event.target.value)}
+                  placeholder="abc@email.com"
+                  autoComplete="email"
+                  disabled={isAuthorized || isAuthorizing}
+                />
+              </label>
               <button
-                className="button secondary"
-                type="button"
-                onClick={handleDownloadCsv}
-                disabled={!rows.length}
+                className="button primary"
+                type="submit"
+                disabled={isAuthorized || isAuthorizing}
               >
-                Download CSV
+                Start
               </button>
-              <button
-                className="button secondary"
-                type="button"
-                onClick={handleDownloadXlsx}
-                disabled={!rows.length}
-              >
-                Download XLSX
-              </button>
-            </div>
-            <span className="helper">
-              Downloads your current annotations; it does not update the source
-              sheet.
-            </span>
-          </div>
-          {status ? (
-            <div className={`status ${status.type}`}>{status.message}</div>
-          ) : (
-            <div className="data-hint">
-              Upload a sheet to start annotating rows.
-            </div>
-          )}
-        </section>
-
-        <section className="panel">
-          <h2>Annotate Row</h2>
-          {!rows.length ? (
-            <div className="empty-state">
-              {isLoading
-                ? "Loading data..."
-                : "Select a data source to begin annotating."}
-            </div>
-          ) : (
-            <div className="editor-shell">
-              <div className="editor-top">
-                <div className="badge-group">
-                  <div className="badge">{progressLabel}</div>
-                  <div className="badge neutral">
-                    Scored {scoredCount} of {rows.length}
+            </form>
+            {activeEmail ? (
+              <div className="data-hint">{`Signed in as ${activeEmail}`}</div>
+            ) : null}
+            {authStatus ? (
+              <div className={`status ${authStatus.type}`}>
+                {authStatus.message}
+              </div>
+            ) : null}
+          </section>
+        ) : null}
+        {isAuthorized ? (
+          <section className="panel">
+            <h2>Annotate Row</h2>
+            {!rows.length ? (
+              <div className="empty-state">
+                {isLoading
+                  ? "Loading data..."
+                  : "Select a data source to begin annotating."}
+              </div>
+            ) : (
+              <div className="editor-shell">
+                <div className="editor-top">
+                  <div className="badge-group">
+                    <div className="badge">{progressLabel}</div>
+                    {isDirty ? (
+                      <div className="badge neutral">Unsaved changes</div>
+                    ) : null}
                   </div>
-                  {isDirty ? (
-                    <div className="badge neutral">Unsaved changes</div>
-                  ) : null}
+                </div>
+                {editStatus ? (
+                  <div className={`status ${editStatus.type}`}>
+                    {editStatus.message}
+                  </div>
+                ) : null}
+
+                <div className="editor-grid">
+                  <div className="field-group" style={{ "--i": 1 }}>
+                    <h3>Image</h3>
+                    <div className="image-frame">
+                      {resolveImageSrc(currentRow.image) ? (
+                        <img
+                          src={resolveImageSrc(currentRow.image)}
+                          alt="Fashion reference"
+                        />
+                      ) : (
+                        <div>Image preview will appear here.</div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="field-group" style={{ "--i": 2 }}>
+                    <h3>Tags</h3>
+                    {LIST_FIELDS.map((field) => (
+                      <SelectListField
+                        key={field.key}
+                        label={field.label}
+                        values={currentRow[field.key]}
+                        options={optionsByKey[field.key] || []}
+                        onChange={(values) => updateListField(field.key, values)}
+                      />
+                    ))}
+                  </div>
+
+                  <div className="field-group" style={{ "--i": 4 }}>
+                    <h3>Story and Score</h3>
+                    <div className="input-row">
+                      <label className="field-label">Description</label>
+                      <textarea
+                        value={currentRow.description}
+                        placeholder="Sky blue flowing resort maxi dress near ocean at sunset"
+                        onChange={(event) =>
+                          updateRow({ description: event.target.value })
+                        }
+                      />
+                      <label className="field-label">Score (0 - 100)</label>
+                      <div className="score-row">
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="1"
+                          value={currentRow.score}
+                          onChange={(event) =>
+                            updateRow({ score: event.target.value })
+                          }
+                          placeholder="0-100"
+                        />
+                      </div>
+                    </div>
+                  </div>
                 </div>
                 <div className="nav-buttons">
                   <button
                     className="button secondary"
                     type="button"
                     onClick={handlePrev}
-                    disabled={currentIndex === 0}
+                    disabled={currentIndex === 0 || isSaving}
                   >
                     Previous
                   </button>
@@ -893,7 +1230,7 @@ export default function App() {
                     className="button secondary"
                     type="button"
                     onClick={handleSave}
-                    disabled={!rows.length || !isDirty}
+                    disabled={!rows.length || !isDirty || isSaving}
                   >
                     Save
                   </button>
@@ -901,134 +1238,37 @@ export default function App() {
                     className="button primary"
                     type="button"
                     onClick={handleSaveNext}
-                    disabled={currentIndex === rows.length - 1}
+                    disabled={
+                      currentIndex === rows.length - 1 ||
+                      !isCurrentRowComplete ||
+                      isSaving
+                    }
                   >
                     Save & Next
                   </button>
+                  {currentIndex === rows.length - 1 ? (
+                    <button
+                      className="button primary"
+                      type="button"
+                      onClick={handleFinalSubmission}
+                      disabled={!isCurrentRowComplete || isSaving}
+                    >
+                      Final Submission
+                    </button>
+                  ) : null}
                   <button
                     className="button ghost"
                     type="button"
                     onClick={handleNext}
-                    disabled={currentIndex === rows.length - 1}
+                    disabled={currentIndex === rows.length - 1 || isSaving}
                   >
-                    Next (no save)
+                    Next
                   </button>
                 </div>
               </div>
-              {editStatus ? (
-                <div className={`status ${editStatus.type}`}>
-                  {editStatus.message}
-                </div>
-              ) : null}
-
-              <div className="editor-grid">
-                <div className="field-group" style={{ "--i": 1 }}>
-                  <h3>Image</h3>
-                  <div className="image-frame">
-                    {resolveImageSrc(currentRow.image) ? (
-                      <img
-                        src={resolveImageSrc(currentRow.image)}
-                        alt="Fashion reference"
-                      />
-                    ) : (
-                      <div>Image preview will appear here.</div>
-                    )}
-                  </div>
-                  <div className="input-row">
-                    <label className="field-label">Image path or URL</label>
-                    <select
-                      value={currentRow.image}
-                      onChange={(event) =>
-                        updateRow({ image: event.target.value })
-                      }
-                    >
-                      <option value="">Select image</option>
-                      {imageOptions.map((option) => (
-                        <option key={option} value={option}>
-                          {option}
-                        </option>
-                      ))}
-                    </select>
-                    <span className="helper">
-                      Use a URL or a relative path from your hosted images.
-                    </span>
-                  </div>
-                </div>
-
-                <div className="field-group" style={{ "--i": 2 }}>
-                  <h3>Tags</h3>
-                  {LIST_FIELDS.map((field) => (
-                    <SelectListField
-                      key={field.key}
-                      label={field.label}
-                      values={currentRow[field.key]}
-                      placeholder={field.placeholder}
-                      options={optionsByKey[field.key] || []}
-                      listId={`list-${field.key}`}
-                      onChange={(values) => updateListField(field.key, values)}
-                    />
-                  ))}
-                </div>
-
-                <div className="field-group" style={{ "--i": 3 }}>
-                  <h3>Garment Details</h3>
-                  <div className="input-row">
-                    {TEXT_FIELDS.map((field) => (
-                      <SelectField
-                        key={field.key}
-                        label={field.label}
-                        value={currentRow[field.key]}
-                        placeholder={field.placeholder}
-                        options={optionsByKey[field.key] || []}
-                        listId={`text-${field.key}`}
-                        onChange={(value) =>
-                          updateRow({ [field.key]: value })
-                        }
-                      />
-                    ))}
-                  </div>
-                </div>
-
-                <div className="field-group" style={{ "--i": 4 }}>
-                  <h3>Story and Score</h3>
-                  <div className="input-row">
-                    <label className="field-label">Description</label>
-                    <textarea
-                      value={currentRow.description}
-                      placeholder="Sky blue flowing resort maxi dress near ocean at sunset"
-                      onChange={(event) =>
-                        updateRow({ description: event.target.value })
-                      }
-                    />
-                    <label className="field-label">Score (0 - 1)</label>
-                    <div className="score-row">
-                      <select
-                        value={currentRow.score}
-                        onChange={(event) =>
-                          updateRow({ score: event.target.value })
-                        }
-                      >
-                        <option value="">Select score</option>
-                        {scoreOptions.map((option) => (
-                          <option key={option} value={option}>
-                            {option}
-                          </option>
-                        ))}
-                      </select>
-                      <button
-                        className="button ghost"
-                        type="button"
-                        onClick={() => updateRow({ score: "1" })}
-                      >
-                        Mark OK
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-        </section>
+            )}
+          </section>
+        ) : null}
       </div>
     </div>
   );
