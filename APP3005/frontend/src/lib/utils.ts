@@ -45,3 +45,13 @@ export async function compressImage(file: File): Promise<string> {
     reader.onerror = (error) => reject(error);
   });
 }
+
+export function getOptimizedImageUrl(url: string, width: number = 800): string {
+  if (!url || !url.includes('cloudinary.com')) return url;
+
+  // If already optimized/transformed, return as is (simple check)
+  if (url.includes('f_auto') && url.includes('q_auto')) return url;
+
+  // Insert transformations after /upload/
+  return url.replace('/upload/', `/upload/f_auto,q_auto,w_${width}/`);
+}

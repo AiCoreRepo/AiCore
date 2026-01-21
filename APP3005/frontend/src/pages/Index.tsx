@@ -8,8 +8,8 @@ const Index = () => {
     return (
         <div className="min-h-screen overflow-x-hidden bg-[#F8F4EC]">
             <Navbar />
-            {/* Removed padding-top so Hero sits behind Navbar for immersive look */}
-            <main className="relative">
+            {/* Added padding-top so Hero shows below Navbar */}
+            <main className="relative pt-20">
                 <Hero />
                 <Collection />
                 <HowItWorks />

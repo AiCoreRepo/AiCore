@@ -42,9 +42,14 @@ export interface PublicProductsResponse {
 export function useInfinitePublicProducts(
     search?: string,
     category?: string,
+    minPrice?: number,
+    maxPrice?: number,
+    sortBy?: string,
+    sizes?: string[],
+    colors?: string[],
 ) {
     return useInfiniteQuery<PublicProductsResponse>({
-        queryKey: ['infinite-public-products', search, category],
+        queryKey: ['infinite-public-products', search, category, minPrice, maxPrice, sortBy, sizes, colors],
         queryFn: async ({ pageParam = 1 }) => {
             const params = new URLSearchParams({
                 page: pageParam.toString(),
@@ -53,6 +58,11 @@ export function useInfinitePublicProducts(
 
             if (search) params.append('search', search);
             if (category && category !== 'All') params.append('category', category);
+            if (minPrice !== undefined) params.append('minPrice', minPrice.toString());
+            if (maxPrice !== undefined) params.append('maxPrice', maxPrice.toString());
+            if (sortBy) params.append('sortBy', sortBy);
+            if (sizes && sizes.length > 0) params.append('sizes', sizes.join(','));
+            if (colors && colors.length > 0) params.append('colors', colors.join(','));
 
             const url = `${import.meta.env.VITE_API_URL ?? 'http://localhost:3000'}/api/products/approved?${params}`;
 

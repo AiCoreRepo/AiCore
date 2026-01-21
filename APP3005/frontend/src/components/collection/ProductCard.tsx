@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { CommentsModal } from "./CommentsModal";
 import { likeProduct, getProductLikes } from "../../lib/api";
 import { useToast } from "@/hooks/use-toast";
+import { getOptimizedImageUrl } from "@/lib/utils";
 
 interface ProductCardProps {
     product: {
@@ -146,8 +147,11 @@ export const ProductCard = ({ product, onTryOn }: ProductCardProps) => {
                     {/* Product Image Carousel */}
                     <div className="relative overflow-hidden group/images">
                         <img
-                            src={productImages[currentImageIndex]?.url || 'https://via.placeholder.com/400x500?text=No+Image'}
+                            src={getOptimizedImageUrl(productImages[currentImageIndex]?.url, 600) || 'https://via.placeholder.com/400x500?text=No+Image'}
                             alt={product.title}
+                            loading="lazy"
+                            width={400}
+                            height={500}
                             className="w-full h-[320px] object-cover transition-transform duration-700 group-hover:scale-110"
                         />
 
@@ -328,7 +332,7 @@ export const ProductCard = ({ product, onTryOn }: ProductCardProps) => {
                             {/* Image Gallery Section */}
                             <div className="space-y-3">
                                 <img
-                                    src={productImages[currentImageIndex]?.url || 'https://via.placeholder.com/600x800?text=No+Image'}
+                                    src={getOptimizedImageUrl(productImages[currentImageIndex]?.url, 1200) || 'https://via.placeholder.com/600x800?text=No+Image'}
                                     alt={product.title}
                                     className="w-full rounded-xl object-cover"
                                     style={{ maxHeight: '600px' }}
@@ -347,9 +351,10 @@ export const ProductCard = ({ product, onTryOn }: ProductCardProps) => {
                                                     }`}
                                             >
                                                 <img
-                                                    src={img.url}
+                                                    src={getOptimizedImageUrl(img.url, 150)}
                                                     alt={`${product.title} - ${index + 1}`}
                                                     className="w-full h-full object-cover"
+                                                    loading="lazy"
                                                 />
                                             </button>
                                         ))}

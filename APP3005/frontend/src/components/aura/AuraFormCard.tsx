@@ -15,8 +15,8 @@ interface BodyAttributes {
     skinTone?: string;
     gender?: string;
     bodyShape?: string;
+    bodySize?: string;
     ageRange?: string;
-    bodyType?: string;
 }
 
 interface AuraFormCardProps {

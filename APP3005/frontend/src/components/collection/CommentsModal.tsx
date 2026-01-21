@@ -1,11 +1,13 @@
-import { X, Send, Trash2, MessageCircle } from "lucide-react";
+import { X, Send, Trash2, MessageCircle, Image as ImageIcon } from "lucide-react";
 import { useState, useEffect } from "react";
 import { getProductComments, addComment, deleteComment } from "../../lib/api";
 import { useToast } from "@/hooks/use-toast";
+import { ImageGallery } from "@/components/common/ImageGallery";
 
 interface Comment {
     comment_id: string;
     comment_text: string;
+    image_urls?: string[];
     created_at: string;
     user: {
         user_id: string;
@@ -25,6 +27,7 @@ export const CommentsModal = ({ productId, productTitle, isOpen, onClose, onComm
     const { toast } = useToast();
     const [comments, setComments] = useState<Comment[]>([]);
     const [newComment, setNewComment] = useState("");
+    const [selectedImages, setSelectedImages] = useState<string[]>([]);
     const [loading, setLoading] = useState(false);
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -70,6 +73,64 @@ export const CommentsModal = ({ productId, productTitle, isOpen, onClose, onComm
         }
     };
 
+    // Handle image selection
+    const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = e.target.files;
+        if (!files) return;
+
+        const maxImages = 5;
+        const maxSize = 5 * 1024 * 1024; // 5MB
+        const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+
+        const newImages: string[] = [];
+        let errorCount = 0;
+
+        Array.from(files).forEach((file) => {
+            if (selectedImages.length + newImages.length >= maxImages) {
+                return;
+            }
+
+            if (!allowedTypes.includes(file.type)) {
+                errorCount++;
+                return;
+            }
+
+            if (file.size > maxSize) {
+                toast({
+                    variant: "destructive",
+                    title: "File too large",
+                    description: `${file.name} exceeds 5MB limit`,
+                    duration: 3000,
+                });
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                if (reader.result && typeof reader.result === 'string') {
+                    setSelectedImages(prev => [...prev, reader.result as string]);
+                }
+            };
+            reader.readAsDataURL(file);
+        });
+
+        if (errorCount > 0) {
+            toast({
+                variant: "destructive",
+                title: "Invalid file type",
+                description: "Only JPG, PNG, and WebP images are allowed",
+                duration: 3000,
+            });
+        }
+
+        // Reset input
+        e.target.value = '';
+    };
+
+    const removeImage = (index: number) => {
+        setSelectedImages(prev => prev.filter((_, i) => i !== index));
+    };
+
     const handleSubmitComment = async () => {
         if (!newComment.trim()) {
             toast({
@@ -84,14 +145,20 @@ export const CommentsModal = ({ productId, productTitle, isOpen, onClose, onComm
         setSubmitting(true);
         setError(null);
         try {
-            const comment = await addComment(productId, newComment.trim());
-            setComments([comment, ...comments]);
-            setNewComment("");
+            const comment = await addComment(productId, newComment.trim(), selectedImages);
 
-            // Update parent component's count
-            if (onCommentCountChange) {
-                onCommentCountChange(comments.length + 1);
-            }
+            // Use functional setState to ensure we're working with the latest state
+            setComments(prevComments => {
+                const updatedComments = [comment, ...prevComments];
+                // Update parent component's count with the new length
+                if (onCommentCountChange) {
+                    onCommentCountChange(updatedComments.length);
+                }
+                return updatedComments;
+            });
+
+            setNewComment("");
+            setSelectedImages([]);
 
             // Success toast
             toast({
@@ -118,12 +185,16 @@ export const CommentsModal = ({ productId, productTitle, isOpen, onClose, onComm
     const handleDeleteComment = async (commentId: string) => {
         try {
             await deleteComment(commentId);
-            setComments(comments.filter(c => c.comment_id !== commentId));
 
-            // Update parent component's count
-            if (onCommentCountChange) {
-                onCommentCountChange(comments.length - 1);
-            }
+            // Use functional setState to ensure we're working with the latest state
+            setComments(prevComments => {
+                const updatedComments = prevComments.filter(c => c.comment_id !== commentId);
+                // Update parent component's count with the new length
+                if (onCommentCountChange) {
+                    onCommentCountChange(updatedComments.length);
+                }
+                return updatedComments;
+            });
 
             // Success toast
             toast({
@@ -185,8 +256,11 @@ export const CommentsModal = ({ productId, productTitle, isOpen, onClose, onComm
                         <div className="flex items-center gap-3">
                             <MessageCircle className="w-6 h-6" style={{ color: '#D4AF37' }} />
                             <div>
-                                <h2 className="text-xl font-semibold" style={{ color: '#2C2C2C' }}>
+                                <h2 className="text-xl font-semibold flex items-center gap-2" style={{ color: '#2C2C2C' }}>
                                     Reviews & Comments
+                                    <span className="px-2 py-0.5 rounded-full text-xs font-medium" style={{ background: 'rgba(212, 175, 55, 0.2)', color: '#D4AF37' }}>
+                                        {comments.length}
+                                    </span>
                                 </h2>
                                 <p className="text-sm text-gray-600">{productTitle}</p>
                             </div>
@@ -226,10 +300,60 @@ export const CommentsModal = ({ productId, productTitle, isOpen, onClose, onComm
                         }}
                         maxLength={1000}
                     />
+
+                    {/* Image Previews */}
+                    {selectedImages.length > 0 && (
+                        <div className="mt-3 grid grid-cols-5 gap-3">
+                            {selectedImages.map((img, index) => (
+                                <div key={index} className="relative w-full aspect-square rounded-lg overflow-hidden border-2 border-gold/30 shadow-sm hover:shadow-md transition-all">
+                                    <img src={img} alt={`Preview ${index + 1}`} className="w-full h-full object-cover" />
+                                    <button
+                                        onClick={() => removeImage(index)}
+                                        className="absolute top-1 right-1 w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center text-sm font-bold hover:bg-red-600 transition-all hover:scale-110 shadow-md"
+                                    >
+                                        ×
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
                     <div className="flex items-center justify-between mt-3">
-                        <span className="text-xs text-gray-500">
-                            {newComment.length}/1000 characters
-                        </span>
+                        <div className="flex items-center gap-3">
+                            <span className="text-xs text-gray-500">
+                                {newComment.length}/1000 characters
+                            </span>
+
+                            {/* Image Upload Button */}
+                            <label
+                                className="cursor-pointer flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-all hover:scale-105 disabled:opacity-50"
+                                style={{
+                                    background: selectedImages.length >= 5 ? 'rgba(200, 200, 200, 0.3)' : 'rgba(212, 175, 55, 0.1)',
+                                    color: selectedImages.length >= 5 ? '#999' : '#D4AF37',
+                                    border: `1px solid ${selectedImages.length >= 5 ? 'rgba(200, 200, 200, 0.3)' : 'rgba(212, 175, 55, 0.3)'}`,
+                                    cursor: selectedImages.length >= 5 ? 'not-allowed' : 'pointer'
+                                }}
+                            >
+                                <input
+                                    type="file"
+                                    accept="image/jpeg,image/jpg,image/png,image/webp"
+                                    multiple
+                                    onChange={handleImageSelect}
+                                    className="hidden"
+                                    disabled={selectedImages.length >= 5}
+                                />
+                                <ImageIcon className="w-4 h-4" />
+                                <span>{selectedImages.length}/5 images</span>
+                            </label>
+
+                            {/* Loading indicator during upload */}
+                            {submitting && selectedImages.length > 0 && (
+                                <div className="text-xs text-gray-500 flex items-center gap-1">
+                                    <div className="animate-spin h-3 w-3 border-2 rounded-full" style={{ borderColor: '#D4AF37', borderTopColor: 'transparent' }} />
+                                    Uploading {selectedImages.length} image{selectedImages.length > 1 ? 's' : ''}...
+                                </div>
+                            )}
+                        </div>
                         <button
                             onClick={handleSubmitComment}
                             disabled={!newComment.trim() || submitting}
@@ -293,9 +417,14 @@ export const CommentsModal = ({ productId, productTitle, isOpen, onClose, onComm
                                                     </p>
                                                 </div>
                                             </div>
-                                            <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">
+                                            <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
                                                 {comment.comment_text}
                                             </p>
+
+                                            {/* Display Review Images */}
+                                            {comment.image_urls && comment.image_urls.length > 0 && (
+                                                <ImageGallery images={comment.image_urls} className="mt-3" />
+                                            )}
                                         </div>
                                         {currentUserId === comment.user.user_id && (
                                             <button

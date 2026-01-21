@@ -18,7 +18,7 @@ export interface CloudinaryMetadata {
   auraId?: string;
   tryOnId?: string;
   dominantColors?: string[];
-  imageType?: 'try-on' | 'angle' | 'avatar' | 'product';
+  imageType?: 'try-on' | 'angle' | 'avatar' | 'product' | 'review';
   angle?: string; // front, left, right, back, etc.
   processingTime?: number;
   [key: string]: any;

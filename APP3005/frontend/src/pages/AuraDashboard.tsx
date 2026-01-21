@@ -11,6 +11,7 @@ interface BodyAttributes {
   skinTone?: string;
   gender?: string;
   bodyShape?: string;
+  bodySize?: string;
   ageRange?: string;
   hairStyle?: string;
 }
@@ -53,6 +54,7 @@ const AuraDashboard = () => {
       if (attributes.skinTone) formData.append('skinTone', attributes.skinTone);
       if (attributes.gender) formData.append('gender', attributes.gender);
       if (attributes.bodyShape) formData.append('bodyShape', attributes.bodyShape);
+      if (attributes.bodySize) formData.append('bodySize', attributes.bodySize);
       if (attributes.ageRange) formData.append('ageRange', attributes.ageRange);
       if (attributes.hairStyle) formData.append('hairStyle', attributes.hairStyle);
 

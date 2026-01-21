@@ -39,6 +39,7 @@ lerna-debug.log*
 .env.local
 .env.example
 .env.redis.example
+.env.docker.example
 
 # Build logs and test files
 build-log.txt
