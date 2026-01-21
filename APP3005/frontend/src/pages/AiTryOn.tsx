@@ -370,7 +370,10 @@ const AiTryOn = () => {
       {/* Login Popup */}
       <AuthPopup
         isOpen={showLoginPopup}
-        onClose={() => setShowLoginPopup(false)}
+        onClose={() => {
+          setShowLoginPopup(false);
+          navigate('/');
+        }}
         type="login"
         onAction={() => navigate('/user-login')}
       />
