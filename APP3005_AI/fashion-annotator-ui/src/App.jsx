@@ -1114,7 +1114,7 @@ export default function App() {
                   type="email"
                   value={emailInput}
                   onChange={(event) => setEmailInput(event.target.value)}
-                  placeholder="abc@email.com"
+                  placeholder="your@email.com"
                   autoComplete="email"
                   disabled={isAuthorized || isAuthorizing}
                 />
