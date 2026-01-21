@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/context/AuthContext';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { AuraDisplayCard } from '@/components/ai-tryon/AuraDisplayCard';
-import { AuraPromptDialog } from '@/components/aura/AuraPromptDialog';
+import { AuthPopup } from '@/components/AuthPopup';
 import { getAura, getAIRecommendations, type RecommendationRequest, type RecommendationsResponse, type RecommendationItem } from '@/lib/api';
 import { Sparkles, Heart, Star, Wand2, AlertCircle, Loader2 } from 'lucide-react';
 
@@ -41,9 +42,11 @@ const occasions = [
 
 const LetAIDecidePage = () => {
     const navigate = useNavigate();
+    const { user, loading: authLoading } = useAuth();
     const [aura, setAura] = useState<AuraData | null>(null);
     const [loadingAura, setLoadingAura] = useState(true);
-    const [showAuraPrompt, setShowAuraPrompt] = useState(false);
+    const [showLoginPopup, setShowLoginPopup] = useState(false);
+    const [showAuraPopup, setShowAuraPopup] = useState(false);
     const [selectedOccasion, setSelectedOccasion] = useState<string | null>(null);
     const [loadingRecommendations, setLoadingRecommendations] = useState(false);
     const [recommendations, setRecommendations] = useState<RecommendationsResponse | null>(null);
@@ -51,8 +54,20 @@ const LetAIDecidePage = () => {
     const [currentQuote] = useState(() => inspirationalQuotes[Math.floor(Math.random() * inspirationalQuotes.length)]);
 
     useEffect(() => {
+        // Wait for auth to load
+        if (authLoading) return;
+
+        // Check if user is logged in
+        if (!user) {
+            console.log('❌ User not logged in, showing popup');
+            setShowLoginPopup(true);
+            setLoadingAura(false);
+            return;
+        }
+
+        // User is logged in, check aura
         checkAuraStatus();
-    }, []);
+    }, [authLoading, user]);
 
     const checkAuraStatus = async () => {
         try {
@@ -61,25 +76,17 @@ const LetAIDecidePage = () => {
             setAura(auraData);
         } catch (error: any) {
             console.error('Error fetching Aura:', error);
-            setShowAuraPrompt(true);
+            setShowAuraPopup(true);
         } finally {
             setLoadingAura(false);
         }
     };
 
-    const handleAuraAccept = () => {
-        setShowAuraPrompt(false);
-        navigate('/aura-dashboard');
-    };
 
-    const handleAuraDecline = () => {
-        setShowAuraPrompt(false);
-        navigate('/collection');
-    };
 
     const handleGetRecommendations = async (occasion: string) => {
         if (!aura) {
-            setShowAuraPrompt(true);
+            setShowAuraPopup(true);
             return;
         }
 
@@ -340,10 +347,20 @@ const LetAIDecidePage = () => {
 
             <Footer />
 
-            <AuraPromptDialog
-                isOpen={showAuraPrompt}
-                onAccept={handleAuraAccept}
-                onDecline={handleAuraDecline}
+            {/* Login Popup */}
+            <AuthPopup
+                isOpen={showLoginPopup}
+                onClose={() => setShowLoginPopup(false)}
+                type="login"
+                onAction={() => navigate('/user-login')}
+            />
+
+            {/* Aura Popup */}
+            <AuthPopup
+                isOpen={showAuraPopup}
+                onClose={() => navigate('/collection')}
+                type="aura"
+                onAction={() => navigate('/aura-dashboard')}
             />
         </div>
     );
