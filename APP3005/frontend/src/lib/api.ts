@@ -783,6 +783,8 @@ export async function getAIRecommendations(data: RecommendationRequest): Promise
     throw new Error('Please login to get AI recommendations');
   }
 
+  console.log('🤖 Sending AI Recommendation Request:', JSON.stringify(data, null, 2));
+
   const res = await fetch(`${BASE_URL}/api/recommendations/ai-decide`, {
     method: 'POST',
     headers: {
