@@ -152,7 +152,7 @@ class RecommendBase64Request(BaseModel):
     id_field: str = "cloth_id"
     apply_priority_filter: bool = True
     apply_priority_weight: bool = True
-    use_precomputed_embeddings: bool = False
+    use_precomputed_embeddings: bool = True
     precomputed_embeddings_path: str = "artifacts/collection_embeddings.npz"
 
 
@@ -257,6 +257,13 @@ def _env_float(name: str, default: float) -> float:
         return float(raw)
     except ValueError:
         return default
+
+
+def _env_flag(name: str, default: bool = False) -> bool:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    return raw.strip().lower() in {"1", "true", "yes", "y"}
 
 
 def _priority_weight(priority: int) -> float:
@@ -382,6 +389,7 @@ def _build_item_payload(row: pd.Series) -> Dict[str, object]:
     return payload
 
 
+@lru_cache(maxsize=4)
 def _load_collection(path: Path) -> List[Dict]:
     resolved = _resolve_path(path)
     if not resolved.exists():
@@ -430,6 +438,33 @@ def _load_clip(clip_model_name: str, clip_pretrained: str, device: str):
     model = model.to(device)
     model.eval()
     return model, preprocess
+
+
+@lru_cache(maxsize=2)
+def _load_text_encoder(model_name: str, device: str, max_length: int):
+    model = fusion_mlp.SentenceTransformer(model_name, device=device)
+    if max_length:
+        model.max_seq_length = max_length
+    return model
+
+
+def _embed_texts_cached(
+    texts: List[str],
+    model_name: str,
+    device: str,
+    batch_size: int,
+    max_length: int,
+) -> Dict[str, np.ndarray]:
+    model = _load_text_encoder(model_name, device, max_length)
+    unique_texts = sorted(set(texts))
+    vecs = model.encode(
+        unique_texts,
+        batch_size=batch_size,
+        convert_to_numpy=True,
+        normalize_embeddings=True,
+        show_progress_bar=False,
+    )
+    return {text: vec.astype("float32") for text, vec in zip(unique_texts, vecs)}
 
 
 def _score_cuts(total: int) -> List[int]:
@@ -717,7 +752,7 @@ def _run_recommendation(
                 warnings.append("Precomputed embeddings not used; falling back to runtime embedding.")
 
         if text_feats is None:
-            text_embs = fusion_mlp.embed_texts(
+            text_embs = _embed_texts_cached(
                 texts=texts,
                 model_name=config.get("text_model", "all-MiniLM-L6-v2"),
                 device=device,
@@ -838,7 +873,7 @@ def recommend(
     id_field: str = Form("cloth_id"),
     apply_priority_filter: bool = Form(True),
     apply_priority_weight: bool = Form(True),
-    use_precomputed_embeddings: bool = Form(False),
+    use_precomputed_embeddings: bool = Form(True),
     precomputed_embeddings_path: str = Form("artifacts/collection_embeddings.npz"),
 ):
     image_bytes = image.file.read()
@@ -920,7 +955,7 @@ async def ai_decide(payload: AIDecideRequest):
         id_field="cloth_id",
         apply_priority_filter=True,
         apply_priority_weight=True,
-        use_precomputed_embeddings=False,
+        use_precomputed_embeddings=_env_flag("RECOMMENDATION_USE_PRECOMPUTED_EMBEDDINGS", True),
         precomputed_embeddings_path="artifacts/collection_embeddings.npz",
         image_base_url=None,
     )
@@ -966,7 +1001,7 @@ async def ai_decide_upload(
         id_field="cloth_id",
         apply_priority_filter=True,
         apply_priority_weight=True,
-        use_precomputed_embeddings=False,
+        use_precomputed_embeddings=_env_flag("RECOMMENDATION_USE_PRECOMPUTED_EMBEDDINGS", True),
         precomputed_embeddings_path="artifacts/collection_embeddings.npz",
         image_base_url=None,
     )
