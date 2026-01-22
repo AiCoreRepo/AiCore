@@ -170,6 +170,8 @@ const EMAIL_SHEET_REGISTRY = {
     "https://docs.google.com/spreadsheets/d/1RhkVlosO1BfqVvIa8kJzL-7eZ4BsJuMFhbmY9Cy-GdM/edit?gid=1984328199#gid=1984328199",
   [normalizeEmail("pragya@aivestire.com")]:
     "https://docs.google.com/spreadsheets/d/1RhkVlosO1BfqVvIa8kJzL-7eZ4BsJuMFhbmY9Cy-GdM/edit?gid=153983295#gid=153983295",
+  [normalizeEmail("tanvi@aivestire.com")]:
+    "https://docs.google.com/spreadsheets/d/1RhkVlosO1BfqVvIa8kJzL-7eZ4BsJuMFhbmY9Cy-GdM/edit?gid=1518272481#gid=1518272481",
 };
 
 function resolveSheetUrl(email) {

@@ -1,3 +1,4 @@
+import io
 import json
 import math
 from pathlib import Path
@@ -58,6 +59,10 @@ def _normalize_occasion_value(value: str) -> str:
 
 def _normalize_skin_tone_value(value: str) -> str:
     return value.strip().lower()
+
+
+def _is_url(value: str) -> bool:
+    return value.startswith(("http://", "https://"))
 
 
 def _priority_weight(priority: int) -> float:
@@ -295,7 +300,7 @@ def render_streamlit_app():
 
 **Text + image inputs**
 - description/text field: the item description used to build the text embedding for each item.
-- image_path (training) / image (collection): local file path to the item image. Relative paths are OK.
+- image_url or image_path (training) / image or image_url (collection): local path or URL to the item image.
 
 **Important**
 - Categories must match training data. If you pick values not seen in training, the app will warn.
@@ -304,19 +309,19 @@ def render_streamlit_app():
 
     st.header("Collections (train / test)")
     st.write(
-        "Quickly inspect your prepared collection JSON files. Defaults point to the latest "
-        "`collection2_train.json` and `collection2_test.json` you generated."
+        "Quickly inspect your prepared collection JSON/CSV files with grouped counts only. "
+        "Defaults point to `main_train_data.csv` for both train/test."
     )
 
     col_paths_a, col_paths_b = st.columns(2)
     train_collection_path = Path(
         col_paths_a.text_input(
-            "Train collection JSON", "collection2_train.json", key="collection_train_json"
+            "Train collection JSON/CSV", "main_train_data.csv", key="collection_train_json"
         )
     )
     test_collection_path = Path(
         col_paths_b.text_input(
-            "Test collection JSON", "collection2_test.json", key="collection_test_json"
+            "Test collection JSON/CSV", "main_train_data.csv", key="collection_test_json"
         )
     )
 
@@ -349,31 +354,27 @@ def render_streamlit_app():
                 st.warning(f"File not found: {path}")
                 return
             try:
-                data = json.loads(resolved.read_text(encoding="utf-8"))
+                data = None
+                if resolved.suffix.lower() == ".csv":
+                    df_raw = pd.read_csv(resolved)
+                    fusion_mlp, fusion_mlp_error = _load_fusion_mlp_module()
+                    if not fusion_mlp_error:
+                        try:
+                            data = fusion_mlp.collection_records_from_main_df(df_raw)
+                        except Exception as exc:
+                            st.warning(str(exc))
+                    if data is None:
+                        data = df_raw.to_dict(orient="records")
+                else:
+                    data = json.loads(resolved.read_text(encoding="utf-8"))
+                    if isinstance(data, dict):
+                        data = data.get("data") or data.get("records") or data
                 if not isinstance(data, list):
                     st.error("Collection must be a list of objects.")
                     return
                 st.caption(f"{len(data)} items loaded from {resolved}")
                 preview_rows = min(10, len(data))
                 df = pd.DataFrame(data)
-                cols = [
-                    "cloth_id",
-                    "cloth_type",
-                    "occasion",
-                    "fit",
-                    "fabric",
-                    "color_family",
-                    "style",
-                    "sizes",
-                    "skin_tone",
-                    "body_shape",
-                    "age_range",
-                    "image",
-                    "prompt",
-                ]
-                show_cols = [c for c in cols if c in df.columns]
-                st.dataframe(df[show_cols].head(preview_rows), use_container_width=True)
-
                 summary_fields = [field for field in CATEGORY_FIELDS if field in df.columns]
                 if summary_fields:
                     default_fields = []
@@ -414,30 +415,6 @@ def render_streamlit_app():
                 else:
                     st.info("No category fields found to summarize.")
 
-                if "image" in df.columns:
-                    st.write("Image previews (first 6 with existing files):")
-                    img_cols = st.columns(3)
-                    shown = 0
-                    for _, row in df.head(20).iterrows():
-                        img_path_raw = str(row.get("image", "")).strip()
-                        if not img_path_raw:
-                            continue
-                        img_path = Path(img_path_raw)
-                        if not img_path.is_absolute():
-                            candidate = resolved.parent / img_path
-                            if not candidate.exists():
-                                candidate = BASE_DIR / img_path
-                            if candidate.exists():
-                                img_path = candidate
-                        if img_path.exists():
-                            img_cols[shown % 3].image(
-                                str(img_path),
-                                caption=f"{row.get('cloth_id', '')} • {row.get('cloth_type', '')}",
-                                width=220,
-                            )
-                            shown += 1
-                        if shown >= 6:
-                            break
             except Exception as exc:
                 st.error(str(exc))
 
@@ -446,8 +423,8 @@ def render_streamlit_app():
 
     st.info(
         "Training/testing workflow: use the controls below to train the Fusion MLP on your "
-        "collection JSON, then evaluate or recommend using the trained checkpoint. You can also "
-        "swap in your collection JSON via the inputs in the recommender section."
+        "collection JSON/CSV, then evaluate or recommend using the trained checkpoint. You can "
+        "also swap in your collection JSON/CSV via the inputs in the recommender section."
     )
 
     fusion_mlp, fusion_mlp_error = _load_fusion_mlp_module()
@@ -625,13 +602,15 @@ def render_streamlit_app():
     else:
         fusion_data_path = Path(
             st.text_input(
-                "Training data JSON path (fusion)",
-                "collection2_train.json",
+                "Training data CSV/JSON path (fusion)",
+                "main_train_data.csv",
                 key="fusion_train_path",
                 help=(
-                    "CSV or JSON path. CSV must include age, size, body_shape, skin_tone, "
-                    "occasion, cloth_description (or clothing_description), image_path, score "
-                    "(0-1). JSON collections are expanded into training rows automatically."
+                    "CSV or JSON path. CSV can be the fusion training format (age, size, "
+                    "body_shape, skin_tone, occasion, cloth_description or "
+                    "clothing_description, image_path (local path or URL), score) or "
+                    "main_train_data.csv format. "
+                    "JSON collections are expanded into training rows automatically."
                 ),
             )
         )
@@ -683,7 +662,10 @@ def render_streamlit_app():
                         show_cols = [
                             col
                             for col in [
+                                "image_url",
                                 "image_path",
+                                "Image",
+                                "image",
                                 "age",
                                 "size",
                                 "body_shape",
@@ -696,21 +678,32 @@ def render_streamlit_app():
                         if show_cols:
                             st.dataframe(preview[show_cols], use_container_width=True)
 
-                        if "image_path" in preview.columns:
+                        image_col = next(
+                            (
+                                col
+                                for col in ["image_url", "image_path", "Image", "image"]
+                                if col in preview.columns
+                            ),
+                            None,
+                        )
+                        if image_col:
                             cols = st.columns(5)
                             for idx, row in preview.iterrows():
-                                raw_path = str(row.get("image_path", "")).strip()
+                                raw_path = str(row.get(image_col, "")).strip()
                                 if not raw_path:
-                                    cols[idx % 5].warning("Missing image_path")
+                                    cols[idx % 5].warning(f"Missing {image_col}")
+                                    continue
+                                caption = f"row {idx + 1}"
+                                if "occasion" in preview.columns:
+                                    caption = f"{caption} • {row.get('occasion', '')}"
+                                if _is_url(raw_path):
+                                    cols[idx % 5].image(raw_path, caption=caption, width=140)
                                     continue
                                 img_path = Path(raw_path)
                                 if not img_path.is_absolute():
                                     candidate = fusion_data_path.parent / img_path
                                     if candidate.exists():
                                         img_path = candidate
-                                caption = f"row {idx + 1}"
-                                if "occasion" in preview.columns:
-                                    caption = f"{caption} • {row.get('occasion', '')}"
                                 if img_path.exists():
                                     cols[idx % 5].image(
                                         str(img_path), caption=caption, width=140
@@ -757,7 +750,12 @@ def render_streamlit_app():
                             None,
                         )
                         image_key = next(
-                            (key for key in ["image_path", "image"] if key in sample_keys), None
+                            (
+                                key
+                                for key in ["image_url", "image_path", "image", "Image"]
+                                if key in sample_keys
+                            ),
+                            None,
                         )
                         if not desc_key and not image_key:
                             st.info("No image/text fields found for preview.")
@@ -769,15 +767,18 @@ def render_streamlit_app():
                                 text_value = str(item.get(desc_key, "")).strip() if desc_key else ""
 
                                 if img_path_raw:
-                                    img_path = Path(img_path_raw)
-                                    if not img_path.is_absolute():
-                                        candidate = base_dir / img_path
-                                        if candidate.exists():
-                                            img_path = candidate
-                                    if img_path.exists():
-                                        cols[0].image(str(img_path), width=140)
+                                    if _is_url(img_path_raw):
+                                        cols[0].image(img_path_raw, width=140)
                                     else:
-                                        cols[0].warning(f"Missing: {img_path_raw}")
+                                        img_path = Path(img_path_raw)
+                                        if not img_path.is_absolute():
+                                            candidate = base_dir / img_path
+                                            if candidate.exists():
+                                                img_path = candidate
+                                        if img_path.exists():
+                                            cols[0].image(str(img_path), width=140)
+                                        else:
+                                            cols[0].warning(f"Missing: {img_path_raw}")
                                 else:
                                     cols[0].warning("Missing image")
 
@@ -818,6 +819,22 @@ def render_streamlit_app():
             key="fusion_val_size",
             help="Fraction of rows held out for validation during training.",
         )
+        if fusion_data_path.exists():
+            try:
+                split_df = fusion_mlp.load_data(fusion_data_path)
+                total_rows = len(split_df)
+                val_count = int(math.ceil(total_rows * float(fusion_val_size)))
+                val_count = max(1, min(val_count, total_rows - 1))
+                train_count = total_rows - val_count
+                st.caption(
+                    "Split preview (after expansion): "
+                    f"{train_count} train / {val_count} validation "
+                    f"(total {total_rows}, val={float(fusion_val_size):.2f})."
+                )
+            except Exception as exc:
+                st.caption(f"Split preview unavailable: {exc}")
+        else:
+            st.caption("Split preview: training data file not found.")
 
         col_g, col_h, col_i = st.columns(3)
         fusion_batch_size = col_g.number_input(
@@ -910,17 +927,19 @@ def render_streamlit_app():
             )
         )
         fusion_collection_upload = st.file_uploader(
-            "Collection JSON file (fusion)", type=["json"], key="fusion_collection_upload"
+            "Collection JSON/CSV file (fusion)",
+            type=["json", "csv"],
+            key="fusion_collection_upload",
         )
         default_fusion_collection = _default_collection_path()
         fusion_collection_path = Path(
             st.text_input(
-                "Collection JSON path (fusion)",
+                "Collection JSON/CSV path (fusion)",
                 default_fusion_collection,
                 key="fusion_collection_path",
                 help=(
-                    "Path to a collection JSON list of items. Each item should include a "
-                    "description field (for text embeddings) and image path (if available)."
+                    "Path to a collection JSON list of items or main_train_data.csv. "
+                    "CSV ignores Score and maps Description/Image/@Occasion fields."
                 ),
             )
         )
@@ -959,11 +978,16 @@ def render_streamlit_app():
         def _load_fusion_collection():
             if fusion_collection_upload is not None:
                 raw = fusion_collection_upload.getvalue()
-                data = json.loads(raw.decode("utf-8"))
-                return data
+                if fusion_collection_upload.name.lower().endswith(".csv"):
+                    df = pd.read_csv(io.BytesIO(raw))
+                    return fusion_mlp.collection_records_from_main_df(df)
+                return json.loads(raw.decode("utf-8"))
             if fusion_collection_path.exists():
+                if fusion_collection_path.suffix.lower() == ".csv":
+                    df = pd.read_csv(fusion_collection_path)
+                    return fusion_mlp.collection_records_from_main_df(df)
                 return json.loads(fusion_collection_path.read_text(encoding="utf-8"))
-            raise FileNotFoundError("Provide a collection JSON file or a valid path.")
+            raise FileNotFoundError("Provide a collection JSON/CSV file or a valid path.")
 
         fusion_collection_data = None
         fusion_collection_error = None

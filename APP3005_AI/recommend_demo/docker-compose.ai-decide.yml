@@ -1,0 +1,10 @@
+services:
+  ai_decide_api:
+    build:
+      context: .
+    command: ["uvicorn", "app.fusion_api:app", "--host", "0.0.0.0", "--port", "8799"]
+    ports:
+      - "8799:8799"
+    volumes:
+      - ./artifacts:/app/artifacts:ro
+      - ./main_train_data.csv:/app/main_train_data.csv:ro
