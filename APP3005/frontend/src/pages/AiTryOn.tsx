@@ -41,6 +41,7 @@ const AiTryOn = () => {
   const [tryOnLoading, setTryOnLoading] = useState(false);
   const [showResultModal, setShowResultModal] = useState(false);
   const [resultImage, setResultImage] = useState<string | null>(null);
+  const [originalTryOnImage, setOriginalTryOnImage] = useState<string | null>(null); // Stores the FIRST try-on result for face consistency
   const [tryOnError, setTryOnError] = useState<string | null>(null);
   const [generatingAngles, setGeneratingAngles] = useState(false);
   const [showGallery, setShowGallery] = useState(false);
@@ -109,6 +110,7 @@ const AiTryOn = () => {
           ? result.resultImage
           : `data:image/jpeg;base64,${result.resultImage}`;
         setResultImage(imageData);
+        setOriginalTryOnImage(imageData); // Store original for face consistency in angle generation
         // Refresh user data to update try-on count
         fetchUser();
       } else {
@@ -130,10 +132,12 @@ const AiTryOn = () => {
       setGeneratingAngles(true);
       setTryOnError(null);
 
+      // ALWAYS use the original try-on image as reference, not the current displayed image
+      // This prevents face identity drift when generating back view (no face) and then other angles
       const result = await generateMoreAngles({
         userId: aura.user_id,
         productId: currentProductId!,
-        previousImageUrl: resultImage,
+        previousImageUrl: originalTryOnImage || resultImage, // Use original for face consistency
       });
 
       if (result.success && result.resultImage) {
