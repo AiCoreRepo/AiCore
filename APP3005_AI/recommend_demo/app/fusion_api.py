@@ -100,6 +100,12 @@ class Occasion(str, Enum):
     resort = "Resort"
 
 
+SIZE_OPTIONS = [item.value for item in Size]
+BODY_SHAPE_OPTIONS = [item.value for item in BodyShape]
+SKIN_TONE_OPTIONS = [item.value for item in SkinTone]
+OCCASION_OPTIONS = [item.value for item in Occasion]
+
+
 class AttributeMatch(BaseModel):
     matched: bool
     priority: Optional[int] = None
@@ -154,10 +160,10 @@ class AIDecideRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     image_base64: str = Field(..., min_length=1)
     age: float = Field(..., gt=0)
-    size: str = Field(..., min_length=1)
-    body_shape: str = Field(..., min_length=1)
-    skin_tone: str = Field(..., min_length=1)
-    occasion: str = Field(..., min_length=1)
+    size: str = Field(..., min_length=1, json_schema_extra={"enum": SIZE_OPTIONS})
+    body_shape: str = Field(..., min_length=1, json_schema_extra={"enum": BODY_SHAPE_OPTIONS})
+    skin_tone: str = Field(..., min_length=1, json_schema_extra={"enum": SKIN_TONE_OPTIONS})
+    occasion: str = Field(..., min_length=1, json_schema_extra={"enum": OCCASION_OPTIONS})
     top_k: int = Field(..., gt=0, le=25)
     collection_path: str = DEFAULT_COLLECTION_PATH
 
@@ -910,6 +916,52 @@ async def ai_decide(payload: AIDecideRequest):
         model_path="artifacts/fusion_mlp.pt",
         preprocess_path="artifacts/fusion_preprocess.json",
         collection_path=payload.collection_path,
+        desc_field="description",
+        id_field="cloth_id",
+        apply_priority_filter=True,
+        apply_priority_weight=True,
+        use_precomputed_embeddings=False,
+        precomputed_embeddings_path="artifacts/collection_embeddings.npz",
+        image_base_url=None,
+    )
+    elapsed = time.monotonic() - start_time
+    if elapsed < 5.0:
+        await asyncio.sleep(5.0 - elapsed)
+    return result
+
+
+@app.post("/recommendation/ai-decide-upload", response_model=RecommendResponse)
+async def ai_decide_upload(
+    image: UploadFile = File(...),
+    age: float = Form(..., gt=0),
+    size: Size = Form(...),
+    body_shape: BodyShape = Form(...),
+    skin_tone: SkinTone = Form(...),
+    occasion: Occasion = Form(...),
+    top_k: int = Form(..., gt=0, le=25),
+    collection_path: str = Form(DEFAULT_COLLECTION_PATH),
+):
+    start_time = time.monotonic()
+    image_bytes = await image.read()
+    if not image_bytes:
+        raise HTTPException(status_code=400, detail="Uploaded image is empty.")
+    try:
+        user_image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"Invalid image: {exc}") from exc
+
+    result = await run_in_threadpool(
+        _run_recommendation,
+        user_image,
+        age=float(age),
+        size=size.value,
+        body_shape=body_shape.value,
+        skin_tone=skin_tone.value,
+        occasion=occasion.value,
+        top_k=int(top_k),
+        model_path="artifacts/fusion_mlp.pt",
+        preprocess_path="artifacts/fusion_preprocess.json",
+        collection_path=collection_path,
         desc_field="description",
         id_field="cloth_id",
         apply_priority_filter=True,
