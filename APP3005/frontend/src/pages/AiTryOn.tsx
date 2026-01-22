@@ -7,7 +7,7 @@ import { AuraDisplayCard } from '@/components/ai-tryon/AuraDisplayCard';
 import { ClothingItemCard } from '@/components/ai-tryon/ClothingItemCard';
 import { TryOnResultModal } from '@/components/ai-tryon/TryOnResultModal';
 import { TryOnGalleryModal } from '@/components/ai-tryon/TryOnGalleryModal';
-import { AuraPromptDialog } from '@/components/aura/AuraPromptDialog';
+import { AuthPopup } from '@/components/AuthPopup';
 import { usePublicProducts } from '@/hooks/usePublicProducts';
 import { getAura, tryOnWithGemini, tryOnWithVertex, generateMoreAngles, getTryOnHistory, requestTryOnAccess } from '@/lib/api';
 import { Sparkles, AlertCircle, Images, Lock, Clock } from 'lucide-react';
@@ -34,7 +34,8 @@ const AiTryOn = () => {
   const { user, loading: authLoading, fetchUser } = useAuth();
   const [aura, setAura] = useState<AuraData | null>(null);
   const [loadingAura, setLoadingAura] = useState(true);
-  const [showAuraPrompt, setShowAuraPrompt] = useState(false);
+  const [showLoginPopup, setShowLoginPopup] = useState(false);
+  const [showAuraPopup, setShowAuraPopup] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<string | null>(null);
   const [currentProductId, setCurrentProductId] = useState<string | null>(null);
   const [tryOnLoading, setTryOnLoading] = useState(false);
@@ -57,8 +58,8 @@ const AiTryOn = () => {
 
     // Check if user is logged in
     if (!user) {
-      console.log('❌ User not logged in, redirecting to login');
-      navigate('/user-login');
+      console.log('❌ User not logged in, showing popup');
+      setShowLoginPopup(true);
       return;
     }
 
@@ -73,26 +74,18 @@ const AiTryOn = () => {
       setAura(auraData);
     } catch (error: any) {
       console.error('Error fetching Aura:', error);
-      // User doesn't have Aura, show prompt
-      setShowAuraPrompt(true);
+      // User doesn't have Aura, show popup
+      setShowAuraPopup(true);
     } finally {
       setLoadingAura(false);
     }
   };
 
-  const handleAuraAccept = () => {
-    setShowAuraPrompt(false);
-    navigate('/aura-dashboard');
-  };
 
-  const handleAuraDecline = () => {
-    setShowAuraPrompt(false);
-    navigate('/collection');
-  };
 
   const handleTryOn = async (productId: string, provider: 'gemini' | 'vertex' = 'vertex') => {
     if (!aura) {
-      setShowAuraPrompt(true);
+      setShowAuraPopup(true);
       return;
     }
 
@@ -374,11 +367,23 @@ const AiTryOn = () => {
 
       <Footer />
 
-      {/* Aura Prompt Dialog */}
-      <AuraPromptDialog
-        isOpen={showAuraPrompt}
-        onAccept={handleAuraAccept}
-        onDecline={handleAuraDecline}
+      {/* Login Popup */}
+      <AuthPopup
+        isOpen={showLoginPopup}
+        onClose={() => {
+          setShowLoginPopup(false);
+          navigate('/');
+        }}
+        type="login"
+        onAction={() => navigate('/user-login')}
+      />
+
+      {/* Aura Popup */}
+      <AuthPopup
+        isOpen={showAuraPopup}
+        onClose={() => navigate('/collection')}
+        type="aura"
+        onAction={() => navigate('/aura-dashboard')}
       />
 
       {/* Try-On Result Modal */}

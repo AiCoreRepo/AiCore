@@ -18,7 +18,7 @@ export class RecommendationService {
         private readonly configService: ConfigService,
     ) {
         this.fastApiUrl = this.configService.get<string>('FASTAPI_RECOMMENDATION_URL') ||
-            'http://localhost:8001/recommendation/ai-decide';
+            'http://localhost:8001/recommend-base64';
     }
 
     /**
@@ -37,8 +37,7 @@ export class RecommendationService {
     }
 
     /**
-     * Get AI-powered outfit recommendations for a user
-     * Simplified flow: NestJS fetches products, FastAPI does ML processing
+     * Get AI-powered outfit recommendations using FastAPI ML model
      */
     async getRecommendations(
         userId: string,
@@ -46,128 +45,80 @@ export class RecommendationService {
         dto: GetRecommendationsDto,
     ): Promise<RecommendationsResponseDto> {
         try {
-            this.logger.log(`Getting recommendations for user ${userId}, occasion: ${dto.occasion}`);
+            this.logger.log(`Getting ML recommendations for user ${userId}, occasion: ${dto.occasion}`);
 
-            // Fetch products from database filtered by occasion
-            this.logger.log('📦 Fetching products from database...');
-
-            // First, try to get products that match the occasion in metadata
-            const productsWithOccasion = await this.prisma.product.findMany({
-                where: {
-                    is_deleted: false,
-                    status: 'APPROVED',
-                    metadata: {
-                        path: ['occasions'],
-                        array_contains: [dto.occasion],
-                    },
-                },
-                include: {
-                    images: {
-                        where: {
-                            is_primary: true,
-                        },
-                        take: 1,
-                    },
-                },
-                take: dto.top_k || 12,
-                orderBy: {
-                    created_at: 'desc',
-                },
-            });
-
-            // If not enough products with occasion metadata, get all approved products
-            let products = productsWithOccasion;
-
-            if (products.length < (dto.top_k || 12)) {
-                this.logger.log(`⚠️  Only found ${products.length} products with occasion metadata, fetching more...`);
-
-                const additionalProducts = await this.prisma.product.findMany({
-                    where: {
-                        is_deleted: false,
-                        status: 'APPROVED',
-                        product_id: {
-                            notIn: products.map(p => p.product_id),
-                        },
-                    },
-                    include: {
-                        images: {
-                            where: {
-                                is_primary: true,
-                            },
-                            take: 1,
-                        },
-                    },
-                    take: (dto.top_k || 12) - products.length,
-                    orderBy: {
-                        created_at: 'desc',
-                    },
-                });
-
-                products = [...products, ...additionalProducts];
+            // Validate Aura has required image
+            if (!aura.image_url) {
+                throw new HttpException(
+                    'Aura image is required for AI recommendations. Please update your Aura with a photo.',
+                    HttpStatus.BAD_REQUEST,
+                );
             }
 
-            this.logger.log(`✅ Found ${products.length} products (${productsWithOccasion.length} matching occasion)`);
+            // Download and convert Aura image to base64
+            this.logger.log(`📥 Downloading Aura image: ${aura.image_url}`);
+            const imageBase64 = await this.downloadImageAsBase64(aura.image_url);
 
-            if (products.length === 0) {
-                return {
-                    perfect_for_you: [],
-                    good_for_you: [],
-                    you_can_also_try: [],
-                    count: 0,
-                    warnings: ['No products available. Please add products to the database.'],
-                };
-            }
+            // Extract age from Aura age_range (e.g., "26-35" -> 30)
+            const age = this.extractAgeFromAura(aura);
 
-            // Transform to recommendation format
-            const recommendations = products.map((product, index) => {
-                // Check if product matches the occasion
-                const metadata = product.metadata as any;
-                const matchesOccasion = metadata?.occasions?.includes(dto.occasion);
+            // Extract size from Aura (default to M if not available)
+            const size = this.extractSizeFromAura(aura) || 'M';
 
-                // Higher score for products that match the occasion
-                const baseScore = matchesOccasion ? 0.90 : 0.70;
-                const score = baseScore - (index * 0.02);
-
-                return {
-                    id: product.product_id,
-                    score: score,
-                    final_score: score,
-                    score_label: matchesOccasion
-                        ? (index < 4 ? 'perfect for you' : 'good for you')
-                        : 'you can also try',
-                    description: product.description || `${product.category} - ${product.title}`,
-                    image: product.images[0]?.url || '',
-                    title: product.title,
-                    price_cents: product.price_cents,
-                };
-            });
-
-            // Sort by score (highest first)
-            recommendations.sort((a, b) => b.final_score - a.final_score);
-
-            // Categorize into three tiers based on score
-            const perfectForYou = recommendations.filter(r => r.final_score >= 0.85);
-            const goodForYou = recommendations.filter(r => r.final_score >= 0.70 && r.final_score < 0.85);
-            const youCanTry = recommendations.filter(r => r.final_score < 0.70);
-
-            const result: RecommendationsResponseDto = {
-                perfect_for_you: perfectForYou,
-                good_for_you: goodForYou,
-                you_can_also_try: youCanTry,
-                count: recommendations.length,
-                warnings: productsWithOccasion.length === 0
-                    ? ['No products found with occasion metadata. Showing all products.']
-                    : [],
+            // Prepare request for FastAPI ML model
+            const mlRequest = {
+                image_base64: imageBase64,
+                age: age,
+                size: size,
+                body_shape: aura.body_shape || 'Rectangle',
+                skin_tone: aura.skin_tone || 'Medium',
+                occasion: dto.occasion,
+                top_k: dto.top_k || 12,
+                apply_priority_filter: true,
+                apply_priority_weight: true,
             };
 
-            this.logger.log(`✅ Returning ${recommendations.length} recommendations (${perfectForYou.length} perfect, ${goodForYou.length} good, ${youCanTry.length} try)`);
-            return result;
+            this.logger.log(`🤖 Calling ML model with: occasion=${dto.occasion}, age=${age}, body_shape=${aura.body_shape}, skin_tone=${aura.skin_tone}`);
+
+            // Call FastAPI ML recommendation service
+            const response = await firstValueFrom(
+                this.httpService.post(this.fastApiUrl, mlRequest, {
+                    timeout: 60000, // 60 second timeout for ML inference
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                }),
+            );
+
+            const mlResponse = response.data;
+
+            this.logger.log(`✅ ML model returned ${mlResponse.count} recommendations`);
+            if (mlResponse.warnings && mlResponse.warnings.length > 0) {
+                this.logger.warn(`⚠️  ML warnings: ${mlResponse.warnings.join(', ')}`);
+            }
+
+            // Return ML model response directly (it already has the correct structure)
+            return {
+                perfect_for_you: mlResponse.perfect_for_you || [],
+                good_for_you: mlResponse.good_for_you || [],
+                you_can_also_try: mlResponse.you_can_also_try || [],
+                count: mlResponse.count || 0,
+                warnings: mlResponse.warnings || [],
+            };
 
         } catch (error) {
-            this.logger.error(`Recommendation failed: ${error.message}`, error.stack);
+            this.logger.error(`ML Recommendation failed: ${error.message}`, error.stack);
+
+            // If FastAPI is not available, provide helpful error
+            if (error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT') {
+                throw new HttpException(
+                    'AI recommendation service is currently unavailable. Please try again later.',
+                    HttpStatus.SERVICE_UNAVAILABLE,
+                );
+            }
 
             throw new HttpException(
-                'Failed to get recommendations',
+                'Failed to get AI recommendations',
                 HttpStatus.INTERNAL_SERVER_ERROR,
             );
         }

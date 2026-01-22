@@ -324,6 +324,16 @@ export const Navbar = () => {
                                         </a>
                                     )
                                 )}
+                                {/* Login/Signup button for non-logged-in users */}
+                                {!isLoggedIn && (
+                                    <Link
+                                        to="/user-login"
+                                        className="px-4 py-3 text-center text-white font-medium tracking-wide rounded-2xl bg-gradient-to-r from-[#D4AF37] to-[#B8941F] border border-[#D4AF37] hover:shadow-lg hover:shadow-[#D4AF37]/30 transition-all duration-300"
+                                        onClick={() => setIsMobileMenuOpen(false)}
+                                    >
+                                        Login / Sign Up
+                                    </Link>
+                                )}
                                 {/* Only show Join as Creator button if user is NOT logged in */}
                                 {!isLoggedIn && (
                                     <Link
