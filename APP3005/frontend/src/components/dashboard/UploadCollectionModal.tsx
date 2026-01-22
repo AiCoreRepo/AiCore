@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Upload, X } from "lucide-react";
+import { Upload, X, Loader2, CheckCircle } from "lucide-react";
 import {
     Dialog,
     DialogContent,
@@ -21,6 +21,7 @@ interface UploadCollectionModalProps {
 const UploadCollectionModal = ({ open, onOpenChange, onSuccess, initialData }: UploadCollectionModalProps) => {
     const { toast } = useToast();
     const [isLoading, setIsLoading] = useState(false);
+    const [uploadProgress, setUploadProgress] = useState("");
     const [formData, setFormData] = useState({
         title: "",
         description: "",
@@ -75,6 +76,8 @@ const UploadCollectionModal = ({ open, onOpenChange, onSuccess, initialData }: U
         }
 
         setIsLoading(true);
+        setUploadProgress("Preparing product data...");
+
         try {
             const tags = formData.tags
                 ? formData.tags
@@ -94,6 +97,8 @@ const UploadCollectionModal = ({ open, onOpenChange, onSuccess, initialData }: U
                 tags: tags.length > 0 ? tags : undefined,
             };
 
+            setUploadProgress(initialData ? "Updating product..." : "Uploading product...");
+
             let response;
             if (initialData) {
                 response = await updateProduct(initialData.product_id, productData);
@@ -101,11 +106,18 @@ const UploadCollectionModal = ({ open, onOpenChange, onSuccess, initialData }: U
                 response = await createProduct(productData);
             }
 
+            setUploadProgress("Success!");
+
+            // Show success toast
             toast({
-                title: "Success",
-                description: `Product ${initialData ? "updated" : "uploaded"} successfully`,
+                title: "✅ Success!",
+                description: initialData
+                    ? "Product updated successfully. It will be reviewed by admin."
+                    : "Product uploaded successfully! Your product is now pending admin approval.",
+                duration: 5000,
             });
 
+            // Reset form
             setFormData({
                 title: "",
                 description: "",
@@ -116,16 +128,24 @@ const UploadCollectionModal = ({ open, onOpenChange, onSuccess, initialData }: U
             });
             setImages([]);
             setImageFiles([]);
-            onOpenChange(false);
-            if (onSuccess) onSuccess(response);
+
+            // Small delay to show success state
+            setTimeout(() => {
+                onOpenChange(false);
+                if (onSuccess) onSuccess(response);
+            }, 500);
+
         } catch (error: any) {
+            console.error("Upload error:", error);
             toast({
-                title: "Error",
-                description: error.message || `Failed to ${initialData ? "update" : "upload"} product`,
+                title: "❌ Upload Failed",
+                description: error.message || `Failed to ${initialData ? "update" : "upload"} product. Please try again.`,
                 variant: "destructive",
+                duration: 5000,
             });
         } finally {
             setIsLoading(false);
+            setUploadProgress("");
         }
     };
 
@@ -292,9 +312,19 @@ const UploadCollectionModal = ({ open, onOpenChange, onSuccess, initialData }: U
                                 type="submit"
                                 variant="luxury"
                                 disabled={isLoading}
-                                className="flex-1"
+                                className="flex-1 flex items-center justify-center gap-2"
                             >
-                                {isLoading ? (initialData ? "Updating..." : "Uploading...") : (initialData ? "Update Collection" : "Upload Collection")}
+                                {isLoading ? (
+                                    <>
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                        {uploadProgress || "Processing..."}
+                                    </>
+                                ) : (
+                                    <>
+                                        <Upload className="w-4 h-4" />
+                                        {initialData ? "Update Collection" : "Upload Collection"}
+                                    </>
+                                )}
                             </LuxeButton>
                         </div>
                     </form>
@@ -388,9 +418,19 @@ const UploadCollectionModal = ({ open, onOpenChange, onSuccess, initialData }: U
                                 onClick={(e) => handleSubmit(e as any)}
                                 variant="luxury"
                                 disabled={isLoading}
-                                className="flex-1"
+                                className="flex-1 flex items-center justify-center gap-2"
                             >
-                                {isLoading ? (initialData ? "Updating..." : "Uploading...") : (initialData ? "Update Collection" : "Upload Collection")}
+                                {isLoading ? (
+                                    <>
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                        {uploadProgress || "Processing..."}
+                                    </>
+                                ) : (
+                                    <>
+                                        <Upload className="w-4 h-4" />
+                                        {initialData ? "Update Collection" : "Upload Collection"}
+                                    </>
+                                )}
                             </LuxeButton>
                         </div>
                     </div>

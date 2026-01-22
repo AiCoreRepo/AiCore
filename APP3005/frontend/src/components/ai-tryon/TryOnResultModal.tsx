@@ -1,5 +1,6 @@
-import { X, Download, Sparkles } from 'lucide-react';
+import { X, Download, Share2, Sparkles, ShoppingBag } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { LOADING_QUOTES } from './loading-quotes';
 
 interface TryOnResultModalProps {
@@ -10,6 +11,9 @@ interface TryOnResultModalProps {
     error: string | null;
     onGenerateMoreAngles?: () => void;
     generatingAngles?: boolean;
+    userPhoto?: string | null;
+    garmentImage?: string | null;
+    garmentId?: string;
 }
 
 export function TryOnResultModal({
@@ -20,9 +24,14 @@ export function TryOnResultModal({
     error,
     onGenerateMoreAngles,
     generatingAngles = false,
+    userPhoto,
+    garmentImage,
+    garmentId,
 }: TryOnResultModalProps) {
     const [currentQuoteIndex, setCurrentQuoteIndex] = useState(0);
     const [imageRevealed, setImageRevealed] = useState(false);
+    const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+    const navigate = useNavigate();
 
     // Rotate quotes every 3 seconds during loading
     useEffect(() => {
@@ -38,16 +47,26 @@ export function TryOnResultModal({
     useEffect(() => {
         if (resultImage && !loading) {
             setImageRevealed(false);
-            // Small delay to ensure smooth animation
             setTimeout(() => setImageRevealed(true), 50);
         }
     }, [resultImage, loading]);
+
+    // Prevent body scroll when modal or lightbox is open
+    useEffect(() => {
+        if (isOpen || isLightboxOpen) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = 'unset';
+        }
+        return () => {
+            document.body.style.overflow = 'unset';
+        };
+    }, [isOpen, isLightboxOpen]);
 
     if (!isOpen) return null;
 
     const handleDownload = () => {
         if (!resultImage) return;
-
         const link = document.createElement('a');
         link.href = resultImage;
         link.download = `ai-tryon-${Date.now()}.jpg`;
@@ -56,35 +75,43 @@ export function TryOnResultModal({
         document.body.removeChild(link);
     };
 
+    const handleShare = () => {
+        if (navigator.share && resultImage) {
+            navigator.share({
+                title: 'My AI Try-On Result',
+                text: 'Check out my virtual try-on!',
+                url: window.location.href,
+            }).catch(() => { });
+        }
+    };
+
+    const handleShopOutfit = () => {
+        onClose();
+        if (garmentId) {
+            navigate(`/collection?item=${garmentId}`);
+        } else {
+            navigate('/collection');
+        }
+    };
+
     return (
         <div
             className="fixed inset-0 z-50 flex items-center justify-center p-4"
             style={{
-                background: 'rgba(0, 0, 0, 0.7)',
+                background: 'rgba(0, 0, 0, 0.5)',
                 backdropFilter: 'blur(8px)',
             }}
             onClick={onClose}
         >
             <style>{`
-                @keyframes slideFromSky {
-                    0% {
-                        transform: translateY(-100vh) scale(0.8);
-                        opacity: 0;
-                    }
-                    100% {
-                        transform: translateY(0) scale(1);
-                        opacity: 1;
-                    }
-                }
-
                 @keyframes fadeIn {
                     from {
                         opacity: 0;
-                        transform: translateY(10px);
+                        transform: scale(0.95);
                     }
                     to {
                         opacity: 1;
-                        transform: translateY(0);
+                        transform: scale(1);
                     }
                 }
 
@@ -106,198 +133,325 @@ export function TryOnResultModal({
                     }
                 }
 
-                @keyframes glow {
-                    0%, 100% {
-                        box-shadow: 0 0 20px rgba(201, 165, 92, 0.5);
-                    }
-                    50% {
-                        box-shadow: 0 0 40px rgba(201, 165, 92, 0.8);
-                    }
+                .modal-appear {
+                    animation: fadeIn 0.3s ease-out;
                 }
 
-                .image-reveal {
-                    animation: slideFromSky 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+                .action-button {
+                    transition: all 0.2s ease;
                 }
 
-                .quote-fade {
-                    animation: fadeIn 0.5s ease-out;
+                .action-button:hover {
+                    transform: translateY(-2px);
+                    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
                 }
 
-                .spinner-glow {
-                    animation: spin 1s linear infinite, glow 2s ease-in-out infinite;
+                .action-button:active {
+                    transform: translateY(0);
                 }
             `}</style>
 
             <div
-                className="relative w-full max-w-6xl max-h-[95vh] overflow-hidden"
+                className="relative w-full max-w-[95vw] h-[90vh] overflow-hidden flex flex-col modal-appear"
                 style={{
-                    background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(250, 247, 240, 0.95) 100%)',
-                    borderRadius: '24px',
+                    background: '#f5f5f0',
+                    borderRadius: '20px',
+                    border: '3px solid #c9a55c',
                     boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
                 }}
                 onClick={(e) => e.stopPropagation()}
             >
                 {/* Header */}
                 <div
-                    className="flex items-center justify-between p-6 border-b"
-                    style={{ borderColor: 'rgba(201, 165, 92, 0.2)' }}
+                    className="flex items-center justify-between px-8 py-4 border-b"
+                    style={{
+                        background: '#ffffff',
+                        borderColor: '#e0e0d8',
+                    }}
                 >
-                    <div className="flex items-center gap-3">
-                        <Sparkles className="w-6 h-6 text-gold" />
-                        <h2 className="text-2xl font-bold text-charcoal">
-                            AI Try-On Result
-                        </h2>
+                    <div>
+                        <h1 className="text-2xl font-serif" style={{ color: '#2c2c2c' }}>
+                            AiVestire - Virtual Fitting Room
+                        </h1>
+                        <div className="flex items-center gap-2 mt-1 text-sm" style={{ color: '#666' }}>
+                            <span>STEP 1: Your Photo</span>
+                            <span>›</span>
+                            <span>STEP 2: Select Item</span>
+                            <span>›</span>
+                            <span className="font-semibold">STEP 3: Final Look</span>
+                        </div>
                     </div>
                     <button
                         onClick={onClose}
-                        className="p-2 rounded-full transition-all duration-300 hover:bg-charcoal/5"
+                        className="flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 hover:bg-black/5"
+                        style={{
+                            color: '#2c2c2c',
+                            border: '1px solid #e0e0d8',
+                        }}
                     >
-                        <X className="w-6 h-6 text-charcoal/60" />
+                        <span className="text-sm font-medium">CLOSE</span>
+                        <X className="w-4 h-4" />
                     </button>
                 </div>
 
-                {/* Content */}
-                <div className="p-6 overflow-y-auto" style={{ maxHeight: 'calc(95vh - 140px)' }}>
-                    {/* Loading State with Dynamic Quotes */}
-                    {loading && (
-                        <div
-                            className="flex flex-col items-center justify-center py-20"
-                            style={{
-                                background: 'linear-gradient(135deg, rgba(201, 165, 92, 0.05) 0%, rgba(139, 92, 246, 0.05) 100%)',
-                                borderRadius: '16px',
-                                minHeight: '400px',
-                            }}
-                        >
-                            {/* Elegant Spinner with Glow */}
-                            <div className="relative mb-8">
+                {/* Main Content */}
+                <div className="flex-1 flex gap-4 p-6 overflow-hidden">
+                    {/* Left Sidebar - Process & Inputs */}
+                    <div
+                        className="w-64 flex-shrink-0 rounded-2xl p-6 flex flex-col items-center"
+                        style={{
+                            background: 'linear-gradient(135deg, #d4b896 0%, #c9a55c 100%)',
+                            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+                        }}
+                    >
+                        <h3 className="text-lg font-serif mb-6" style={{ color: '#2c2c2c', fontFamily: 'Georgia, serif' }}>
+                            Process & Inputs
+                        </h3>
+
+                        <div className="flex items-center gap-3 mb-8">
+                            {/* User Photo */}
+                            <div className="flex flex-col items-center">
                                 <div
-                                    className="spinner-glow rounded-full h-20 w-20 border-4"
+                                    className="w-[100px] h-[100px] rounded-full overflow-hidden mb-2 transition-transform duration-300 hover:scale-105"
                                     style={{
-                                        borderColor: 'rgba(201, 165, 92, 0.3)',
-                                        borderTopColor: '#C9A55C',
+                                        background: '#ffffff',
+                                        border: 'none',
+                                        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.12)',
+                                    }}
+                                >
+                                    {userPhoto ? (
+                                        <img src={userPhoto} alt="Your Upload" className="w-full h-full object-cover" />
+                                    ) : (
+                                        <img
+                                            src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&h=200&fit=crop&crop=faces"
+                                            alt="Sample User"
+                                            className="w-full h-full object-cover"
+                                        />
+                                    )}
+                                </div>
+                                <span className="text-xs text-center font-semibold" style={{ color: '#2c2c2c', letterSpacing: '0.5px' }}>
+                                    YOUR<br />UPLOAD
+                                </span>
+                            </div>
+
+                            {/* X Icon */}
+                            <div className="flex items-center justify-center" style={{ width: '28px' }}>
+                                <X className="w-7 h-7" style={{ color: '#2c2c2c', strokeWidth: 2.5 }} />
+                            </div>
+
+                            {/* Garment */}
+                            <div className="flex flex-col items-center">
+                                <div
+                                    className="w-[100px] h-[100px] rounded-full overflow-hidden mb-2 flex items-center justify-center transition-transform duration-300 hover:scale-105"
+                                    style={{
+                                        background: '#ffffff',
+                                        border: 'none',
+                                        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.12)',
+                                    }}
+                                >
+                                    {garmentImage ? (
+                                        <img src={garmentImage} alt="Selected Garment" className="w-full h-full object-contain p-3" />
+                                    ) : (
+                                        <img
+                                            src="https://images.unsplash.com/photo-1434389677669-e08b4cac3105?w=200&h=200&fit=crop"
+                                            alt="Sample Garment"
+                                            className="w-full h-full object-contain p-2"
+                                        />
+                                    )}
+                                </div>
+                                <span className="text-xs text-center font-semibold" style={{ color: '#2c2c2c', letterSpacing: '0.5px' }}>
+                                    SELECTED<br />GARMENT
+                                </span>
+                            </div>
+                        </div>
+
+                        {/* Status - Better positioned */}
+                        <div className="mt-auto pt-4 border-t" style={{ borderColor: 'rgba(0, 0, 0, 0.1)', width: '100%' }}>
+                            <div className="flex items-center justify-center gap-2">
+                                <Sparkles className="w-5 h-5" style={{ color: '#2c2c2c' }} />
+                                <div className="text-center">
+                                    <span className="text-sm font-semibold block" style={{ color: '#2c2c2c', letterSpacing: '0.5px' }}>
+                                        AI PROCESSING
+                                    </span>
+                                    <span className="text-sm font-semibold" style={{ color: '#2c2c2c', letterSpacing: '0.5px' }}>
+                                        COMPLETED
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Center - Result Image */}
+                    <div className="flex-1 flex items-center justify-center rounded-2xl overflow-hidden" style={{
+                        background: 'linear-gradient(135deg, #c4b5a0 0%, #b8a890 50%, #c4b5a0 100%)',
+                        boxShadow: 'inset 0 2px 8px rgba(0, 0, 0, 0.1)'
+                    }}>
+                        {loading && (
+                            <div className="flex flex-col items-center justify-center">
+                                <div
+                                    className="rounded-full h-16 w-16 border-4 mb-4"
+                                    style={{
+                                        borderColor: 'rgba(201, 165, 92, 0.2)',
+                                        borderTopColor: '#c9a55c',
+                                        animation: 'spin 1s linear infinite',
                                     }}
                                 />
-                                <Sparkles
-                                    className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-8 h-8 text-gold"
-                                    style={{ animation: 'pulse 2s ease-in-out infinite' }}
-                                />
-                            </div>
-
-                            {/* Dynamic Quote */}
-                            <div className="quote-fade mb-4" key={currentQuoteIndex}>
-                                <h3 className="text-2xl font-bold text-charcoal text-center">
+                                <p className="text-lg font-medium" style={{ color: '#666' }}>
                                     {LOADING_QUOTES[currentQuoteIndex]}
-                                </h3>
+                                </p>
+                                <p className="text-sm mt-2" style={{ color: '#999' }}>
+                                    Creating your perfect look...
+                                </p>
                             </div>
+                        )}
 
-                            <p className="text-charcoal/60 text-center max-w-md">
-                                Hang tight! Our AI is working its magic ✨
-                            </p>
-
-                            {/* Progress Dots */}
-                            <div className="flex gap-2 mt-6">
-                                {[0, 1, 2].map((i) => (
-                                    <div
-                                        key={i}
-                                        className="w-2 h-2 rounded-full bg-gold"
-                                        style={{
-                                            animation: `pulse 1.5s ease-in-out infinite`,
-                                            animationDelay: `${i * 0.2}s`,
-                                        }}
-                                    />
-                                ))}
+                        {error && !loading && (
+                            <div className="text-center">
+                                <div
+                                    className="w-16 h-16 rounded-full flex items-center justify-center mb-4 mx-auto"
+                                    style={{
+                                        background: 'rgba(239, 68, 68, 0.1)',
+                                    }}
+                                >
+                                    <X className="w-8 h-8 text-red-500" />
+                                </div>
+                                <p className="text-lg mb-4 font-medium" style={{ color: '#d32f2f' }}>{error}</p>
+                                <button
+                                    onClick={onClose}
+                                    className="px-6 py-2 rounded-lg font-medium"
+                                    style={{
+                                        background: '#2c2c2c',
+                                        color: 'white',
+                                    }}
+                                >
+                                    Close
+                                </button>
                             </div>
-                        </div>
-                    )}
+                        )}
 
-                    {/* Error State */}
-                    {error && !loading && (
-                        <div className="flex flex-col items-center justify-center py-20">
+                        {resultImage && !loading && !error && (
                             <div
-                                className="w-16 h-16 rounded-full flex items-center justify-center mb-6"
-                                style={{
-                                    background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(239, 68, 68, 0.15) 100%)',
-                                }}
-                            >
-                                <X className="w-8 h-8 text-red-500" />
-                            </div>
-                            <h3 className="text-xl font-semibold text-charcoal mb-2">
-                                Oops! Something went wrong
-                            </h3>
-                            <p className="text-charcoal/60 text-center max-w-md mb-6">
-                                {error}
-                            </p>
-                            <button
-                                onClick={onClose}
-                                className="px-6 py-3 rounded-xl font-medium text-sm transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
-                                style={{
-                                    background: 'linear-gradient(135deg, rgba(201, 165, 92, 0.1) 0%, rgba(201, 165, 92, 0.15) 100%)',
-                                    border: '2px solid rgba(201, 165, 92, 0.3)',
-                                    color: '#C9A55C',
-                                }}
-                            >
-                                Try Again
-                            </button>
-                        </div>
-                    )}
-
-                    {/* Success State with Image Reveal Animation */}
-                    {resultImage && !loading && !error && (
-                        <div className="space-y-6">
-                            {/* Image with Reveal Animation */}
-                            <div
-                                className={`relative rounded-2xl overflow-hidden ${imageRevealed ? 'image-reveal' : ''}`}
-                                style={{
-                                    background: 'linear-gradient(135deg, rgba(201, 165, 92, 0.05) 0%, rgba(139, 92, 246, 0.05) 100%)',
-                                }}
+                                className="w-full h-full flex items-center justify-center p-4 cursor-pointer group"
+                                onClick={() => setIsLightboxOpen(true)}
+                                title="Click to view full size"
                             >
                                 <img
                                     src={resultImage}
                                     alt="Try-On Result"
-                                    className="w-full h-auto"
+                                    className={`max-w-full max-h-full object-contain rounded-xl transition-transform duration-300 group-hover:scale-[1.02] ${imageRevealed ? 'modal-appear' : ''}`}
                                     style={{
-                                        maxHeight: '600px',
-                                        objectFit: 'contain',
+                                        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)',
                                     }}
                                 />
                             </div>
+                        )}
+                    </div>
 
-                            {/* Action Buttons */}
-                            <div className="flex flex-wrap gap-4 justify-center">
-                                {/* Download Button */}
-                                <button
-                                    onClick={handleDownload}
-                                    className="flex items-center justify-center gap-2 py-3 px-6 rounded-xl font-medium text-sm transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
-                                    style={{
-                                        background: 'linear-gradient(135deg, rgba(201, 165, 92, 0.1) 0%, rgba(201, 165, 92, 0.15) 100%)',
-                                        border: '2px solid rgba(201, 165, 92, 0.3)',
-                                        color: '#C9A55C',
-                                    }}
-                                >
-                                    <Download className="w-5 h-5" />
-                                    Download Image
-                                </button>
+                    {/* Right Sidebar - Actions */}
+                    <div className="w-64 flex-shrink-0 flex flex-col gap-3">
+                        {/* Download HD Result */}
+                        <button
+                            onClick={handleDownload}
+                            disabled={!resultImage || loading}
+                            className="action-button flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                            style={{
+                                background: '#2c2c2c',
+                                color: 'white',
+                                border: 'none',
+                            }}
+                        >
+                            <Download className="w-4 h-4" />
+                            DOWNLOAD HD RESULT
+                        </button>
 
-                                {/* Generate Different Angles Button */}
-                                {onGenerateMoreAngles && (
-                                    <button
-                                        onClick={onGenerateMoreAngles}
-                                        disabled={generatingAngles}
-                                        className="flex items-center justify-center gap-2 py-3 px-6 rounded-xl font-medium text-sm transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
-                                        style={{
-                                            background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(139, 92, 246, 0.15) 100%)',
-                                            border: '2px solid rgba(139, 92, 246, 0.3)',
-                                            color: '#8B5CF6',
-                                        }}
-                                    >
-                                        <Sparkles className="w-5 h-5" />
-                                        {generatingAngles ? 'Generating...' : 'Generate Different Angles'}
-                                    </button>
-                                )}
-                            </div>
-                        </div>
-                    )}
+                        {/* Share Look */}
+                        <button
+                            onClick={handleShare}
+                            disabled={!resultImage || loading}
+                            className="action-button flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                            style={{
+                                background: 'white',
+                                color: '#2c2c2c',
+                                border: '1px solid #e0e0d8',
+                            }}
+                        >
+                            <Share2 className="w-4 h-4" />
+                            SHARE LOOK
+                        </button>
+
+                        {/* Try Another Angle */}
+                        {onGenerateMoreAngles && (
+                            <button
+                                onClick={onGenerateMoreAngles}
+                                disabled={generatingAngles || !resultImage || loading}
+                                className="action-button flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                                style={{
+                                    background: 'white',
+                                    color: '#2c2c2c',
+                                    border: '1px solid #e0e0d8',
+                                }}
+                            >
+                                <Sparkles className="w-4 h-4" />
+                                {generatingAngles ? 'GENERATING...' : 'TRY ANOTHER ANGLE'}
+                            </button>
+                        )}
+
+                        {/* Shop This Outfit */}
+                        <button
+                            onClick={handleShopOutfit}
+                            disabled={loading}
+                            className="action-button flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                            style={{
+                                background: 'white',
+                                color: '#2c2c2c',
+                                border: '1px solid #e0e0d8',
+                            }}
+                        >
+                            <ShoppingBag className="w-4 h-4" />
+                            SHOP THIS OUTFIT
+                        </button>
+                    </div>
                 </div>
+
+                {/* Lightbox - Full Screen Image View */}
+                {isLightboxOpen && resultImage && (
+                    <div
+                        className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+                        style={{
+                            background: 'rgba(0, 0, 0, 0.95)',
+                            backdropFilter: 'blur(20px)',
+                        }}
+                        onClick={() => setIsLightboxOpen(false)}
+                    >
+                        {/* Close Button */}
+                        <button
+                            onClick={() => setIsLightboxOpen(false)}
+                            className="absolute top-4 right-4 md:top-8 md:right-8 p-3 rounded-full transition-all duration-300 hover:scale-110 hover:rotate-90 z-10"
+                            style={{
+                                background: 'rgba(255, 255, 255, 0.15)',
+                                backdropFilter: 'blur(10px)',
+                                border: '1px solid rgba(255, 255, 255, 0.3)',
+                            }}
+                        >
+                            <X className="w-6 h-6 text-white" />
+                        </button>
+
+                        {/* Full-Screen Image */}
+                        <div
+                            className="relative w-full h-full flex items-center justify-center p-4"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <img
+                                src={resultImage}
+                                alt="Try-On Result - Full Size"
+                                className="max-w-[90vw] max-h-[90vh] w-auto h-auto object-contain rounded-2xl modal-appear"
+                                style={{
+                                    boxShadow: '0 30px 100px rgba(0, 0, 0, 0.6)',
+                                }}
+                            />
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );
