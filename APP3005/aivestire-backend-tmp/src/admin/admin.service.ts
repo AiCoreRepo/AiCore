@@ -2,6 +2,7 @@ import {
     Injectable,
     NotFoundException,
     BadRequestException,
+    Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ReviewProductDto } from './dto/review-product.dto';
@@ -12,15 +13,15 @@ import {
     ApprovalStatus,
 } from '@prisma/client';
 import { ADMIN_MESSAGES } from './admin.constants';
+import { parse } from 'csv-parse/sync';
 
 @Injectable()
 export class AdminService {
+    private readonly logger = new Logger(AdminService.name);
+
     constructor(private readonly prisma: PrismaService) { }
 
-    /**
-     * Get dashboard statistics for admin
-     * Uses Promise.all for parallel queries to optimize performance
-     */
+
     async getDashboardStats(): Promise<AdminStatsDto> {
         const [totalCreators, totalProducts, pendingApprovals] = await Promise.all([
             // Count users with CREATOR role
@@ -56,10 +57,7 @@ export class AdminService {
         };
     }
 
-    /**
-     * Get all products pending approval
-     * Includes creator info and primary image for display
-     */
+
     async getPendingProducts() {
         const pendingProducts = await this.prisma.product.findMany({
             where: {
@@ -87,7 +85,7 @@ export class AdminService {
                 },
             },
             orderBy: {
-                created_at: 'asc', // Oldest first (FIFO)
+                created_at: 'asc',
             },
         });
 
@@ -392,5 +390,156 @@ export class AdminService {
                         : ADMIN_MESSAGES.SUCCESS.PRODUCT_REJECTED,
             };
         });
+    }
+
+    /**
+     * Import products from CSV file
+     */
+    async importProductsFromCSV(file: Express.Multer.File) {
+        this.logger.log('📤 CSV upload started');
+
+        try {
+            // Parse CSV
+            const csvContent = file.buffer.toString('utf-8');
+            const products = parse(csvContent, {
+                columns: true,
+                skip_empty_lines: true,
+            });
+
+            this.logger.log(`📦 Found ${products.length} products in CSV`);
+
+            // Find or create creator user and profile
+            let creatorUser = await this.prisma.user.findFirst({
+                where: { email: 'collections@aivestire.com' },
+            });
+
+            if (!creatorUser) {
+                creatorUser = await this.prisma.user.create({
+                    data: {
+                        email: 'collections@aivestire.com',
+                        password_hash: 'PLACEHOLDER',
+                        role: UserRole.CREATOR,
+                    },
+                });
+                this.logger.log(`✅ Created creator user account`);
+            }
+
+            // Ensure Creator profile exists
+            let creatorProfile = await this.prisma.creator.findUnique({
+                where: { user_id: creatorUser.user_id },
+            });
+
+            if (!creatorProfile) {
+                creatorProfile = await this.prisma.creator.create({
+                    data: {
+                        user_id: creatorUser.user_id,
+                        store_name: 'AiVestire Collection',
+                        store_slug: 'aivestire-collection',
+                        verified: true,
+                    },
+                });
+                this.logger.log(`✅ Created creator profile`);
+            }
+
+            let successCount = 0;
+            let skipCount = 0;
+            let errorCount = 0;
+            const errors: Array<{ row: number; product: string; error: string }> = [];
+
+            // Import products
+            for (let i = 0; i < products.length; i++) {
+                const product: any = products[i];
+
+                try {
+                    // Check if already exists
+                    const existing = await this.prisma.product.findFirst({
+                        where: {
+                            metadata: {
+                                path: ['cloth_id'],
+                                equals: product.Image,
+                            },
+                        },
+                    });
+
+                    if (existing) {
+                        skipCount++;
+                        continue;
+                    }
+
+                    // Generate product data
+                    const title = product.Description?.substring(0, 100) ||
+                        `${product.Style || ''} ${product['Clothing Type'] || 'Outfit'}`.trim();
+                    const slug = `${product['Clothing Type']?.toLowerCase().replace(/[^a-z0-9]+/g, '-') || 'product'}-${Date.now()}-${i}`;
+                    const score = parseFloat(product.Score || '0.5');
+                    const priceCents = Math.round(2000 + (score * 3000));
+
+                    // Create product
+                    await this.prisma.product.create({
+                        data: {
+                            title: title,
+                            slug: slug,
+                            description: product.Description || '',
+                            price_cents: priceCents,
+                            inventory_count: 10,
+                            category: product['Clothing Type'] || 'Clothing',
+                            status: ProductStatus.APPROVED,
+                            is_deleted: false,
+                            creator_id: creatorProfile.creator_id,
+                            metadata: {
+                                cloth_id: product.Image,
+                                occasion: product['@Occasion'],
+                                age_group: product['@Age Group'],
+                                body_shape: product['@Recommended Body shape'],
+                                recommended_size: product['@Recommended size'],
+                                skin_tone: product['@Skin tone'],
+                                clothing_type: product['Clothing Type'],
+                                fit: product.Fit,
+                                fabric: product.Fabric,
+                                color_family: product.Color_family,
+                                style: product.Style,
+                                quality_tag: product.Quality_Tag,
+                                score: product.Score,
+                            } as any,
+                            images: {
+                                create: [
+                                    {
+                                        url: product.image_url,
+                                        is_primary: true,
+                                        order_index: 0,
+                                    },
+                                ],
+                            },
+                        },
+                    });
+
+                    successCount++;
+                } catch (error: any) {
+                    errorCount++;
+                    errors.push({
+                        row: i + 1,
+                        product: product.Image,
+                        error: error.message,
+                    });
+                }
+            }
+
+            this.logger.log(`✅ Import complete: ${successCount} success, ${skipCount} skipped, ${errorCount} errors`);
+
+            return {
+                success: true,
+                total: products.length,
+                imported: successCount,
+                skipped: skipCount,
+                errors: errorCount,
+                errorDetails: errors.slice(0, 10),
+            };
+
+        } catch (error: any) {
+            this.logger.error('❌ CSV import failed:', error);
+            return {
+                success: false,
+                error: error.message,
+            };
+        }
     }
 }

@@ -32,6 +32,7 @@ import ArtisansPage from "./app/admin-artisans/page";
 import ClientelePage from "./app/admin-clientele/page";
 import AdminSettingsPage from "./app/admin-settings/page";
 import AdminLogin from "./pages/AdminLogin";
+import AdminCSVUploadPage from "./pages/AdminCSVUploadPage";
 import { PopupProvider } from "./components/common/popups/PopupTime";
 import { SidebarProvider } from "./context/SidebarContext";
 import { ProtectedRoute } from "./components/ProtectedRoute";
@@ -114,6 +115,7 @@ const App = () => (
                 <Route path="/admin-artisans" element={<ArtisansPage />} />
                 <Route path="/admin-clientele" element={<ClientelePage />} />
                 <Route path="/admin-settings" element={<AdminSettingsPage />} />
+                <Route path="/admin-csv-upload" element={<AdminCSVUploadPage />} />
 
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />

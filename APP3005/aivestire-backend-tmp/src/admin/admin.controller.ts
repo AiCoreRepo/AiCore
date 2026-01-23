@@ -7,7 +7,11 @@ import {
     Body,
     Query,
     UseGuards,
+    Post,
+    UseInterceptors,
+    UploadedFile,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { AdminService } from './admin.service';
 import { ReviewProductDto } from './dto/review-product.dto';
 import { ToggleFeatureDto } from './dto/toggle-feature.dto';
@@ -102,5 +106,15 @@ export class AdminController {
         @CurrentUser('user_id') adminUserId: string,
     ) {
         return this.adminService.reviewProduct(productId, dto, adminUserId);
+    }
+
+    /**
+     * POST /admin/upload-csv
+     * Upload CSV file to import products
+     */
+    @Post('upload-csv')
+    @UseInterceptors(FileInterceptor('file'))
+    async uploadCSV(@UploadedFile() file: Express.Multer.File) {
+        return this.adminService.importProductsFromCSV(file);
     }
 }
