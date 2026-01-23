@@ -97,14 +97,10 @@ export class RecommendationService {
                 this.logger.warn(`⚠️  ML warnings: ${mlResponse.warnings.join(', ')}`);
             }
 
-            // Return ML model response directly (it already has the correct structure)
-            return {
-                perfect_for_you: mlResponse.perfect_for_you || [],
-                good_for_you: mlResponse.good_for_you || [],
-                you_can_also_try: mlResponse.you_can_also_try || [],
-                count: mlResponse.count || 0,
-                warnings: mlResponse.warnings || [],
-            };
+            // Enrich recommendations with actual product data from database
+            const enrichedResponse = await this.enrichRecommendationsWithProducts(mlResponse);
+
+            return enrichedResponse;
 
         } catch (error) {
             this.logger.error(`ML Recommendation failed: ${error.message}`, error.stack);
@@ -122,6 +118,94 @@ export class RecommendationService {
                 HttpStatus.INTERNAL_SERVER_ERROR,
             );
         }
+    }
+
+    /**
+     * Enrich ML recommendations with actual product data from database
+     */
+    private async enrichRecommendationsWithProducts(mlResponse: any): Promise<RecommendationsResponseDto> {
+        const enrichItem = async (item: any) => {
+            try {
+                // Try to find product by cloth_id in metadata
+                const product = await this.prisma.product.findFirst({
+                    where: {
+                        status: 'APPROVED',
+                        is_deleted: false,
+                        OR: [
+                            // Try to match by metadata.cloth_id
+                            {
+                                metadata: {
+                                    path: ['cloth_id'],
+                                    equals: item.id,
+                                },
+                            },
+                            // Fallback: try direct product_id match (if cloth_id happens to be product_id)
+                            {
+                                product_id: item.id,
+                            },
+                        ],
+                    },
+                    include: {
+                        images: {
+                            orderBy: { order_index: 'asc' },
+                        },
+                        creator: {
+                            select: {
+                                store_name: true,
+                            },
+                        },
+                    },
+                });
+
+                if (!product) {
+                    this.logger.warn(`Product not found for cloth_id: ${item.id}`);
+                    return null;
+                }
+
+                // Extract image URLs
+                const imageUrls = product.images.map(img => img.url);
+                const primaryImage = imageUrls.find((_, idx) => product.images[idx].is_primary) || imageUrls[0];
+
+                return {
+                    ...item,
+                    product_id: product.product_id,
+                    slug: product.slug,
+                    title: product.title,
+                    description: product.description || item.description,
+                    price_cents: product.price_cents,
+                    image: primaryImage,
+                    images: imageUrls,
+                    creator_name: product.creator?.store_name,
+                    inventory_count: product.inventory_count,
+                };
+            } catch (error) {
+                this.logger.error(`Error enriching item ${item.id}: ${error.message}`);
+                return null;
+            }
+        };
+
+        // Enrich all three tiers
+        const [perfectEnriched, goodEnriched, tryEnriched] = await Promise.all([
+            Promise.all((mlResponse.perfect_for_you || []).map(enrichItem)),
+            Promise.all((mlResponse.good_for_you || []).map(enrichItem)),
+            Promise.all((mlResponse.you_can_also_try || []).map(enrichItem)),
+        ]);
+
+        // Filter out null values (products that weren't found)
+        const perfect = perfectEnriched.filter(item => item !== null);
+        const good = goodEnriched.filter(item => item !== null);
+        const tryItems = tryEnriched.filter(item => item !== null);
+
+        const totalFound = perfect.length + good.length + tryItems.length;
+        this.logger.log(`📦 Enriched ${totalFound} products from ${mlResponse.count} ML recommendations`);
+
+        return {
+            perfect_for_you: perfect,
+            good_for_you: good,
+            you_can_also_try: tryItems,
+            count: totalFound,
+            warnings: mlResponse.warnings || [],
+        };
     }
 
     /**

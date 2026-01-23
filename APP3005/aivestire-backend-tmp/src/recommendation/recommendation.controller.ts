@@ -15,6 +15,7 @@ import { AuraGuard } from '../common/guards/aura.guard';
 import { CurrentAura } from '../common/decorators/aura.decorator';
 import type { Aura } from '@prisma/client';
 import { RecommendationService } from './recommendation.service';
+import { DummyRecommendationService } from './dummy-recommendation.service';
 import { GetRecommendationsDto } from './dto/recommendation-request.dto';
 import { RecommendationsResponseDto } from './dto/recommendation-response.dto';
 
@@ -25,7 +26,10 @@ import { RecommendationsResponseDto } from './dto/recommendation-response.dto';
 export class RecommendationController {
     private readonly logger = new Logger(RecommendationController.name);
 
-    constructor(private readonly recommendationService: RecommendationService) { }
+    constructor(
+        private readonly recommendationService: RecommendationService,
+        private readonly dummyRecommendationService: DummyRecommendationService,
+    ) { }
 
     @Post('ai-decide')
     @HttpCode(HttpStatus.OK)
@@ -108,5 +112,73 @@ export class RecommendationController {
         this.logger.log('='.repeat(80));
 
         return this.recommendationService.getRecommendations(userId, aura, dto);
+    }
+
+    @Post('dummy')
+    @HttpCode(HttpStatus.OK)
+    @ApiOperation({
+        summary: 'Get dummy recommendations (temporary fix)',
+        description: `
+            Get hardcoded product recommendations based on occasion filter.
+            
+            This is a temporary endpoint that returns static product data from CSV
+            while the ML model is being fixed. It does NOT require an Aura.
+            
+            Features:
+            - Filters products by occasion
+            - Returns top 5 products sorted by score
+            - Simulates ML model processing delay (1-2 seconds)
+            - Returns data in same format as ML endpoint
+            
+            Requires:
+            - Valid JWT token
+            - Does NOT require Aura (unlike /ai-decide)
+        `,
+    })
+    @ApiResponse({
+        status: 200,
+        description: 'Dummy recommendations retrieved successfully',
+        type: RecommendationsResponseDto,
+    })
+    @ApiResponse({
+        status: 400,
+        description: 'Bad request - Invalid occasion',
+    })
+    @ApiResponse({
+        status: 401,
+        description: 'Unauthorized - Invalid or missing JWT token',
+    })
+    async getDummyRecommendations(
+        @Request() req,
+        @Body() dto: GetRecommendationsDto,
+    ): Promise<RecommendationsResponseDto> {
+        const userId = req.user.userId;
+
+        this.logger.log('='.repeat(80));
+        this.logger.log('📥 DUMMY RECOMMENDATION REQUEST RECEIVED');
+        this.logger.log(`👤 User ID: ${userId}`);
+        this.logger.log(`📋 Occasion: ${dto.occasion}`);
+        this.logger.log('⚠️  Using temporary dummy data (ML model bypass)');
+        this.logger.log('='.repeat(80));
+
+        // Try to get user's Aura for age-based filtering
+        let userAgeRange: string | null = null;
+        try {
+            const aura = await this.recommendationService['prisma'].aura.findUnique({
+                where: { user_id: userId },
+                select: { age_range: true },
+            });
+
+            if (aura?.age_range) {
+                userAgeRange = aura.age_range;
+                this.logger.log(`🎯 Found user age range: ${userAgeRange}`);
+            } else {
+                this.logger.log('⚠️  No Aura found, showing all age groups');
+            }
+        } catch (error) {
+            this.logger.warn('Could not fetch Aura, proceeding without age filter');
+        }
+
+        return this.dummyRecommendationService.getDummyRecommendations(dto.occasion, userAgeRange);
     }
 }

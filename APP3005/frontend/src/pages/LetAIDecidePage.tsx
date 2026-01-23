@@ -5,7 +5,8 @@ import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { AuraDisplayCard } from '@/components/ai-tryon/AuraDisplayCard';
 import { AuthPopup } from '@/components/AuthPopup';
-import { getAura, getAIRecommendations, type RecommendationRequest, type RecommendationsResponse, type RecommendationItem } from '@/lib/api';
+import { getAura } from '@/lib/api';
+import { getAIRecommendations, type RecommendationRequest, type RecommendationsResponse, type RecommendationItem } from '@/lib/api-recommendations';
 import { Sparkles, Heart, Star, Wand2, AlertCircle, Loader2 } from 'lucide-react';
 
 interface AuraData {
@@ -59,7 +60,7 @@ const LetAIDecidePage = () => {
 
         // Check if user is logged in
         if (!user) {
-            console.log('❌ User not logged in, showing popup');
+            console.log(' User not logged in, showing popup');
             setShowLoginPopup(true);
             setLoadingAura(false);
             return;
@@ -119,9 +120,16 @@ const LetAIDecidePage = () => {
 
         const config = tierConfig[tier];
 
+        const handleClick = () => {
+            if (item.slug) {
+                navigate(`/product/${item.slug}`);
+            }
+        };
+
         return (
             <div
                 key={item.id}
+                onClick={handleClick}
                 className={`glass-panel rounded-2xl overflow-hidden border-2 transition-all duration-300 hover:scale-[1.02] hover:shadow-xl cursor-pointer bg-gradient-to-br ${config.color}`}
             >
                 {item.image && (
@@ -153,6 +161,12 @@ const LetAIDecidePage = () => {
                         </h3>
                     )}
 
+                    {item.creator_name && (
+                        <p className="text-xs text-charcoal/50">
+                            by {item.creator_name}
+                        </p>
+                    )}
+
                     {item.description && (
                         <p className="text-sm text-charcoal/60 line-clamp-2">
                             {item.description}
@@ -163,6 +177,12 @@ const LetAIDecidePage = () => {
                         <div className="text-xl font-bold text-gold">
                             ₹{(item.price_cents / 100).toFixed(2)}
                         </div>
+                    )}
+
+                    {item.inventory_count !== undefined && item.inventory_count <= 5 && (
+                        <p className="text-xs text-red-500 font-medium">
+                            {item.inventory_count === 0 ? 'Out of Stock' : `Only ${item.inventory_count} left!`}
+                        </p>
                     )}
                 </div>
             </div>
@@ -280,6 +300,50 @@ const LetAIDecidePage = () => {
 
                                     {recommendations && !loadingRecommendations && (
                                         <div className="space-y-8">
+                                            {/* Filter Badge - Shows selected occasion */}
+                                            {selectedOccasion && (
+                                                <div className="glass-panel rounded-2xl p-6 border-2 border-gold/40 bg-gradient-to-r from-gold/10 to-gold/5">
+                                                    <div className="flex items-center justify-between flex-wrap gap-4">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="text-4xl">
+                                                                {occasions.find(o => o.value === selectedOccasion)?.icon}
+                                                            </div>
+                                                            <div>
+                                                                <p className="text-sm text-charcoal/60 font-medium uppercase tracking-wide">
+                                                                    Filtered by Occasion
+                                                                </p>
+                                                                <h3 className="text-2xl font-serif font-bold text-charcoal">
+                                                                    {occasions.find(o => o.value === selectedOccasion)?.label}
+                                                                </h3>
+                                                                <p className="text-sm text-charcoal/70">
+                                                                    {occasions.find(o => o.value === selectedOccasion)?.description}
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                        <div className="text-right">
+                                                            <p className="text-3xl font-bold text-gold">
+                                                                {recommendations.count}
+                                                            </p>
+                                                            <p className="text-sm text-charcoal/60">
+                                                                Products Found
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                    {recommendations.warnings && recommendations.warnings.length > 0 && (
+                                                        <div className="mt-4 pt-4 border-t border-gold/20">
+                                                            <div className="flex items-start gap-2">
+                                                                <AlertCircle className="w-4 h-4 text-gold mt-0.5 flex-shrink-0" />
+                                                                <div className="text-xs text-charcoal/60 space-y-1">
+                                                                    {recommendations.warnings.map((warning, idx) => (
+                                                                        <p key={idx}>{warning}</p>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+
                                             <div className="flex items-center justify-between mb-6">
                                                 <h2 className="text-3xl font-serif font-bold text-charcoal">
                                                     Your Personalized Recommendations

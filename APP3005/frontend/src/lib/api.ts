@@ -785,7 +785,7 @@ export async function getAIRecommendations(data: RecommendationRequest): Promise
 
   console.log('🤖 Sending AI Recommendation Request:', JSON.stringify(data, null, 2));
 
-  const res = await fetch(`${BASE_URL}/api/recommendations/ai-decide`, {
+  const res = await fetch(`${BASE_URL}/api/recommendations/dummy`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

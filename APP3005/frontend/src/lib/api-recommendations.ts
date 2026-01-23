@@ -2,6 +2,8 @@
 // AI RECOMMENDATION API Functions
 // ============================================================================
 
+const BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
+
 export interface RecommendationRequest {
     occasion: 'Formal' | 'Party' | 'Wedding' | 'Casual luxury' | 'Resort';
     top_k?: number;
@@ -12,14 +14,19 @@ export interface RecommendationRequest {
 }
 
 export interface RecommendationItem {
-    id: string;
+    id: string; // ML model cloth_id
+    product_id?: string; // Database product UUID
+    slug?: string; // Product URL slug
     score: number;
     final_score: number;
     score_label: string;
     description?: string;
-    image?: string;
+    image?: string; // Primary image
+    images?: string[]; // All product images
     title?: string;
     price_cents?: number;
+    creator_name?: string;
+    inventory_count?: number;
 }
 
 export interface RecommendationsResponse {
@@ -37,7 +44,7 @@ export async function getAIRecommendations(data: RecommendationRequest): Promise
         throw new Error('Please login to get AI recommendations');
     }
 
-    const res = await fetch(`${BASE_URL}/api/recommendations/ai-decide`, {
+    const res = await fetch(`${BASE_URL}/api/recommendations/dummy`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
