@@ -130,10 +130,10 @@ const LetAIDecidePage = () => {
             <div
                 key={item.id}
                 onClick={handleClick}
-                className={`glass-panel rounded-2xl overflow-hidden border-2 transition-all duration-300 hover:scale-[1.02] hover:shadow-xl cursor-pointer bg-gradient-to-br ${config.color}`}
+                className={`glass-panel rounded-lg overflow-hidden border transition-all duration-300 hover:scale-[1.02] hover:shadow-lg cursor-pointer bg-gradient-to-br ${config.color} relative`}
             >
                 {item.image && (
-                    <div className="aspect-[3/4] bg-ivory/30 overflow-hidden">
+                    <div className="aspect-[2/3] bg-ivory/30 overflow-hidden">
                         <img
                             src={item.image}
                             alt={item.title || item.description || 'Recommended outfit'}
@@ -142,45 +142,33 @@ const LetAIDecidePage = () => {
                     </div>
                 )}
 
-                <div className="p-4 space-y-2">
+                <div className="p-2 space-y-1">
                     <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            {config.icon}
-                            <span className="text-xs font-medium text-charcoal/70 uppercase tracking-wide">
+                        <div className="flex items-center gap-1">
+                            <div className="scale-75">{config.icon}</div>
+                            <span className="text-[10px] font-medium text-charcoal/70 uppercase tracking-wide">
                                 {item.score_label}
                             </span>
                         </div>
-                        <div className="text-sm font-bold text-charcoal">
-                            {Math.round(item.final_score * 100)}% Match
+                        <div className="text-[10px] font-bold text-charcoal">
+                            {Math.round(item.final_score * 100)}%
                         </div>
                     </div>
 
                     {item.title && (
-                        <h3 className="font-serif text-lg text-charcoal line-clamp-2">
+                        <h3 className="font-serif text-sm text-charcoal line-clamp-1">
                             {item.title}
                         </h3>
                     )}
 
-                    {item.creator_name && (
-                        <p className="text-xs text-charcoal/50">
-                            by {item.creator_name}
-                        </p>
-                    )}
-
-                    {item.description && (
-                        <p className="text-sm text-charcoal/60 line-clamp-2">
-                            {item.description}
-                        </p>
-                    )}
-
                     {item.price_cents && (
-                        <div className="text-xl font-bold text-gold">
+                        <div className="text-base font-bold text-gold">
                             ₹{(item.price_cents / 100).toFixed(2)}
                         </div>
                     )}
 
                     {item.inventory_count !== undefined && item.inventory_count <= 5 && (
-                        <p className="text-xs text-red-500 font-medium">
+                        <p className="text-[10px] text-red-500 font-medium">
                             {item.inventory_count === 0 ? 'Out of Stock' : `Only ${item.inventory_count} left!`}
                         </p>
                     )}
@@ -367,7 +355,7 @@ const LetAIDecidePage = () => {
                                                             Perfect for You
                                                         </h3>
                                                     </div>
-                                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                                                         {recommendations.perfect_for_you.map((item) => renderRecommendationCard(item, 'perfect'))}
                                                     </div>
                                                 </div>
@@ -381,7 +369,7 @@ const LetAIDecidePage = () => {
                                                             Good for You
                                                         </h3>
                                                     </div>
-                                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                                                         {recommendations.good_for_you.map((item) => renderRecommendationCard(item, 'good'))}
                                                     </div>
                                                 </div>
@@ -395,7 +383,7 @@ const LetAIDecidePage = () => {
                                                             You Can Also Try
                                                         </h3>
                                                     </div>
-                                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                                                         {recommendations.you_can_also_try.map((item) => renderRecommendationCard(item, 'try'))}
                                                     </div>
                                                 </div>

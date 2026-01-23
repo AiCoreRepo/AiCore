@@ -161,24 +161,35 @@ export class RecommendationController {
         this.logger.log('⚠️  Using temporary dummy data (ML model bypass)');
         this.logger.log('='.repeat(80));
 
-        // Try to get user's Aura for age-based filtering
+        // Try to get user's Aura for age-based and skin tone filtering
         let userAgeRange: string | null = null;
+        let userSkinTone: string | null = null;
+
         try {
             const aura = await this.recommendationService['prisma'].aura.findUnique({
                 where: { user_id: userId },
-                select: { age_range: true },
+                select: {
+                    age_range: true,
+                    skin_tone: true,
+                },
             });
 
-            if (aura?.age_range) {
-                userAgeRange = aura.age_range;
-                this.logger.log(`🎯 Found user age range: ${userAgeRange}`);
+            if (aura) {
+                if (aura.age_range) {
+                    userAgeRange = aura.age_range;
+                    this.logger.log(`🎯 Found user age range: ${userAgeRange}`);
+                }
+                if (aura.skin_tone) {
+                    userSkinTone = aura.skin_tone;
+                    this.logger.log(`🎨 Found user skin tone: ${userSkinTone}`);
+                }
             } else {
-                this.logger.log('⚠️  No Aura found, showing all age groups');
+                this.logger.log('⚠️  No Aura found, showing all age groups and skin tones');
             }
         } catch (error) {
-            this.logger.warn('Could not fetch Aura, proceeding without age filter');
+            this.logger.warn('Could not fetch Aura, proceeding without age/skin tone filter');
         }
 
-        return this.dummyRecommendationService.getDummyRecommendations(dto.occasion, userAgeRange);
+        return this.dummyRecommendationService.getDummyRecommendations(dto.occasion, userAgeRange, userSkinTone);
     }
 }

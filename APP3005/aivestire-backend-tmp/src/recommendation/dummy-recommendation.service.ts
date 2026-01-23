@@ -33,13 +33,17 @@ export class DummyRecommendationService {
     }
 
 
-    async getDummyRecommendations(occasion: Occasion, userAgeRange?: string | null): Promise<RecommendationsResponseDto> {
-        this.logger.log(` Getting dummy recommendations for occasion: ${occasion}`);
+    async getDummyRecommendations(occasion: Occasion, userAgeRange?: string | null, userSkinTone?: string | null): Promise<RecommendationsResponseDto> {
+        this.logger.log(`🎯 Getting dummy recommendations for occasion: ${occasion}`);
+        if (userSkinTone) {
+            this.logger.log(`🎨 Filtering by skin tone: ${userSkinTone}`);
+        }
 
-        // Filter products by occasion AND optionally by user's age range
+        // Filter products by occasion, age range, AND skin tone
         const filteredProducts = this.productsData.filter(product => {
             const productOccasion = product['@Occasion'];
             const productAgeGroup = product['@Age Group'];
+            const productSkinTone = product['@Skin tone'];
 
             // Match occasion
             const matchesOccasion = productOccasion && productOccasion.toLowerCase() === occasion.toLowerCase();
@@ -54,15 +58,43 @@ export class DummyRecommendationService {
                 matchesAge = productAgeGroup !== '51+';
             }
 
-            return matchesOccasion && matchesAge;
+            // Match skin tone if user has one
+            let matchesSkinTone = true;
+            if (userSkinTone && productSkinTone) {
+                // Parse product skin tones (e.g., "Light, Medium" -> ["light", "medium"])
+                const productSkinTones = productSkinTone
+                    .split(',')
+                    .map(tone => tone.trim().toLowerCase());
+
+                // Check if user's skin tone is in the product's skin tone list
+                matchesSkinTone = productSkinTones.includes(userSkinTone.toLowerCase());
+            }
+
+            return matchesOccasion && matchesAge && matchesSkinTone;
         });
 
         this.logger.log(`📦 Found ${filteredProducts.length} products for ${occasion}`);
 
-        // Sort by score (descending) and take top 5
-        const topProducts = filteredProducts
+        // Filter out products without valid images
+        const productsWithImages = filteredProducts.filter(product => {
+            const hasImage = product.image_url && product.image_url.trim() !== '';
+            if (!hasImage) {
+                this.logger.warn(`⚠️  Skipping product without image: ${product.Image || 'unknown'}`);
+            }
+            return hasImage;
+        });
+
+        this.logger.log(`📸 Found ${productsWithImages.length} products with valid images`);
+
+        // Sort by score (descending) and take top 4 best matches
+        const topProducts = productsWithImages
             .sort((a, b) => parseFloat(b.Score || '0') - parseFloat(a.Score || '0'))
-            .slice(0, 5);
+            .slice(0, 4);
+
+        // Log the top products for debugging
+        topProducts.forEach((product, index) => {
+            this.logger.log(`🏆 #${index + 1}: ${product.Description?.substring(0, 50)}... (Score: ${product.Score})`);
+        });
 
         // Convert to recommendation format
         const recommendations: RecommendationItemDto[] = topProducts.map((product, index) => {
@@ -82,20 +114,25 @@ export class DummyRecommendationService {
             };
         });
 
-        // Split into three tiers
-        const perfect = recommendations.slice(0, 2); // Top 2
-        const good = recommendations.slice(2, 4);    // Next 2
-        const tryItems = recommendations.slice(4, 5); // Last 1
+        // Return all 4 items in "perfect_for_you" tier
+        const perfect = recommendations; // All 4 items
+        const good: RecommendationItemDto[] = [];    // Empty
+        const tryItems: RecommendationItemDto[] = []; // Empty
 
         this.logger.log(`✅ Returning ${recommendations.length} recommendations (${perfect.length} perfect, ${good.length} good, ${tryItems.length} try)`);
 
         const warnings = [
             `Filtered by occasion: ${occasion}`,
             `Found ${filteredProducts.length} total products for this occasion`,
+            `Showing top 4 best matches`,
         ];
 
         if (userAgeRange) {
             warnings.push(`Age-matched to your Aura: ${userAgeRange}`);
+        }
+
+        if (userSkinTone) {
+            warnings.push(`✨ Skin tone matched to your Aura: ${userSkinTone}`);
         }
 
         return {
