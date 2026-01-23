@@ -7,7 +7,10 @@ works without external model downloads.
 """
 
 import colorsys
+import logging
+import os
 from functools import lru_cache
+from pathlib import Path
 from typing import List, Optional, Tuple, Dict
 
 import numpy as np
@@ -156,13 +159,104 @@ def _estimate_body_coverage(rgb: np.ndarray) -> bool:
     
     # Consider full body if:
     # - Image is portrait-oriented (aspect ratio > 1.3)
-    # - Skin pixels span at least 50% of image height
-    # - Bottom skin pixels reach at least 70% down the image
+    # - Skin pixels span at least 65% of image height
+    # - Bottom skin pixels reach at least 85% down the image
+    # These thresholds are conservative to avoid half-body false positives.
     is_portrait = aspect_ratio > 1.3
-    good_height_coverage = body_height >= 0.5
-    reaches_bottom = bottom >= 0.7 * height
+    good_height_coverage = body_height >= 0.65
+    reaches_bottom = bottom >= 0.85 * height
     
     return is_portrait and good_height_coverage and reaches_bottom
+
+
+@lru_cache(maxsize=1)
+def _get_pose_landmarker():
+    """
+    Lazily load a MediaPipe Pose Landmarker model if available.
+    Returns None when the model is missing or MediaPipe Tasks is unavailable.
+    """
+    model_path = os.environ.get("POSE_LANDMARKER_MODEL")
+    if model_path:
+        path = Path(model_path).expanduser()
+    else:
+        path = Path(__file__).resolve().parent / "models" / "pose_landmarker_lite.task"
+
+    if not path.exists():
+        return None
+
+    try:
+        from mediapipe.tasks import python as mp_python
+        from mediapipe.tasks.python import vision
+    except Exception:
+        return None
+
+    try:
+        base_options = mp_python.BaseOptions(model_asset_path=str(path))
+        options = vision.PoseLandmarkerOptions(
+            base_options=base_options,
+            running_mode=vision.RunningMode.IMAGE,
+            num_poses=1,
+            min_pose_detection_confidence=0.5,
+            min_pose_presence_confidence=0.5,
+            min_tracking_confidence=0.5,
+        )
+        return vision.PoseLandmarker.create_from_options(options)
+    except Exception:
+        return None
+
+
+def _estimate_body_coverage_pose(image: Image.Image) -> Optional[bool]:
+    """
+    Estimate full-body visibility using a pose landmarker.
+    Returns None when no model is available; otherwise returns a boolean.
+    """
+    landmarker = _get_pose_landmarker()
+    if landmarker is None:
+        return None
+
+    try:
+        import mediapipe as mp
+        mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=np.array(image))
+        result = landmarker.detect(mp_image)
+    except Exception as exc:
+        logging.getLogger(__name__).warning(
+            "Pose landmarker failed; falling back to heuristic: %s", exc
+        )
+        return None
+
+    if not result.pose_landmarks:
+        return False
+
+    landmarks = result.pose_landmarks[0]
+    if len(landmarks) < 29:
+        return False
+
+    def conf(lm) -> float:
+        visibility = getattr(lm, "visibility", 0.0) or 0.0
+        presence = getattr(lm, "presence", 0.0) or 0.0
+        return max(visibility, presence)
+
+    def is_visible(idx: int, threshold: float) -> bool:
+        return conf(landmarks[idx]) >= threshold
+
+    # Require reliable upper and lower body landmarks to avoid selfie/half-body false positives.
+    if not (is_visible(11, 0.5) and is_visible(12, 0.5)):  # shoulders
+        return False
+    if not (is_visible(23, 0.5) and is_visible(24, 0.5)):  # hips
+        return False
+    if not (is_visible(27, 0.6) and is_visible(28, 0.6)):  # ankles
+        return False
+
+    shoulder_y = min(landmarks[11].y, landmarks[12].y)
+    ankle_y = max(landmarks[27].y, landmarks[28].y)
+
+    # Full body if ankles are near the bottom and vertical span is large.
+    if ankle_y < 0.85:
+        return False
+    if (ankle_y - shoulder_y) < 0.6:
+        return False
+
+    return True
 
 
 def _estimate_body_shape_simple(rgb: np.ndarray) -> Optional[str]:
@@ -263,8 +357,14 @@ def analyze_user_image(image: Image.Image) -> Dict:
     # Estimate skin tone
     skin_label, skin_hexes = _estimate_skin_tone(rgb)
     
-    # Check if full body is visible
-    full_body = _estimate_body_coverage(rgb)
+    # Check if full body is visible (pose model if available, otherwise heuristic)
+    full_body_pose = _estimate_body_coverage_pose(image)
+    if full_body_pose is None:
+        full_body = _estimate_body_coverage(rgb)
+        full_body_method = "heuristic"
+    else:
+        full_body = full_body_pose
+        full_body_method = "mediapipe"
     
     # Estimate body shape (only if full body visible)
     body_shape = None
@@ -276,4 +376,5 @@ def analyze_user_image(image: Image.Image) -> Dict:
         "skin_hexes": skin_hexes,
         "body_shape": body_shape,
         "full_body": full_body,
+        "full_body_method": full_body_method,
     }

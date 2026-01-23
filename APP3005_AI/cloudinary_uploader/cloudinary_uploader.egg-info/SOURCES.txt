@@ -1,0 +1,7 @@
+app.py
+pyproject.toml
+cloudinary_uploader.egg-info/PKG-INFO
+cloudinary_uploader.egg-info/SOURCES.txt
+cloudinary_uploader.egg-info/dependency_links.txt
+cloudinary_uploader.egg-info/requires.txt
+cloudinary_uploader.egg-info/top_level.txt

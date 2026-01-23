@@ -1,0 +1,13 @@
+[project]
+name = "cloudinary-uploader"
+version = "0.1.0"
+description = "Streamlit app to upload PNGs to Cloudinary."
+requires-python = ">=3.10"
+dependencies = [
+    "streamlit>=1.36.0",
+    "cloudinary>=1.40.0",
+]
+
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"

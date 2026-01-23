@@ -12,7 +12,7 @@ __pycache__/
 .coverage
 coverage.xml
 
-# Editors / OS
+# Editors / OS 
 .DS_Store
 .idea/
 .vscode/
@@ -31,9 +31,20 @@ Playground/Recommendation/archive/myntradataset/images/
 Playground/vertexVT/service_account.json
 Playground/Recommendation/val
 Playground/Recommendation/women fashion
-recommend_demo/data
-recommend_demo/training data
-recommend_demo
-recommend_demo/train_image
-recommend_demo/test_image
-recommend_demo/testiing_image_collection
+recommend_demo/data/
+recommend_demo/training data/
+recommend_demo/train_image/
+recommend_demo/test_image/
+recommend_demo/testiing_image_collection/
+recommend_demo/pulkit image/
+recommend_demo/.venv_fusion/
+recommend_demo/etcd/
+recommend_demo/milvus/
+recommend_demo/minio/
+recommend_demo/new_data/
+
+# Temp/lock files (LibreOffice, etc.)
+.~lock.*
+*.lock
+*.LOCK
+*.csv#

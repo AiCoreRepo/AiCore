@@ -13,6 +13,7 @@ services:
       - ./data:/app/data
       - ./artifacts:/app/artifacts
       - ./training.csv:/app/training.csv:ro
+      - ./main_train_data.csv:/app/main_train_data.csv:ro
       - ./new_data:/app/new_data:ro
       - ./fashion_collection.json:/app/fashion_collection.json:ro
       - ./collection2.json:/app/collection2.json:ro

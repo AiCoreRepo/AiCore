@@ -30,6 +30,7 @@ class BodyAnalyzeResponse(BaseModel):
     skin_hexes: List[str] = []
     body_shape: Optional[str] = None
     full_body: bool = False
+    full_body_method: Optional[str] = None
     error: Optional[str] = None
 
 
@@ -41,4 +42,5 @@ def _build_body_analyze_response(result: dict) -> BodyAnalyzeResponse:
         skin_hexes=result.get("skin_hexes", []),
         body_shape=result.get("body_shape"),
         full_body=result.get("full_body", False),
+        full_body_method=result.get("full_body_method"),
     )

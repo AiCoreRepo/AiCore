@@ -14,10 +14,13 @@ Expected CSV columns:
 from __future__ import annotations
 
 import argparse
+import io
 import json
+import math
 import os
 from pathlib import Path
 from typing import Callable, Dict, List, Optional, Tuple
+from urllib.request import Request, urlopen
 
 import numpy as np
 import pandas as pd
@@ -58,6 +61,15 @@ TEXT_COL = "cloth_description"
 TEXT_COL_FALLBACK = "clothing_description"
 IMAGE_COL = "image_path"
 LABEL_COL = "score"
+
+MAIN_IMAGE_COL = "Image"
+MAIN_DESC_COL = "Description"
+MAIN_SCORE_COL = "Score"
+MAIN_AGE_COL = "@Age Group"
+MAIN_OCCASION_COL = "@Occasion"
+MAIN_BODY_SHAPE_COL = "@Recommended Body shape"
+MAIN_SIZE_COL = "@Recommended size"
+MAIN_SKIN_TONE_COL = "@Skin tone"
 
 SIZE_ORDER = ["xs", "small", "medium", "large", "xl", "xxl"]
 BODY_SHAPE_ORDER = ["rectangle", "pear", "apple", "hourglass", "inverted_triangle"]
@@ -186,6 +198,34 @@ def _coerce_list(value):
     return [value]
 
 
+def _split_list(value: object) -> List[str]:
+    if value is None:
+        return []
+    if isinstance(value, (float, np.floating)) and math.isnan(float(value)):
+        return []
+    raw = str(value)
+    if raw.lower() in {"nan", "<na>"}:
+        return []
+    raw = raw.replace(";", ",").replace("/", ",")
+    parts = [p.strip() for p in raw.split(",")]
+    return [p for p in parts if p]
+
+
+def _clean_text(value: object) -> Optional[str]:
+    if value is None:
+        return None
+    if isinstance(value, (float, np.floating)) and math.isnan(float(value)):
+        return None
+    text = str(value).strip()
+    if text.lower() in {"nan", "<na>"}:
+        return None
+    return text or None
+
+
+def _is_url(value: str) -> bool:
+    return value.startswith(("http://", "https://"))
+
+
 def _normalize_priority_list(values, normalizer):
     normalized = []
     for idx, entry in enumerate(values):
@@ -205,9 +245,15 @@ def _normalize_priority_list(values, normalizer):
     return normalized
 
 
-def _age_from_range(value: str) -> Optional[float]:
+def _age_from_range(value: object) -> Optional[float]:
+    if value is None:
+        return None
+    if isinstance(value, (float, np.floating)) and math.isnan(float(value)):
+        return None
     cleaned = str(value).strip()
     if not cleaned:
+        return None
+    if cleaned.lower() == "nan":
         return None
     if "+" in cleaned:
         try:
@@ -275,14 +321,16 @@ def _expand_collection_records(records: List[Dict], base_dir: Path) -> pd.DataFr
         if not (occasions and body_shapes and skin_tones and sizes):
             continue
 
-        image_path = item.get("image") or item.get("image_path") or ""
+        image_path = item.get("image") or item.get("image_path") or item.get("image_url") or ""
         if not image_path:
             continue
-        img_path = Path(str(image_path))
-        if not img_path.is_absolute():
-            candidate = base_dir / img_path
-            if candidate.exists():
-                image_path = str(candidate)
+        image_path = str(image_path).strip()
+        if not _is_url(image_path):
+            img_path = Path(image_path)
+            if not img_path.is_absolute():
+                candidate = base_dir / img_path
+                if candidate.exists():
+                    image_path = str(candidate)
 
         description = (
             item.get("description")
@@ -314,6 +362,155 @@ def _expand_collection_records(records: List[Dict], base_dir: Path) -> pd.DataFr
                 }
             )
     return pd.DataFrame(rows)
+
+
+def _has_training_columns(df: pd.DataFrame) -> bool:
+    required = set(CAT_COLS + [AGE_COL, IMAGE_COL, LABEL_COL])
+    has_text = TEXT_COL in df.columns or TEXT_COL_FALLBACK in df.columns
+    return required.issubset(df.columns) and has_text
+
+
+def _is_main_train_df(df: pd.DataFrame) -> bool:
+    required = {
+        MAIN_IMAGE_COL,
+        MAIN_DESC_COL,
+        MAIN_SCORE_COL,
+        MAIN_AGE_COL,
+        MAIN_OCCASION_COL,
+        MAIN_BODY_SHAPE_COL,
+        MAIN_SIZE_COL,
+        MAIN_SKIN_TONE_COL,
+    }
+    return required.issubset(df.columns)
+
+
+def _expand_main_train_df(df: pd.DataFrame, base_dir: Path) -> pd.DataFrame:
+    from itertools import islice, product
+
+    rows: List[Dict[str, object]] = []
+    for _, row in df.iterrows():
+        image_path = _clean_text(row.get("image_url")) or _clean_text(row.get(MAIN_IMAGE_COL))
+        if not image_path:
+            continue
+
+        description = str(row.get(MAIN_DESC_COL) or "").strip()
+        if not description:
+            continue
+
+        score_raw = row.get(MAIN_SCORE_COL)
+        try:
+            score = float(score_raw)
+        except (TypeError, ValueError):
+            continue
+        if score < 0 or score > 1:
+            continue
+
+        age = _age_from_range(row.get(MAIN_AGE_COL))
+        if age is None:
+            age = DEFAULT_AGE
+
+        occasions = _split_list(row.get(MAIN_OCCASION_COL))
+        sizes = _split_list(row.get(MAIN_SIZE_COL))
+        shapes = _split_list(row.get(MAIN_BODY_SHAPE_COL))
+        tones = _split_list(row.get(MAIN_SKIN_TONE_COL))
+
+        occasions = [normalize_occasion(o) for o in occasions if o]
+        sizes = [normalize_size(s) for s in sizes if s]
+        shapes = [normalize_body_shape(s) for s in shapes if s]
+        tones = [normalize_skin_tone(t) for t in tones if t]
+
+        if not (occasions and sizes and shapes and tones):
+            continue
+
+        if not _is_url(image_path):
+            img_path = Path(image_path)
+            if not img_path.is_absolute():
+                candidate = base_dir / img_path
+                if candidate.exists():
+                    image_path = str(candidate)
+
+        combos = islice(product(occasions, shapes, tones, sizes), MAX_COMBOS_PER_ITEM)
+        for occ, shape, tone, size in combos:
+            rows.append(
+                {
+                    AGE_COL: age,
+                    "size": size,
+                    "body_shape": shape,
+                    "skin_tone": tone,
+                    "occasion": occ,
+                    TEXT_COL: description,
+                    IMAGE_COL: image_path,
+                    LABEL_COL: score,
+                }
+            )
+    return pd.DataFrame(rows)
+
+
+def collection_records_from_main_df(df: pd.DataFrame) -> List[Dict[str, object]]:
+    if not _is_main_train_df(df):
+        raise ValueError("CSV does not match main_train_data.csv columns.")
+    records: List[Dict[str, object]] = []
+    for idx, row in df.iterrows():
+        image_url = _clean_text(row.get("image_url"))
+        image_path = _clean_text(row.get(MAIN_IMAGE_COL))
+        image_value = image_url or image_path
+        description = _clean_text(row.get(MAIN_DESC_COL))
+        if not image_value or not description:
+            continue
+
+        cloth_id = _clean_text(row.get("cloth_id")) or image_value or f"item-{idx + 1:04d}"
+        record: Dict[str, object] = {
+            "cloth_id": cloth_id,
+            "description": description,
+            "image": image_value,
+        }
+        if image_url:
+            record["image_url"] = image_url
+        if image_path and image_path != image_value:
+            record["image_path"] = image_path
+
+        occasions = _split_list(row.get(MAIN_OCCASION_COL))
+        if occasions:
+            record["occasion"] = occasions
+        shapes = _split_list(row.get(MAIN_BODY_SHAPE_COL))
+        if shapes:
+            record["body_shape"] = shapes
+        tones = _split_list(row.get(MAIN_SKIN_TONE_COL))
+        if tones:
+            record["skin_tone"] = tones
+        sizes = _split_list(row.get(MAIN_SIZE_COL))
+        if sizes:
+            record["sizes"] = sizes
+        ages = _split_list(row.get(MAIN_AGE_COL))
+        if ages:
+            record["age_range"] = ages
+
+        cloth_type = _clean_text(row.get("Clothing Type"))
+        if cloth_type:
+            record["cloth_type"] = cloth_type
+        fit = _clean_text(row.get("Fit"))
+        if fit:
+            record["fit"] = fit
+        fabric = _clean_text(row.get("Fabric"))
+        if fabric:
+            record["fabric"] = fabric
+        color_family = _clean_text(row.get("Color_family"))
+        if color_family:
+            record["color_family"] = color_family
+        style = _clean_text(row.get("Style"))
+        if style:
+            record["style"] = style
+        image_url = _clean_text(row.get("image_url"))
+        if image_url:
+            record["image_url"] = image_url
+        prompt = _clean_text(row.get("Prompt"))
+        if prompt:
+            record["prompt"] = prompt
+
+        records.append(record)
+    if not records:
+        raise ValueError("No collection records could be built from main_train_data.csv.")
+    return records
 
 
 def _normalize_training_df(df: pd.DataFrame) -> pd.DataFrame:
@@ -355,6 +552,8 @@ def load_data(path: Path) -> pd.DataFrame:
         return _normalize_training_df(df)
 
     df = pd.read_csv(path)
+    if not _has_training_columns(df) and _is_main_train_df(df):
+        df = _expand_main_train_df(df, base_dir=path.parent)
     return _normalize_training_df(df)
 
 
@@ -477,15 +676,26 @@ def embed_images(
         if not path_str:
             missing.append(path_str)
             continue
-        path = Path(path_str)
-        if not path.is_absolute() and base_dir is not None:
-            candidate = base_dir / path
-            if candidate.exists():
-                path = candidate
-        if not path.exists():
-            missing.append(path_str)
-            continue
-        image = Image.open(path).convert("RGB")
+        image = None
+        if _is_url(path_str):
+            try:
+                request = Request(path_str, headers={"User-Agent": "Mozilla/5.0"})
+                with urlopen(request, timeout=10) as response:
+                    payload = response.read()
+                image = Image.open(io.BytesIO(payload)).convert("RGB")
+            except Exception:
+                missing.append(path_str)
+                continue
+        else:
+            path = Path(path_str)
+            if not path.is_absolute() and base_dir is not None:
+                candidate = base_dir / path
+                if candidate.exists():
+                    path = candidate
+            if not path.exists():
+                missing.append(path_str)
+                continue
+            image = Image.open(path).convert("RGB")
         tensor = preprocess(image).unsqueeze(0).to(device)
         with torch.no_grad():
             emb = model.encode_image(tensor)

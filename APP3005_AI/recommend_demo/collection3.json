@@ -1,0 +1,3752 @@
+[
+  {
+    "cloth_id": "imgA_001",
+    "cloth_type": "Blazer set",
+    "occasions": [
+      "Formal"
+    ],
+    "fit": [
+      "Flattering"
+    ],
+    "fabric": [
+      "Cotton blend"
+    ],
+    "color_family": [
+      "Pastel"
+    ],
+    "style": [
+      "Elegant"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tones": [
+      "light",
+      "medium",
+      "dusky"
+    ],
+    "body_shapes": [
+      "rectangle",
+      "pear",
+      "hourglass",
+      "apple"
+    ],
+    "age_range": [
+      "13-17"
+    ],
+    "description": "Good quality formal outfit for Indian female in age group 13-17.",
+    "image": "pulkit image/image1.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe. Occasion: Formal. Age: 13-17. Skin tone: light. Body shape: rectangle. Size: M. Outfit: Blazer set. Fabric: Chiffon. Background: suitable formal setting.",
+    "quality_tag": "good",
+    "score": 0.9,
+    "age": 15.0,
+    "size": "S",
+    "body_shape": "rectangle",
+    "skin_tone": "light",
+    "occasion": "Formal",
+    "cloth_description": "Good quality formal outfit for Indian female in age group 13-17.",
+    "image_path": "pulkit image/image1.png"
+  },
+  {
+    "cloth_id": "imgA_002",
+    "cloth_type": "Blazer set",
+    "occasions": [
+      "Formal"
+    ],
+    "fit": [
+      "Flattering"
+    ],
+    "fabric": [
+      "Cotton blend"
+    ],
+    "color_family": [
+      "Pastel"
+    ],
+    "style": [
+      "Elegant"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tones": [
+      "light",
+      "medium",
+      "dusky"
+    ],
+    "body_shapes": [
+      "rectangle",
+      "pear",
+      "hourglass",
+      "apple"
+    ],
+    "age_range": [
+      "18-25"
+    ],
+    "description": "Good quality formal outfit for Indian female in age group 18-25.",
+    "image": "pulkit image/image2.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe. Occasion: Formal. Age: 18-25. Skin tone: light. Body shape: rectangle. Size: M. Outfit: Blazer set. Fabric: Cotton blend. Background: suitable formal setting.",
+    "quality_tag": "good",
+    "score": 0.9,
+    "age": 21.5,
+    "size": "S",
+    "body_shape": "rectangle",
+    "skin_tone": "light",
+    "occasion": "Formal",
+    "cloth_description": "Good quality formal outfit for Indian female in age group 18-25.",
+    "image_path": "pulkit image/image2.png"
+  },
+  {
+    "cloth_id": "imgA_003",
+    "cloth_type": "Blazer set",
+    "occasions": [
+      "Formal"
+    ],
+    "fit": [
+      "Flattering"
+    ],
+    "fabric": [
+      "Cotton blend"
+    ],
+    "color_family": [
+      "Pastel"
+    ],
+    "style": [
+      "Elegant"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tones": [
+      "light",
+      "medium",
+      "dusky"
+    ],
+    "body_shapes": [
+      "rectangle",
+      "pear",
+      "hourglass",
+      "apple"
+    ],
+    "age_range": [
+      "26-35"
+    ],
+    "description": "Good quality formal outfit for Indian female in age group 26-35.",
+    "image": "pulkit image/image3.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe. Occasion: Formal. Age: 26-35. Skin tone: light. Body shape: rectangle. Size: M. Outfit: Blazer set. Fabric: Cotton blend. Background: suitable formal setting.",
+    "quality_tag": "good",
+    "score": 0.9,
+    "age": 30.5,
+    "size": "S",
+    "body_shape": "rectangle",
+    "skin_tone": "light",
+    "occasion": "Formal",
+    "cloth_description": "Good quality formal outfit for Indian female in age group 26-35.",
+    "image_path": "pulkit image/image3.png"
+  },
+  {
+    "cloth_id": "imgA_004",
+    "cloth_type": "Blazer set",
+    "occasions": [
+      "Formal"
+    ],
+    "fit": [
+      "Flattering"
+    ],
+    "fabric": [
+      "Cotton blend"
+    ],
+    "color_family": [
+      "Pastel"
+    ],
+    "style": [
+      "Elegant"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tones": [
+      "light",
+      "medium",
+      "dusky"
+    ],
+    "body_shapes": [
+      "rectangle",
+      "pear",
+      "hourglass",
+      "apple"
+    ],
+    "age_range": [
+      "36-50"
+    ],
+    "description": "Good quality formal outfit for Indian female in age group 36-50.",
+    "image": "pulkit image/image4.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe. Occasion: Formal. Age: 36-50. Skin tone: light. Body shape: rectangle. Size: M. Outfit: Blazer set. Fabric: Cotton blend. Background: suitable formal setting.",
+    "quality_tag": "good",
+    "score": 0.9,
+    "age": 43.0,
+    "size": "S",
+    "body_shape": "rectangle",
+    "skin_tone": "light",
+    "occasion": "Formal",
+    "cloth_description": "Good quality formal outfit for Indian female in age group 36-50.",
+    "image_path": "pulkit image/image4.png"
+  },
+  {
+    "cloth_id": "imgA_005",
+    "cloth_type": "Blazer set",
+    "occasions": [
+      "Formal"
+    ],
+    "fit": [
+      "Flattering"
+    ],
+    "fabric": [
+      "Cotton blend"
+    ],
+    "color_family": [
+      "Pastel"
+    ],
+    "style": [
+      "Elegant"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tones": [
+      "light",
+      "medium",
+      "dusky"
+    ],
+    "body_shapes": [
+      "rectangle",
+      "pear",
+      "hourglass",
+      "apple"
+    ],
+    "age_range": [
+      "51+"
+    ],
+    "description": "Good quality formal outfit for Indian female in age group 51+.",
+    "image": "pulkit image/image5.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe. Occasion: Formal. Age: 51+. Skin tone: light. Body shape: rectangle. Size: M. Outfit: Blazer set. Fabric: Cotton blend. Background: suitable formal setting.",
+    "quality_tag": "good",
+    "score": 0.9,
+    "age": 51.0,
+    "size": "S",
+    "body_shape": "rectangle",
+    "skin_tone": "light",
+    "occasion": "Formal",
+    "cloth_description": "Good quality formal outfit for Indian female in age group 51+.",
+    "image_path": "pulkit image/image5.png"
+  },
+  {
+    "cloth_id": "imgA_006",
+    "cloth_type": "Cocktail dress",
+    "occasions": [
+      "Party"
+    ],
+    "fit": [
+      "Flattering"
+    ],
+    "fabric": [
+      "Cotton blend"
+    ],
+    "color_family": [
+      "Pastel"
+    ],
+    "style": [
+      "Elegant"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tones": [
+      "light",
+      "medium",
+      "dusky"
+    ],
+    "body_shapes": [
+      "rectangle",
+      "pear",
+      "hourglass",
+      "apple"
+    ],
+    "age_range": [
+      "13-17"
+    ],
+    "description": "Good quality party outfit for Indian female in age group 13-17.",
+    "image": "pulkit image/image6.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe. Occasion: Party. Age: 13-17. Skin tone: light. Body shape: rectangle. Size: M. Outfit: Cocktail dress. Fabric: Cotton blend. Background: suitable party setting.",
+    "quality_tag": "good",
+    "score": 0.9,
+    "age": 15.0,
+    "size": "S",
+    "body_shape": "rectangle",
+    "skin_tone": "light",
+    "occasion": "Party",
+    "cloth_description": "Good quality party outfit for Indian female in age group 13-17.",
+    "image_path": "pulkit image/image6.png"
+  },
+  {
+    "cloth_id": "imgA_007",
+    "cloth_type": "Cocktail dress",
+    "occasions": [
+      "Party"
+    ],
+    "fit": [
+      "Flattering"
+    ],
+    "fabric": [
+      "Cotton blend"
+    ],
+    "color_family": [
+      "Pastel"
+    ],
+    "style": [
+      "Elegant"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tones": [
+      "light",
+      "medium",
+      "dusky"
+    ],
+    "body_shapes": [
+      "rectangle",
+      "pear",
+      "hourglass",
+      "apple"
+    ],
+    "age_range": [
+      "18-25"
+    ],
+    "description": "Good quality party outfit for Indian female in age group 18-25.",
+    "image": "pulkit image/image7.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe. Occasion: Party. Age: 18-25. Skin tone: light. Body shape: rectangle. Size: M. Outfit: Cocktail dress. Fabric: Cotton blend. Background: suitable party setting.",
+    "quality_tag": "good",
+    "score": 0.9,
+    "age": 21.5,
+    "size": "S",
+    "body_shape": "rectangle",
+    "skin_tone": "light",
+    "occasion": "Party",
+    "cloth_description": "Good quality party outfit for Indian female in age group 18-25.",
+    "image_path": "pulkit image/image7.png"
+  },
+  {
+    "cloth_id": "imgA_008",
+    "cloth_type": "Cocktail dress",
+    "occasions": [
+      "Party"
+    ],
+    "fit": [
+      "Flattering"
+    ],
+    "fabric": [
+      "Cotton blend"
+    ],
+    "color_family": [
+      "Pastel"
+    ],
+    "style": [
+      "Elegant"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tones": [
+      "light",
+      "medium",
+      "dusky"
+    ],
+    "body_shapes": [
+      "rectangle",
+      "pear",
+      "hourglass",
+      "apple"
+    ],
+    "age_range": [
+      "26-35"
+    ],
+    "description": "Good quality party outfit for Indian female in age group 26-35.",
+    "image": "pulkit image/image8.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe. Occasion: Party. Age: 26-35. Skin tone: light. Body shape: rectangle. Size: M. Outfit: Cocktail dress. Fabric: Cotton blend. Background: suitable party setting.",
+    "quality_tag": "good",
+    "score": 0.9,
+    "age": 30.5,
+    "size": "S",
+    "body_shape": "rectangle",
+    "skin_tone": "light",
+    "occasion": "Party",
+    "cloth_description": "Good quality party outfit for Indian female in age group 26-35.",
+    "image_path": "pulkit image/image8.png"
+  },
+  {
+    "cloth_id": "imgA_009",
+    "cloth_type": "Cocktail dress",
+    "occasions": [
+      "Party"
+    ],
+    "fit": [
+      "Flattering"
+    ],
+    "fabric": [
+      "Cotton blend"
+    ],
+    "color_family": [
+      "Pastel"
+    ],
+    "style": [
+      "Elegant"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tones": [
+      "light",
+      "medium",
+      "dusky"
+    ],
+    "body_shapes": [
+      "rectangle",
+      "pear",
+      "hourglass",
+      "apple"
+    ],
+    "age_range": [
+      "36-50"
+    ],
+    "description": "Good quality party outfit for Indian female in age group 36-50.",
+    "image": "pulkit image/image9.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe. Occasion: Party. Age: 36-50. Skin tone: light. Body shape: rectangle. Size: M. Outfit: Cocktail dress. Fabric: Cotton blend. Background: suitable party setting.",
+    "quality_tag": "good",
+    "score": 0.9,
+    "age": 43.0,
+    "size": "S",
+    "body_shape": "rectangle",
+    "skin_tone": "light",
+    "occasion": "Party",
+    "cloth_description": "Good quality party outfit for Indian female in age group 36-50.",
+    "image_path": "pulkit image/image9.png"
+  },
+  {
+    "cloth_id": "imgA_010",
+    "cloth_type": "Cocktail dress",
+    "occasions": [
+      "Party"
+    ],
+    "fit": [
+      "Flattering"
+    ],
+    "fabric": [
+      "Cotton blend"
+    ],
+    "color_family": [
+      "Pastel"
+    ],
+    "style": [
+      "Elegant"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tones": [
+      "light",
+      "medium",
+      "dusky"
+    ],
+    "body_shapes": [
+      "rectangle",
+      "pear",
+      "hourglass",
+      "apple"
+    ],
+    "age_range": [
+      "51+"
+    ],
+    "description": "Good quality party outfit for Indian female in age group 51+.",
+    "image": "pulkit image/image10.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe. Occasion: Party. Age: 51+. Skin tone: light. Body shape: rectangle. Size: M. Outfit: Cocktail dress. Fabric: Cotton blend. Background: suitable party setting.",
+    "quality_tag": "good",
+    "score": 0.9,
+    "age": 51.0,
+    "size": "S",
+    "body_shape": "rectangle",
+    "skin_tone": "light",
+    "occasion": "Party",
+    "cloth_description": "Good quality party outfit for Indian female in age group 51+.",
+    "image_path": "pulkit image/image10.png"
+  },
+  {
+    "cloth_id": "imgA_011",
+    "cloth_type": "Silk saree",
+    "occasions": [
+      "Wedding"
+    ],
+    "fit": [
+      "Flattering"
+    ],
+    "fabric": [
+      "Silk"
+    ],
+    "color_family": [
+      "Pastel"
+    ],
+    "style": [
+      "Elegant"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tones": [
+      "light",
+      "medium",
+      "dusky"
+    ],
+    "body_shapes": [
+      "rectangle",
+      "pear",
+      "hourglass",
+      "apple"
+    ],
+    "age_range": [
+      "13-17"
+    ],
+    "description": "Good quality wedding outfit for Indian female in age group 13-17.",
+    "image": "pulkit image/image11.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe. Occasion: Wedding. Age: 13-17. Skin tone: light. Body shape: rectangle. Size: M. Outfit: Silk saree. Fabric: Cotton blend. Background: suitable wedding setting.",
+    "quality_tag": "good",
+    "score": 0.9,
+    "age": 15.0,
+    "size": "S",
+    "body_shape": "rectangle",
+    "skin_tone": "light",
+    "occasion": "Wedding",
+    "cloth_description": "Good quality wedding outfit for Indian female in age group 13-17.",
+    "image_path": "pulkit image/image11.png"
+  },
+  {
+    "cloth_id": "imgA_012",
+    "cloth_type": "Silk saree",
+    "occasions": [
+      "Wedding"
+    ],
+    "fit": [
+      "Flattering"
+    ],
+    "fabric": [
+      "Silk"
+    ],
+    "color_family": [
+      "Pastel"
+    ],
+    "style": [
+      "Elegant"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tones": [
+      "light",
+      "medium",
+      "dusky"
+    ],
+    "body_shapes": [
+      "rectangle",
+      "pear",
+      "hourglass",
+      "apple"
+    ],
+    "age_range": [
+      "18-25"
+    ],
+    "description": "Good quality wedding outfit for Indian female in age group 18-25.",
+    "image": "pulkit image/image12.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe. Occasion: Wedding. Age: 18-25. Skin tone: light. Body shape: rectangle. Size: M. Outfit: Silk saree. Fabric: Silk. Background: suitable wedding setting.",
+    "quality_tag": "good",
+    "score": 0.9,
+    "age": 21.5,
+    "size": "S",
+    "body_shape": "rectangle",
+    "skin_tone": "light",
+    "occasion": "Wedding",
+    "cloth_description": "Good quality wedding outfit for Indian female in age group 18-25.",
+    "image_path": "pulkit image/image12.png"
+  },
+  {
+    "cloth_id": "imgA_013",
+    "cloth_type": "Silk saree",
+    "occasions": [
+      "Wedding"
+    ],
+    "fit": [
+      "Flattering"
+    ],
+    "fabric": [
+      "Silk"
+    ],
+    "color_family": [
+      "Pastel"
+    ],
+    "style": [
+      "Elegant"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tones": [
+      "light",
+      "medium",
+      "dusky"
+    ],
+    "body_shapes": [
+      "rectangle",
+      "pear",
+      "hourglass",
+      "apple"
+    ],
+    "age_range": [
+      "26-35"
+    ],
+    "description": "Good quality wedding outfit for Indian female in age group 26-35.",
+    "image": "pulkit image/image13.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe. Occasion: Wedding. Age: 26-35. Skin tone: light. Body shape: rectangle. Size: M. Outfit: Silk saree. Fabric: Silk. Background: suitable wedding setting.",
+    "quality_tag": "good",
+    "score": 0.9,
+    "age": 30.5,
+    "size": "S",
+    "body_shape": "rectangle",
+    "skin_tone": "light",
+    "occasion": "Wedding",
+    "cloth_description": "Good quality wedding outfit for Indian female in age group 26-35.",
+    "image_path": "pulkit image/image13.png"
+  },
+  {
+    "cloth_id": "imgA_014",
+    "cloth_type": "Silk saree",
+    "occasions": [
+      "Wedding"
+    ],
+    "fit": [
+      "Flattering"
+    ],
+    "fabric": [
+      "Silk"
+    ],
+    "color_family": [
+      "Pastel"
+    ],
+    "style": [
+      "Elegant"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tones": [
+      "light",
+      "medium",
+      "dusky"
+    ],
+    "body_shapes": [
+      "rectangle",
+      "pear",
+      "hourglass",
+      "apple"
+    ],
+    "age_range": [
+      "36-50"
+    ],
+    "description": "Good quality wedding outfit for Indian female in age group 36-50.",
+    "image": "pulkit image/image14.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe. Occasion: Wedding. Age: 36-50. Skin tone: light. Body shape: rectangle. Size: M. Outfit: Silk saree. Fabric: Silk. Background: suitable wedding setting.",
+    "quality_tag": "good",
+    "score": 0.9,
+    "age": 43.0,
+    "size": "S",
+    "body_shape": "rectangle",
+    "skin_tone": "light",
+    "occasion": "Wedding",
+    "cloth_description": "Good quality wedding outfit for Indian female in age group 36-50.",
+    "image_path": "pulkit image/image14.png"
+  },
+  {
+    "cloth_id": "imgA_015",
+    "cloth_type": "Silk saree",
+    "occasions": [
+      "Wedding"
+    ],
+    "fit": [
+      "Flattering"
+    ],
+    "fabric": [
+      "Silk"
+    ],
+    "color_family": [
+      "Pastel"
+    ],
+    "style": [
+      "Elegant"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tones": [
+      "light",
+      "medium",
+      "dusky"
+    ],
+    "body_shapes": [
+      "rectangle",
+      "pear",
+      "hourglass",
+      "apple"
+    ],
+    "age_range": [
+      "51+"
+    ],
+    "description": "Good quality wedding outfit for Indian female in age group 51+.",
+    "image": "pulkit image/image15.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe. Occasion: Wedding. Age: 51+. Skin tone: light. Body shape: rectangle. Size: M. Outfit: Silk saree. Fabric: Silk. Background: suitable wedding setting.",
+    "quality_tag": "good",
+    "score": 0.9,
+    "age": 51.0,
+    "size": "S",
+    "body_shape": "rectangle",
+    "skin_tone": "light",
+    "occasion": "Wedding",
+    "cloth_description": "Good quality wedding outfit for Indian female in age group 51+.",
+    "image_path": "pulkit image/image15.png"
+  },
+  {
+    "cloth_id": "imgA_016",
+    "cloth_type": "Co-ord set",
+    "occasions": [
+      "Casual Luxury"
+    ],
+    "fit": [
+      "Flattering"
+    ],
+    "fabric": [
+      "Cotton blend"
+    ],
+    "color_family": [
+      "Pastel"
+    ],
+    "style": [
+      "Elegant"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tones": [
+      "light",
+      "medium",
+      "dusky"
+    ],
+    "body_shapes": [
+      "rectangle",
+      "pear",
+      "hourglass",
+      "apple"
+    ],
+    "age_range": [
+      "13-17"
+    ],
+    "description": "Good quality casual luxury outfit for Indian female in age group 13-17.",
+    "image": "pulkit image/image16.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe. Occasion: Casual Luxury. Age: 13-17. Skin tone: light. Body shape: rectangle. Size: M. Outfit: Co-ord set. Fabric: Silk. Background: suitable casual luxury setting.",
+    "quality_tag": "good",
+    "score": 0.9,
+    "age": 15.0,
+    "size": "S",
+    "body_shape": "rectangle",
+    "skin_tone": "light",
+    "occasion": "Casual Luxury",
+    "cloth_description": "Good quality casual luxury outfit for Indian female in age group 13-17.",
+    "image_path": "pulkit image/image16.png"
+  },
+  {
+    "cloth_id": "imgA_017",
+    "cloth_type": "Co-ord set",
+    "occasions": [
+      "Casual Luxury"
+    ],
+    "fit": [
+      "Flattering"
+    ],
+    "fabric": [
+      "Cotton blend"
+    ],
+    "color_family": [
+      "Pastel"
+    ],
+    "style": [
+      "Elegant"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tones": [
+      "light",
+      "medium",
+      "dusky"
+    ],
+    "body_shapes": [
+      "rectangle",
+      "pear",
+      "hourglass",
+      "apple"
+    ],
+    "age_range": [
+      "18-25"
+    ],
+    "description": "Good quality casual luxury outfit for Indian female in age group 18-25.",
+    "image": "pulkit image/image17.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe. Occasion: Casual Luxury. Age: 18-25. Skin tone: light. Body shape: rectangle. Size: M. Outfit: Co-ord set. Fabric: Cotton blend. Background: suitable casual luxury setting.",
+    "quality_tag": "good",
+    "score": 0.9,
+    "age": 21.5,
+    "size": "S",
+    "body_shape": "rectangle",
+    "skin_tone": "light",
+    "occasion": "Casual Luxury",
+    "cloth_description": "Good quality casual luxury outfit for Indian female in age group 18-25.",
+    "image_path": "pulkit image/image17.png"
+  },
+  {
+    "cloth_id": "imgA_018",
+    "cloth_type": "Co-ord set",
+    "occasions": [
+      "Casual Luxury"
+    ],
+    "fit": [
+      "Flattering"
+    ],
+    "fabric": [
+      "Cotton blend"
+    ],
+    "color_family": [
+      "Pastel"
+    ],
+    "style": [
+      "Elegant"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tones": [
+      "light",
+      "medium",
+      "dusky"
+    ],
+    "body_shapes": [
+      "rectangle",
+      "pear",
+      "hourglass",
+      "apple"
+    ],
+    "age_range": [
+      "26-35"
+    ],
+    "description": "Good quality casual luxury outfit for Indian female in age group 26-35.",
+    "image": "pulkit image/image18.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe. Occasion: Casual Luxury. Age: 26-35. Skin tone: light. Body shape: rectangle. Size: M. Outfit: Co-ord set. Fabric: Cotton blend. Background: suitable casual luxury setting.",
+    "quality_tag": "good",
+    "score": 0.9,
+    "age": 30.5,
+    "size": "S",
+    "body_shape": "rectangle",
+    "skin_tone": "light",
+    "occasion": "Casual Luxury",
+    "cloth_description": "Good quality casual luxury outfit for Indian female in age group 26-35.",
+    "image_path": "pulkit image/image18.png"
+  },
+  {
+    "cloth_id": "imgA_019",
+    "cloth_type": "Co-ord set",
+    "occasions": [
+      "Casual Luxury"
+    ],
+    "fit": [
+      "Flattering"
+    ],
+    "fabric": [
+      "Cotton blend"
+    ],
+    "color_family": [
+      "Pastel"
+    ],
+    "style": [
+      "Elegant"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tones": [
+      "light",
+      "medium",
+      "dusky"
+    ],
+    "body_shapes": [
+      "rectangle",
+      "pear",
+      "hourglass",
+      "apple"
+    ],
+    "age_range": [
+      "36-50"
+    ],
+    "description": "Good quality casual luxury outfit for Indian female in age group 36-50.",
+    "image": "pulkit image/image19.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe. Occasion: Casual Luxury. Age: 36-50. Skin tone: light. Body shape: rectangle. Size: M. Outfit: Co-ord set. Fabric: Cotton blend. Background: suitable casual luxury setting.",
+    "quality_tag": "good",
+    "score": 0.9,
+    "age": 43.0,
+    "size": "S",
+    "body_shape": "rectangle",
+    "skin_tone": "light",
+    "occasion": "Casual Luxury",
+    "cloth_description": "Good quality casual luxury outfit for Indian female in age group 36-50.",
+    "image_path": "pulkit image/image19.png"
+  },
+  {
+    "cloth_id": "imgA_020",
+    "cloth_type": "Co-ord set",
+    "occasions": [
+      "Casual Luxury"
+    ],
+    "fit": [
+      "Flattering"
+    ],
+    "fabric": [
+      "Cotton blend"
+    ],
+    "color_family": [
+      "Pastel"
+    ],
+    "style": [
+      "Elegant"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tones": [
+      "light",
+      "medium",
+      "dusky"
+    ],
+    "body_shapes": [
+      "rectangle",
+      "pear",
+      "hourglass",
+      "apple"
+    ],
+    "age_range": [
+      "51+"
+    ],
+    "description": "Good quality casual luxury outfit for Indian female in age group 51+.",
+    "image": "pulkit image/image20.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe. Occasion: Casual Luxury. Age: 51+. Skin tone: light. Body shape: rectangle. Size: M. Outfit: Co-ord set. Fabric: Cotton blend. Background: suitable casual luxury setting.",
+    "quality_tag": "good",
+    "score": 0.9,
+    "age": 51.0,
+    "size": "S",
+    "body_shape": "rectangle",
+    "skin_tone": "light",
+    "occasion": "Casual Luxury",
+    "cloth_description": "Good quality casual luxury outfit for Indian female in age group 51+.",
+    "image_path": "pulkit image/image20.png"
+  },
+  {
+    "cloth_id": "imgA_021",
+    "cloth_type": "Maxi dress",
+    "occasions": [
+      "Resort"
+    ],
+    "fit": [
+      "Flattering"
+    ],
+    "fabric": [
+      "Chiffon"
+    ],
+    "color_family": [
+      "Pastel"
+    ],
+    "style": [
+      "Elegant"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tones": [
+      "light",
+      "medium",
+      "dusky"
+    ],
+    "body_shapes": [
+      "rectangle",
+      "pear",
+      "hourglass",
+      "apple"
+    ],
+    "age_range": [
+      "13-17"
+    ],
+    "description": "Good quality resort outfit for Indian female in age group 13-17.",
+    "image": "pulkit image/image21.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe. Occasion: Resort. Age: 13-17. Skin tone: light. Body shape: rectangle. Size: M. Outfit: Maxi dress. Fabric: Cotton blend. Background: suitable resort setting.",
+    "quality_tag": "good",
+    "score": 0.9,
+    "age": 15.0,
+    "size": "S",
+    "body_shape": "rectangle",
+    "skin_tone": "light",
+    "occasion": "Resort",
+    "cloth_description": "Good quality resort outfit for Indian female in age group 13-17.",
+    "image_path": "pulkit image/image21.png"
+  },
+  {
+    "cloth_id": "imgA_022",
+    "cloth_type": "Maxi dress",
+    "occasions": [
+      "Resort"
+    ],
+    "fit": [
+      "Flattering"
+    ],
+    "fabric": [
+      "Chiffon"
+    ],
+    "color_family": [
+      "Pastel"
+    ],
+    "style": [
+      "Elegant"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tones": [
+      "light",
+      "medium",
+      "dusky"
+    ],
+    "body_shapes": [
+      "rectangle",
+      "pear",
+      "hourglass",
+      "apple"
+    ],
+    "age_range": [
+      "18-25"
+    ],
+    "description": "Good quality resort outfit for Indian female in age group 18-25.",
+    "image": "pulkit image/image22.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe. Occasion: Resort. Age: 18-25. Skin tone: light. Body shape: rectangle. Size: M. Outfit: Maxi dress. Fabric: Chiffon. Background: suitable resort setting.",
+    "quality_tag": "good",
+    "score": 0.9,
+    "age": 21.5,
+    "size": "S",
+    "body_shape": "rectangle",
+    "skin_tone": "light",
+    "occasion": "Resort",
+    "cloth_description": "Good quality resort outfit for Indian female in age group 18-25.",
+    "image_path": "pulkit image/image22.png"
+  },
+  {
+    "cloth_id": "imgA_023",
+    "cloth_type": "Maxi dress",
+    "occasions": [
+      "Resort"
+    ],
+    "fit": [
+      "Flattering"
+    ],
+    "fabric": [
+      "Chiffon"
+    ],
+    "color_family": [
+      "Pastel"
+    ],
+    "style": [
+      "Elegant"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tones": [
+      "light",
+      "medium",
+      "dusky"
+    ],
+    "body_shapes": [
+      "rectangle",
+      "pear",
+      "hourglass",
+      "apple"
+    ],
+    "age_range": [
+      "26-35"
+    ],
+    "description": "Good quality resort outfit for Indian female in age group 26-35.",
+    "image": "pulkit image/image23.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe. Occasion: Resort. Age: 26-35. Skin tone: light. Body shape: rectangle. Size: M. Outfit: Maxi dress. Fabric: Chiffon. Background: suitable resort setting.",
+    "quality_tag": "good",
+    "score": 0.9,
+    "age": 30.5,
+    "size": "S",
+    "body_shape": "rectangle",
+    "skin_tone": "light",
+    "occasion": "Resort",
+    "cloth_description": "Good quality resort outfit for Indian female in age group 26-35.",
+    "image_path": "pulkit image/image23.png"
+  },
+  {
+    "cloth_id": "imgA_024",
+    "cloth_type": "Maxi dress",
+    "occasions": [
+      "Resort"
+    ],
+    "fit": [
+      "Flattering"
+    ],
+    "fabric": [
+      "Chiffon"
+    ],
+    "color_family": [
+      "Pastel"
+    ],
+    "style": [
+      "Elegant"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tones": [
+      "light",
+      "medium",
+      "dusky"
+    ],
+    "body_shapes": [
+      "rectangle",
+      "pear",
+      "hourglass",
+      "apple"
+    ],
+    "age_range": [
+      "36-50"
+    ],
+    "description": "Good quality resort outfit for Indian female in age group 36-50.",
+    "image": "pulkit image/image24.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe. Occasion: Resort. Age: 36-50. Skin tone: light. Body shape: rectangle. Size: M. Outfit: Maxi dress. Fabric: Chiffon. Background: suitable resort setting.",
+    "quality_tag": "good",
+    "score": 0.9,
+    "age": 43.0,
+    "size": "S",
+    "body_shape": "rectangle",
+    "skin_tone": "light",
+    "occasion": "Resort",
+    "cloth_description": "Good quality resort outfit for Indian female in age group 36-50.",
+    "image_path": "pulkit image/image24.png"
+  },
+  {
+    "cloth_id": "imgA_025",
+    "cloth_type": "Maxi dress",
+    "occasions": [
+      "Resort"
+    ],
+    "fit": [
+      "Flattering"
+    ],
+    "fabric": [
+      "Chiffon"
+    ],
+    "color_family": [
+      "Pastel"
+    ],
+    "style": [
+      "Elegant"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tones": [
+      "light",
+      "medium",
+      "dusky"
+    ],
+    "body_shapes": [
+      "rectangle",
+      "pear",
+      "hourglass",
+      "apple"
+    ],
+    "age_range": [
+      "51+"
+    ],
+    "description": "Good quality resort outfit for Indian female in age group 51+.",
+    "image": "pulkit image/image25.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe. Occasion: Resort. Age: 51+. Skin tone: light. Body shape: rectangle. Size: M. Outfit: Maxi dress. Fabric: Chiffon. Background: suitable resort setting.",
+    "quality_tag": "good",
+    "score": 0.9,
+    "age": 51.0,
+    "size": "S",
+    "body_shape": "rectangle",
+    "skin_tone": "light",
+    "occasion": "Resort",
+    "cloth_description": "Good quality resort outfit for Indian female in age group 51+.",
+    "image_path": "pulkit image/image25.png"
+  },
+  {
+    "cloth_id": "imgA_026",
+    "cloth_type": "Blazer set",
+    "occasions": [
+      "Formal"
+    ],
+    "fit": [
+      "Average"
+    ],
+    "fabric": [
+      "Cotton blend"
+    ],
+    "color_family": [
+      "Neutral"
+    ],
+    "style": [
+      "Basic"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tones": [
+      "light",
+      "medium",
+      "dusky"
+    ],
+    "body_shapes": [
+      "rectangle",
+      "pear",
+      "hourglass",
+      "apple"
+    ],
+    "age_range": [
+      "13-17"
+    ],
+    "description": "Okay quality formal outfit for Indian female in age group 13-17.",
+    "image": "pulkit image/image26.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe. Occasion: Formal. Age: 13-17. Skin tone: light. Body shape: rectangle. Size: M. Outfit: Blazer set. Fabric: Chiffon. Background: suitable formal setting.",
+    "quality_tag": "okay",
+    "score": 0.6,
+    "age": 15.0,
+    "size": "S",
+    "body_shape": "rectangle",
+    "skin_tone": "light",
+    "occasion": "Formal",
+    "cloth_description": "Okay quality formal outfit for Indian female in age group 13-17.",
+    "image_path": "pulkit image/image26.png"
+  },
+  {
+    "cloth_id": "imgA_027",
+    "cloth_type": "Blazer set",
+    "occasions": [
+      "Formal"
+    ],
+    "fit": [
+      "Average"
+    ],
+    "fabric": [
+      "Cotton blend"
+    ],
+    "color_family": [
+      "Neutral"
+    ],
+    "style": [
+      "Basic"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tones": [
+      "light",
+      "medium",
+      "dusky"
+    ],
+    "body_shapes": [
+      "rectangle",
+      "pear",
+      "hourglass",
+      "apple"
+    ],
+    "age_range": [
+      "18-25"
+    ],
+    "description": "Okay quality formal outfit for Indian female in age group 18-25.",
+    "image": "pulkit image/image27.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe. Occasion: Formal. Age: 18-25. Skin tone: light. Body shape: rectangle. Size: M. Outfit: Blazer set. Fabric: Cotton blend. Background: suitable formal setting.",
+    "quality_tag": "okay",
+    "score": 0.6,
+    "age": 21.5,
+    "size": "S",
+    "body_shape": "rectangle",
+    "skin_tone": "light",
+    "occasion": "Formal",
+    "cloth_description": "Okay quality formal outfit for Indian female in age group 18-25.",
+    "image_path": "pulkit image/image27.png"
+  },
+  {
+    "cloth_id": "imgA_028",
+    "cloth_type": "Blazer set",
+    "occasions": [
+      "Formal"
+    ],
+    "fit": [
+      "Average"
+    ],
+    "fabric": [
+      "Cotton blend"
+    ],
+    "color_family": [
+      "Neutral"
+    ],
+    "style": [
+      "Basic"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tones": [
+      "light",
+      "medium",
+      "dusky"
+    ],
+    "body_shapes": [
+      "rectangle",
+      "pear",
+      "hourglass",
+      "apple"
+    ],
+    "age_range": [
+      "26-35"
+    ],
+    "description": "Okay quality formal outfit for Indian female in age group 26-35.",
+    "image": "pulkit image/image28.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe. Occasion: Formal. Age: 26-35. Skin tone: light. Body shape: rectangle. Size: M. Outfit: Blazer set. Fabric: Cotton blend. Background: suitable formal setting.",
+    "quality_tag": "okay",
+    "score": 0.6,
+    "age": 30.5,
+    "size": "S",
+    "body_shape": "rectangle",
+    "skin_tone": "light",
+    "occasion": "Formal",
+    "cloth_description": "Okay quality formal outfit for Indian female in age group 26-35.",
+    "image_path": "pulkit image/image28.png"
+  },
+  {
+    "cloth_id": "imgA_029",
+    "cloth_type": "Blazer set",
+    "occasions": [
+      "Formal"
+    ],
+    "fit": [
+      "Average"
+    ],
+    "fabric": [
+      "Cotton blend"
+    ],
+    "color_family": [
+      "Neutral"
+    ],
+    "style": [
+      "Basic"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tones": [
+      "light",
+      "medium",
+      "dusky"
+    ],
+    "body_shapes": [
+      "rectangle",
+      "pear",
+      "hourglass",
+      "apple"
+    ],
+    "age_range": [
+      "36-50"
+    ],
+    "description": "Okay quality formal outfit for Indian female in age group 36-50.",
+    "image": "pulkit image/image29.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe. Occasion: Formal. Age: 36-50. Skin tone: light. Body shape: rectangle. Size: M. Outfit: Blazer set. Fabric: Cotton blend. Background: suitable formal setting.",
+    "quality_tag": "okay",
+    "score": 0.6,
+    "age": 43.0,
+    "size": "S",
+    "body_shape": "rectangle",
+    "skin_tone": "light",
+    "occasion": "Formal",
+    "cloth_description": "Okay quality formal outfit for Indian female in age group 36-50.",
+    "image_path": "pulkit image/image29.png"
+  },
+  {
+    "cloth_id": "imgA_030",
+    "cloth_type": "Blazer set",
+    "occasions": [
+      "Formal"
+    ],
+    "fit": [
+      "Average"
+    ],
+    "fabric": [
+      "Cotton blend"
+    ],
+    "color_family": [
+      "Neutral"
+    ],
+    "style": [
+      "Basic"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tones": [
+      "light",
+      "medium",
+      "dusky"
+    ],
+    "body_shapes": [
+      "rectangle",
+      "pear",
+      "hourglass",
+      "apple"
+    ],
+    "age_range": [
+      "51+"
+    ],
+    "description": "Okay quality formal outfit for Indian female in age group 51+.",
+    "image": "pulkit image/image30.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe. Occasion: Formal. Age: 51+. Skin tone: light. Body shape: rectangle. Size: M. Outfit: Blazer set. Fabric: Cotton blend. Background: suitable formal setting.",
+    "quality_tag": "okay",
+    "score": 0.6,
+    "age": 51.0,
+    "size": "S",
+    "body_shape": "rectangle",
+    "skin_tone": "light",
+    "occasion": "Formal",
+    "cloth_description": "Okay quality formal outfit for Indian female in age group 51+.",
+    "image_path": "pulkit image/image30.png"
+  },
+  {
+    "cloth_id": "imgA_031",
+    "cloth_type": "Cocktail dress",
+    "occasions": [
+      "Party"
+    ],
+    "fit": [
+      "Average"
+    ],
+    "fabric": [
+      "Cotton blend"
+    ],
+    "color_family": [
+      "Neutral"
+    ],
+    "style": [
+      "Basic"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tones": [
+      "light",
+      "medium",
+      "dusky"
+    ],
+    "body_shapes": [
+      "rectangle",
+      "pear",
+      "hourglass",
+      "apple"
+    ],
+    "age_range": [
+      "13-17"
+    ],
+    "description": "Okay quality party outfit for Indian female in age group 13-17.",
+    "image": "pulkit image/image31.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe. Occasion: Party. Age: 13-17. Skin tone: light. Body shape: rectangle. Size: M. Outfit: Cocktail dress. Fabric: Cotton blend. Background: suitable party setting.",
+    "quality_tag": "okay",
+    "score": 0.6,
+    "age": 15.0,
+    "size": "S",
+    "body_shape": "rectangle",
+    "skin_tone": "light",
+    "occasion": "Party",
+    "cloth_description": "Okay quality party outfit for Indian female in age group 13-17.",
+    "image_path": "pulkit image/image31.png"
+  },
+  {
+    "cloth_id": "imgA_032",
+    "cloth_type": "Cocktail dress",
+    "occasions": [
+      "Party"
+    ],
+    "fit": [
+      "Average"
+    ],
+    "fabric": [
+      "Cotton blend"
+    ],
+    "color_family": [
+      "Neutral"
+    ],
+    "style": [
+      "Basic"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tones": [
+      "light",
+      "medium",
+      "dusky"
+    ],
+    "body_shapes": [
+      "rectangle",
+      "pear",
+      "hourglass",
+      "apple"
+    ],
+    "age_range": [
+      "18-25"
+    ],
+    "description": "Okay quality party outfit for Indian female in age group 18-25.",
+    "image": "pulkit image/image32.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe. Occasion: Party. Age: 18-25. Skin tone: light. Body shape: rectangle. Size: M. Outfit: Cocktail dress. Fabric: Cotton blend. Background: suitable party setting.",
+    "quality_tag": "okay",
+    "score": 0.6,
+    "age": 21.5,
+    "size": "S",
+    "body_shape": "rectangle",
+    "skin_tone": "light",
+    "occasion": "Party",
+    "cloth_description": "Okay quality party outfit for Indian female in age group 18-25.",
+    "image_path": "pulkit image/image32.png"
+  },
+  {
+    "cloth_id": "imgA_033",
+    "cloth_type": "Cocktail dress",
+    "occasions": [
+      "Party"
+    ],
+    "fit": [
+      "Average"
+    ],
+    "fabric": [
+      "Cotton blend"
+    ],
+    "color_family": [
+      "Neutral"
+    ],
+    "style": [
+      "Basic"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tones": [
+      "light",
+      "medium",
+      "dusky"
+    ],
+    "body_shapes": [
+      "rectangle",
+      "pear",
+      "hourglass",
+      "apple"
+    ],
+    "age_range": [
+      "26-35"
+    ],
+    "description": "Okay quality party outfit for Indian female in age group 26-35.",
+    "image": "pulkit image/image33.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe. Occasion: Party. Age: 26-35. Skin tone: light. Body shape: rectangle. Size: M. Outfit: Cocktail dress. Fabric: Cotton blend. Background: suitable party setting.",
+    "quality_tag": "okay",
+    "score": 0.6,
+    "age": 30.5,
+    "size": "S",
+    "body_shape": "rectangle",
+    "skin_tone": "light",
+    "occasion": "Party",
+    "cloth_description": "Okay quality party outfit for Indian female in age group 26-35.",
+    "image_path": "pulkit image/image33.png"
+  },
+  {
+    "cloth_id": "imgA_034",
+    "cloth_type": "Cocktail dress",
+    "occasions": [
+      "Party"
+    ],
+    "fit": [
+      "Average"
+    ],
+    "fabric": [
+      "Cotton blend"
+    ],
+    "color_family": [
+      "Neutral"
+    ],
+    "style": [
+      "Basic"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tones": [
+      "light",
+      "medium",
+      "dusky"
+    ],
+    "body_shapes": [
+      "rectangle",
+      "pear",
+      "hourglass",
+      "apple"
+    ],
+    "age_range": [
+      "36-50"
+    ],
+    "description": "Okay quality party outfit for Indian female in age group 36-50.",
+    "image": "pulkit image/image34.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe. Occasion: Party. Age: 36-50. Skin tone: light. Body shape: rectangle. Size: M. Outfit: Cocktail dress. Fabric: Cotton blend. Background: suitable party setting.",
+    "quality_tag": "okay",
+    "score": 0.6,
+    "age": 43.0,
+    "size": "S",
+    "body_shape": "rectangle",
+    "skin_tone": "light",
+    "occasion": "Party",
+    "cloth_description": "Okay quality party outfit for Indian female in age group 36-50.",
+    "image_path": "pulkit image/image34.png"
+  },
+  {
+    "cloth_id": "imgA_035",
+    "cloth_type": "Cocktail dress",
+    "occasions": [
+      "Party"
+    ],
+    "fit": [
+      "Average"
+    ],
+    "fabric": [
+      "Cotton blend"
+    ],
+    "color_family": [
+      "Neutral"
+    ],
+    "style": [
+      "Basic"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tones": [
+      "light",
+      "medium",
+      "dusky"
+    ],
+    "body_shapes": [
+      "rectangle",
+      "pear",
+      "hourglass",
+      "apple"
+    ],
+    "age_range": [
+      "51+"
+    ],
+    "description": "Okay quality party outfit for Indian female in age group 51+.",
+    "image": "pulkit image/image35.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe. Occasion: Party. Age: 51+. Skin tone: light. Body shape: rectangle. Size: M. Outfit: Cocktail dress. Fabric: Cotton blend. Background: suitable party setting.",
+    "quality_tag": "okay",
+    "score": 0.6,
+    "age": 51.0,
+    "size": "S",
+    "body_shape": "rectangle",
+    "skin_tone": "light",
+    "occasion": "Party",
+    "cloth_description": "Okay quality party outfit for Indian female in age group 51+.",
+    "image_path": "pulkit image/image35.png"
+  },
+  {
+    "cloth_id": "imgA_036",
+    "cloth_type": "Silk saree",
+    "occasions": [
+      "Wedding"
+    ],
+    "fit": [
+      "Average"
+    ],
+    "fabric": [
+      "Silk"
+    ],
+    "color_family": [
+      "Neutral"
+    ],
+    "style": [
+      "Basic"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tones": [
+      "light",
+      "medium",
+      "dusky"
+    ],
+    "body_shapes": [
+      "rectangle",
+      "pear",
+      "hourglass",
+      "apple"
+    ],
+    "age_range": [
+      "13-17"
+    ],
+    "description": "Okay quality wedding outfit for Indian female in age group 13-17.",
+    "image": "pulkit image/image36.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe. Occasion: Wedding. Age: 13-17. Skin tone: light. Body shape: rectangle. Size: M. Outfit: Silk saree. Fabric: Cotton blend. Background: suitable wedding setting.",
+    "quality_tag": "okay",
+    "score": 0.6,
+    "age": 15.0,
+    "size": "S",
+    "body_shape": "rectangle",
+    "skin_tone": "light",
+    "occasion": "Wedding",
+    "cloth_description": "Okay quality wedding outfit for Indian female in age group 13-17.",
+    "image_path": "pulkit image/image36.png"
+  },
+  {
+    "cloth_id": "imgA_037",
+    "cloth_type": "Silk saree",
+    "occasions": [
+      "Wedding"
+    ],
+    "fit": [
+      "Average"
+    ],
+    "fabric": [
+      "Silk"
+    ],
+    "color_family": [
+      "Neutral"
+    ],
+    "style": [
+      "Basic"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tones": [
+      "light",
+      "medium",
+      "dusky"
+    ],
+    "body_shapes": [
+      "rectangle",
+      "pear",
+      "hourglass",
+      "apple"
+    ],
+    "age_range": [
+      "18-25"
+    ],
+    "description": "Okay quality wedding outfit for Indian female in age group 18-25.",
+    "image": "pulkit image/image37.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe. Occasion: Wedding. Age: 18-25. Skin tone: light. Body shape: rectangle. Size: M. Outfit: Silk saree. Fabric: Silk. Background: suitable wedding setting.",
+    "quality_tag": "okay",
+    "score": 0.6,
+    "age": 21.5,
+    "size": "S",
+    "body_shape": "rectangle",
+    "skin_tone": "light",
+    "occasion": "Wedding",
+    "cloth_description": "Okay quality wedding outfit for Indian female in age group 18-25.",
+    "image_path": "pulkit image/image37.png"
+  },
+  {
+    "cloth_id": "imgA_038",
+    "cloth_type": "Silk saree",
+    "occasions": [
+      "Wedding"
+    ],
+    "fit": [
+      "Average"
+    ],
+    "fabric": [
+      "Silk"
+    ],
+    "color_family": [
+      "Neutral"
+    ],
+    "style": [
+      "Basic"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tones": [
+      "light",
+      "medium",
+      "dusky"
+    ],
+    "body_shapes": [
+      "rectangle",
+      "pear",
+      "hourglass",
+      "apple"
+    ],
+    "age_range": [
+      "26-35"
+    ],
+    "description": "Okay quality wedding outfit for Indian female in age group 26-35.",
+    "image": "pulkit image/image38.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe. Occasion: Wedding. Age: 26-35. Skin tone: light. Body shape: rectangle. Size: M. Outfit: Silk saree. Fabric: Silk. Background: suitable wedding setting.",
+    "quality_tag": "okay",
+    "score": 0.6,
+    "age": 30.5,
+    "size": "S",
+    "body_shape": "rectangle",
+    "skin_tone": "light",
+    "occasion": "Wedding",
+    "cloth_description": "Okay quality wedding outfit for Indian female in age group 26-35.",
+    "image_path": "pulkit image/image38.png"
+  },
+  {
+    "cloth_id": "imgA_039",
+    "cloth_type": "Silk saree",
+    "occasions": [
+      "Wedding"
+    ],
+    "fit": [
+      "Average"
+    ],
+    "fabric": [
+      "Silk"
+    ],
+    "color_family": [
+      "Neutral"
+    ],
+    "style": [
+      "Basic"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tones": [
+      "light",
+      "medium",
+      "dusky"
+    ],
+    "body_shapes": [
+      "rectangle",
+      "pear",
+      "hourglass",
+      "apple"
+    ],
+    "age_range": [
+      "36-50"
+    ],
+    "description": "Okay quality wedding outfit for Indian female in age group 36-50.",
+    "image": "pulkit image/image39.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe. Occasion: Wedding. Age: 36-50. Skin tone: light. Body shape: rectangle. Size: M. Outfit: Silk saree. Fabric: Silk. Background: suitable wedding setting.",
+    "quality_tag": "okay",
+    "score": 0.6,
+    "age": 43.0,
+    "size": "S",
+    "body_shape": "rectangle",
+    "skin_tone": "light",
+    "occasion": "Wedding",
+    "cloth_description": "Okay quality wedding outfit for Indian female in age group 36-50.",
+    "image_path": "pulkit image/image39.png"
+  },
+  {
+    "cloth_id": "imgA_040",
+    "cloth_type": "Silk saree",
+    "occasions": [
+      "Wedding"
+    ],
+    "fit": [
+      "Average"
+    ],
+    "fabric": [
+      "Silk"
+    ],
+    "color_family": [
+      "Neutral"
+    ],
+    "style": [
+      "Basic"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tones": [
+      "light",
+      "medium",
+      "dusky"
+    ],
+    "body_shapes": [
+      "rectangle",
+      "pear",
+      "hourglass",
+      "apple"
+    ],
+    "age_range": [
+      "51+"
+    ],
+    "description": "Okay quality wedding outfit for Indian female in age group 51+.",
+    "image": "pulkit image/image40.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe. Occasion: Wedding. Age: 51+. Skin tone: light. Body shape: rectangle. Size: M. Outfit: Silk saree. Fabric: Silk. Background: suitable wedding setting.",
+    "quality_tag": "okay",
+    "score": 0.6,
+    "age": 51.0,
+    "size": "S",
+    "body_shape": "rectangle",
+    "skin_tone": "light",
+    "occasion": "Wedding",
+    "cloth_description": "Okay quality wedding outfit for Indian female in age group 51+.",
+    "image_path": "pulkit image/image40.png"
+  },
+  {
+    "cloth_id": "imgA_041",
+    "cloth_type": "Co-ord set",
+    "occasions": [
+      "Casual Luxury"
+    ],
+    "fit": [
+      "Average"
+    ],
+    "fabric": [
+      "Cotton blend"
+    ],
+    "color_family": [
+      "Neutral"
+    ],
+    "style": [
+      "Basic"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tones": [
+      "light",
+      "medium",
+      "dusky"
+    ],
+    "body_shapes": [
+      "rectangle",
+      "pear",
+      "hourglass",
+      "apple"
+    ],
+    "age_range": [
+      "13-17"
+    ],
+    "description": "Okay quality casual luxury outfit for Indian female in age group 13-17.",
+    "image": "pulkit image/image41.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe. Occasion: Casual Luxury. Age: 13-17. Skin tone: light. Body shape: rectangle. Size: M. Outfit: Co-ord set. Fabric: Silk. Background: suitable casual luxury setting.",
+    "quality_tag": "okay",
+    "score": 0.6,
+    "age": 15.0,
+    "size": "S",
+    "body_shape": "rectangle",
+    "skin_tone": "light",
+    "occasion": "Casual Luxury",
+    "cloth_description": "Okay quality casual luxury outfit for Indian female in age group 13-17.",
+    "image_path": "pulkit image/image41.png"
+  },
+  {
+    "cloth_id": "imgA_042",
+    "cloth_type": "Co-ord set",
+    "occasions": [
+      "Casual Luxury"
+    ],
+    "fit": [
+      "Average"
+    ],
+    "fabric": [
+      "Cotton blend"
+    ],
+    "color_family": [
+      "Neutral"
+    ],
+    "style": [
+      "Basic"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tones": [
+      "light",
+      "medium",
+      "dusky"
+    ],
+    "body_shapes": [
+      "rectangle",
+      "pear",
+      "hourglass",
+      "apple"
+    ],
+    "age_range": [
+      "18-25"
+    ],
+    "description": "Okay quality casual luxury outfit for Indian female in age group 18-25.",
+    "image": "pulkit image/image42.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe. Occasion: Casual Luxury. Age: 18-25. Skin tone: light. Body shape: rectangle. Size: M. Outfit: Co-ord set. Fabric: Cotton blend. Background: suitable casual luxury setting.",
+    "quality_tag": "okay",
+    "score": 0.6,
+    "age": 21.5,
+    "size": "S",
+    "body_shape": "rectangle",
+    "skin_tone": "light",
+    "occasion": "Casual Luxury",
+    "cloth_description": "Okay quality casual luxury outfit for Indian female in age group 18-25.",
+    "image_path": "pulkit image/image42.png"
+  },
+  {
+    "cloth_id": "imgA_043",
+    "cloth_type": "Co-ord set",
+    "occasions": [
+      "Casual Luxury"
+    ],
+    "fit": [
+      "Average"
+    ],
+    "fabric": [
+      "Cotton blend"
+    ],
+    "color_family": [
+      "Neutral"
+    ],
+    "style": [
+      "Basic"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tones": [
+      "light",
+      "medium",
+      "dusky"
+    ],
+    "body_shapes": [
+      "rectangle",
+      "pear",
+      "hourglass",
+      "apple"
+    ],
+    "age_range": [
+      "26-35"
+    ],
+    "description": "Okay quality casual luxury outfit for Indian female in age group 26-35.",
+    "image": "pulkit image/image43.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe. Occasion: Casual Luxury. Age: 26-35. Skin tone: light. Body shape: rectangle. Size: M. Outfit: Co-ord set. Fabric: Cotton blend. Background: suitable casual luxury setting.",
+    "quality_tag": "okay",
+    "score": 0.6,
+    "age": 30.5,
+    "size": "S",
+    "body_shape": "rectangle",
+    "skin_tone": "light",
+    "occasion": "Casual Luxury",
+    "cloth_description": "Okay quality casual luxury outfit for Indian female in age group 26-35.",
+    "image_path": "pulkit image/image43.png"
+  },
+  {
+    "cloth_id": "imgA_044",
+    "cloth_type": "Co-ord set",
+    "occasions": [
+      "Casual Luxury"
+    ],
+    "fit": [
+      "Average"
+    ],
+    "fabric": [
+      "Cotton blend"
+    ],
+    "color_family": [
+      "Neutral"
+    ],
+    "style": [
+      "Basic"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tones": [
+      "light",
+      "medium",
+      "dusky"
+    ],
+    "body_shapes": [
+      "rectangle",
+      "pear",
+      "hourglass",
+      "apple"
+    ],
+    "age_range": [
+      "36-50"
+    ],
+    "description": "Okay quality casual luxury outfit for Indian female in age group 36-50.",
+    "image": "pulkit image/image44.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe. Occasion: Casual Luxury. Age: 36-50. Skin tone: light. Body shape: rectangle. Size: M. Outfit: Co-ord set. Fabric: Cotton blend. Background: suitable casual luxury setting.",
+    "quality_tag": "okay",
+    "score": 0.6,
+    "age": 43.0,
+    "size": "S",
+    "body_shape": "rectangle",
+    "skin_tone": "light",
+    "occasion": "Casual Luxury",
+    "cloth_description": "Okay quality casual luxury outfit for Indian female in age group 36-50.",
+    "image_path": "pulkit image/image44.png"
+  },
+  {
+    "cloth_id": "imgA_045",
+    "cloth_type": "Co-ord set",
+    "occasions": [
+      "Casual Luxury"
+    ],
+    "fit": [
+      "Average"
+    ],
+    "fabric": [
+      "Cotton blend"
+    ],
+    "color_family": [
+      "Neutral"
+    ],
+    "style": [
+      "Basic"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tones": [
+      "light",
+      "medium",
+      "dusky"
+    ],
+    "body_shapes": [
+      "rectangle",
+      "pear",
+      "hourglass",
+      "apple"
+    ],
+    "age_range": [
+      "51+"
+    ],
+    "description": "Okay quality casual luxury outfit for Indian female in age group 51+.",
+    "image": "pulkit image/image45.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe. Occasion: Casual Luxury. Age: 51+. Skin tone: light. Body shape: rectangle. Size: M. Outfit: Co-ord set. Fabric: Cotton blend. Background: suitable casual luxury setting.",
+    "quality_tag": "okay",
+    "score": 0.6,
+    "age": 51.0,
+    "size": "S",
+    "body_shape": "rectangle",
+    "skin_tone": "light",
+    "occasion": "Casual Luxury",
+    "cloth_description": "Okay quality casual luxury outfit for Indian female in age group 51+.",
+    "image_path": "pulkit image/image45.png"
+  },
+  {
+    "cloth_id": "imgA_046",
+    "cloth_type": "Maxi dress",
+    "occasions": [
+      "Resort"
+    ],
+    "fit": [
+      "Average"
+    ],
+    "fabric": [
+      "Chiffon"
+    ],
+    "color_family": [
+      "Neutral"
+    ],
+    "style": [
+      "Basic"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tones": [
+      "light",
+      "medium",
+      "dusky"
+    ],
+    "body_shapes": [
+      "rectangle",
+      "pear",
+      "hourglass",
+      "apple"
+    ],
+    "age_range": [
+      "13-17"
+    ],
+    "description": "Okay quality resort outfit for Indian female in age group 13-17.",
+    "image": "pulkit image/image46.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe. Occasion: Resort. Age: 13-17. Skin tone: light. Body shape: rectangle. Size: M. Outfit: Maxi dress. Fabric: Cotton blend. Background: suitable resort setting.",
+    "quality_tag": "okay",
+    "score": 0.6,
+    "age": 15.0,
+    "size": "S",
+    "body_shape": "rectangle",
+    "skin_tone": "light",
+    "occasion": "Resort",
+    "cloth_description": "Okay quality resort outfit for Indian female in age group 13-17.",
+    "image_path": "pulkit image/image46.png"
+  },
+  {
+    "cloth_id": "imgA_047",
+    "cloth_type": "Maxi dress",
+    "occasions": [
+      "Resort"
+    ],
+    "fit": [
+      "Average"
+    ],
+    "fabric": [
+      "Chiffon"
+    ],
+    "color_family": [
+      "Neutral"
+    ],
+    "style": [
+      "Basic"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tones": [
+      "light",
+      "medium",
+      "dusky"
+    ],
+    "body_shapes": [
+      "rectangle",
+      "pear",
+      "hourglass",
+      "apple"
+    ],
+    "age_range": [
+      "18-25"
+    ],
+    "description": "Okay quality resort outfit for Indian female in age group 18-25.",
+    "image": "pulkit image/image47.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe. Occasion: Resort. Age: 18-25. Skin tone: light. Body shape: rectangle. Size: M. Outfit: Maxi dress. Fabric: Chiffon. Background: suitable resort setting.",
+    "quality_tag": "okay",
+    "score": 0.6,
+    "age": 21.5,
+    "size": "S",
+    "body_shape": "rectangle",
+    "skin_tone": "light",
+    "occasion": "Resort",
+    "cloth_description": "Okay quality resort outfit for Indian female in age group 18-25.",
+    "image_path": "pulkit image/image47.png"
+  },
+  {
+    "cloth_id": "imgA_048",
+    "cloth_type": "Maxi dress",
+    "occasions": [
+      "Resort"
+    ],
+    "fit": [
+      "Average"
+    ],
+    "fabric": [
+      "Chiffon"
+    ],
+    "color_family": [
+      "Neutral"
+    ],
+    "style": [
+      "Basic"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tones": [
+      "light",
+      "medium",
+      "dusky"
+    ],
+    "body_shapes": [
+      "rectangle",
+      "pear",
+      "hourglass",
+      "apple"
+    ],
+    "age_range": [
+      "26-35"
+    ],
+    "description": "Okay quality resort outfit for Indian female in age group 26-35.",
+    "image": "pulkit image/image48.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe. Occasion: Resort. Age: 26-35. Skin tone: light. Body shape: rectangle. Size: M. Outfit: Maxi dress. Fabric: Chiffon. Background: suitable resort setting.",
+    "quality_tag": "okay",
+    "score": 0.6,
+    "age": 30.5,
+    "size": "S",
+    "body_shape": "rectangle",
+    "skin_tone": "light",
+    "occasion": "Resort",
+    "cloth_description": "Okay quality resort outfit for Indian female in age group 26-35.",
+    "image_path": "pulkit image/image48.png"
+  },
+  {
+    "cloth_id": "imgA_049",
+    "cloth_type": "Maxi dress",
+    "occasions": [
+      "Resort"
+    ],
+    "fit": [
+      "Average"
+    ],
+    "fabric": [
+      "Chiffon"
+    ],
+    "color_family": [
+      "Neutral"
+    ],
+    "style": [
+      "Basic"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tones": [
+      "light",
+      "medium",
+      "dusky"
+    ],
+    "body_shapes": [
+      "rectangle",
+      "pear",
+      "hourglass",
+      "apple"
+    ],
+    "age_range": [
+      "36-50"
+    ],
+    "description": "Okay quality resort outfit for Indian female in age group 36-50.",
+    "image": "pulkit image/image49.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe. Occasion: Resort. Age: 36-50. Skin tone: light. Body shape: rectangle. Size: M. Outfit: Maxi dress. Fabric: Chiffon. Background: suitable resort setting.",
+    "quality_tag": "okay",
+    "score": 0.6,
+    "age": 43.0,
+    "size": "S",
+    "body_shape": "rectangle",
+    "skin_tone": "light",
+    "occasion": "Resort",
+    "cloth_description": "Okay quality resort outfit for Indian female in age group 36-50.",
+    "image_path": "pulkit image/image49.png"
+  },
+  {
+    "cloth_id": "imgA_050",
+    "cloth_type": "Maxi dress",
+    "occasions": [
+      "Resort"
+    ],
+    "fit": [
+      "Average"
+    ],
+    "fabric": [
+      "Chiffon"
+    ],
+    "color_family": [
+      "Neutral"
+    ],
+    "style": [
+      "Basic"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tones": [
+      "light",
+      "medium",
+      "dusky"
+    ],
+    "body_shapes": [
+      "rectangle",
+      "pear",
+      "hourglass",
+      "apple"
+    ],
+    "age_range": [
+      "51+"
+    ],
+    "description": "Okay quality resort outfit for Indian female in age group 51+.",
+    "image": "pulkit image/image50.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe. Occasion: Resort. Age: 51+. Skin tone: light. Body shape: rectangle. Size: M. Outfit: Maxi dress. Fabric: Chiffon. Background: suitable resort setting.",
+    "quality_tag": "okay",
+    "score": 0.6,
+    "age": 51.0,
+    "size": "S",
+    "body_shape": "rectangle",
+    "skin_tone": "light",
+    "occasion": "Resort",
+    "cloth_description": "Okay quality resort outfit for Indian female in age group 51+.",
+    "image_path": "pulkit image/image50.png"
+  },
+  {
+    "cloth_id": "imgA_051",
+    "cloth_type": "Blazer set",
+    "occasions": [
+      "Formal"
+    ],
+    "fit": [
+      "Poor"
+    ],
+    "fabric": [
+      "Cotton blend"
+    ],
+    "color_family": [
+      "Clashing"
+    ],
+    "style": [
+      "Unflattering"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tones": [
+      "light",
+      "medium",
+      "dusky"
+    ],
+    "body_shapes": [
+      "rectangle",
+      "pear",
+      "hourglass",
+      "apple"
+    ],
+    "age_range": [
+      "13-17"
+    ],
+    "description": "Bad quality formal outfit for Indian female in age group 13-17.",
+    "image": "pulkit image/image51.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe. Occasion: Formal. Age: 13-17. Skin tone: light. Body shape: rectangle. Size: M. Outfit: Blazer set. Fabric: Chiffon. Background: suitable formal setting.",
+    "quality_tag": "bad",
+    "score": 0.2,
+    "age": 15.0,
+    "size": "S",
+    "body_shape": "rectangle",
+    "skin_tone": "light",
+    "occasion": "Formal",
+    "cloth_description": "Bad quality formal outfit for Indian female in age group 13-17.",
+    "image_path": "pulkit image/image51.png"
+  },
+  {
+    "cloth_id": "imgA_052",
+    "cloth_type": "Blazer set",
+    "occasions": [
+      "Formal"
+    ],
+    "fit": [
+      "Poor"
+    ],
+    "fabric": [
+      "Cotton blend"
+    ],
+    "color_family": [
+      "Clashing"
+    ],
+    "style": [
+      "Unflattering"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tones": [
+      "light",
+      "medium",
+      "dusky"
+    ],
+    "body_shapes": [
+      "rectangle",
+      "pear",
+      "hourglass",
+      "apple"
+    ],
+    "age_range": [
+      "18-25"
+    ],
+    "description": "Bad quality formal outfit for Indian female in age group 18-25.",
+    "image": "pulkit image/image52.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe. Occasion: Formal. Age: 18-25. Skin tone: light. Body shape: rectangle. Size: M. Outfit: Blazer set. Fabric: Cotton blend. Background: suitable formal setting.",
+    "quality_tag": "bad",
+    "score": 0.2,
+    "age": 21.5,
+    "size": "S",
+    "body_shape": "rectangle",
+    "skin_tone": "light",
+    "occasion": "Formal",
+    "cloth_description": "Bad quality formal outfit for Indian female in age group 18-25.",
+    "image_path": "pulkit image/image52.png"
+  },
+  {
+    "cloth_id": "imgA_053",
+    "cloth_type": "Blazer set",
+    "occasions": [
+      "Formal"
+    ],
+    "fit": [
+      "Poor"
+    ],
+    "fabric": [
+      "Cotton blend"
+    ],
+    "color_family": [
+      "Clashing"
+    ],
+    "style": [
+      "Unflattering"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tones": [
+      "light",
+      "medium",
+      "dusky"
+    ],
+    "body_shapes": [
+      "rectangle",
+      "pear",
+      "hourglass",
+      "apple"
+    ],
+    "age_range": [
+      "26-35"
+    ],
+    "description": "Bad quality formal outfit for Indian female in age group 26-35.",
+    "image": "pulkit image/image53.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe. Occasion: Formal. Age: 26-35. Skin tone: light. Body shape: rectangle. Size: M. Outfit: Blazer set. Fabric: Cotton blend. Background: suitable formal setting.",
+    "quality_tag": "bad",
+    "score": 0.2,
+    "age": 30.5,
+    "size": "S",
+    "body_shape": "rectangle",
+    "skin_tone": "light",
+    "occasion": "Formal",
+    "cloth_description": "Bad quality formal outfit for Indian female in age group 26-35.",
+    "image_path": "pulkit image/image53.png"
+  },
+  {
+    "cloth_id": "imgA_054",
+    "cloth_type": "Blazer set",
+    "occasions": [
+      "Formal"
+    ],
+    "fit": [
+      "Poor"
+    ],
+    "fabric": [
+      "Cotton blend"
+    ],
+    "color_family": [
+      "Clashing"
+    ],
+    "style": [
+      "Unflattering"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tones": [
+      "light",
+      "medium",
+      "dusky"
+    ],
+    "body_shapes": [
+      "rectangle",
+      "pear",
+      "hourglass",
+      "apple"
+    ],
+    "age_range": [
+      "36-50"
+    ],
+    "description": "Bad quality formal outfit for Indian female in age group 36-50.",
+    "image": "pulkit image/image54.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe. Occasion: Formal. Age: 36-50. Skin tone: light. Body shape: rectangle. Size: M. Outfit: Blazer set. Fabric: Cotton blend. Background: suitable formal setting.",
+    "quality_tag": "bad",
+    "score": 0.2,
+    "age": 43.0,
+    "size": "S",
+    "body_shape": "rectangle",
+    "skin_tone": "light",
+    "occasion": "Formal",
+    "cloth_description": "Bad quality formal outfit for Indian female in age group 36-50.",
+    "image_path": "pulkit image/image54.png"
+  },
+  {
+    "cloth_id": "imgA_055",
+    "cloth_type": "Blazer set",
+    "occasions": [
+      "Formal"
+    ],
+    "fit": [
+      "Poor"
+    ],
+    "fabric": [
+      "Cotton blend"
+    ],
+    "color_family": [
+      "Clashing"
+    ],
+    "style": [
+      "Unflattering"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tones": [
+      "light",
+      "medium",
+      "dusky"
+    ],
+    "body_shapes": [
+      "rectangle",
+      "pear",
+      "hourglass",
+      "apple"
+    ],
+    "age_range": [
+      "51+"
+    ],
+    "description": "Bad quality formal outfit for Indian female in age group 51+.",
+    "image": "pulkit image/image55.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe. Occasion: Formal. Age: 51+. Skin tone: light. Body shape: rectangle. Size: M. Outfit: Blazer set. Fabric: Cotton blend. Background: suitable formal setting.",
+    "quality_tag": "bad",
+    "score": 0.2,
+    "age": 51.0,
+    "size": "S",
+    "body_shape": "rectangle",
+    "skin_tone": "light",
+    "occasion": "Formal",
+    "cloth_description": "Bad quality formal outfit for Indian female in age group 51+.",
+    "image_path": "pulkit image/image55.png"
+  },
+  {
+    "cloth_id": "imgA_056",
+    "cloth_type": "Cocktail dress",
+    "occasions": [
+      "Party"
+    ],
+    "fit": [
+      "Poor"
+    ],
+    "fabric": [
+      "Cotton blend"
+    ],
+    "color_family": [
+      "Clashing"
+    ],
+    "style": [
+      "Unflattering"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tones": [
+      "light",
+      "medium",
+      "dusky"
+    ],
+    "body_shapes": [
+      "rectangle",
+      "pear",
+      "hourglass",
+      "apple"
+    ],
+    "age_range": [
+      "13-17"
+    ],
+    "description": "Bad quality party outfit for Indian female in age group 13-17.",
+    "image": "pulkit image/image56.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe. Occasion: Party. Age: 13-17. Skin tone: light. Body shape: rectangle. Size: M. Outfit: Cocktail dress. Fabric: Cotton blend. Background: suitable party setting.",
+    "quality_tag": "bad",
+    "score": 0.2,
+    "age": 15.0,
+    "size": "S",
+    "body_shape": "rectangle",
+    "skin_tone": "light",
+    "occasion": "Party",
+    "cloth_description": "Bad quality party outfit for Indian female in age group 13-17.",
+    "image_path": "pulkit image/image56.png"
+  },
+  {
+    "cloth_id": "imgA_057",
+    "cloth_type": "Cocktail dress",
+    "occasions": [
+      "Party"
+    ],
+    "fit": [
+      "Poor"
+    ],
+    "fabric": [
+      "Cotton blend"
+    ],
+    "color_family": [
+      "Clashing"
+    ],
+    "style": [
+      "Unflattering"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tones": [
+      "light",
+      "medium",
+      "dusky"
+    ],
+    "body_shapes": [
+      "rectangle",
+      "pear",
+      "hourglass",
+      "apple"
+    ],
+    "age_range": [
+      "18-25"
+    ],
+    "description": "Bad quality party outfit for Indian female in age group 18-25.",
+    "image": "pulkit image/image57.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe. Occasion: Party. Age: 18-25. Skin tone: light. Body shape: rectangle. Size: M. Outfit: Cocktail dress. Fabric: Cotton blend. Background: suitable party setting.",
+    "quality_tag": "bad",
+    "score": 0.2,
+    "age": 21.5,
+    "size": "S",
+    "body_shape": "rectangle",
+    "skin_tone": "light",
+    "occasion": "Party",
+    "cloth_description": "Bad quality party outfit for Indian female in age group 18-25.",
+    "image_path": "pulkit image/image57.png"
+  },
+  {
+    "cloth_id": "imgA_058",
+    "cloth_type": "Cocktail dress",
+    "occasions": [
+      "Party"
+    ],
+    "fit": [
+      "Poor"
+    ],
+    "fabric": [
+      "Cotton blend"
+    ],
+    "color_family": [
+      "Clashing"
+    ],
+    "style": [
+      "Unflattering"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tones": [
+      "light",
+      "medium",
+      "dusky"
+    ],
+    "body_shapes": [
+      "rectangle",
+      "pear",
+      "hourglass",
+      "apple"
+    ],
+    "age_range": [
+      "26-35"
+    ],
+    "description": "Bad quality party outfit for Indian female in age group 26-35.",
+    "image": "pulkit image/image58.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe. Occasion: Party. Age: 26-35. Skin tone: light. Body shape: rectangle. Size: M. Outfit: Cocktail dress. Fabric: Cotton blend. Background: suitable party setting.",
+    "quality_tag": "bad",
+    "score": 0.2,
+    "age": 30.5,
+    "size": "S",
+    "body_shape": "rectangle",
+    "skin_tone": "light",
+    "occasion": "Party",
+    "cloth_description": "Bad quality party outfit for Indian female in age group 26-35.",
+    "image_path": "pulkit image/image58.png"
+  },
+  {
+    "cloth_id": "imgA_059",
+    "cloth_type": "Cocktail dress",
+    "occasions": [
+      "Party"
+    ],
+    "fit": [
+      "Poor"
+    ],
+    "fabric": [
+      "Cotton blend"
+    ],
+    "color_family": [
+      "Clashing"
+    ],
+    "style": [
+      "Unflattering"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tones": [
+      "light",
+      "medium",
+      "dusky"
+    ],
+    "body_shapes": [
+      "rectangle",
+      "pear",
+      "hourglass",
+      "apple"
+    ],
+    "age_range": [
+      "36-50"
+    ],
+    "description": "Bad quality party outfit for Indian female in age group 36-50.",
+    "image": "pulkit image/image59.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe. Occasion: Party. Age: 36-50. Skin tone: light. Body shape: rectangle. Size: M. Outfit: Cocktail dress. Fabric: Cotton blend. Background: suitable party setting.",
+    "quality_tag": "bad",
+    "score": 0.2,
+    "age": 43.0,
+    "size": "S",
+    "body_shape": "rectangle",
+    "skin_tone": "light",
+    "occasion": "Party",
+    "cloth_description": "Bad quality party outfit for Indian female in age group 36-50.",
+    "image_path": "pulkit image/image59.png"
+  },
+  {
+    "cloth_id": "imgA_060",
+    "cloth_type": "Cocktail dress",
+    "occasions": [
+      "Party"
+    ],
+    "fit": [
+      "Poor"
+    ],
+    "fabric": [
+      "Cotton blend"
+    ],
+    "color_family": [
+      "Clashing"
+    ],
+    "style": [
+      "Unflattering"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tones": [
+      "light",
+      "medium",
+      "dusky"
+    ],
+    "body_shapes": [
+      "rectangle",
+      "pear",
+      "hourglass",
+      "apple"
+    ],
+    "age_range": [
+      "51+"
+    ],
+    "description": "Bad quality party outfit for Indian female in age group 51+.",
+    "image": "pulkit image/image60.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe. Occasion: Party. Age: 51+. Skin tone: light. Body shape: rectangle. Size: M. Outfit: Cocktail dress. Fabric: Cotton blend. Background: suitable party setting.",
+    "quality_tag": "bad",
+    "score": 0.2,
+    "age": 51.0,
+    "size": "S",
+    "body_shape": "rectangle",
+    "skin_tone": "light",
+    "occasion": "Party",
+    "cloth_description": "Bad quality party outfit for Indian female in age group 51+.",
+    "image_path": "pulkit image/image60.png"
+  },
+  {
+    "cloth_id": "imgA_061",
+    "cloth_type": "Silk saree",
+    "occasions": [
+      "Wedding"
+    ],
+    "fit": [
+      "Poor"
+    ],
+    "fabric": [
+      "Silk"
+    ],
+    "color_family": [
+      "Clashing"
+    ],
+    "style": [
+      "Unflattering"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tones": [
+      "light",
+      "medium",
+      "dusky"
+    ],
+    "body_shapes": [
+      "rectangle",
+      "pear",
+      "hourglass",
+      "apple"
+    ],
+    "age_range": [
+      "13-17"
+    ],
+    "description": "Bad quality wedding outfit for Indian female in age group 13-17.",
+    "image": "pulkit image/image61.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe. Occasion: Wedding. Age: 13-17. Skin tone: light. Body shape: rectangle. Size: M. Outfit: Silk saree. Fabric: Cotton blend. Background: suitable wedding setting.",
+    "quality_tag": "bad",
+    "score": 0.2,
+    "age": 15.0,
+    "size": "S",
+    "body_shape": "rectangle",
+    "skin_tone": "light",
+    "occasion": "Wedding",
+    "cloth_description": "Bad quality wedding outfit for Indian female in age group 13-17.",
+    "image_path": "pulkit image/image61.png"
+  },
+  {
+    "cloth_id": "imgA_062",
+    "cloth_type": "Silk saree",
+    "occasions": [
+      "Wedding"
+    ],
+    "fit": [
+      "Poor"
+    ],
+    "fabric": [
+      "Silk"
+    ],
+    "color_family": [
+      "Clashing"
+    ],
+    "style": [
+      "Unflattering"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tones": [
+      "light",
+      "medium",
+      "dusky"
+    ],
+    "body_shapes": [
+      "rectangle",
+      "pear",
+      "hourglass",
+      "apple"
+    ],
+    "age_range": [
+      "18-25"
+    ],
+    "description": "Bad quality wedding outfit for Indian female in age group 18-25.",
+    "image": "pulkit image/image62.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe. Occasion: Wedding. Age: 18-25. Skin tone: light. Body shape: rectangle. Size: M. Outfit: Silk saree. Fabric: Silk. Background: suitable wedding setting.",
+    "quality_tag": "bad",
+    "score": 0.2,
+    "age": 21.5,
+    "size": "S",
+    "body_shape": "rectangle",
+    "skin_tone": "light",
+    "occasion": "Wedding",
+    "cloth_description": "Bad quality wedding outfit for Indian female in age group 18-25.",
+    "image_path": "pulkit image/image62.png"
+  },
+  {
+    "cloth_id": "imgA_063",
+    "cloth_type": "Silk saree",
+    "occasions": [
+      "Wedding"
+    ],
+    "fit": [
+      "Poor"
+    ],
+    "fabric": [
+      "Silk"
+    ],
+    "color_family": [
+      "Clashing"
+    ],
+    "style": [
+      "Unflattering"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tones": [
+      "light",
+      "medium",
+      "dusky"
+    ],
+    "body_shapes": [
+      "rectangle",
+      "pear",
+      "hourglass",
+      "apple"
+    ],
+    "age_range": [
+      "26-35"
+    ],
+    "description": "Bad quality wedding outfit for Indian female in age group 26-35.",
+    "image": "pulkit image/image63.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe. Occasion: Wedding. Age: 26-35. Skin tone: light. Body shape: rectangle. Size: M. Outfit: Silk saree. Fabric: Silk. Background: suitable wedding setting.",
+    "quality_tag": "bad",
+    "score": 0.2,
+    "age": 30.5,
+    "size": "S",
+    "body_shape": "rectangle",
+    "skin_tone": "light",
+    "occasion": "Wedding",
+    "cloth_description": "Bad quality wedding outfit for Indian female in age group 26-35.",
+    "image_path": "pulkit image/image63.png"
+  },
+  {
+    "cloth_id": "imgA_064",
+    "cloth_type": "Silk saree",
+    "occasions": [
+      "Wedding"
+    ],
+    "fit": [
+      "Poor"
+    ],
+    "fabric": [
+      "Silk"
+    ],
+    "color_family": [
+      "Clashing"
+    ],
+    "style": [
+      "Unflattering"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tones": [
+      "light",
+      "medium",
+      "dusky"
+    ],
+    "body_shapes": [
+      "rectangle",
+      "pear",
+      "hourglass",
+      "apple"
+    ],
+    "age_range": [
+      "36-50"
+    ],
+    "description": "Bad quality wedding outfit for Indian female in age group 36-50.",
+    "image": "pulkit image/image64.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe. Occasion: Wedding. Age: 36-50. Skin tone: light. Body shape: rectangle. Size: M. Outfit: Silk saree. Fabric: Silk. Background: suitable wedding setting.",
+    "quality_tag": "bad",
+    "score": 0.2,
+    "age": 43.0,
+    "size": "S",
+    "body_shape": "rectangle",
+    "skin_tone": "light",
+    "occasion": "Wedding",
+    "cloth_description": "Bad quality wedding outfit for Indian female in age group 36-50.",
+    "image_path": "pulkit image/image64.png"
+  },
+  {
+    "cloth_id": "imgA_065",
+    "cloth_type": "Silk saree",
+    "occasions": [
+      "Wedding"
+    ],
+    "fit": [
+      "Poor"
+    ],
+    "fabric": [
+      "Silk"
+    ],
+    "color_family": [
+      "Clashing"
+    ],
+    "style": [
+      "Unflattering"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tones": [
+      "light",
+      "medium",
+      "dusky"
+    ],
+    "body_shapes": [
+      "rectangle",
+      "pear",
+      "hourglass",
+      "apple"
+    ],
+    "age_range": [
+      "51+"
+    ],
+    "description": "Bad quality wedding outfit for Indian female in age group 51+.",
+    "image": "pulkit image/image65.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe. Occasion: Wedding. Age: 51+. Skin tone: light. Body shape: rectangle. Size: M. Outfit: Silk saree. Fabric: Silk. Background: suitable wedding setting.",
+    "quality_tag": "bad",
+    "score": 0.2,
+    "age": 51.0,
+    "size": "S",
+    "body_shape": "rectangle",
+    "skin_tone": "light",
+    "occasion": "Wedding",
+    "cloth_description": "Bad quality wedding outfit for Indian female in age group 51+.",
+    "image_path": "pulkit image/image65.png"
+  },
+  {
+    "cloth_id": "imgA_066",
+    "cloth_type": "Co-ord set",
+    "occasions": [
+      "Casual Luxury"
+    ],
+    "fit": [
+      "Poor"
+    ],
+    "fabric": [
+      "Cotton blend"
+    ],
+    "color_family": [
+      "Clashing"
+    ],
+    "style": [
+      "Unflattering"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tones": [
+      "light",
+      "medium",
+      "dusky"
+    ],
+    "body_shapes": [
+      "rectangle",
+      "pear",
+      "hourglass",
+      "apple"
+    ],
+    "age_range": [
+      "13-17"
+    ],
+    "description": "Bad quality casual luxury outfit for Indian female in age group 13-17.",
+    "image": "pulkit image/image66.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe. Occasion: Casual Luxury. Age: 13-17. Skin tone: light. Body shape: rectangle. Size: M. Outfit: Co-ord set. Fabric: Silk. Background: suitable casual luxury setting.",
+    "quality_tag": "bad",
+    "score": 0.2,
+    "age": 15.0,
+    "size": "S",
+    "body_shape": "rectangle",
+    "skin_tone": "light",
+    "occasion": "Casual Luxury",
+    "cloth_description": "Bad quality casual luxury outfit for Indian female in age group 13-17.",
+    "image_path": "pulkit image/image66.png"
+  },
+  {
+    "cloth_id": "imgA_067",
+    "cloth_type": "Co-ord set",
+    "occasions": [
+      "Casual Luxury"
+    ],
+    "fit": [
+      "Poor"
+    ],
+    "fabric": [
+      "Cotton blend"
+    ],
+    "color_family": [
+      "Clashing"
+    ],
+    "style": [
+      "Unflattering"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tones": [
+      "light",
+      "medium",
+      "dusky"
+    ],
+    "body_shapes": [
+      "rectangle",
+      "pear",
+      "hourglass",
+      "apple"
+    ],
+    "age_range": [
+      "18-25"
+    ],
+    "description": "Bad quality casual luxury outfit for Indian female in age group 18-25.",
+    "image": "pulkit image/image67.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe. Occasion: Casual Luxury. Age: 18-25. Skin tone: light. Body shape: rectangle. Size: M. Outfit: Co-ord set. Fabric: Cotton blend. Background: suitable casual luxury setting.",
+    "quality_tag": "bad",
+    "score": 0.2,
+    "age": 21.5,
+    "size": "S",
+    "body_shape": "rectangle",
+    "skin_tone": "light",
+    "occasion": "Casual Luxury",
+    "cloth_description": "Bad quality casual luxury outfit for Indian female in age group 18-25.",
+    "image_path": "pulkit image/image67.png"
+  },
+  {
+    "cloth_id": "imgA_068",
+    "cloth_type": "Co-ord set",
+    "occasions": [
+      "Casual Luxury"
+    ],
+    "fit": [
+      "Poor"
+    ],
+    "fabric": [
+      "Cotton blend"
+    ],
+    "color_family": [
+      "Clashing"
+    ],
+    "style": [
+      "Unflattering"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tones": [
+      "light",
+      "medium",
+      "dusky"
+    ],
+    "body_shapes": [
+      "rectangle",
+      "pear",
+      "hourglass",
+      "apple"
+    ],
+    "age_range": [
+      "26-35"
+    ],
+    "description": "Bad quality casual luxury outfit for Indian female in age group 26-35.",
+    "image": "pulkit image/image68.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe. Occasion: Casual Luxury. Age: 26-35. Skin tone: light. Body shape: rectangle. Size: M. Outfit: Co-ord set. Fabric: Cotton blend. Background: suitable casual luxury setting.",
+    "quality_tag": "bad",
+    "score": 0.2,
+    "age": 30.5,
+    "size": "S",
+    "body_shape": "rectangle",
+    "skin_tone": "light",
+    "occasion": "Casual Luxury",
+    "cloth_description": "Bad quality casual luxury outfit for Indian female in age group 26-35.",
+    "image_path": "pulkit image/image68.png"
+  },
+  {
+    "cloth_id": "imgA_069",
+    "cloth_type": "Co-ord set",
+    "occasions": [
+      "Casual Luxury"
+    ],
+    "fit": [
+      "Poor"
+    ],
+    "fabric": [
+      "Cotton blend"
+    ],
+    "color_family": [
+      "Clashing"
+    ],
+    "style": [
+      "Unflattering"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tones": [
+      "light",
+      "medium",
+      "dusky"
+    ],
+    "body_shapes": [
+      "rectangle",
+      "pear",
+      "hourglass",
+      "apple"
+    ],
+    "age_range": [
+      "36-50"
+    ],
+    "description": "Bad quality casual luxury outfit for Indian female in age group 36-50.",
+    "image": "pulkit image/image69.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe. Occasion: Casual Luxury. Age: 36-50. Skin tone: light. Body shape: rectangle. Size: M. Outfit: Co-ord set. Fabric: Cotton blend. Background: suitable casual luxury setting.",
+    "quality_tag": "bad",
+    "score": 0.2,
+    "age": 43.0,
+    "size": "S",
+    "body_shape": "rectangle",
+    "skin_tone": "light",
+    "occasion": "Casual Luxury",
+    "cloth_description": "Bad quality casual luxury outfit for Indian female in age group 36-50.",
+    "image_path": "pulkit image/image69.png"
+  },
+  {
+    "cloth_id": "imgA_070",
+    "cloth_type": "Co-ord set",
+    "occasions": [
+      "Casual Luxury"
+    ],
+    "fit": [
+      "Poor"
+    ],
+    "fabric": [
+      "Cotton blend"
+    ],
+    "color_family": [
+      "Clashing"
+    ],
+    "style": [
+      "Unflattering"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tones": [
+      "light",
+      "medium",
+      "dusky"
+    ],
+    "body_shapes": [
+      "rectangle",
+      "pear",
+      "hourglass",
+      "apple"
+    ],
+    "age_range": [
+      "51+"
+    ],
+    "description": "Bad quality casual luxury outfit for Indian female in age group 51+.",
+    "image": "pulkit image/image70.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe. Occasion: Casual Luxury. Age: 51+. Skin tone: light. Body shape: rectangle. Size: M. Outfit: Co-ord set. Fabric: Cotton blend. Background: suitable casual luxury setting.",
+    "quality_tag": "bad",
+    "score": 0.2,
+    "age": 51.0,
+    "size": "S",
+    "body_shape": "rectangle",
+    "skin_tone": "light",
+    "occasion": "Casual Luxury",
+    "cloth_description": "Bad quality casual luxury outfit for Indian female in age group 51+.",
+    "image_path": "pulkit image/image70.png"
+  },
+  {
+    "cloth_id": "imgA_071",
+    "cloth_type": "Maxi dress",
+    "occasions": [
+      "Resort"
+    ],
+    "fit": [
+      "Poor"
+    ],
+    "fabric": [
+      "Chiffon"
+    ],
+    "color_family": [
+      "Clashing"
+    ],
+    "style": [
+      "Unflattering"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tones": [
+      "light",
+      "medium",
+      "dusky"
+    ],
+    "body_shapes": [
+      "rectangle",
+      "pear",
+      "hourglass",
+      "apple"
+    ],
+    "age_range": [
+      "13-17"
+    ],
+    "description": "Bad quality resort outfit for Indian female in age group 13-17.",
+    "image": "pulkit image/image71.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe. Occasion: Resort. Age: 13-17. Skin tone: light. Body shape: rectangle. Size: M. Outfit: Maxi dress. Fabric: Cotton blend. Background: suitable resort setting.",
+    "quality_tag": "bad",
+    "score": 0.2,
+    "age": 15.0,
+    "size": "S",
+    "body_shape": "rectangle",
+    "skin_tone": "light",
+    "occasion": "Resort",
+    "cloth_description": "Bad quality resort outfit for Indian female in age group 13-17.",
+    "image_path": "pulkit image/image71.png"
+  },
+  {
+    "cloth_id": "imgA_072",
+    "cloth_type": "Maxi dress",
+    "occasions": [
+      "Resort"
+    ],
+    "fit": [
+      "Poor"
+    ],
+    "fabric": [
+      "Chiffon"
+    ],
+    "color_family": [
+      "Clashing"
+    ],
+    "style": [
+      "Unflattering"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tones": [
+      "light",
+      "medium",
+      "dusky"
+    ],
+    "body_shapes": [
+      "rectangle",
+      "pear",
+      "hourglass",
+      "apple"
+    ],
+    "age_range": [
+      "18-25"
+    ],
+    "description": "Bad quality resort outfit for Indian female in age group 18-25.",
+    "image": "pulkit image/image72.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe. Occasion: Resort. Age: 18-25. Skin tone: light. Body shape: rectangle. Size: M. Outfit: Maxi dress. Fabric: Chiffon. Background: suitable resort setting.",
+    "quality_tag": "bad",
+    "score": 0.2,
+    "age": 21.5,
+    "size": "S",
+    "body_shape": "rectangle",
+    "skin_tone": "light",
+    "occasion": "Resort",
+    "cloth_description": "Bad quality resort outfit for Indian female in age group 18-25.",
+    "image_path": "pulkit image/image72.png"
+  },
+  {
+    "cloth_id": "imgA_073",
+    "cloth_type": "Maxi dress",
+    "occasions": [
+      "Resort"
+    ],
+    "fit": [
+      "Poor"
+    ],
+    "fabric": [
+      "Chiffon"
+    ],
+    "color_family": [
+      "Clashing"
+    ],
+    "style": [
+      "Unflattering"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tones": [
+      "light",
+      "medium",
+      "dusky"
+    ],
+    "body_shapes": [
+      "rectangle",
+      "pear",
+      "hourglass",
+      "apple"
+    ],
+    "age_range": [
+      "26-35"
+    ],
+    "description": "Bad quality resort outfit for Indian female in age group 26-35.",
+    "image": "pulkit image/image73.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe. Occasion: Resort. Age: 26-35. Skin tone: light. Body shape: rectangle. Size: M. Outfit: Maxi dress. Fabric: Chiffon. Background: suitable resort setting.",
+    "quality_tag": "bad",
+    "score": 0.2,
+    "age": 30.5,
+    "size": "S",
+    "body_shape": "rectangle",
+    "skin_tone": "light",
+    "occasion": "Resort",
+    "cloth_description": "Bad quality resort outfit for Indian female in age group 26-35.",
+    "image_path": "pulkit image/image73.png"
+  },
+  {
+    "cloth_id": "imgA_074",
+    "cloth_type": "Maxi dress",
+    "occasions": [
+      "Resort"
+    ],
+    "fit": [
+      "Poor"
+    ],
+    "fabric": [
+      "Chiffon"
+    ],
+    "color_family": [
+      "Clashing"
+    ],
+    "style": [
+      "Unflattering"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tones": [
+      "light",
+      "medium",
+      "dusky"
+    ],
+    "body_shapes": [
+      "rectangle",
+      "pear",
+      "hourglass",
+      "apple"
+    ],
+    "age_range": [
+      "36-50"
+    ],
+    "description": "Bad quality resort outfit for Indian female in age group 36-50.",
+    "image": "pulkit image/image74.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe. Occasion: Resort. Age: 36-50. Skin tone: light. Body shape: rectangle. Size: M. Outfit: Maxi dress. Fabric: Chiffon. Background: suitable resort setting.",
+    "quality_tag": "bad",
+    "score": 0.2,
+    "age": 43.0,
+    "size": "S",
+    "body_shape": "rectangle",
+    "skin_tone": "light",
+    "occasion": "Resort",
+    "cloth_description": "Bad quality resort outfit for Indian female in age group 36-50.",
+    "image_path": "pulkit image/image74.png"
+  },
+  {
+    "cloth_id": "imgA_075",
+    "cloth_type": "Maxi dress",
+    "occasions": [
+      "Resort"
+    ],
+    "fit": [
+      "Poor"
+    ],
+    "fabric": [
+      "Chiffon"
+    ],
+    "color_family": [
+      "Clashing"
+    ],
+    "style": [
+      "Unflattering"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "skin_tones": [
+      "light",
+      "medium",
+      "dusky"
+    ],
+    "body_shapes": [
+      "rectangle",
+      "pear",
+      "hourglass",
+      "apple"
+    ],
+    "age_range": [
+      "51+"
+    ],
+    "description": "Bad quality resort outfit for Indian female in age group 51+.",
+    "image": "pulkit image/image75.png",
+    "prompt": "Full-body portrait of an Indian female, natural and realistic, head to toe. Occasion: Resort. Age: 51+. Skin tone: light. Body shape: rectangle. Size: M. Outfit: Maxi dress. Fabric: Chiffon. Background: suitable resort setting.",
+    "quality_tag": "bad",
+    "score": 0.2,
+    "age": 51.0,
+    "size": "S",
+    "body_shape": "rectangle",
+    "skin_tone": "light",
+    "occasion": "Resort",
+    "cloth_description": "Bad quality resort outfit for Indian female in age group 51+.",
+    "image_path": "pulkit image/image75.png"
+  }
+]
