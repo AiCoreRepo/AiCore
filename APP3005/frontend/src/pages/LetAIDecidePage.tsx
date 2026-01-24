@@ -269,32 +269,19 @@ const LetAIDecidePage = () => {
             <Navbar />
 
             <main className="pt-20 pb-12">
-                <section className="py-12 border-b border-gold/20">
-                    <div className="container mx-auto px-4">
-                        <div className="text-center max-w-4xl mx-auto">
-                            <div className="flex items-center justify-center gap-3 mb-6">
-                                <Wand2 className="w-10 h-10 text-gold animate-pulse" />
-                                <h1 className="text-5xl md:text-6xl font-serif font-bold text-charcoal">
-                                    Let AI Decide
-                                </h1>
-                            </div>
+                <section className="pt-24 pb-12 bg-[#F8F4EC]">
+                    <div className="container mx-auto px-4 text-center">
+                        <div className="max-w-4xl mx-auto">
+                            <h1 className="text-5xl md:text-6xl font-serif text-[#2C2C2C] mb-8 tracking-tight">
+                                Let AI <span className="italic text-[#D4AF37]">Decide</span>
+                            </h1>
 
-                            <p className="text-xl text-charcoal/80 mb-8 leading-relaxed">
-                                Discover your perfect outfit with AI-powered precision. Our intelligent system analyzes your unique style, body shape, and preferences to curate personalized recommendations just for you.
-                            </p>
-
-                            <div className="glass-panel rounded-2xl p-8 mb-8 border-2 border-gold/30">
-                                <div className="flex items-start gap-4">
-                                    <Sparkles className="w-8 h-8 text-gold flex-shrink-0 mt-1" />
-                                    <div className="flex-1">
-                                        <p className="text-2xl font-serif italic text-charcoal mb-3 leading-relaxed">
-                                            "{currentQuote.quote}"
-                                        </p>
-                                        <p className="text-sm font-medium text-gold">
-                                            — {currentQuote.author}
-                                        </p>
-                                    </div>
-                                </div>
+                            <div className="relative py-8 px-12 inline-block">
+                                <span className="absolute top-0 left-0 text-3xl text-[#D4AF37]/20 font-serif">"</span>
+                                <p className="text-xl font-serif italic text-[#2C2C2C]/80 font-light max-w-2xl mx-auto leading-relaxed">
+                                    {currentQuote.quote}
+                                </p>
+                                <span className="absolute bottom-4 right-0 text-3xl text-[#D4AF37]/20 font-serif rotate-180">"</span>
                             </div>
                         </div>
                     </div>

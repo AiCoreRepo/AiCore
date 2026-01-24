@@ -343,20 +343,46 @@ const AiTryOn = () => {
                                 Select Your Masterpiece
                               </h2>
                               <p className="text-[11px] uppercase tracking-[0.2em] text-neutral-400 font-medium">
-                                {productsData.products.length} Designs Curated for Your Aura
+                                {productsData.products.filter((p: any) => {
+                                  // Age filter: Only show models 40 or younger (or if age not specified)
+                                  const age = p.metadata?.model_age;
+                                  if (age && age > 40) return false;
+
+                                  // Description filter: Must have a description
+                                  if (!p.description || p.description.trim() === '') return false;
+
+                                  // Quality filter: Remove "Bad quality" items
+                                  if (p.title.toLowerCase().includes('bad quality')) return false;
+
+                                  return true;
+                                }).length} Designs Curated for Your Aura
                               </p>
                             </div>
                           </div>
 
                           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                            {productsData.products.map((product: any) => (
-                              <ClothingItemCard
-                                key={product.product_id}
-                                product={product}
-                                onTryOn={() => handleTryOn(product.product_id, 'vertex')}
-                                loading={selectedProduct === product.product_id && tryOnLoading}
-                              />
-                            ))}
+                            {productsData.products
+                              .filter((product: any) => {
+                                // Age filter: Only show models 40 or younger (or if age not specified)
+                                const age = product.metadata?.model_age;
+                                if (age && age > 40) return false;
+
+                                // Description filter: Must have a description
+                                if (!product.description || product.description.trim() === '') return false;
+
+                                // Quality filter: Remove "Bad quality" items
+                                if (product.title.toLowerCase().includes('bad quality')) return false;
+
+                                return true;
+                              })
+                              .map((product: any) => (
+                                <ClothingItemCard
+                                  key={product.product_id}
+                                  product={product}
+                                  onTryOn={() => handleTryOn(product.product_id, 'vertex')}
+                                  loading={selectedProduct === product.product_id && tryOnLoading}
+                                />
+                              ))}
                           </div>
                         </>
                       )}
