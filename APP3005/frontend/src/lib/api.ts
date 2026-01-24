@@ -627,6 +627,7 @@ export async function generateMoreAngles(data: {
   userId: string;
   productId: string;
   previousImageUrl: string;
+  auraId?: string;
   additionalParams?: Record<string, unknown>;
 }) {
   const token = localStorage.getItem('access_token');
@@ -634,13 +635,31 @@ export async function generateMoreAngles(data: {
     throw new Error('Please login to generate more angles');
   }
 
-  const res = await fetch(`${BASE_URL}/api/v1/tryon/3d/more-angles`, {
+  // Get aura if not provided
+  let auraId = data.auraId;
+  if (!auraId) {
+    try {
+      const auraData = await getAura();
+      auraId = auraData.aura_id;
+    } catch (error) {
+      throw new Error('Failed to get Aura data. Please create your Aura first.');
+    }
+  }
+
+  // Call new NestJS angle generation endpoint
+  const res = await fetch(`${BASE_URL}/api/angles/generate`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${token}`,
     },
-    body: JSON.stringify(data),
+    body: JSON.stringify({
+      previousImageUrl: data.previousImageUrl,
+      productId: data.productId,
+      auraId: auraId,
+      angle: data.additionalParams?.angle,
+      cachedMetadata: data.additionalParams?.cachedMetadata,
+    }),
   });
 
   if (!res.ok) {

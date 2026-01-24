@@ -363,6 +363,16 @@ export class TryOn3DService {
     }
 
     /**
+     * @deprecated This method is deprecated. Angle generation has been moved to DifferentAnglesGenModule.
+     * Use the new endpoint: POST /api/angles/generate
+     * 
+     * This code is kept intact for reference but is no longer used.
+     * The new implementation provides:
+     * - Direct Gemini AI integration (no FastAPI dependency)
+     * - Better session management per user+product
+     * - Improved prompt engineering
+     * - Same caching and optimization features
+     * 
      * Generate more angles from existing try-on image
      * Uses cached metadata and thumbnails to reduce token consumption
      */

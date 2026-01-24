@@ -15,6 +15,7 @@ import { AdminModule } from './admin/admin.module';
 import { AiTryOnModule } from './ai-tryon/ai-tryon.module';
 import { AdminSeederService } from './common/admin-seeder.service';
 import { RecommendationModule } from './recommendation/recommendation.module';
+import { DifferentAnglesGenModule } from './DifferentAnglesGen/different-angles-gen.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { RecommendationModule } from './recommendation/recommendation.module';
     AdminModule,
     AiTryOnModule,
     RecommendationModule,
+    DifferentAnglesGenModule,
   ],
   controllers: [AppController],
   providers: [AppService, AdminSeederService],
