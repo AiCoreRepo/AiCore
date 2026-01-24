@@ -126,7 +126,7 @@ const UserLogin = () => {
 
             <AuthLayout
                 heroImage={heroImage}
-                quote="Elegance is the only beauty that never fades."
+                quote="Your Aura defines your style."
             >
                 <div className="space-y-6 sm:space-y-8">
                     <div className="space-y-2 text-center lg:text-left">

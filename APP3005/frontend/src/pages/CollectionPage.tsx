@@ -111,6 +111,12 @@ const CollectionPage = () => {
             return;
         }
 
+        // Check permissions
+        if (user?.role !== 'ADMIN' && user?.try_on_permission !== 'APPROVED') {
+            navigate('/ai-try-on');
+            return;
+        }
+
         // OPTIMIZATION: Check local aura state first for instant response
         if (aura) {
             setSelectedTryOnProduct(productId);

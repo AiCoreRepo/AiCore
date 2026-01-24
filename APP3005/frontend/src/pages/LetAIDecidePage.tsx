@@ -134,6 +134,12 @@ const LetAIDecidePage = () => {
             return;
         }
 
+        // Check permissions
+        if (user?.role !== 'ADMIN' && user?.try_on_permission !== 'APPROVED') {
+            navigate('/ai-try-on');
+            return;
+        }
+
         // Use local aura state for instant check
         if (aura) {
             setSelectedTryOnProduct(productId);

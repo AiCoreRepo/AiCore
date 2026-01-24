@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { Upload, X, Image as ImageIcon } from "lucide-react";
 import { motion } from "framer-motion";
+import { Dialog, DialogContent, DialogTrigger, DialogTitle, DialogClose } from "@/components/ui/dialog";
 
 interface PhotoUploadZoneProps {
     onPhotoSelect: (file: File, preview: string) => void;
@@ -53,26 +54,52 @@ export const PhotoUploadZone = ({ onPhotoSelect, photoPreview, onRemove }: Photo
                     </div>
                 </div>
             ) : (
-                <div className="relative rounded-xl overflow-hidden border-2 border-gold/30 group" style={{ height: "180px" }}>
-                    <img
-                        src={photoPreview}
-                        alt="Preview"
-                        className="w-full h-full object-cover"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-charcoal/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                <Dialog>
+                    <DialogTrigger asChild>
+                        <div className="relative rounded-xl overflow-hidden border-2 border-gold/30 group cursor-pointer" style={{ height: "180px" }}>
+                            <img
+                                src={photoPreview}
+                                alt="Preview"
+                                className="w-full h-full object-cover"
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-charcoal/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
 
-                    <button
-                        onClick={onRemove}
-                        className="absolute top-2 right-2 w-8 h-8 rounded-full bg-charcoal/80 hover:bg-charcoal flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300"
-                    >
-                        <X className="w-4 h-4 text-ivory" />
-                    </button>
+                            <div className="absolute bottom-2 left-2 right-2 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <ImageIcon className="w-4 h-4 text-ivory" />
+                                <span className="text-xs text-ivory font-medium">Click to expand</span>
+                            </div>
 
-                    <div className="absolute bottom-2 left-2 right-2 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <ImageIcon className="w-4 h-4 text-ivory" />
-                        <span className="text-xs text-ivory font-medium">Photo uploaded</span>
-                    </div>
-                </div>
+                            {/* Move X button outside of the click interaction for expansion if possible, or stop propagation */}
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onRemove();
+                                }}
+                                className="absolute top-2 right-2 w-8 h-8 rounded-full bg-charcoal/80 hover:bg-charcoal flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 z-10"
+                            >
+                                <X className="w-4 h-4 text-ivory" />
+                            </button>
+                        </div>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-4xl w-full h-[80vh] p-0 bg-transparent border-none shadow-none flex items-center justify-center [&>button]:hidden">
+                        <DialogTitle className="sr-only">Photo Preview</DialogTitle>
+                        <div className="relative w-full h-full flex items-center justify-center pointer-events-none">
+                            <img
+                                src={photoPreview}
+                                alt="Full size preview"
+                                className="max-h-full max-w-full object-contain rounded-lg shadow-2xl pointer-events-auto"
+                            />
+
+                            {/* Custom Close Button */}
+                            <div className="absolute top-4 right-4 pointer-events-auto">
+                                <DialogClose className="w-10 h-10 rounded-full bg-black/50 hover:bg-black/70 text-white flex items-center justify-center backdrop-blur-sm transition-all border border-white/20">
+                                    <X className="w-5 h-5" />
+                                    <span className="sr-only">Close</span>
+                                </DialogClose>
+                            </div>
+                        </div>
+                    </DialogContent>
+                </Dialog>
             )}
 
             <p className="text-xs text-grey-soft mt-2 flex items-start gap-1.5">
