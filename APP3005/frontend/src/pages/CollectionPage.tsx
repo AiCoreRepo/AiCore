@@ -110,6 +110,15 @@ const CollectionPage = () => {
             navigate('/user-login');
             return;
         }
+
+        // OPTIMIZATION: Check local aura state first for instant response
+        if (aura) {
+            setSelectedTryOnProduct(productId);
+            setIsTryOnModalOpen(true);
+            return;
+        }
+
+        // Fallback to network check if local state isn't ready
         const hasValidAura = await auraGate(navigate, '/aura-dashboard');
         if (hasValidAura) {
             setSelectedTryOnProduct(productId);

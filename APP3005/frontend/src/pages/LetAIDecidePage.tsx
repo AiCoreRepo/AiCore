@@ -133,10 +133,15 @@ const LetAIDecidePage = () => {
             navigate('/user-login');
             return;
         }
-        const hasValidAura = await auraGate(navigate, '/aura-dashboard');
-        if (hasValidAura) {
+
+        // Use local aura state for instant check
+        if (aura) {
             setSelectedTryOnProduct(productId);
             setIsTryOnModalOpen(true);
+        } else {
+            // If local aura isn't loaded but might exist, we could fall back to auraGate,
+            // but here we know we tried loading it on mount.
+            setShowAuraPopup(true);
         }
     };
 
