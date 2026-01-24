@@ -118,6 +118,24 @@ const LetAIDecidePage = () => {
             };
 
             const result = await getAIRecommendations(request);
+
+            // Sort helper: prioritize younger models (age <= 40), push older (> 40) to bottom
+            const ageSorter = (a: RecommendationItem, b: RecommendationItem) => {
+                const ageA = a.metadata?.model_age || 0;
+                const ageB = b.metadata?.model_age || 0;
+                const isOldA = ageA > 40;
+                const isOldB = ageB > 40;
+                if (isOldA && !isOldB) return 1;
+                if (!isOldA && isOldB) return -1;
+                return 0;
+            };
+
+            if (result) {
+                result.perfect_for_you.sort(ageSorter);
+                result.good_for_you.sort(ageSorter);
+                result.you_can_also_try.sort(ageSorter);
+            }
+
             setRecommendations(result);
         } catch (error: any) {
             console.error('Recommendation error:', error);
@@ -228,7 +246,7 @@ const LetAIDecidePage = () => {
 
         return {
             product_id: item.product_id || item.id, // Fallback to id if product_id is missing
-            title: item.title || item.description || 'Recommended Item',
+            title: item.title || 'Recommended Item',
             thumbnail: item.image || (item.images && item.images[0]) || null,
             images: productImages,
             price_cents: item.price_cents || 0,
@@ -241,7 +259,8 @@ const LetAIDecidePage = () => {
             creator: {
                 store_name: item.creator_name || 'Aivestire',
                 verified: true
-            }
+            },
+            metadata: item.metadata
         };
     };
 

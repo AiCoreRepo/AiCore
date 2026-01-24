@@ -95,7 +95,21 @@ const CollectionPage = () => {
     // ... kept for potential usage or removed if unused. 
     // Since local filtering is removed, we just use the data directly.
 
-    const filteredProducts = data?.pages.flatMap(page => page.products) ?? [];
+    // Sort products: prioritize younger models (age <= 40) at the top, older (> 40) at bottom
+    // This runs client-side on the fetched pages
+    const rawProducts = data?.pages.flatMap(page => page.products) ?? [];
+    const filteredProducts = [...rawProducts].sort((a, b) => {
+        const ageA = a.metadata?.model_age ? parseInt(a.metadata.model_age) : 0;
+        const ageB = b.metadata?.model_age ? parseInt(b.metadata.model_age) : 0;
+
+        // Check if models are "older" (> 40)
+        const isOldA = ageA > 40;
+        const isOldB = ageB > 40;
+
+        if (isOldA && !isOldB) return 1; // A is old, put it after B
+        if (!isOldA && isOldB) return -1; // B is old, put it after A
+        return 0; // Both same category, keep original sort order (from backend)
+    });
 
     // Count active filters for badge
     const activeFilterCount =

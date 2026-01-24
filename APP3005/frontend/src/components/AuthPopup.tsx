@@ -10,11 +10,12 @@ interface AuthPopupProps {
 }
 
 const greetings = [
-    "Hey cutie! 💕",
-    "Hey beautiful! ✨",
-    "Hey gorgeous! 🌟",
-    "Hey there! 👋",
-    "Hello lovely! 💫"
+    "Hello, Beautiful! ✨",
+    "Welcome, Style Icon! 🌟",
+    "Greetings, Trendsetter! 💫",
+    "Hello, Gorgeous! 💖",
+    "Hey there, Charming! ✨",
+    "Welcome to Elegance! 🌹"
 ];
 
 const getRandomGreeting = () => {
@@ -33,16 +34,16 @@ export const AuthPopup = ({ isOpen, onClose, type, onAction }: AuthPopupProps) =
     const content = type === 'login'
         ? {
             icon: User,
-            title: "Login Required",
-            message: "You need to be logged in to access this amazing feature!",
-            actionText: "Login Now",
+            title: "Unlock Your Style Journey",
+            message: "Experience the ultimate personalized shopping adventure. Sign in to discover outfits curated specifically for your unique taste and aura.",
+            actionText: "Login to Continue",
             gradient: "from-purple-500 to-pink-500"
         }
         : {
             icon: Camera,
-            title: "Create Your Aura First",
-            message: "Let's create your personalized Aura to unlock AI-powered fashion magic!",
-            actionText: "Create Aura",
+            title: "Create Your Digital Aura",
+            message: "Step into the spotlight! Create your lifelike digital twin to instantly try on any outfit. See exactly how it looks on you before you buy.",
+            actionText: "Start Your Transformation",
             gradient: "from-amber-500 to-orange-500"
         };
 

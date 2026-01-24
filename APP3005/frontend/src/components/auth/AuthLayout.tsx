@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+import { ReactNode, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 
@@ -10,6 +10,18 @@ interface AuthLayoutProps {
 }
 
 export const AuthLayout = ({ children, heroImage, quote, quoteAuthor }: AuthLayoutProps) => {
+  // Preload image
+  useEffect(() => {
+    const link = document.createElement('link');
+    link.rel = 'preload';
+    link.as = 'image';
+    link.href = heroImage;
+    document.head.appendChild(link);
+    return () => {
+      document.head.removeChild(link);
+    };
+  }, [heroImage]);
+
   return (
     <div className="min-h-screen flex flex-col lg:flex-row bg-luxury-black overflow-x-hidden">
       {/* Left Side - Hero Image with Quote - Hidden on Mobile */}

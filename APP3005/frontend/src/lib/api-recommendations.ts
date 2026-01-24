@@ -27,6 +27,7 @@ export interface RecommendationItem {
     price_cents?: number;
     creator_name?: string;
     inventory_count?: number;
+    metadata?: any;
 }
 
 export interface RecommendationsResponse {
