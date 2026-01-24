@@ -433,15 +433,7 @@ export const ProductCard = ({ product, onTryOn }: ProductCardProps) => {
                                     {formatPrice(product.price_cents, product.currency)}
                                 </p>
 
-                                {/* Description */}
-                                <div className="mb-6">
-                                    <h3 className="text-sm font-semibold mb-2 uppercase tracking-wider" style={{ color: '#2C2C2C' }}>
-                                        Description
-                                    </h3>
-                                    <p className="text-gray-700 leading-relaxed">
-                                        {product.description || "Experience luxury and elegance with this premium piece from our curated collection. Crafted with attention to detail and designed for the confident individual."}
-                                    </p>
-                                </div>
+
 
                                 {/* Stats */}
                                 <div className="grid grid-cols-3 gap-4 mb-6 p-4 rounded-xl" style={{ background: '#F8F4EC' }}>

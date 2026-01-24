@@ -55,12 +55,24 @@ export const AuthLayout = ({ children, heroImage, quote, quoteAuthor }: AuthLayo
 
       {/* Right Side - Form Container */}
       <div className="w-full lg:w-1/2 flex flex-col min-h-screen relative z-10">
+        {/* Mobile Background Image - Visible only on mobile/tablet */}
+        <div
+          className="absolute inset-0 z-0 lg:hidden"
+          style={{
+            backgroundImage: `url(${heroImage})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+          }}
+        >
+          <div className="absolute inset-0 bg-luxury-black/85 backdrop-blur-[2px]" />
+        </div>
+
         {/* Brand Logo - Fixed position for consistency */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
-          className="p-4 lg:p-8 flex justify-between items-center w-full"
+          className="p-4 lg:p-8 flex justify-between items-center w-full relative z-10"
         >
           <Link to="/" className="inline-block group focus:outline-none">
             <h1 className="text-3xl font-serif text-luxury-gold tracking-tight group-hover:text-luxury-cream transition-colors duration-300">
@@ -76,19 +88,19 @@ export const AuthLayout = ({ children, heroImage, quote, quoteAuthor }: AuthLayo
         </motion.div>
 
         {/* Form Content - Optimized for Mobile */}
-        <div className="flex-1 flex items-start justify-center p-4 sm:p-8 lg:p-24 pt-2 sm:pt-4 lg:pt-6 overflow-y-auto">
+        <div className="flex-1 flex items-start justify-center p-4 sm:p-8 lg:p-24 pt-2 sm:pt-4 lg:pt-6 overflow-y-auto relative z-10">
           <motion.div
             initial={{ opacity: 0, scale: 0.98 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.6, delay: 0.2 }}
-            className="w-full max-w-md bg-white/5 lg:bg-transparent p-6 sm:p-8 lg:p-0 rounded-2xl sm:rounded-3xl border border-white/10 lg:border-none backdrop-blur-sm lg:backdrop-blur-none"
+            className="w-full max-w-md bg-luxury-black/40 lg:bg-transparent p-6 sm:p-8 lg:p-0 rounded-2xl sm:rounded-3xl border border-white/10 lg:border-none backdrop-blur-md lg:backdrop-blur-none"
           >
             {children}
           </motion.div>
         </div>
 
         {/* Footer info for mobile only */}
-        <div className="lg:hidden p-8 text-center border-t border-white/5 bg-black/20">
+        <div className="lg:hidden p-8 text-center border-t border-white/5 bg-black/20 relative z-10">
           <p className="text-xs text-neutral-600">
             &copy; {new Date().getFullYear()} AiVestire. All rights reserved.
           </p>

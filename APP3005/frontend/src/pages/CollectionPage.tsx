@@ -8,6 +8,9 @@ import { useDebounce } from "@/hooks/useDebounce";
 import { useAuth } from "@/context/AuthContext";
 import { auraGate } from "@/utils/auraGate";
 import { ChevronDown, Heart, Search, X, SlidersHorizontal, ArrowUpDown } from "lucide-react";
+import { TryOnInterstitialModal } from "@/components/TryOnInterstitialModal";
+import { TryOnResultModal } from '@/components/ai-tryon/TryOnResultModal';
+import { tryOnWithVertex, generateMoreAngles, getAura } from '@/lib/api';
 import collectionHeaderImage from "@/assets/collectionHeader.jpeg";
 
 const categories = ["All", "Dresses", "Outerwear", "Accessories", "Tops", "Bottoms"];
@@ -27,6 +30,25 @@ const CollectionPage = () => {
     const [priceRange, setPriceRange] = useState<[number, number]>([0, 5000]);
     const [sortBy, setSortBy] = useState("Price: Low to High");
     const [showFilters, setShowFilters] = useState(false);
+
+    const [selectedTryOnProduct, setSelectedTryOnProduct] = useState<string | null>(null);
+    const [isTryOnModalOpen, setIsTryOnModalOpen] = useState(false);
+
+    // AI Try-On State
+    const [aura, setAura] = useState<any>(null);
+    const [showResultModal, setShowResultModal] = useState(false);
+    const [resultImage, setResultImage] = useState<string | null>(null);
+    const [tryOnLoading, setTryOnLoading] = useState(false);
+    const [tryOnError, setTryOnError] = useState<string | null>(null);
+    const [generatingAngles, setGeneratingAngles] = useState(false);
+    const [originalTryOnImage, setOriginalTryOnImage] = useState<string | null>(null);
+
+    // Fetch Aura for user photo in modal
+    useEffect(() => {
+        if (user) {
+            getAura().then(setAura).catch(() => { });
+        }
+    }, [user]);
 
     // Debounce search
     const debouncedSearch = useDebounce(searchQuery, 500);
@@ -90,7 +112,72 @@ const CollectionPage = () => {
         }
         const hasValidAura = await auraGate(navigate, '/aura-dashboard');
         if (hasValidAura) {
-            navigate(`/ai-try-on?productId=${productId}`);
+            setSelectedTryOnProduct(productId);
+            setIsTryOnModalOpen(true);
+        }
+    };
+
+    const handleConfirmTryOn = () => {
+        if (selectedTryOnProduct) {
+            setIsTryOnModalOpen(false);
+            executeTryOn(selectedTryOnProduct);
+        }
+    };
+
+    const executeTryOn = async (productId: string) => {
+        if (!user) return; // Aura check handled by gate, but need user context
+
+        try {
+            setTryOnLoading(true);
+            setTryOnError(null);
+            setShowResultModal(true);
+
+            // Use aura.user_id if available, otherwise fallback to user.user_id (though aura is preferred)
+            const userId = aura?.user_id || user.user_id;
+
+            const result = await tryOnWithVertex({
+                userId: userId,
+                clothingItemId: productId,
+            });
+
+            if (result.success && result.resultImage) {
+                const imageData = result.resultImage.startsWith('data:')
+                    ? result.resultImage
+                    : `data:image/jpeg;base64,${result.resultImage}`;
+                setResultImage(imageData);
+                setOriginalTryOnImage(imageData);
+            } else {
+                throw new Error(result.message || 'Try-on failed');
+            }
+        } catch (error: any) {
+            console.error('Try-on error:', error);
+            setTryOnError(error.message || 'Failed to process try-on. Please try again.');
+        } finally {
+            setTryOnLoading(false);
+        }
+    };
+
+    const handleGenerateMoreAngles = async () => {
+        if (!user || !resultImage || !selectedTryOnProduct) return;
+
+        try {
+            setGeneratingAngles(true);
+            const result = await generateMoreAngles({
+                userId: aura?.user_id || user.user_id,
+                productId: selectedTryOnProduct,
+                previousImageUrl: originalTryOnImage || resultImage,
+            });
+
+            if (result.success && result.resultImage) {
+                const imageData = result.resultImage.startsWith('data:')
+                    ? result.resultImage
+                    : `data:image/jpeg;base64,${result.resultImage}`;
+                setResultImage(imageData);
+            }
+        } catch (error: any) {
+            setTryOnError(error.message || 'Failed to generate angles');
+        } finally {
+            setGeneratingAngles(false);
         }
     };
 
@@ -380,6 +467,24 @@ const CollectionPage = () => {
             </main>
 
             <Footer />
+
+            <TryOnInterstitialModal
+                isOpen={isTryOnModalOpen}
+                onClose={() => setIsTryOnModalOpen(false)}
+                onConfirm={handleConfirmTryOn}
+            />
+
+            <TryOnResultModal
+                isOpen={showResultModal}
+                onClose={() => setShowResultModal(false)}
+                resultImage={resultImage}
+                loading={tryOnLoading}
+                error={tryOnError}
+                onGenerateMoreAngles={handleGenerateMoreAngles}
+                generatingAngles={generatingAngles}
+                userPhoto={aura?.image_url}
+                garmentId={selectedTryOnProduct || undefined}
+            />
         </div>
     );
 };

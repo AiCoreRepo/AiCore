@@ -7,7 +7,13 @@ import { AuraDisplayCard } from '@/components/ai-tryon/AuraDisplayCard';
 import { AuthPopup } from '@/components/AuthPopup';
 import { getAura } from '@/lib/api';
 import { getAIRecommendations, type RecommendationRequest, type RecommendationsResponse, type RecommendationItem } from '@/lib/api-recommendations';
+import { useRef } from 'react';
 import { Sparkles, Heart, Star, Wand2, AlertCircle, Loader2 } from 'lucide-react';
+import { ProductCard } from '@/components/collection/ProductCard';
+import { auraGate } from '@/utils/auraGate';
+import { TryOnInterstitialModal } from "@/components/TryOnInterstitialModal";
+import { TryOnResultModal } from '@/components/ai-tryon/TryOnResultModal';
+import { tryOnWithVertex, generateMoreAngles } from '@/lib/api';
 
 interface AuraData {
     aura_id: string;
@@ -53,6 +59,16 @@ const LetAIDecidePage = () => {
     const [recommendations, setRecommendations] = useState<RecommendationsResponse | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [currentQuote] = useState(() => inspirationalQuotes[Math.floor(Math.random() * inspirationalQuotes.length)]);
+    const [selectedTryOnProduct, setSelectedTryOnProduct] = useState<string | null>(null);
+    const [isTryOnModalOpen, setIsTryOnModalOpen] = useState(false);
+
+    // AI Try-On State
+    const [showResultModal, setShowResultModal] = useState(false);
+    const [resultImage, setResultImage] = useState<string | null>(null);
+    const [tryOnLoading, setTryOnLoading] = useState(false);
+    const [tryOnError, setTryOnError] = useState<string | null>(null);
+    const [generatingAngles, setGeneratingAngles] = useState(false);
+    const [originalTryOnImage, setOriginalTryOnImage] = useState<string | null>(null);
 
     useEffect(() => {
         // Wait for auth to load
@@ -111,70 +127,111 @@ const LetAIDecidePage = () => {
         }
     };
 
-    const renderRecommendationCard = (item: RecommendationItem, tier: 'perfect' | 'good' | 'try') => {
-        const tierConfig = {
-            perfect: { color: 'from-gold/20 to-gold/5 border-gold/40', icon: <Star className="w-5 h-5 text-gold fill-gold" /> },
-            good: { color: 'from-blue-500/20 to-blue-500/5 border-blue-500/30', icon: <Heart className="w-5 h-5 text-blue-500 fill-blue-500" /> },
-            try: { color: 'from-purple-500/20 to-purple-500/5 border-purple-500/30', icon: <Sparkles className="w-5 h-5 text-purple-500" /> },
-        };
+    const handleTryOn = async (productId: string) => {
+        const token = localStorage.getItem('access_token');
+        if (!token) {
+            navigate('/user-login');
+            return;
+        }
+        const hasValidAura = await auraGate(navigate, '/aura-dashboard');
+        if (hasValidAura) {
+            setSelectedTryOnProduct(productId);
+            setIsTryOnModalOpen(true);
+        }
+    };
 
-        const config = tierConfig[tier];
+    const handleConfirmTryOn = () => {
+        if (selectedTryOnProduct) {
+            setIsTryOnModalOpen(false);
+            executeTryOn(selectedTryOnProduct);
+        }
+    };
 
-        const handleClick = () => {
-            if (item.slug) {
-                navigate(`/product/${item.slug}`);
+    const executeTryOn = async (productId: string) => {
+        if (!aura) return;
+
+        try {
+            setTryOnLoading(true);
+            setTryOnError(null);
+            setShowResultModal(true);
+
+            const result = await tryOnWithVertex({
+                userId: aura.user_id,
+                clothingItemId: productId,
+            });
+
+            if (result.success && result.resultImage) {
+                const imageData = result.resultImage.startsWith('data:')
+                    ? result.resultImage
+                    : `data:image/jpeg;base64,${result.resultImage}`;
+                setResultImage(imageData);
+                setOriginalTryOnImage(imageData);
+            } else {
+                throw new Error(result.message || 'Try-on failed');
+            }
+        } catch (error: any) {
+            console.error('Try-on error:', error);
+            setTryOnError(error.message || 'Failed to process try-on. Please try again.');
+        } finally {
+            setTryOnLoading(false);
+        }
+    };
+
+    const handleGenerateMoreAngles = async () => {
+        if (!aura || !resultImage || !selectedTryOnProduct) return;
+
+        try {
+            setGeneratingAngles(true);
+            const result = await generateMoreAngles({
+                userId: aura.user_id,
+                productId: selectedTryOnProduct,
+                previousImageUrl: originalTryOnImage || resultImage,
+            });
+
+            if (result.success && result.resultImage) {
+                const imageData = result.resultImage.startsWith('data:')
+                    ? result.resultImage
+                    : `data:image/jpeg;base64,${result.resultImage}`;
+                setResultImage(imageData);
+            }
+        } catch (error: any) {
+            setTryOnError(error.message || 'Failed to generate angles');
+        } finally {
+            setGeneratingAngles(false);
+        }
+    };
+
+    const mapToProduct = (item: RecommendationItem) => {
+        // Prepare images array from the item.images string array if available
+        let productImages: Array<{ url: string; is_primary: boolean; order_index: number }> = [];
+
+        if (item.images && item.images.length > 0) {
+            productImages = item.images.map((url, index) => ({
+                url: url,
+                is_primary: index === 0,
+                order_index: index
+            }));
+        } else if (item.image) {
+            productImages = [{ url: item.image, is_primary: true, order_index: 0 }];
+        }
+
+        return {
+            product_id: item.product_id || item.id, // Fallback to id if product_id is missing
+            title: item.title || item.description || 'Recommended Item',
+            thumbnail: item.image || (item.images && item.images[0]) || null,
+            images: productImages,
+            price_cents: item.price_cents || 0,
+            currency: 'INR', // Defaulting to INR as per app context
+            is_featured: false, // Default
+            likes: 0, // Default, as we don't have this in recommendation data yet
+            reviews: 0, // Default
+            views: 0, // Default
+            description: item.description,
+            creator: {
+                store_name: item.creator_name || 'Aivestire',
+                verified: true
             }
         };
-
-        return (
-            <div
-                key={item.id}
-                onClick={handleClick}
-                className={`glass-panel rounded-lg overflow-hidden border transition-all duration-300 hover:scale-[1.02] hover:shadow-lg cursor-pointer bg-gradient-to-br ${config.color} relative`}
-            >
-                {item.image && (
-                    <div className="aspect-[2/3] bg-ivory/30 overflow-hidden">
-                        <img
-                            src={item.image}
-                            alt={item.title || item.description || 'Recommended outfit'}
-                            className="w-full h-full object-cover"
-                        />
-                    </div>
-                )}
-
-                <div className="p-2 space-y-1">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-1">
-                            <div className="scale-75">{config.icon}</div>
-                            <span className="text-[10px] font-medium text-charcoal/70 uppercase tracking-wide">
-                                {item.score_label}
-                            </span>
-                        </div>
-                        <div className="text-[10px] font-bold text-charcoal">
-                            {Math.round(item.final_score * 100)}%
-                        </div>
-                    </div>
-
-                    {item.title && (
-                        <h3 className="font-serif text-sm text-charcoal line-clamp-1">
-                            {item.title}
-                        </h3>
-                    )}
-
-                    {item.price_cents && (
-                        <div className="text-base font-bold text-gold">
-                            ₹{(item.price_cents / 100).toFixed(2)}
-                        </div>
-                    )}
-
-                    {item.inventory_count !== undefined && item.inventory_count <= 5 && (
-                        <p className="text-[10px] text-red-500 font-medium">
-                            {item.inventory_count === 0 ? 'Out of Stock' : `Only ${item.inventory_count} left!`}
-                        </p>
-                    )}
-                </div>
-            </div>
-        );
     };
 
     return (
@@ -356,7 +413,13 @@ const LetAIDecidePage = () => {
                                                         </h3>
                                                     </div>
                                                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                                                        {recommendations.perfect_for_you.map((item) => renderRecommendationCard(item, 'perfect'))}
+                                                        {recommendations.perfect_for_you.map((item) => (
+                                                            <ProductCard
+                                                                key={item.id}
+                                                                product={mapToProduct(item)}
+                                                                onTryOn={() => handleTryOn(item.product_id || item.id)}
+                                                            />
+                                                        ))}
                                                     </div>
                                                 </div>
                                             )}
@@ -370,7 +433,13 @@ const LetAIDecidePage = () => {
                                                         </h3>
                                                     </div>
                                                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                                                        {recommendations.good_for_you.map((item) => renderRecommendationCard(item, 'good'))}
+                                                        {recommendations.good_for_you.map((item) => (
+                                                            <ProductCard
+                                                                key={item.id}
+                                                                product={mapToProduct(item)}
+                                                                onTryOn={() => handleTryOn(item.product_id || item.id)}
+                                                            />
+                                                        ))}
                                                     </div>
                                                 </div>
                                             )}
@@ -384,7 +453,13 @@ const LetAIDecidePage = () => {
                                                         </h3>
                                                     </div>
                                                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                                                        {recommendations.you_can_also_try.map((item) => renderRecommendationCard(item, 'try'))}
+                                                        {recommendations.you_can_also_try.map((item) => (
+                                                            <ProductCard
+                                                                key={item.id}
+                                                                product={mapToProduct(item)}
+                                                                onTryOn={() => handleTryOn(item.product_id || item.id)}
+                                                            />
+                                                        ))}
                                                     </div>
                                                 </div>
                                             )}
@@ -416,6 +491,24 @@ const LetAIDecidePage = () => {
                 onClose={() => navigate('/collection')}
                 type="aura"
                 onAction={() => navigate('/aura-dashboard')}
+            />
+
+            <TryOnInterstitialModal
+                isOpen={isTryOnModalOpen}
+                onClose={() => setIsTryOnModalOpen(false)}
+                onConfirm={handleConfirmTryOn}
+            />
+
+            <TryOnResultModal
+                isOpen={showResultModal}
+                onClose={() => setShowResultModal(false)}
+                resultImage={resultImage}
+                loading={tryOnLoading}
+                error={tryOnError}
+                onGenerateMoreAngles={handleGenerateMoreAngles}
+                generatingAngles={generatingAngles}
+                userPhoto={aura?.image_url}
+                garmentId={selectedTryOnProduct || undefined}
             />
         </div>
     );
