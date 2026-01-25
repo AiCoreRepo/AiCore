@@ -48,6 +48,7 @@ const AiTryOn = () => {
   const [tryOnHistory, setTryOnHistory] = useState<any[]>([]);
   const [requestingAccess, setRequestingAccess] = useState(false);
   const [requestSuccess, setRequestSuccess] = useState(false);
+  const [generatedImages, setGeneratedImages] = useState<string[]>([]);
 
   // Fetch products
   const { data: productsData, isLoading: productsLoading, error: productsError } = usePublicProducts(1);
@@ -111,6 +112,7 @@ const AiTryOn = () => {
           : `data:image/jpeg;base64,${result.resultImage}`;
         setResultImage(imageData);
         setOriginalTryOnImage(imageData); // Store original for face consistency in angle generation
+        setGeneratedImages([imageData]);
         // Refresh user data to update try-on count
         fetchUser();
       } else {
@@ -145,6 +147,7 @@ const AiTryOn = () => {
           ? result.resultImage
           : `data:image/jpeg;base64,${result.resultImage}`;
         setResultImage(imageData);
+        setGeneratedImages(prev => [...prev, imageData]);
         // Refresh user data to update try-on count
         fetchUser();
       } else {
@@ -425,6 +428,8 @@ const AiTryOn = () => {
         error={tryOnError}
         onGenerateMoreAngles={handleGenerateMoreAngles}
         generatingAngles={generatingAngles}
+        generatedImages={generatedImages}
+        onSelectImage={(img) => setResultImage(img)}
       />
 
       {/* Gallery Modal */}

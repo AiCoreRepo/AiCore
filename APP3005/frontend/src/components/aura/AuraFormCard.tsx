@@ -90,6 +90,14 @@ export const AuraFormCard = ({ onCreateAura, isProcessing }: AuraFormCardProps) 
         // Reset analysis state for new photo
         setAnalysisResult(null);
         setAnalysisError(null);
+
+        // Auto-populate age range from user profile if available
+        if (user?.age_range) {
+            setAttributes(prev => ({
+                ...prev,
+                ageRange: user.age_range
+            }));
+        }
     };
 
     const handlePhotoRemove = () => {
@@ -119,15 +127,25 @@ export const AuraFormCard = ({ onCreateAura, isProcessing }: AuraFormCardProps) 
                     ...prev,
                     skinTone: mapSkinTone(result.skinToneLabel) || prev.skinTone,
                     bodyShape: mapBodyShape(result.bodyShape) || prev.bodyShape,
+                    // Persist age range if already set from user profile
+                    ageRange: prev.ageRange || user?.age_range
                 }));
                 console.log('✅ AI detected:', result.skinToneLabel, result.bodyShape);
             } else {
                 console.log('⚠️ Analysis failed, proceeding with manual entry');
                 setAnalysisError(result.error || "Analysis unavailable");
+                // Ensure age range is still populated even if analysis fails
+                if (user?.age_range) {
+                    setAttributes(prev => ({ ...prev, ageRange: user.age_range }));
+                }
             }
         } catch (error: any) {
             console.log('⚠️ Analysis error, proceeding with manual entry:', error.message);
             setAnalysisError("AI analysis unavailable - please fill manually");
+            // Ensure age range is still populated
+            if (user?.age_range) {
+                setAttributes(prev => ({ ...prev, ageRange: user.age_range }));
+            }
         } finally {
             setIsAnalyzing(false);
             setCurrentStep("confirm"); // Always proceed to confirm step

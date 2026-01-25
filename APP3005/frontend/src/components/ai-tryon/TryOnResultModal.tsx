@@ -15,6 +15,8 @@ interface TryOnResultModalProps {
     userPhoto?: string | null;
     garmentImage?: string | null;
     garmentId?: string;
+    generatedImages?: string[];
+    onSelectImage?: (image: string) => void;
 }
 
 interface ProcessStep {
@@ -35,6 +37,8 @@ export function TryOnResultModal({
     userPhoto,
     garmentImage,
     garmentId,
+    generatedImages = [],
+    onSelectImage,
 }: TryOnResultModalProps) {
     const [currentQuoteIndex, setCurrentQuoteIndex] = useState(0);
     const [imageRevealed, setImageRevealed] = useState(false);
@@ -178,15 +182,7 @@ export function TryOnResultModal({
         }
     }, [resultImage, loading, error, generatingAngles, hasShownCompliment]);
 
-    // Auto-dismiss compliment popup after 6 seconds
-    useEffect(() => {
-        if (showComplimentDialog) {
-            const dismissTimer = setTimeout(() => {
-                setShowComplimentDialog(false);
-            }, 6000);
-            return () => clearTimeout(dismissTimer);
-        }
-    }, [showComplimentDialog]);
+
 
     // Prevent body scroll when modal or lightbox is open
     useEffect(() => {
@@ -587,6 +583,8 @@ export function TryOnResultModal({
                                             maxHeight: '100%',
                                         }}
                                     />
+
+
                                 </div>
                             )}
 
@@ -711,6 +709,28 @@ export function TryOnResultModal({
                             <ShoppingBag className="w-5 h-5" />
                             <span>SHOP</span>
                         </button>
+
+
+                        {/* Gallery Grid - Right Sidebar */}
+                        {!loading && !generatingAngles && generatedImages && generatedImages.length > 1 && (
+                            <div className="mt-2 p-3 rounded-2xl bg-white/50 border border-white/60">
+                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 text-center">Generated Angles</p>
+                                <div className="grid grid-cols-3 gap-2">
+                                    {generatedImages.map((img, idx) => (
+                                        <button
+                                            key={idx}
+                                            onClick={() => onSelectImage?.(img)}
+                                            className={`relative aspect-[3/4] w-full rounded-lg overflow-hidden transition-all duration-300 ${img === resultImage
+                                                ? 'ring-2 ring-[#c9a55c] ring-offset-1 shadow-md scale-105 z-10'
+                                                : 'opacity-70 hover:opacity-100 hover:scale-105 border border-gray-200'
+                                                }`}
+                                        >
+                                            <img src={img} alt={`Angle ${idx + 1}`} className="w-full h-full object-cover" />
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
 

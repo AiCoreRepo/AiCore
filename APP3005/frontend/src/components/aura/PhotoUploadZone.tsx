@@ -60,7 +60,7 @@ export const PhotoUploadZone = ({ onPhotoSelect, photoPreview, onRemove }: Photo
                             <img
                                 src={photoPreview}
                                 alt="Preview"
-                                className="w-full h-full object-cover"
+                                className="w-full h-full object-cover object-top"
                             />
                             <div className="absolute inset-0 bg-gradient-to-t from-charcoal/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
 

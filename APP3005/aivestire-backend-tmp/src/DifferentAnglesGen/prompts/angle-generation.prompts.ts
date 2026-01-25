@@ -17,21 +17,21 @@ export function generateAnglePrompt(
     // SIMPLE PROMPT - FACE-FIRST approach since model preserves clothes well
     // Background: If input has plain/white bg, generate nice fashion studio background
     // If input already has styled bg, preserve it
-    const prompt = `FACE PRESERVATION IS THE #1 PRIORITY.
-
-This photo shows a specific person. Generate a ${angleInstruction} view of THIS EXACT PERSON.
+    const prompt = `FULL BODY FASHION PHOTOGRAPHY.
+    
+This photo shows a specific person. Generate a ${angleInstruction} of THIS EXACT PERSON.
 
 FACE REQUIREMENTS (CRITICAL):
-- Copy the EXACT face from the input image
+- Copy the EXACT face from the input image (for side/angle views, ensure the profile matches perfectly)
 - Same facial structure, same eyes, same nose, same lips, same jawline
 - Same skin color and complexion - do not lighten or darken
 - Same eyebrows, same forehead shape
 - If there are any facial marks or features, keep them
 
 PRESERVE EXACTLY:
-- Same hair color and style
-- Same clothes with exact colors and patterns
-- Full body visible, no zoom
+- Same hair color and style (visualize how it looks from ${angleInstruction})
+- Same clothes with exact colors and patterns.
+- Full body visible, no zoom. Shoes must be visible.
 
 BACKGROUND INSTRUCTIONS (CRITICAL consistency):
 - GENERATE A PLAIN, ATTRACTIVE STUDIO BACKGROUND.
@@ -40,7 +40,7 @@ BACKGROUND INSTRUCTIONS (CRITICAL consistency):
 - CONSISTENCY: This background must be used for ALL angles. Do not change lighting or color.
 - Do NOT generate complex scenes, streets, or busy patterns. Keep it CLEAN and PLAIN.
 
-CAMERA: Rotate to ${angleInstruction}. Person identity and clothes stay EXACTLY the same.`;
+CAMERA: Rotate strictly to ${angleInstruction}. Person identity and clothes stay EXACTLY the same.`;
 
     return prompt;
 }
