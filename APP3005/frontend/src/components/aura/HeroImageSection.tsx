@@ -1,5 +1,4 @@
 import { motion } from "framer-motion";
-import auraHero from "@/assets/Aurpage.png";
 
 export const HeroImageSection = () => {
     return (
@@ -13,7 +12,7 @@ export const HeroImageSection = () => {
             <div
                 className="absolute inset-0 bg-cover bg-no-repeat"
                 style={{
-                    backgroundImage: `url(${auraHero})`,
+                    backgroundImage: `url('https://res.cloudinary.com/dxfxicebq/image/upload/v1769334706/samples/Aurpage_vda5gm.png')`,
                     backgroundSize: 'cover',
                     backgroundPosition: 'center 20%'
                 }}
