@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import auraHero from "@/assets/aura-hero.png";
+import auraHero from "@/assets/Aurpage.png";
 
 export const HeroImageSection = () => {
     return (
