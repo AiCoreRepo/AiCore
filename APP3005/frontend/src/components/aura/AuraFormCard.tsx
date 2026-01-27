@@ -68,6 +68,32 @@ const mapBodyShape = (aiValue: string | null | undefined): string => {
 
 type Step = "upload" | "confirm";
 
+// Helper to determine age range from DOB
+const calculateAgeRangeFromDob = (dobString?: string): string => {
+    if (!dobString) return "";
+
+    // Parse DOB
+    const birthDate = new Date(dobString);
+    if (isNaN(birthDate.getTime())) return "";
+
+    // Calculate Age
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const m = today.getMonth() - birthDate.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
+    }
+
+    // Map to Ranges
+    if (age >= 13 && age <= 17) return "13-17";
+    if (age >= 18 && age <= 25) return "18-25";
+    if (age >= 26 && age <= 35) return "26-35";
+    if (age >= 36 && age <= 50) return "36-50";
+    if (age >= 51) return "51+";
+
+    return ""; // Fallback or under 13
+};
+
 export const AuraFormCard = ({ onCreateAura, isProcessing }: AuraFormCardProps) => {
     const { user } = useAuth();
     const navigate = useNavigate();
@@ -91,12 +117,22 @@ export const AuraFormCard = ({ onCreateAura, isProcessing }: AuraFormCardProps) 
         setAnalysisResult(null);
         setAnalysisError(null);
 
-        // Auto-populate age range from user profile if available
+        // Auto-populate age range:
+        // Priority 1: Existing age_range from profile
+        // Priority 2: Calculated from DOB
         if (user?.age_range) {
             setAttributes(prev => ({
                 ...prev,
                 ageRange: user.age_range
             }));
+        } else if (user?.dob) {
+            const calculatedRange = calculateAgeRangeFromDob(user.dob);
+            if (calculatedRange) {
+                setAttributes(prev => ({
+                    ...prev,
+                    ageRange: calculatedRange
+                }));
+            }
         }
     };
 
@@ -127,24 +163,26 @@ export const AuraFormCard = ({ onCreateAura, isProcessing }: AuraFormCardProps) 
                     ...prev,
                     skinTone: mapSkinTone(result.skinToneLabel) || prev.skinTone,
                     bodyShape: mapBodyShape(result.bodyShape) || prev.bodyShape,
-                    // Persist age range if already set from user profile
-                    ageRange: prev.ageRange || user?.age_range
+                    // Persist age range logic
+                    ageRange: prev.ageRange || user?.age_range || calculateAgeRangeFromDob(user?.dob)
                 }));
                 console.log('✅ AI detected:', result.skinToneLabel, result.bodyShape);
             } else {
                 console.log('⚠️ Analysis failed, proceeding with manual entry');
                 setAnalysisError(result.error || "Analysis unavailable");
                 // Ensure age range is still populated even if analysis fails
-                if (user?.age_range) {
-                    setAttributes(prev => ({ ...prev, ageRange: user.age_range }));
+                const ageRange = user?.age_range || calculateAgeRangeFromDob(user?.dob);
+                if (ageRange) {
+                    setAttributes(prev => ({ ...prev, ageRange }));
                 }
             }
         } catch (error: any) {
             console.log('⚠️ Analysis error, proceeding with manual entry:', error.message);
             setAnalysisError("AI analysis unavailable - please fill manually");
             // Ensure age range is still populated
-            if (user?.age_range) {
-                setAttributes(prev => ({ ...prev, ageRange: user.age_range }));
+            const ageRange = user?.age_range || calculateAgeRangeFromDob(user?.dob);
+            if (ageRange) {
+                setAttributes(prev => ({ ...prev, ageRange }));
             }
         } finally {
             setIsAnalyzing(false);

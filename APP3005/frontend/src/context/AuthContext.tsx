@@ -12,6 +12,7 @@ interface User {
   max_try_ons?: number;
   try_on_permission?: string;
   age_range?: string;
+  dob?: string;
 }
 
 interface AuthContextType {
