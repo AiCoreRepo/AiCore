@@ -732,35 +732,66 @@ export async function analyzeBodyImage(photoFile: File): Promise<BodyAnalysisRes
   const formData = new FormData();
   formData.append('photo', photoFile);
 
-  const res = await fetch(`${BASE_URL}/aura/analyze-image`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${token}`,
-    },
-    body: formData,
-  });
+  // Create AbortController for timeout
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
 
-  if (!res.ok) {
-    const bodyText = await res.text();
-    try {
-      const err = JSON.parse(bodyText);
+  try {
+    const res = await fetch(`${BASE_URL}/aura/analyze-image`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+      body: formData,
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!res.ok) {
+      const bodyText = await res.text();
+      try {
+        const err = JSON.parse(bodyText);
+        return {
+          success: false,
+          skinHexes: [],
+          fullBody: false,
+          error: err.message || 'Analysis failed',
+        };
+      } catch {
+        return {
+          success: false,
+          skinHexes: [],
+          fullBody: false,
+          error: bodyText || 'Analysis failed',
+        };
+      }
+    }
+
+    return res.json();
+  } catch (error: any) {
+    clearTimeout(timeoutId);
+
+    // Handle timeout
+    if (error.name === 'AbortError') {
+      console.warn('⏱️ Image analysis timed out after 30 seconds');
       return {
         success: false,
         skinHexes: [],
         fullBody: false,
-        error: err.message || 'Analysis failed',
-      };
-    } catch {
-      return {
-        success: false,
-        skinHexes: [],
-        fullBody: false,
-        error: bodyText || 'Analysis failed',
+        error: 'Analysis timed out - please proceed with manual entry',
       };
     }
-  }
 
-  return res.json();
+    // Handle network errors
+    console.error('❌ Image analysis network error:', error);
+    return {
+      success: false,
+      skinHexes: [],
+      fullBody: false,
+      error: 'Network error - please check your connection and try again',
+    };
+  }
 }
 
 // ============================================================================

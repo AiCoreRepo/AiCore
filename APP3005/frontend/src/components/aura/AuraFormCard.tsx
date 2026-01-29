@@ -152,9 +152,17 @@ export const AuraFormCard = ({ onCreateAura, isProcessing }: AuraFormCardProps) 
         setIsAnalyzing(true);
         setAnalysisError(null);
 
+        // Failsafe timeout - if analysis takes more than 35 seconds, force proceed
+        const failsafeTimeout = setTimeout(() => {
+            console.warn('⚠️ Failsafe timeout triggered - forcing step transition');
+            setIsAnalyzing(false);
+            setCurrentStep("confirm");
+        }, 35000);
+
         try {
             console.log('🔍 Analyzing photo...');
             const result = await analyzeBodyImage(photoFile);
+            console.log('📊 Analysis result:', result);
             setAnalysisResult(result);
 
             if (result.success) {
@@ -185,8 +193,13 @@ export const AuraFormCard = ({ onCreateAura, isProcessing }: AuraFormCardProps) 
                 setAttributes(prev => ({ ...prev, ageRange }));
             }
         } finally {
+            clearTimeout(failsafeTimeout);
+            console.log('🎯 Transitioning to confirm step');
             setIsAnalyzing(false);
-            setCurrentStep("confirm"); // Always proceed to confirm step
+            // Use setTimeout to ensure state updates are processed
+            setTimeout(() => {
+                setCurrentStep("confirm");
+            }, 100);
         }
     };
 
