@@ -263,7 +263,8 @@ const AiTryOn = () => {
                 {/* Right Content - Clothing Grid or Permission Gate */}
                 {/* Right Content - Clothing Grid (9/12) */}
                 <div className="lg:col-span-9">
-                  {user?.role !== 'ADMIN' && user?.try_on_permission !== 'APPROVED' ? (
+                  {/* BYPASSED: Admin approval check - All users can now access try-on */}
+                  {false && user?.role !== 'ADMIN' && user?.try_on_permission !== 'APPROVED' ? (
                     <div
                       className="p-16 rounded-[40px] text-center flex flex-col items-center justify-center gap-8 shadow-sm"
                       style={{

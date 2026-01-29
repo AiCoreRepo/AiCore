@@ -125,8 +125,8 @@ const CollectionPage = () => {
             return;
         }
 
-        // Check permissions
-        if (user?.role !== 'ADMIN' && user?.try_on_permission !== 'APPROVED') {
+        // Check permissions - BYPASSED: Allow all users
+        if (false && user?.role !== 'ADMIN' && user?.try_on_permission !== 'APPROVED') {
             navigate('/ai-try-on');
             return;
         }

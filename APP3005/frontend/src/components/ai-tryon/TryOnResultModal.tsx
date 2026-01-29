@@ -592,7 +592,7 @@ export function TryOnResultModal({
                             {showComplimentDialog && currentCompliment && (
                                 <div
                                     className="absolute bottom-6 left-6 z-50 slide-up"
-                                    style={{ maxWidth: '400px', width: 'calc(100% - 3rem)' }}
+                                    style={{ maxWidth: '600px', width: 'calc(100% - 3rem)' }}
                                 >
                                     <div className="rounded-2xl overflow-hidden" style={{
                                         background: 'rgba(255, 255, 255, 0.98)',
@@ -604,7 +604,7 @@ export function TryOnResultModal({
                                             background: 'linear-gradient(90deg, #c9a55c 0%, #d4b896 50%, #c9a55c 100%)',
                                         }} />
 
-                                        <div className="px-5 py-4">
+                                        <div className="px-6 py-4">
                                             <div className="flex items-start gap-3">
                                                 <div className="flex-shrink-0 w-11 h-11 rounded-full flex items-center justify-center" style={{
                                                     background: 'linear-gradient(135deg, #c9a55c 0%, #d4b896 100%)',
@@ -613,7 +613,7 @@ export function TryOnResultModal({
                                                 </div>
 
                                                 <div className="flex-1 min-w-0">
-                                                    <p className="text-sm md:text-base leading-relaxed font-serif italic mb-2.5" style={{ color: '#1a1a1a', fontWeight: 500 }}>
+                                                    <p className="text-base leading-relaxed font-serif italic mb-2.5" style={{ color: '#1a1a1a', fontWeight: 500 }}>
                                                         "{currentCompliment.message}"
                                                     </p>
 
