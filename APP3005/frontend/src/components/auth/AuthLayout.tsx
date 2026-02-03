@@ -23,7 +23,7 @@ export const AuthLayout = ({ children, heroImage, quote, quoteAuthor }: AuthLayo
   }, [heroImage]);
 
   return (
-    <div className="min-h-screen flex flex-col lg:flex-row bg-luxury-black overflow-x-hidden">
+    <div className="min-h-screen flex flex-col lg:flex-row bg-luxury-black overflow-hidden">
       {/* Left Side - Hero Image with Quote - Hidden on Mobile */}
       <motion.div
         initial={{ opacity: 0 }}
@@ -66,7 +66,7 @@ export const AuthLayout = ({ children, heroImage, quote, quoteAuthor }: AuthLayo
       </motion.div>
 
       {/* Right Side - Form Container */}
-      <div className="w-full lg:w-1/2 flex flex-col min-h-screen relative z-10">
+      <div className="w-full lg:w-1/2 flex flex-col h-screen relative z-10 overflow-y-auto">
         {/* Mobile Background Image - Visible only on mobile/tablet */}
         <div
           className="absolute inset-0 z-0 lg:hidden"
@@ -100,7 +100,7 @@ export const AuthLayout = ({ children, heroImage, quote, quoteAuthor }: AuthLayo
         </motion.div>
 
         {/* Form Content - Optimized for Mobile */}
-        <div className="flex-1 flex items-start justify-center p-4 sm:p-8 lg:p-24 pt-2 sm:pt-4 lg:pt-6 overflow-y-auto relative z-10">
+        <div className="flex-1 flex items-start justify-center p-4 sm:p-6 lg:p-8 pt-4 relative z-10">
           <motion.div
             initial={{ opacity: 0, scale: 0.98 }}
             animate={{ opacity: 1, scale: 1 }}

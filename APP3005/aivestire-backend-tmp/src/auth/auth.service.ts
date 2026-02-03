@@ -1,4 +1,5 @@
 import { JwtService } from '@nestjs/jwt';
+import { OtpService } from './otp.service';
 // Type guard for bcrypt module
 function isBcryptModule(mod: unknown): mod is typeof import('bcrypt') {
   return (
@@ -17,6 +18,8 @@ import { PrismaService } from '../prisma/prisma.service';
 import { UserRole, TryOnPermissionStatus } from '@prisma/client';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
+import { GoogleAuthDto } from './dto/google-auth.dto';
+import { OAuth2Client } from 'google-auth-library';
 import * as crypto from 'crypto';
 import {
   REFRESH_TOKEN_COOKIE_OPTIONS,
@@ -37,6 +40,7 @@ export class AuthService {
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
+    private otpService: OtpService,
   ) { }
 
   private slugify(input: string): string {
@@ -49,12 +53,30 @@ export class AuthService {
   }
 
   async register(dto: RegisterDto) {
+    // Check if email already exists
     const exists = await this.prisma.user.findUnique({
       where: { email: dto.email },
     });
     if (exists) {
       throw new BadRequestException('Email already registered');
     }
+
+    // Check if phone number already exists for the SAME ROLE
+    // This allows creators and buyers to use the same phone number independently
+    if (dto.phoneNumber) {
+      const phoneExists = await this.prisma.user.findFirst({
+        where: {
+          phone: dto.phoneNumber,
+          role: dto.role, // Only check within the same role
+        },
+      });
+      if (phoneExists) {
+        throw new BadRequestException(
+          `This phone number is already registered as a ${dto.role.toLowerCase()}`
+        );
+      }
+    }
+
     const bcryptMod1 = await getBcrypt();
     if (!isBcryptModule(bcryptMod1)) {
       throw new Error('Failed to load bcrypt module');
@@ -64,6 +86,8 @@ export class AuthService {
       data: {
         email: dto.email,
         password_hash,
+        phone: dto.phoneNumber,
+        phone_verified: true, // Set to true since OTP was verified before registration
         role: dto.role,
       },
     });
@@ -98,6 +122,13 @@ export class AuthService {
       email: user.email,
       role: user.role,
     };
+  }
+
+  async checkEmailAvailability(email: string): Promise<{ available: boolean }> {
+    const exists = await this.prisma.user.findUnique({
+      where: { email },
+    });
+    return { available: !exists };
   }
 
   async validateUser(email: string, password: string) {
@@ -342,6 +373,124 @@ export class AuthService {
     };
   }
 
+  /**
+   * Google OAuth authentication: verify token, create/find user, and issue tokens
+   */
+  async googleAuth(dto: GoogleAuthDto, res: Response) {
+    // Verify the access token by fetching user info from Google
+    let payload: {
+      email?: string;
+      name?: string;
+      sub?: string;
+    };
+
+    try {
+      // Use Google's userinfo endpoint to verify the access token
+      const response = await fetch(
+        `https://www.googleapis.com/oauth2/v3/userinfo?access_token=${dto.token}`,
+      );
+
+      if (!response.ok) {
+        throw new UnauthorizedException('Invalid Google token');
+      }
+
+      payload = await response.json();
+    } catch (error) {
+      if (error instanceof UnauthorizedException) {
+        throw error;
+      }
+      throw new UnauthorizedException('Failed to verify Google token');
+    }
+
+    if (!payload.email) {
+      throw new BadRequestException('Email not found in Google token');
+    }
+
+    const email = payload.email;
+    const name = payload.name || email.split('@')[0];
+
+    // Check if user exists
+    let user = await this.prisma.user.findUnique({ where: { email } });
+
+    if (user) {
+      // User exists - check if role matches
+      if (user.role !== dto.role) {
+        throw new UnauthorizedException('Invalid credentials');
+      }
+    } else {
+      // Create new user with the specified role
+      user = await this.prisma.user.create({
+        data: {
+          email,
+          role: dto.role as UserRole,
+          phone: dto.phoneNumber,
+          status: 'active',
+        },
+      });
+
+      // If creator, create Creator profile
+      if (dto.role === 'CREATOR') {
+        const storeName = dto.store_name || `${name}'s Store`;
+        let storeSlug = this.slugify(storeName);
+        let i = 1;
+        while (
+          await this.prisma.creator.findUnique({
+            where: { store_slug: storeSlug },
+          })
+        ) {
+          storeSlug = `${this.slugify(storeName)}-${i++}`;
+        }
+
+        await this.prisma.creator.create({
+          data: {
+            user_id: user.user_id,
+            store_name: storeName,
+            store_slug: storeSlug,
+            verified: true,
+            verification_data: {
+              googleAuth: true,
+              googleName: name,
+              timestamp: new Date().toISOString(),
+            },
+          },
+        });
+      }
+    }
+
+    // Issue tokens
+    const tokens = await this.issueTokens(user.user_id, user.role);
+
+    // Set refresh token hash
+    const bcryptMod = await getBcrypt();
+    if (!isBcryptModule(bcryptMod)) {
+      throw new Error('Failed to load bcrypt module');
+    }
+    const refresh_token_hash: string = await bcryptMod.hash(
+      tokens.refresh_token,
+      10,
+    );
+    await this.prisma.user.update({
+      where: { user_id: user.user_id },
+      data: { refresh_token_hash, last_login: new Date() },
+    });
+
+    res.cookie(
+      'refresh_token',
+      tokens.refresh_token,
+      REFRESH_TOKEN_COOKIE_OPTIONS,
+    );
+
+    return {
+      access_token: tokens.access_token,
+      user: {
+        user_id: user.user_id,
+        email: user.email,
+        role: user.role,
+        try_on_permission: user.try_on_permission,
+      },
+    };
+  }
+
   async requestTryOnPermission(user_id: string) {
     const user = await this.prisma.user.findUnique({ where: { user_id } });
     if (!user) throw new NotFoundException('User not found');
@@ -384,5 +533,14 @@ export class AuthService {
       where: { user_id },
       data: { try_on_permission: status },
     });
+  }
+
+  // OTP Methods
+  async sendOtp(phoneNumber: string) {
+    return this.otpService.sendOTP(phoneNumber);
+  }
+
+  async verifyOtp(phoneNumber: string, otp: string) {
+    return this.otpService.verifyOTP(phoneNumber, otp);
   }
 }

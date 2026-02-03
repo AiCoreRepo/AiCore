@@ -13,6 +13,7 @@ model User {
   email               String            @unique
   password_hash       String?
   phone               String?
+  phone_verified      Boolean           @default(false)
   status              String            @default("active")
   try_on_permission   TryOnPermissionStatus @default(NONE)
   created_at          DateTime          @default(now())
@@ -207,6 +208,20 @@ model TryOn {
   @@index([aura_id, product_id, angle])
   @@index([cloudinary_public_id])
   @@map("try_ons")
+}
+
+model OtpVerification {
+  otp_id       String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  phone_number String
+  otp_hash     String   // Hashed OTP for security
+  expires_at   DateTime
+  verified     Boolean  @default(false)
+  attempts     Int      @default(0)
+  created_at   DateTime @default(now())
+
+  @@index([phone_number])
+  @@index([expires_at])
+  @@map("otp_verifications")
 }
 
 enum AuraStatus {

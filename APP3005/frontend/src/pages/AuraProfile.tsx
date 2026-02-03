@@ -63,6 +63,37 @@ export default function AuraProfile() {
         ageRange: '',
     });
 
+    // Check for pending login from signup
+    useEffect(() => {
+        const pendingLogin = localStorage.getItem('pendingLogin');
+        if (pendingLogin) {
+            const { email, password } = JSON.parse(pendingLogin);
+            // Auto-login
+            const autoLogin = async () => {
+                try {
+                    const response = await fetch(`${import.meta.env.VITE_API_URL}/auth/login`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ email, password }),
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        localStorage.setItem('access_token', data.access_token);
+                        localStorage.setItem('refresh_token', data.refresh_token);
+                        localStorage.removeItem('pendingLogin');
+                    }
+                } catch (error) {
+                    console.error('Auto-login failed:', error);
+                    localStorage.removeItem('pendingLogin');
+                }
+            };
+            autoLogin();
+        }
+    }, []);
+
     useEffect(() => {
         const fetchAura = async () => {
             try {

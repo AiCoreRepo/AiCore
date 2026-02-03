@@ -9,7 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { loginSchema, type LoginFormData } from "@/lib/validation";
 import { useToast } from "@/hooks/use-toast";
-import { login as loginApi } from "@/lib/api";
+import { login as loginApi, googleAuth } from "@/lib/api";
+import { useGoogleLogin } from "@react-oauth/google";
 import { usePopup } from "@/components/common/popups/PopupTime";
 import heroImage from "@/assets/auth-hero-login.jpg";
 
@@ -36,6 +37,21 @@ const Login = () => {
       if (result.access_token) {
         localStorage.setItem("access_token", result.access_token);
       }
+
+      // Check if user has CREATOR role
+      const userRole = result.user?.role;
+
+      if (userRole !== 'CREATOR') {
+        // Don't reveal role information - show generic error
+        toast({
+          title: "Login Failed",
+          description: "Invalid credentials. Please try again.",
+          variant: "destructive",
+        });
+
+        setIsLoading(false);
+        return;
+      }
       // toast({
       //   title: "Welcome back!",
       //   description: "You've successfully signed in.",
@@ -53,12 +69,51 @@ const Login = () => {
     }
   };
 
-  const handleGoogleSignIn = async () => {
-    toast({
-      title: "Coming Soon",
-      description: "Google Sign-In will be available shortly.",
-    });
-  };
+  const handleGoogleSignIn = useGoogleLogin({
+    onSuccess: async (tokenResponse) => {
+      setIsLoading(true);
+      try {
+        const result = await googleAuth({
+          token: tokenResponse.access_token,
+          role: 'CREATOR',
+        });
+
+        if (result.access_token) {
+          localStorage.setItem("access_token", result.access_token);
+        }
+
+        // Validate user is a creator
+        if (result.user?.role !== 'CREATOR') {
+          localStorage.removeItem("access_token");
+          toast({
+            title: "Login Failed",
+            description: "Invalid credentials. Please try again.",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        showPopup("Welcome back!", "You've successfully signed in.", "success");
+        navigate("/creator-dashboard");
+      } catch (error: unknown) {
+        toast({
+          title: "Google Sign-In Failed",
+          description: (error as Error).message || "Invalid credentials. Please try again.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    onError: () => {
+      toast({
+        title: "Google Sign-In Failed",
+        description: "Could not connect to Google. Please try again.",
+        variant: "destructive",
+      });
+    },
+    flow: 'implicit',
+  });
 
   return (
     <AuthLayout
@@ -147,7 +202,7 @@ const Login = () => {
             type="button"
             variant="outline"
             className="w-full bg-white hover:bg-gray-50 text-gray-700 font-medium h-11 rounded-lg border border-gray-300 hover:border-gray-400 transition-all duration-200 shadow-sm hover:shadow"
-            onClick={handleGoogleSignIn}
+            onClick={() => handleGoogleSignIn()}
           >
             <svg className="h-5 w-5 mr-3" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
               <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
