@@ -1,0 +1,30 @@
+version: "3.8"
+
+services:
+  body-analyzer:
+    build:
+      context: ./Playground/vertexVT
+    command: ["uvicorn", "body_analyzer_api:app", "--host", "0.0.0.0", "--port", "8898"]
+    container_name: body-analyzer-api
+    ports:
+      - "8898:8898"
+    restart: unless-stopped
+    networks:
+      - ai-network
+
+  recommendation-api:
+    build:
+      context: ./recommend_demo
+      dockerfile: Dockerfile.api
+    container_name: recommendation-api
+    ports:
+      - "8799:8799"
+    environment:
+      RECOMMENDATION_COLLECTION_PATH: /app/main_train_data.csv
+    restart: unless-stopped
+    networks:
+      - ai-network
+
+networks:
+  ai-network:
+    driver: bridge
