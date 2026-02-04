@@ -44,4 +44,4 @@ RUN ls -la /app/dist
 EXPOSE 3000
 
 # Start the app directly with node (lighter than npm start)
-CMD ["node", "dist/src/main"]
+CMD ["node", "dist/main"]
