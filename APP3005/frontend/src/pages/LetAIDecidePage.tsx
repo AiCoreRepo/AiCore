@@ -5,8 +5,15 @@ import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { AuraDisplayCard } from '@/components/ai-tryon/AuraDisplayCard';
 import { AuthPopup } from '@/components/AuthPopup';
-import { getAura, getAIRecommendations, type RecommendationRequest, type RecommendationsResponse, type RecommendationItem } from '@/lib/api';
+import { getAura } from '@/lib/api';
+import { getAIRecommendations, type RecommendationRequest, type RecommendationsResponse, type RecommendationItem } from '@/lib/api-recommendations';
+import { useRef } from 'react';
 import { Sparkles, Heart, Star, Wand2, AlertCircle, Loader2 } from 'lucide-react';
+import { ProductCard } from '@/components/collection/ProductCard';
+import { auraGate } from '@/utils/auraGate';
+import { TryOnInterstitialModal } from "@/components/TryOnInterstitialModal";
+import { TryOnResultModal } from '@/components/ai-tryon/TryOnResultModal';
+import { tryOnWithVertex, generateMoreAngles } from '@/lib/api';
 
 interface AuraData {
     aura_id: string;
@@ -52,6 +59,16 @@ const LetAIDecidePage = () => {
     const [recommendations, setRecommendations] = useState<RecommendationsResponse | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [currentQuote] = useState(() => inspirationalQuotes[Math.floor(Math.random() * inspirationalQuotes.length)]);
+    const [selectedTryOnProduct, setSelectedTryOnProduct] = useState<string | null>(null);
+    const [isTryOnModalOpen, setIsTryOnModalOpen] = useState(false);
+
+    // AI Try-On State
+    const [showResultModal, setShowResultModal] = useState(false);
+    const [resultImage, setResultImage] = useState<string | null>(null);
+    const [tryOnLoading, setTryOnLoading] = useState(false);
+    const [tryOnError, setTryOnError] = useState<string | null>(null);
+    const [generatingAngles, setGeneratingAngles] = useState(false);
+    const [originalTryOnImage, setOriginalTryOnImage] = useState<string | null>(null);
 
     useEffect(() => {
         // Wait for auth to load
@@ -59,7 +76,7 @@ const LetAIDecidePage = () => {
 
         // Check if user is logged in
         if (!user) {
-            console.log('❌ User not logged in, showing popup');
+            console.log(' User not logged in, showing popup');
             setShowLoginPopup(true);
             setLoadingAura(false);
             return;
@@ -101,6 +118,24 @@ const LetAIDecidePage = () => {
             };
 
             const result = await getAIRecommendations(request);
+
+            // Sort helper: prioritize younger models (age <= 40), push older (> 40) to bottom
+            const ageSorter = (a: RecommendationItem, b: RecommendationItem) => {
+                const ageA = a.metadata?.model_age || 0;
+                const ageB = b.metadata?.model_age || 0;
+                const isOldA = ageA > 40;
+                const isOldB = ageB > 40;
+                if (isOldA && !isOldB) return 1;
+                if (!isOldA && isOldB) return -1;
+                return 0;
+            };
+
+            if (result) {
+                result.perfect_for_you.sort(ageSorter);
+                result.good_for_you.sort(ageSorter);
+                result.you_can_also_try.sort(ageSorter);
+            }
+
             setRecommendations(result);
         } catch (error: any) {
             console.error('Recommendation error:', error);
@@ -110,63 +145,123 @@ const LetAIDecidePage = () => {
         }
     };
 
-    const renderRecommendationCard = (item: RecommendationItem, tier: 'perfect' | 'good' | 'try') => {
-        const tierConfig = {
-            perfect: { color: 'from-gold/20 to-gold/5 border-gold/40', icon: <Star className="w-5 h-5 text-gold fill-gold" /> },
-            good: { color: 'from-blue-500/20 to-blue-500/5 border-blue-500/30', icon: <Heart className="w-5 h-5 text-blue-500 fill-blue-500" /> },
-            try: { color: 'from-purple-500/20 to-purple-500/5 border-purple-500/30', icon: <Sparkles className="w-5 h-5 text-purple-500" /> },
+    const handleTryOn = async (productId: string) => {
+        const token = localStorage.getItem('access_token');
+        if (!token) {
+            navigate('/user-login');
+            return;
+        }
+
+        // Check permissions - BYPASSED: Allow all users
+        if (false && user?.role !== 'ADMIN' && user?.try_on_permission !== 'APPROVED') {
+            navigate('/ai-try-on');
+            return;
+        }
+
+        // Use local aura state for instant check
+        if (aura) {
+            setSelectedTryOnProduct(productId);
+            setIsTryOnModalOpen(true);
+        } else {
+            // If local aura isn't loaded but might exist, we could fall back to auraGate,
+            // but here we know we tried loading it on mount.
+            setShowAuraPopup(true);
+        }
+    };
+
+    const handleConfirmTryOn = () => {
+        if (selectedTryOnProduct) {
+            setIsTryOnModalOpen(false);
+            executeTryOn(selectedTryOnProduct);
+        }
+    };
+
+    const executeTryOn = async (productId: string) => {
+        if (!aura) return;
+
+        try {
+            setTryOnLoading(true);
+            setTryOnError(null);
+            setShowResultModal(true);
+
+            const result = await tryOnWithVertex({
+                userId: aura.user_id,
+                clothingItemId: productId,
+            });
+
+            if (result.success && result.resultImage) {
+                const imageData = result.resultImage.startsWith('data:')
+                    ? result.resultImage
+                    : `data:image/jpeg;base64,${result.resultImage}`;
+                setResultImage(imageData);
+                setOriginalTryOnImage(imageData);
+            } else {
+                throw new Error(result.message || 'Try-on failed');
+            }
+        } catch (error: any) {
+            console.error('Try-on error:', error);
+            setTryOnError(error.message || 'Failed to process try-on. Please try again.');
+        } finally {
+            setTryOnLoading(false);
+        }
+    };
+
+    const handleGenerateMoreAngles = async () => {
+        if (!aura || !resultImage || !selectedTryOnProduct) return;
+
+        try {
+            setGeneratingAngles(true);
+            const result = await generateMoreAngles({
+                userId: aura.user_id,
+                productId: selectedTryOnProduct,
+                previousImageUrl: originalTryOnImage || resultImage,
+            });
+
+            if (result.success && result.resultImage) {
+                const imageData = result.resultImage.startsWith('data:')
+                    ? result.resultImage
+                    : `data:image/jpeg;base64,${result.resultImage}`;
+                setResultImage(imageData);
+            }
+        } catch (error: any) {
+            setTryOnError(error.message || 'Failed to generate angles');
+        } finally {
+            setGeneratingAngles(false);
+        }
+    };
+
+    const mapToProduct = (item: RecommendationItem) => {
+        // Prepare images array from the item.images string array if available
+        let productImages: Array<{ url: string; is_primary: boolean; order_index: number }> = [];
+
+        if (item.images && item.images.length > 0) {
+            productImages = item.images.map((url, index) => ({
+                url: url,
+                is_primary: index === 0,
+                order_index: index
+            }));
+        } else if (item.image) {
+            productImages = [{ url: item.image, is_primary: true, order_index: 0 }];
+        }
+
+        return {
+            product_id: item.product_id || item.id, // Fallback to id if product_id is missing
+            title: item.title || 'Recommended Item',
+            thumbnail: item.image || (item.images && item.images[0]) || null,
+            images: productImages,
+            price_cents: item.price_cents || 0,
+            currency: 'INR', // Defaulting to INR as per app context
+            is_featured: false, // Default
+            likes: 0, // Default, as we don't have this in recommendation data yet
+            reviews: 0, // Default
+            views: 0, // Default
+            description: item.description,
+            creator: {
+                store_name: item.creator_name || 'Aivestire',
+                verified: true
+            },
+            metadata: item.metadata
         };
-
-        const config = tierConfig[tier];
-
-        return (
-            <div
-                key={item.id}
-                className={`glass-panel rounded-2xl overflow-hidden border-2 transition-all duration-300 hover:scale-[1.02] hover:shadow-xl cursor-pointer bg-gradient-to-br ${config.color}`}
-            >
-                {item.image && (
-                    <div className="aspect-[3/4] bg-ivory/30 overflow-hidden">
-                        <img
-                            src={item.image}
-                            alt={item.title || item.description || 'Recommended outfit'}
-                            className="w-full h-full object-cover"
-                        />
-                    </div>
-                )}
-
-                <div className="p-4 space-y-2">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            {config.icon}
-                            <span className="text-xs font-medium text-charcoal/70 uppercase tracking-wide">
-                                {item.score_label}
-                            </span>
-                        </div>
-                        <div className="text-sm font-bold text-charcoal">
-                            {Math.round(item.final_score * 100)}% Match
-                        </div>
-                    </div>
-
-                    {item.title && (
-                        <h3 className="font-serif text-lg text-charcoal line-clamp-2">
-                            {item.title}
-                        </h3>
-                    )}
-
-                    {item.description && (
-                        <p className="text-sm text-charcoal/60 line-clamp-2">
-                            {item.description}
-                        </p>
-                    )}
-
-                    {item.price_cents && (
-                        <div className="text-xl font-bold text-gold">
-                            ₹{(item.price_cents / 100).toFixed(2)}
-                        </div>
-                    )}
-                </div>
-            </div>
-        );
     };
 
     return (
@@ -174,32 +269,19 @@ const LetAIDecidePage = () => {
             <Navbar />
 
             <main className="pt-20 pb-12">
-                <section className="py-12 border-b border-gold/20">
-                    <div className="container mx-auto px-4">
-                        <div className="text-center max-w-4xl mx-auto">
-                            <div className="flex items-center justify-center gap-3 mb-6">
-                                <Wand2 className="w-10 h-10 text-gold animate-pulse" />
-                                <h1 className="text-5xl md:text-6xl font-serif font-bold text-charcoal">
-                                    Let AI Decide
-                                </h1>
-                            </div>
+                <section className="pt-24 pb-12 bg-[#F8F4EC]">
+                    <div className="container mx-auto px-4 text-center">
+                        <div className="max-w-4xl mx-auto">
+                            <h1 className="text-5xl md:text-6xl font-serif text-[#2C2C2C] mb-8 tracking-tight">
+                                Let AI <span className="italic text-[#D4AF37]">Decide</span>
+                            </h1>
 
-                            <p className="text-xl text-charcoal/80 mb-8 leading-relaxed">
-                                Discover your perfect outfit with AI-powered precision. Our intelligent system analyzes your unique style, body shape, and preferences to curate personalized recommendations just for you.
-                            </p>
-
-                            <div className="glass-panel rounded-2xl p-8 mb-8 border-2 border-gold/30">
-                                <div className="flex items-start gap-4">
-                                    <Sparkles className="w-8 h-8 text-gold flex-shrink-0 mt-1" />
-                                    <div className="flex-1">
-                                        <p className="text-2xl font-serif italic text-charcoal mb-3 leading-relaxed">
-                                            "{currentQuote.quote}"
-                                        </p>
-                                        <p className="text-sm font-medium text-gold">
-                                            — {currentQuote.author}
-                                        </p>
-                                    </div>
-                                </div>
+                            <div className="relative py-8 px-12 inline-block">
+                                <span className="absolute top-0 left-0 text-3xl text-[#D4AF37]/20 font-serif">"</span>
+                                <p className="text-xl font-serif italic text-[#2C2C2C]/80 font-light max-w-2xl mx-auto leading-relaxed">
+                                    {currentQuote.quote}
+                                </p>
+                                <span className="absolute bottom-4 right-0 text-3xl text-[#D4AF37]/20 font-serif rotate-180">"</span>
                             </div>
                         </div>
                     </div>
@@ -280,6 +362,50 @@ const LetAIDecidePage = () => {
 
                                     {recommendations && !loadingRecommendations && (
                                         <div className="space-y-8">
+                                            {/* Filter Badge - Shows selected occasion */}
+                                            {selectedOccasion && (
+                                                <div className="glass-panel rounded-2xl p-6 border-2 border-gold/40 bg-gradient-to-r from-gold/10 to-gold/5">
+                                                    <div className="flex items-center justify-between flex-wrap gap-4">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="text-4xl">
+                                                                {occasions.find(o => o.value === selectedOccasion)?.icon}
+                                                            </div>
+                                                            <div>
+                                                                <p className="text-sm text-charcoal/60 font-medium uppercase tracking-wide">
+                                                                    Filtered by Occasion
+                                                                </p>
+                                                                <h3 className="text-2xl font-serif font-bold text-charcoal">
+                                                                    {occasions.find(o => o.value === selectedOccasion)?.label}
+                                                                </h3>
+                                                                <p className="text-sm text-charcoal/70">
+                                                                    {occasions.find(o => o.value === selectedOccasion)?.description}
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                        <div className="text-right">
+                                                            <p className="text-3xl font-bold text-gold">
+                                                                {recommendations.count}
+                                                            </p>
+                                                            <p className="text-sm text-charcoal/60">
+                                                                Products Found
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                    {recommendations.warnings && recommendations.warnings.length > 0 && (
+                                                        <div className="mt-4 pt-4 border-t border-gold/20">
+                                                            <div className="flex items-start gap-2">
+                                                                <AlertCircle className="w-4 h-4 text-gold mt-0.5 flex-shrink-0" />
+                                                                <div className="text-xs text-charcoal/60 space-y-1">
+                                                                    {recommendations.warnings.map((warning, idx) => (
+                                                                        <p key={idx}>{warning}</p>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+
                                             <div className="flex items-center justify-between mb-6">
                                                 <h2 className="text-3xl font-serif font-bold text-charcoal">
                                                     Your Personalized Recommendations
@@ -303,8 +429,14 @@ const LetAIDecidePage = () => {
                                                             Perfect for You
                                                         </h3>
                                                     </div>
-                                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                                        {recommendations.perfect_for_you.map((item) => renderRecommendationCard(item, 'perfect'))}
+                                                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                                                        {recommendations.perfect_for_you.map((item) => (
+                                                            <ProductCard
+                                                                key={item.id}
+                                                                product={mapToProduct(item)}
+                                                                onTryOn={() => handleTryOn(item.product_id || item.id)}
+                                                            />
+                                                        ))}
                                                     </div>
                                                 </div>
                                             )}
@@ -317,8 +449,14 @@ const LetAIDecidePage = () => {
                                                             Good for You
                                                         </h3>
                                                     </div>
-                                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                                        {recommendations.good_for_you.map((item) => renderRecommendationCard(item, 'good'))}
+                                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                                                        {recommendations.good_for_you.map((item) => (
+                                                            <ProductCard
+                                                                key={item.id}
+                                                                product={mapToProduct(item)}
+                                                                onTryOn={() => handleTryOn(item.product_id || item.id)}
+                                                            />
+                                                        ))}
                                                     </div>
                                                 </div>
                                             )}
@@ -331,8 +469,14 @@ const LetAIDecidePage = () => {
                                                             You Can Also Try
                                                         </h3>
                                                     </div>
-                                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                                        {recommendations.you_can_also_try.map((item) => renderRecommendationCard(item, 'try'))}
+                                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                                                        {recommendations.you_can_also_try.map((item) => (
+                                                            <ProductCard
+                                                                key={item.id}
+                                                                product={mapToProduct(item)}
+                                                                onTryOn={() => handleTryOn(item.product_id || item.id)}
+                                                            />
+                                                        ))}
                                                     </div>
                                                 </div>
                                             )}
@@ -364,6 +508,24 @@ const LetAIDecidePage = () => {
                 onClose={() => navigate('/collection')}
                 type="aura"
                 onAction={() => navigate('/aura-dashboard')}
+            />
+
+            <TryOnInterstitialModal
+                isOpen={isTryOnModalOpen}
+                onClose={() => setIsTryOnModalOpen(false)}
+                onConfirm={handleConfirmTryOn}
+            />
+
+            <TryOnResultModal
+                isOpen={showResultModal}
+                onClose={() => setShowResultModal(false)}
+                resultImage={resultImage}
+                loading={tryOnLoading}
+                error={tryOnError}
+                onGenerateMoreAngles={handleGenerateMoreAngles}
+                generatingAngles={generatingAngles}
+                userPhoto={aura?.image_url}
+                garmentId={selectedTryOnProduct || undefined}
             />
         </div>
     );

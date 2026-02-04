@@ -287,6 +287,7 @@ export class ProductsService {
           store_name: product.creator.store_name,
           verified: product.creator.verified,
         },
+        metadata: product.metadata,
       })),
       pagination: {
         page,

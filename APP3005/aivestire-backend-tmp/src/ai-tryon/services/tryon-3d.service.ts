@@ -326,6 +326,53 @@ export class TryOn3DService {
     }
 
     /**
+     * Helper to ensure we have base64 data
+     * Downloads image if it's a URL
+     */
+    private async ensureBase64(input: string): Promise<string> {
+        // Extract base64 result
+        const extractBase64Data = (base64String: string): string => {
+            if (base64String.startsWith('data:')) {
+                const matches = base64String.match(/^data:[^;]+;base64,(.+)$/);
+                return matches ? matches[1] : base64String;
+            }
+            return base64String;
+        };
+
+        // If it's already base64, return it (cleaned)
+        if (input.startsWith('data:') || input.length > 500) {
+            return extractBase64Data(input);
+        }
+
+        // It looks like a URL
+        if (input.startsWith('http')) {
+            this.logger.log(`⬇️ Downloading image from URL for full resolution...`);
+            try {
+                const response = await fetch(input);
+                if (!response.ok) throw new Error(`Failed to fetch image: ${response.statusText}`);
+                const arrayBuffer = await response.arrayBuffer();
+                return Buffer.from(arrayBuffer).toString('base64');
+            } catch (error) {
+                this.logger.error(`Failed to download image: ${error.message}`);
+                // Fallback to original input if download fails
+                return extractBase64Data(input);
+            }
+        }
+
+        return input;
+    }
+
+    /**
+     * @deprecated This method is deprecated. Angle generation has been moved to DifferentAnglesGenModule.
+     * Use the new endpoint: POST /api/angles/generate
+     * 
+     * This code is kept intact for reference but is no longer used.
+     * The new implementation provides:
+     * - Direct Gemini AI integration (no FastAPI dependency)
+     * - Better session management per user+product
+     * - Improved prompt engineering
+     * - Same caching and optimization features
+     * 
      * Generate more angles from existing try-on image
      * Uses cached metadata and thumbnails to reduce token consumption
      */
@@ -391,23 +438,17 @@ export class TryOn3DService {
                 thumbnailToUse = await this.imageOptimizer.createThumbnail(previousImageUrl, 512);
             }
 
-            // Extract base64 data helper
-            const extractBase64Data = (base64String: string): string => {
-                if (base64String.startsWith('data:')) {
-                    const matches = base64String.match(/^data:[^;]+;base64,(.+)$/);
-                    return matches ? matches[1] : base64String;
-                }
-                return base64String;
-            };
-
+            // Ensure we have the full base64 data (download if it's a URL)
             // Use FULL RESOLUTION image for better quality and facial feature preservation
-            const fullImageData = extractBase64Data(previousImageUrl);
+            const fullImageData = await this.ensureBase64(previousImageUrl);
             const fullImageSizeKB = Math.round(fullImageData.length / 1024);
 
-            this.logger.log(`📦 Using FULL RESOLUTION image for angle generation: ${fullImageSizeKB} KB`);
-            this.logger.log(`   ✅ This ensures high quality and accurate facial features`);
+            this.logger.log(`📦 Using FULL RESOLUTION try-on result for angle generation: ${fullImageSizeKB} KB`);
+            this.logger.log(`   ✅ This image already has the correct face + clothes combined`);
 
-            // Call FastAPI Gemini angles endpoint with full-resolution image and metadata
+            // Call FastAPI Gemini angles endpoint with the try-on result
+            // SIMPLIFIED APPROACH: Just use the try-on result image (which already has correct face + clothes)
+            // No need to send separate clothing image - it was causing mannequin face to be copied
             this.logger.log(`🔄 Calling FastAPI Gemini angles service at ${this.geminiAnglesUrl}...`);
 
             const controller = new AbortController();
@@ -419,13 +460,15 @@ export class TryOn3DService {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    previous_image: fullImageData, // Use full resolution image
+                    previous_image: fullImageData, // The try-on result with correct face + clothes
+                    // NO reference_image needed - the previous_image IS the reference
+                    // NO clothing_image needed - clothes are already in the try-on result
                     additional_params: {
                         ...additionalParams,
                         cached_metadata: cachedMetadata,
                         use_full_resolution: true,
-                        user_id: aura.user_id,  // Pass user_id for angle tracking
-                        product_id: productId,  // Pass product_id for angle tracking
+                        user_id: aura.user_id,
+                        product_id: productId,
                     },
                 }),
                 signal: controller.signal,

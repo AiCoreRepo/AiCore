@@ -11,7 +11,7 @@ import { signupSchema, type SignupFormData } from "@/lib/validation";
 import { useToast } from "@/hooks/use-toast";
 import { userSignup } from "@/lib/api";
 import { getErrorMessage } from "@/lib/error-utils";
-import heroImage from "@/assets/auth-hero-signup.jpg"; // Reusing existing asset
+import heroImage from "@/assets/aivestire-auth-model.png"; // Refined Indian model with mirror concept
 
 const UserSignup = () => {
     const [showPassword, setShowPassword] = useState(false);
@@ -67,7 +67,6 @@ const UserSignup = () => {
         <AuthLayout
             heroImage={heroImage}
             quote="Style is a way to say who you are without having to speak."
-            quoteAuthor="Rachel Zoe"
         >
             <div className="space-y-6 sm:space-y-8">
                 <div className="space-y-2 text-center lg:text-left">

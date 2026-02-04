@@ -2,10 +2,24 @@ import { ApiProperty } from '@nestjs/swagger';
 
 export class RecommendationItemDto {
     @ApiProperty({
-        description: 'Product ID',
+        description: 'ML Model Item ID (cloth_id)',
         example: 'C001',
     })
     id: string;
+
+    @ApiProperty({
+        description: 'Database Product ID (UUID)',
+        example: '123e4567-e89b-12d3-a456-426614174000',
+        required: false,
+    })
+    product_id?: string;
+
+    @ApiProperty({
+        description: 'Product URL slug',
+        example: 'elegant-silk-saree',
+        required: false,
+    })
+    slug?: string;
 
     @ApiProperty({
         description: 'ML model score (0-1)',
@@ -33,10 +47,17 @@ export class RecommendationItemDto {
     description?: string;
 
     @ApiProperty({
-        description: 'Product image URL',
+        description: 'Primary product image URL (for backward compatibility)',
         required: false,
     })
     image?: string;
+
+    @ApiProperty({
+        description: 'Array of all product image URLs',
+        type: [String],
+        required: false,
+    })
+    images?: string[];
 
     @ApiProperty({
         description: 'Product title',
@@ -49,6 +70,18 @@ export class RecommendationItemDto {
         required: false,
     })
     price_cents?: number;
+
+    @ApiProperty({
+        description: 'Creator/Store name',
+        required: false,
+    })
+    creator_name?: string;
+
+    @ApiProperty({
+        description: 'Inventory count',
+        required: false,
+    })
+    inventory_count?: number;
 }
 
 export class RecommendationsResponseDto {

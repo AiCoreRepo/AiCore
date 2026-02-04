@@ -3,6 +3,7 @@ import { HttpModule } from '@nestjs/axios';
 import { ConfigModule } from '@nestjs/config';
 import { PrismaModule } from '../prisma/prisma.module';
 import { RecommendationService } from './recommendation.service';
+import { DummyRecommendationService } from './dummy-recommendation.service';
 import { RecommendationController } from './recommendation.controller';
 import { AuraGuard } from '../common/guards/aura.guard';
 
@@ -16,7 +17,7 @@ import { AuraGuard } from '../common/guards/aura.guard';
         PrismaModule,
     ],
     controllers: [RecommendationController],
-    providers: [RecommendationService, AuraGuard],
+    providers: [RecommendationService, DummyRecommendationService, AuraGuard],
     exports: [RecommendationService],
 })
 export class RecommendationModule { }

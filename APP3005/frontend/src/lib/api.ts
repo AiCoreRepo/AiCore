@@ -627,6 +627,7 @@ export async function generateMoreAngles(data: {
   userId: string;
   productId: string;
   previousImageUrl: string;
+  auraId?: string;
   additionalParams?: Record<string, unknown>;
 }) {
   const token = localStorage.getItem('access_token');
@@ -634,13 +635,31 @@ export async function generateMoreAngles(data: {
     throw new Error('Please login to generate more angles');
   }
 
-  const res = await fetch(`${BASE_URL}/api/v1/tryon/3d/more-angles`, {
+  // Get aura if not provided
+  let auraId = data.auraId;
+  if (!auraId) {
+    try {
+      const auraData = await getAura();
+      auraId = auraData.aura_id;
+    } catch (error) {
+      throw new Error('Failed to get Aura data. Please create your Aura first.');
+    }
+  }
+
+  // Call new NestJS angle generation endpoint
+  const res = await fetch(`${BASE_URL}/api/angles/generate`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${token}`,
     },
-    body: JSON.stringify(data),
+    body: JSON.stringify({
+      previousImageUrl: data.previousImageUrl,
+      productId: data.productId,
+      auraId: auraId,
+      angle: data.additionalParams?.angle,
+      cachedMetadata: data.additionalParams?.cachedMetadata,
+    }),
   });
 
   if (!res.ok) {
@@ -713,35 +732,66 @@ export async function analyzeBodyImage(photoFile: File): Promise<BodyAnalysisRes
   const formData = new FormData();
   formData.append('photo', photoFile);
 
-  const res = await fetch(`${BASE_URL}/aura/analyze-image`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${token}`,
-    },
-    body: formData,
-  });
+  // Create AbortController for timeout
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
 
-  if (!res.ok) {
-    const bodyText = await res.text();
-    try {
-      const err = JSON.parse(bodyText);
+  try {
+    const res = await fetch(`${BASE_URL}/aura/analyze-image`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+      body: formData,
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!res.ok) {
+      const bodyText = await res.text();
+      try {
+        const err = JSON.parse(bodyText);
+        return {
+          success: false,
+          skinHexes: [],
+          fullBody: false,
+          error: err.message || 'Analysis failed',
+        };
+      } catch {
+        return {
+          success: false,
+          skinHexes: [],
+          fullBody: false,
+          error: bodyText || 'Analysis failed',
+        };
+      }
+    }
+
+    return res.json();
+  } catch (error: any) {
+    clearTimeout(timeoutId);
+
+    // Handle timeout
+    if (error.name === 'AbortError') {
+      console.warn('⏱️ Image analysis timed out after 30 seconds');
       return {
         success: false,
         skinHexes: [],
         fullBody: false,
-        error: err.message || 'Analysis failed',
-      };
-    } catch {
-      return {
-        success: false,
-        skinHexes: [],
-        fullBody: false,
-        error: bodyText || 'Analysis failed',
+        error: 'Analysis timed out - please proceed with manual entry',
       };
     }
-  }
 
-  return res.json();
+    // Handle network errors
+    console.error('❌ Image analysis network error:', error);
+    return {
+      success: false,
+      skinHexes: [],
+      fullBody: false,
+      error: 'Network error - please check your connection and try again',
+    };
+  }
 }
 
 // ============================================================================
@@ -785,7 +835,7 @@ export async function getAIRecommendations(data: RecommendationRequest): Promise
 
   console.log('🤖 Sending AI Recommendation Request:', JSON.stringify(data, null, 2));
 
-  const res = await fetch(`${BASE_URL}/api/recommendations/ai-decide`, {
+  const res = await fetch(`${BASE_URL}/api/recommendations/dummy`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

@@ -41,12 +41,14 @@ const AiTryOn = () => {
   const [tryOnLoading, setTryOnLoading] = useState(false);
   const [showResultModal, setShowResultModal] = useState(false);
   const [resultImage, setResultImage] = useState<string | null>(null);
+  const [originalTryOnImage, setOriginalTryOnImage] = useState<string | null>(null); // Stores the FIRST try-on result for face consistency
   const [tryOnError, setTryOnError] = useState<string | null>(null);
   const [generatingAngles, setGeneratingAngles] = useState(false);
   const [showGallery, setShowGallery] = useState(false);
   const [tryOnHistory, setTryOnHistory] = useState<any[]>([]);
   const [requestingAccess, setRequestingAccess] = useState(false);
   const [requestSuccess, setRequestSuccess] = useState(false);
+  const [generatedImages, setGeneratedImages] = useState<string[]>([]);
 
   // Fetch products
   const { data: productsData, isLoading: productsLoading, error: productsError } = usePublicProducts(1);
@@ -109,6 +111,8 @@ const AiTryOn = () => {
           ? result.resultImage
           : `data:image/jpeg;base64,${result.resultImage}`;
         setResultImage(imageData);
+        setOriginalTryOnImage(imageData); // Store original for face consistency in angle generation
+        setGeneratedImages([imageData]);
         // Refresh user data to update try-on count
         fetchUser();
       } else {
@@ -130,10 +134,12 @@ const AiTryOn = () => {
       setGeneratingAngles(true);
       setTryOnError(null);
 
+      // ALWAYS use the original try-on image as reference, not the current displayed image
+      // This prevents face identity drift when generating back view (no face) and then other angles
       const result = await generateMoreAngles({
         userId: aura.user_id,
         productId: currentProductId!,
-        previousImageUrl: resultImage,
+        previousImageUrl: originalTryOnImage || resultImage, // Use original for face consistency
       });
 
       if (result.success && result.resultImage) {
@@ -141,6 +147,7 @@ const AiTryOn = () => {
           ? result.resultImage
           : `data:image/jpeg;base64,${result.resultImage}`;
         setResultImage(imageData);
+        setGeneratedImages(prev => [...prev, imageData]);
         // Refresh user data to update try-on count
         fetchUser();
       } else {
@@ -256,7 +263,8 @@ const AiTryOn = () => {
                 {/* Right Content - Clothing Grid or Permission Gate */}
                 {/* Right Content - Clothing Grid (9/12) */}
                 <div className="lg:col-span-9">
-                  {user?.role !== 'ADMIN' && user?.try_on_permission !== 'APPROVED' ? (
+                  {/* BYPASSED: Admin approval check - All users can now access try-on */}
+                  {false && user?.role !== 'ADMIN' && user?.try_on_permission !== 'APPROVED' ? (
                     <div
                       className="p-16 rounded-[40px] text-center flex flex-col items-center justify-center gap-8 shadow-sm"
                       style={{
@@ -339,20 +347,46 @@ const AiTryOn = () => {
                                 Select Your Masterpiece
                               </h2>
                               <p className="text-[11px] uppercase tracking-[0.2em] text-neutral-400 font-medium">
-                                {productsData.products.length} Designs Curated for Your Aura
+                                {productsData.products.filter((p: any) => {
+                                  // Age filter: Only show models 40 or younger (or if age not specified)
+                                  const age = p.metadata?.model_age;
+                                  if (age && age > 40) return false;
+
+                                  // Description filter: Must have a description
+                                  if (!p.description || p.description.trim() === '') return false;
+
+                                  // Quality filter: Remove "Bad quality" items
+                                  if (p.title.toLowerCase().includes('bad quality')) return false;
+
+                                  return true;
+                                }).length} Designs Curated for Your Aura
                               </p>
                             </div>
                           </div>
 
                           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                            {productsData.products.map((product: any) => (
-                              <ClothingItemCard
-                                key={product.product_id}
-                                product={product}
-                                onTryOn={() => handleTryOn(product.product_id, 'vertex')}
-                                loading={selectedProduct === product.product_id && tryOnLoading}
-                              />
-                            ))}
+                            {productsData.products
+                              .filter((product: any) => {
+                                // Age filter: Only show models 40 or younger (or if age not specified)
+                                const age = product.metadata?.model_age;
+                                if (age && age > 40) return false;
+
+                                // Description filter: Must have a description
+                                if (!product.description || product.description.trim() === '') return false;
+
+                                // Quality filter: Remove "Bad quality" items
+                                if (product.title.toLowerCase().includes('bad quality')) return false;
+
+                                return true;
+                              })
+                              .map((product: any) => (
+                                <ClothingItemCard
+                                  key={product.product_id}
+                                  product={product}
+                                  onTryOn={() => handleTryOn(product.product_id, 'vertex')}
+                                  loading={selectedProduct === product.product_id && tryOnLoading}
+                                />
+                              ))}
                           </div>
                         </>
                       )}
@@ -395,6 +429,8 @@ const AiTryOn = () => {
         error={tryOnError}
         onGenerateMoreAngles={handleGenerateMoreAngles}
         generatingAngles={generatingAngles}
+        generatedImages={generatedImages}
+        onSelectImage={(img) => setResultImage(img)}
       />
 
       {/* Gallery Modal */}

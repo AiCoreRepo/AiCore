@@ -97,8 +97,13 @@ class GenerateAnglesRequest(BaseModel):
     - prompt: Custom prompt (overrides auto-generation)
     - angle: Specific angle (front/left/right/side left/side right/back)
            If not provided, auto-rotates through angles
+    
+    reference_image: Optional base64 of the original try-on image for identity consistency
+    clothing_image: Optional base64 of the ORIGINAL CLOTHING to ensure clothes don't change
     """
-    previous_image: str  # base64 without data URI prefix
+    previous_image: str  # base64 without data URI prefix - the current angle to transform
+    reference_image: Optional[str] = None  # base64 of original try-on image for identity anchoring
+    clothing_image: Optional[str] = None  # base64 of original clothing for clothing consistency
     additional_params: Optional[Dict] = None
 
 
@@ -375,6 +380,8 @@ async def gemini_try_on(
 
     client = genai.Client(api_key=api_key)
     model_id = "gemini-2.5-flash-image-preview"
+
+
 
     contents = [
         types.Part(inline_data=types.Blob(data=person_bytes, mime_type="image/jpeg")),
@@ -921,7 +928,7 @@ async def gemini_try_on_json(request: TryOnJSONRequest) -> StandardTryOnResponse
         print(f"✅ Session reset successful! Next angle will be: front")
 
         client = genai.Client(api_key=api_key)
-        model_id = "gemini-2.0-flash-exp"
+        model_id = "gemini-2.5-flash-image-preview"
 
         contents = [
             types.Part(inline_data=types.Blob(data=person_bytes, mime_type="image/jpeg")),
@@ -1034,8 +1041,7 @@ async def generate_angles(request: GenerateAnglesRequest) -> StandardTryOnRespon
             from color_helper import ANGLES, _angle_manager
             
             # Get the next angle in sequence for this specific session
-            angle = _angle_manager.get_next_angle(session_key)
-            current_index = _angle_manager.get_current_index(session_key)
+            angle, current_index = _angle_manager.get_next_angle(session_key)
             
             print(f"✅ Auto-selected next angle in sequence: {angle}")
             print(f"   Session: {session_key}")
@@ -1058,16 +1064,23 @@ async def generate_angles(request: GenerateAnglesRequest) -> StandardTryOnRespon
             prompt = generate_angle_prompt(angle=angle, cached_metadata=cached_metadata, session_key=session_key)
 
         client = genai.Client(api_key=api_key)
-        model_id = "gemini-2.0-flash-exp"
+        model_id = "gemini-2.5-flash-image"  # Preserves clothes well, working on face
 
-        contents = [
-            types.Part(inline_data=types.Blob(data=image_bytes, mime_type="image/jpeg")),
-            types.Part.from_text(text=prompt),
-        ]
+        # SIMPLIFIED APPROACH: Just use the single try-on result image
+        # This image already has the correct face + clothes combined from the initial try-on
+        # No need for separate clothing/reference images - they were causing confusion
+        contents = []
+        
+        # Add the try-on result image (this is our single source of truth)
+        contents.append(types.Part(inline_data=types.Blob(data=image_bytes, mime_type="image/jpeg")))
+        
+        # Add the prompt
+        contents.append(types.Part.from_text(text=prompt))
 
-        print(f"DEBUG: Starting Gemini generate_content for angles. Image size: {len(image_bytes)} bytes")
-        print(f"DEBUG: Generating angle: {angle}")
-        print(f"DEBUG: Using optimized prompt: {prompt[:150]}...")
+        print(f"DEBUG: Starting Gemini angle generation")
+        print(f"DEBUG: Image size: {len(image_bytes)} bytes")
+        print(f"DEBUG: Target angle: {angle}")
+        print(f"DEBUG: Using prompt (first 500 chars): {prompt[:500]}...")
         
         response = client.models.generate_content(
             model=model_id,

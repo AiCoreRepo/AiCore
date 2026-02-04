@@ -299,10 +299,10 @@ export const Navbar = () => {
 
                         {/* Mobile Menu */}
                         <div
-                            className={`lg:hidden overflow-hidden transition-all duration-500 ${isMobileMenuOpen ? "max-h-96 mt-4" : "max-h-0"
+                            className={`lg:hidden overflow-y-auto transition-all duration-500 scr ${isMobileMenuOpen ? "max-h-[85vh] mt-4 opacity-100" : "max-h-0 opacity-0 bg-transparent"
                                 }`}
                         >
-                            <div className="flex flex-col space-y-2 pt-4 border-t border-gold/20">
+                            <div className="flex flex-col space-y-2 pt-4 pb-6 border-t border-gold/20">
                                 {navLinks.map((link) =>
                                     link.isRoute ? (
                                         <Link

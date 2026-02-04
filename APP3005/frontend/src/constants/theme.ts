@@ -1,5 +1,5 @@
 import { Variants } from 'framer-motion';
-import { LayoutDashboard, CheckSquare, ShoppingBag, Palette, Users, Settings, Sparkles } from 'lucide-react';
+import { LayoutDashboard, CheckSquare, ShoppingBag, Palette, Users, Settings, Sparkles, Upload } from 'lucide-react';
 
 /**
  * Midnight Luxury Design Tokens
@@ -65,12 +65,7 @@ export const animations = {
     },
 } as const;
 
-/**
- * Sidebar Menu Configuration
- * Reflects two main microservices:
- * - Consumer Service: Buyers creating Auras, using AI Stylist, buying clothes
- * - Creator Service: Designers uploading collections for verification
- */
+
 export interface MenuItem {
     id: string;
     label: string;
@@ -110,6 +105,13 @@ export const menuItems: MenuItem[] = [
         href: '/admin-collection',
         isBeta: false,
         // Microservice 1 (Consumer): The Showroom - Manage LIVE inventory that buyers see
+    },
+    {
+        id: 'csv-upload',
+        label: 'Import Products',
+        icon: Upload,
+        href: '/admin-csv-upload',
+        isBeta: false,
     },
     {
         id: 'artisans',

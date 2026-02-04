@@ -22,6 +22,7 @@ export interface PublicProduct {
         store_name: string;
         verified: boolean;
     };
+    metadata?: any;
 }
 
 export interface PublicProductsResponse {

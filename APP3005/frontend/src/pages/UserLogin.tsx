@@ -12,7 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { AuraPromptDialog } from "@/components/aura/AuraPromptDialog";
 import { login, getAuraStatus } from "@/lib/api";
 import { getErrorMessage } from "@/lib/error-utils";
-import heroImage from "@/assets/auth-hero-login.jpg"; // Reusing existing asset
+import heroImage from "@/assets/aivestire-auth-model.png"; // Refined Indian model with mirror concept
 
 const UserLogin = () => {
     const [showPassword, setShowPassword] = useState(false);
@@ -126,8 +126,7 @@ const UserLogin = () => {
 
             <AuthLayout
                 heroImage={heroImage}
-                quote="Elegance is the only beauty that never fades."
-                quoteAuthor="Audrey Hepburn"
+                quote="Your Aura defines your style."
             >
                 <div className="space-y-6 sm:space-y-8">
                     <div className="space-y-2 text-center lg:text-left">
