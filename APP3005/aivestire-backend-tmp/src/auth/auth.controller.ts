@@ -16,6 +16,10 @@ import { TryOnPermissionStatus } from '@prisma/client';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
+import { SendOtpDto } from './dto/send-otp.dto';
+import { VerifyOtpDto } from './dto/verify-otp.dto';
+import { CheckEmailDto } from './dto/check-email.dto';
+import { GoogleAuthDto } from './dto/google-auth.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from './decorators/roles.decorator';
@@ -31,6 +35,14 @@ export class AuthController {
     @Body() dto: RegisterDto,
   ): Promise<{ user_id: string; email: string; role: string }> {
     return this.authService.register(dto);
+  }
+
+  @Post('check-email')
+  @HttpCode(HttpStatus.OK)
+  async checkEmail(
+    @Body() dto: CheckEmailDto,
+  ): Promise<{ available: boolean }> {
+    return this.authService.checkEmailAvailability(dto.email);
   }
 
   @Post('login')
@@ -57,6 +69,19 @@ export class AuthController {
   }> {
     // No password, approval, or verification required
     return this.authService.simpleCreatorLogin(email, res);
+  }
+
+  // Google OAuth endpoint
+  @Post('google')
+  @HttpCode(HttpStatus.OK)
+  async googleAuth(
+    @Body() dto: GoogleAuthDto,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<{
+    access_token: string;
+    user: { user_id: string; email: string; role: string };
+  }> {
+    return this.authService.googleAuth(dto, res);
   }
 
   @Post('refresh')
@@ -140,5 +165,24 @@ export class AuthController {
     @Body('status') status: TryOnPermissionStatus,
   ) {
     return this.authService.updateTryOnPermission(userId, status);
+  }
+
+  // OTP Endpoints
+  @Post('otp/send')
+  @HttpCode(HttpStatus.OK)
+  async sendOtp(@Body() dto: SendOtpDto) {
+    return this.authService.sendOtp(dto.phoneNumber);
+  }
+
+  @Post('otp/verify')
+  @HttpCode(HttpStatus.OK)
+  async verifyOtp(@Body() dto: VerifyOtpDto) {
+    return this.authService.verifyOtp(dto.phoneNumber, dto.otp);
+  }
+
+  @Post('otp/resend')
+  @HttpCode(HttpStatus.OK)
+  async resendOtp(@Body() dto: SendOtpDto) {
+    return this.authService.sendOtp(dto.phoneNumber);
   }
 }

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { ProductCard } from "@/components/collection/ProductCard";
@@ -10,6 +10,7 @@ import { auraGate } from "@/utils/auraGate";
 import { ChevronDown, Heart, Search, X, SlidersHorizontal, ArrowUpDown } from "lucide-react";
 import { TryOnInterstitialModal } from "@/components/TryOnInterstitialModal";
 import { TryOnResultModal } from '@/components/ai-tryon/TryOnResultModal';
+import { AuraPromptDialog } from '@/components/aura/AuraPromptDialog';
 import { tryOnWithVertex, generateMoreAngles, getAura } from '@/lib/api';
 import collectionHeaderImage from "@/assets/collectionHeader.jpeg";
 
@@ -20,7 +21,11 @@ const sortOptions = ["Price: Low to High", "Price: High to Low", "Newest", "Most
 
 const CollectionPage = () => {
     const navigate = useNavigate();
+    const location = useLocation();
     const { user } = useAuth();
+
+    // Aura Welcome Modal State
+    const [showAuraWelcomeModal, setShowAuraWelcomeModal] = useState(false);
 
     // Filter States
     const [searchQuery, setSearchQuery] = useState("");
@@ -49,6 +54,16 @@ const CollectionPage = () => {
             getAura().then(setAura).catch(() => { });
         }
     }, [user]);
+
+    // Show Aura Welcome Modal if coming from signup
+    useEffect(() => {
+        const state = location.state as { fromSignup?: boolean; showAuraModal?: boolean };
+        if (state?.fromSignup && state?.showAuraModal) {
+            setShowAuraWelcomeModal(true);
+            // Clear the state so modal doesn't show again on refresh
+            window.history.replaceState({}, document.title);
+        }
+    }, [location]);
 
     // Debounce search
     const debouncedSearch = useDebounce(searchQuery, 500);
@@ -496,6 +511,15 @@ const CollectionPage = () => {
             </main>
 
             <Footer />
+
+            <AuraPromptDialog
+                isOpen={showAuraWelcomeModal}
+                onAccept={() => {
+                    setShowAuraWelcomeModal(false);
+                    navigate('/aura-dashboard');
+                }}
+                onDecline={() => setShowAuraWelcomeModal(false)}
+            />
 
             <TryOnInterstitialModal
                 isOpen={isTryOnModalOpen}

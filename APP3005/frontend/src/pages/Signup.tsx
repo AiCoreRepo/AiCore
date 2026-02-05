@@ -4,20 +4,25 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Link, useNavigate } from "react-router-dom";
 import { Eye, EyeOff } from "lucide-react";
 import { AuthLayout } from "@/components/auth/AuthLayout";
+import { PhoneInput } from "@/components/auth/PhoneInput";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { signupSchema, type SignupFormData } from "@/lib/validation";
 import { useToast } from "@/hooks/use-toast";
-import { signup as signupApi, login as loginApi } from "@/lib/api";
+import { useOTP } from "@/hooks/useOTP";
+import { signup as signupApi, login as loginApi, googleAuth } from "@/lib/api";
+import { useGoogleLogin } from "@react-oauth/google";
 import heroImage from "@/assets/auth-hero-signup.jpg";
 
 const Signup = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [phoneNumber, setPhoneNumber] = useState('');
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { sendOTP } = useOTP();
 
   const {
     register,
@@ -30,20 +35,54 @@ const Signup = () => {
   const onSubmit = async (data: SignupFormData) => {
     setIsLoading(true);
     try {
-      await signupApi({
-        email: data.email!,
-        password: data.password!,
-        brandName: data.brandName!,
+      // First, check if email is already registered
+      const emailCheckResponse = await fetch(`${import.meta.env.VITE_API_URL}/auth/check-email`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: data.email }),
       });
-      toast({
-        title: "Welcome to AiVestire!",
-        description: "Your creator account has been created successfully.",
-      });
-      navigate("/login");
+
+      if (emailCheckResponse.ok) {
+        const { available } = await emailCheckResponse.json();
+        if (!available) {
+          toast({
+            title: "Email Already Registered",
+            description: "Dear user, this email is already registered. Please try with another one or login to your existing account.",
+            variant: "destructive",
+          });
+          setIsLoading(false);
+          return;
+        }
+      }
+
+      // Email is available, proceed to send OTP
+      const otpSent = await sendOTP(phoneNumber);
+
+      if (otpSent) {
+        // Navigate to OTP verification page with signup data
+        navigate('/verify-otp', {
+          state: {
+            phoneNumber,
+            signupType: 'creator',
+            signupData: {
+              email: data.email!,
+              password: data.password!,
+              brandName: data.brandName!,
+              phoneNumber,
+            },
+          },
+        });
+      }
     } catch (error: unknown) {
-      const message = (error as Error).message || "Something went wrong. Please try again.";
+      let message = (error as Error).message || "Something went wrong. Please try again.";
+
+      // Customize message for duplicate email
+      if (message.toLowerCase().includes('email already registered') || message.toLowerCase().includes('already exists')) {
+        message = "Dear user, this email is already registered. Please try with another one or login to your existing account.";
+      }
+
       toast({
-        title: "Error",
+        title: "Registration Error",
         description: message,
         variant: "destructive",
       });
@@ -52,12 +91,53 @@ const Signup = () => {
     }
   };
 
-  const handleGoogleSignUp = async () => {
-    toast({
-      title: "Coming Soon",
-      description: "Google Sign-Up will be available shortly.",
-    });
-  };
+  const handleGoogleSignUp = useGoogleLogin({
+    onSuccess: async (tokenResponse) => {
+      setIsLoading(true);
+      try {
+        // Get ID token from access token
+        const userInfoRes = await fetch(
+          `https://www.googleapis.com/oauth2/v3/userinfo?access_token=${tokenResponse.access_token}`
+        );
+        const userInfo = await userInfoRes.json();
+
+        // For Google OAuth, we need to get the ID token differently
+        // We'll use the credential from Google's response
+        const result = await googleAuth({
+          token: tokenResponse.access_token,
+          role: 'CREATOR',
+          store_name: userInfo.name ? `${userInfo.name}'s Store` : undefined,
+        });
+
+        if (result.access_token) {
+          localStorage.setItem("access_token", result.access_token);
+        }
+
+        toast({
+          title: "Welcome to AiVestire!",
+          description: "Your creator account has been created successfully.",
+        });
+
+        navigate("/creator-dashboard");
+      } catch (error: unknown) {
+        toast({
+          title: "Google Sign-Up Failed",
+          description: (error as Error).message || "Something went wrong. Please try again.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    onError: () => {
+      toast({
+        title: "Google Sign-Up Failed",
+        description: "Could not connect to Google. Please try again.",
+        variant: "destructive",
+      });
+    },
+    flow: 'implicit',
+  });
 
   return (
     <AuthLayout
@@ -120,6 +200,14 @@ const Signup = () => {
             )}
           </div>
 
+          {/* Phone Number Input */}
+          <PhoneInput
+            value={phoneNumber}
+            onChange={setPhoneNumber}
+            label="Phone Number"
+            placeholder="1234567890"
+          />
+
           <div className="space-y-2">
             <Label htmlFor="password" className="text-luxury-cream">
               Password
@@ -175,9 +263,9 @@ const Signup = () => {
             variant="luxury"
             size="lg"
             className="w-full mt-6"
-            disabled={isLoading}
+            disabled={isLoading || !phoneNumber}
           >
-            {isLoading ? "Creating Account..." : "Create Account"}
+            {isLoading ? "Sending OTP..." : "Continue with OTP"}
           </Button>
 
           <div className="relative">
@@ -193,7 +281,7 @@ const Signup = () => {
             type="button"
             variant="outline"
             className="w-full bg-white hover:bg-gray-50 text-gray-700 font-medium h-11 rounded-lg border border-gray-300 hover:border-gray-400 transition-all duration-200 shadow-sm hover:shadow"
-            onClick={handleGoogleSignUp}
+            onClick={() => handleGoogleSignUp()}
           >
             <svg className="h-5 w-5 mr-3" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
               <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />

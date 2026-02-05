@@ -5,6 +5,8 @@ import {
   IsIn,
   IsOptional,
   MaxLength,
+  Matches,
+  IsNotEmpty,
 } from 'class-validator';
 import { Transform } from 'class-transformer';
 import { UserRole } from '@prisma/client';
@@ -16,6 +18,11 @@ export class RegisterDto {
   @IsString()
   @MinLength(6)
   password!: string;
+
+  @IsNotEmpty()
+  @IsString()
+  @Matches(/^\+\d{10,15}$/, { message: 'phoneNumber must be a valid international phone number with country code' })
+  phoneNumber!: string;
 
   @Transform(({ value }) => value as UserRole)
   @IsIn([UserRole.BUYER, UserRole.CREATOR, UserRole.ADMIN], {

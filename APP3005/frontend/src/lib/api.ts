@@ -78,7 +78,7 @@ export async function login(data: { email: string; password: string }) {
   return responseData;
 }
 
-export async function signup(data: { email: string; password: string; brandName: string }) {
+export async function signup(data: { email: string; password: string; brandName: string; phoneNumber: string }) {
   // Always send role: 'creator' for creator signups
   const res = await fetch(`${BASE_URL}/auth/register`, {
     method: "POST",
@@ -88,6 +88,7 @@ export async function signup(data: { email: string; password: string; brandName:
       password: data.password,
       role: "CREATOR",
       store_name: data.brandName,
+      phoneNumber: data.phoneNumber,
     }),
     credentials: "include",
   });
@@ -108,7 +109,7 @@ export async function signup(data: { email: string; password: string; brandName:
 }
 
 // User signup for regular users (buyers)
-export async function userSignup(data: { email: string; password: string; name?: string }) {
+export async function userSignup(data: { email: string; password: string; name?: string; phoneNumber: string }) {
   const res = await fetch(`${BASE_URL}/auth/register`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -116,13 +117,43 @@ export async function userSignup(data: { email: string; password: string; name?:
       email: data.email,
       password: data.password,
       role: "BUYER",
-      name: data.name,
+      store_name: data.name,
+      phoneNumber: data.phoneNumber,
     }),
     credentials: "include",
   });
   if (!res.ok) {
     const bodyText = await res.text();
     let message = "Signup failed";
+    try {
+      const err = JSON.parse(bodyText);
+      message = err.message || message;
+    } catch {
+      message = bodyText || message;
+    }
+    const error = new Error(message) as ApiError;
+    error.status = res.status;
+    throw error;
+  }
+  return res.json();
+}
+
+// Google OAuth authentication
+export async function googleAuth(data: {
+  token: string;
+  role: 'CREATOR' | 'BUYER';
+  store_name?: string;
+  phoneNumber?: string;
+}) {
+  const res = await fetch(`${BASE_URL}/auth/google`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+    credentials: "include",
+  });
+  if (!res.ok) {
+    const bodyText = await res.text();
+    let message = "Google authentication failed";
     try {
       const err = JSON.parse(bodyText);
       message = err.message || message;

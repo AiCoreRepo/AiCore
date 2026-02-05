@@ -8,6 +8,7 @@ import Index from "./pages/Index";
 import { AuthProvider } from "./context/AuthContext";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
+import OTPVerification from "./pages/OTPVerification";
 import ForgotPassword from "./pages/ForgotPassword";
 import NotFound from "./pages/NotFound";
 import CreatorLogin from "./pages/CreatorLogin";
@@ -61,6 +62,7 @@ const App = () => (
                 <Route path="/collection" element={<CollectionPage />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/signup" element={<Signup />} />
+                <Route path="/verify-otp" element={<OTPVerification />} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />
                 <Route path="/creator-login" element={<CreatorLogin />} />
                 <Route path="/ai-try-on" element={<AiTryOn />} />
