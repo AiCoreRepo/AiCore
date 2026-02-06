@@ -27,8 +27,8 @@ COPY --from=builder /app/nginx.conf /etc/nginx/conf.d/default.conf
 # Copy built assets from builder stage
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-# Expose port 8080 (GCP Cloud Run default)
-EXPOSE 8080
+# Expose port 80 (standard HTTP port)
+EXPOSE 80
 
 # Start nginx
 CMD ["nginx", "-g", "daemon off;"]
