@@ -8,7 +8,7 @@ services:
     env_file:
       - ./aivestire-backend-tmp/.env
     ports:
-      - "3002:3000"
+      - "3001:3000"
     depends_on:
       - db
       - redis
@@ -20,8 +20,10 @@ services:
     build:
       context: ./frontend
     container_name: frontend
+    environment:
+      - VITE_API_URL=http://localhost:3001
     ports:
-      - "80:80"
+      - "5173:5173"
     depends_on:
       - backend
     restart: unless-stopped
@@ -36,7 +38,7 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: aivestire
     ports:
-      - "5538:5432"   # ⚠️ optional (can remove later for security)
+      - "5432:5432"   # ⚠️ optional (can remove later for security)
     volumes:
       - postgres_data:/var/lib/postgresql/data
     restart: unless-stopped
