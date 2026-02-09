@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CartItemResponseDto {
     @ApiProperty()
@@ -9,6 +9,12 @@ export class CartItemResponseDto {
 
     @ApiProperty()
     quantity: number;
+
+    @ApiPropertyOptional()
+    size?: string | null;
+
+    @ApiPropertyOptional()
+    color?: string | null;
 
     @ApiProperty()
     price_cents_snapshot: number;

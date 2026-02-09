@@ -53,6 +53,8 @@ export class CartService {
                         cart_item_id: true,
                         product_id: true,
                         quantity: true,
+                        size: true,
+                        color: true,
                         price_cents_snapshot: true,
                         currency_snapshot: true,
                         added_at: true,
@@ -94,6 +96,8 @@ export class CartService {
                 cart_item_id: item.cart_item_id,
                 product_id: item.product_id,
                 quantity: item.quantity,
+                size: item.size,
+                color: item.color,
                 price_cents_snapshot: item.price_cents_snapshot,
                 currency_snapshot: item.currency_snapshot,
                 added_at: item.added_at,
@@ -151,13 +155,13 @@ export class CartService {
         // Get or create cart
         const cart = await this.getOrCreateCart(userId);
 
-        // Check if product already in cart
-        const existingItem = await this.prisma.cartItem.findUnique({
+        // Check if product already in cart (same SKU + size + color)
+        const existingItem = await this.prisma.cartItem.findFirst({
             where: {
-                cart_id_product_id: {
-                    cart_id: cart.cart_id,
-                    product_id: dto.product_id,
-                },
+                cart_id: cart.cart_id,
+                product_id: dto.product_id,
+                size: dto.size || null,
+                color: dto.color || null,
             },
         });
 
@@ -183,12 +187,14 @@ export class CartService {
                 data: { quantity: newQuantity },
             });
         } else {
-            // Create new cart item
+            // Create new cart item with variant info
             await this.prisma.cartItem.create({
                 data: {
                     cart_id: cart.cart_id,
                     product_id: dto.product_id,
                     quantity: quantity,
+                    size: dto.size || null,
+                    color: dto.color || null,
                     price_cents_snapshot: product.price_cents,
                     currency_snapshot: product.currency,
                 },

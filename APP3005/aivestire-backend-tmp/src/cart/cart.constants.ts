@@ -6,7 +6,7 @@
 export const CART_CONSTANTS = {
     // Quantity limits
     MIN_QUANTITY: 1,
-    MAX_QUANTITY: 99,
+    MAX_QUANTITY: 10, // Changed from 99 to match enterprise spec
 
     // Pricing (in cents)
     FREE_SHIPPING_THRESHOLD_CENTS: 50000, // ₹500
@@ -18,6 +18,11 @@ export const CART_CONSTANTS = {
 
     // Product status for cart eligibility
     APPROVED_STATUS: 'APPROVED',
+
+    // Guest cart settings
+    GUEST_CART_EXPIRY_DAYS: 30,
+    DEFAULT_REGION: 'IN',
+    DEFAULT_CHANNEL: 'WEB',
 } as const;
 
 export const CART_MESSAGES = {

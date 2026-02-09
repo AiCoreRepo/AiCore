@@ -16,6 +16,9 @@ import { AiTryOnModule } from './ai-tryon/ai-tryon.module';
 import { AdminSeederService } from './common/admin-seeder.service';
 import { RecommendationModule } from './recommendation/recommendation.module';
 import { DifferentAnglesGenModule } from './DifferentAnglesGen/different-angles-gen.module';
+import { CartModule } from './cart/cart.module';
+import { AddressModule } from './address/address.module';
+import { WishlistModule } from './wishlist/wishlist.module';
 
 @Module({
   imports: [
@@ -33,6 +36,9 @@ import { DifferentAnglesGenModule } from './DifferentAnglesGen/different-angles-
     AiTryOnModule,
     RecommendationModule,
     DifferentAnglesGenModule,
+    CartModule,
+    AddressModule,
+    WishlistModule,
   ],
   controllers: [AppController],
   providers: [AppService, AdminSeederService],
