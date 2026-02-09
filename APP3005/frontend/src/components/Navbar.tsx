@@ -1,11 +1,13 @@
 import { useState, useEffect, useRef } from "react";
-import { Menu, X, ShoppingBag, User, LogOut } from "lucide-react";
+import { Menu, X, ShoppingBag, User, LogOut, Heart } from "lucide-react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { getAuraStatus } from "@/lib/api";
 import { LogoutConfirmDialog } from "@/components/LogoutConfirmDialog";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/AuthContext";
 import { cn } from "@/utils/cn";
+import { CartBadge } from "@/components/cart/CartBadge";
+import { WishlistBadge } from "@/components/wishlist/WishlistBadge";
 
 const navLinks = [
     { name: "Home", href: "/", isRoute: true },
@@ -197,90 +199,95 @@ export const Navbar = () => {
                                     </Link>
                                 )}
 
-                                <button
-                                    className="p-2.5 rounded-full bg-white/50 border border-[#D4AF37]/20 hover:bg-[#D4AF37]/20 hover:border-[#D4AF37]/40 hover:shadow-md hover:shadow-[#D4AF37]/10 transition-all duration-300 hover:scale-110"
-                                    aria-label="Shopping cart"
-                                >
-                                    <ShoppingBag className="w-5 h-5 text-[#6B5D4F] hover:text-[#2C2416]" />
-                                </button>
-
-                                {isLoggedIn ? (
-                                    <div className="relative" ref={menuRef}>
-                                        <button
-                                            onClick={() => setShowUserMenu(!showUserMenu)}
-                                            className="p-2.5 rounded-full bg-gradient-to-br from-gold/30 to-gold/20 border border-gold/40 hover:from-gold/40 hover:to-gold/30 hover:shadow-md hover:shadow-gold/30 transition-all duration-300 hover:scale-110"
-                                            aria-label="User menu"
-                                        >
-                                            {hasAura && aura?.image_url ? (
-                                                <img
-                                                    src={aura.image_url}
-                                                    alt="Aura avatar"
-                                                    className="w-5 h-5 rounded-full object-cover"
-                                                />
-                                            ) : (
-                                                <User className="w-5 h-5 text-[#6B5D4F] hover:text-[#2C2416]" />
-                                            )}
-                                        </button>
-
-                                        {/* User Menu Dropdown */}
-                                        {showUserMenu && (
-                                            <div className="absolute right-0 mt-3 w-64 bg-gradient-to-br from-ivory via-[#f2ead8] to-ivory rounded-2xl shadow-2xl shadow-gold/30 border-2 border-gold/30 py-3 z-50 backdrop-blur-sm">
-                                                {hasAura ? (
-                                                    <>
-                                                        <Link
-                                                            to="/aura-profile"
-                                                            className="flex items-center gap-3 px-5 py-3 text-charcoal hover:bg-gradient-to-r hover:from-gold/20 hover:to-gold/10 transition-all duration-300 font-medium group"
-                                                            onClick={() => setShowUserMenu(false)}
-                                                        >
-                                                            <User className="w-4 h-4 text-gold group-hover:scale-110 transition-transform" />
-                                                            <span>View Aura Profile</span>
-                                                        </Link>
-                                                        <Link
-                                                            to="/ai-try-on"
-                                                            className="flex items-center gap-3 px-5 py-3 text-charcoal hover:bg-gradient-to-r hover:from-gold/20 hover:to-gold/10 transition-all duration-300 font-medium group"
-                                                            onClick={() => setShowUserMenu(false)}
-                                                        >
-                                                            <ShoppingBag className="w-4 h-4 text-gold group-hover:scale-110 transition-transform" />
-                                                            <span>AI Try-On</span>
-                                                        </Link>
-                                                        <div className="border-t border-gold/30 my-2 mx-3"></div>
-                                                    </>
+                                {/* Myntra-Style Icon Row: Profile, Wishlist, Cart */}
+                                <div className="hidden md:flex items-center gap-6">
+                                    {/* Profile Icon */}
+                                    {isLoggedIn ? (
+                                        <div className="relative" ref={menuRef}>
+                                            <button
+                                                onClick={() => setShowUserMenu(!showUserMenu)}
+                                                className="flex flex-col items-center gap-0.5 transition-all duration-300 hover:scale-105 group"
+                                                aria-label="Profile"
+                                            >
+                                                {hasAura && aura?.image_url ? (
+                                                    <img
+                                                        src={aura.image_url}
+                                                        alt="Aura avatar"
+                                                        className="w-5 h-5 rounded-full object-cover"
+                                                    />
                                                 ) : (
-                                                    <>
-                                                        <Link
-                                                            to="/aura-dashboard"
-                                                            className="flex items-center gap-3 px-5 py-3 text-charcoal hover:bg-gradient-to-r hover:from-gold/20 hover:to-gold/10 transition-all duration-300 font-medium group"
-                                                            onClick={() => setShowUserMenu(false)}
-                                                        >
-                                                            <User className="w-4 h-4 text-gold group-hover:scale-110 transition-transform" />
-                                                            <span>Create Your Aura</span>
-                                                        </Link>
-                                                        <div className="border-t border-gold/30 my-2 mx-3"></div>
-                                                    </>
+                                                    <User className="w-5 h-5 text-[#6B5D4F] group-hover:text-[#D4AF37] transition-colors" />
                                                 )}
-                                                <button
-                                                    onClick={() => {
-                                                        setShowUserMenu(false);
-                                                        setShowLogoutDialog(true);
-                                                    }}
-                                                    className="w-full flex items-center gap-3 px-5 py-3 text-charcoal hover:bg-gradient-to-r hover:from-red-50 hover:to-red-100 transition-all duration-300 font-medium group rounded-b-xl"
-                                                >
-                                                    <LogOut className="w-4 h-4 text-red-600 group-hover:scale-110 transition-transform" />
-                                                    <span className="group-hover:text-red-700">Logout</span>
-                                                </button>
-                                            </div>
-                                        )}
-                                    </div>
-                                ) : (
-                                    <Link to="/user-login">
-                                        <button
-                                            className="p-2.5 rounded-full bg-gradient-to-br from-gold/30 to-gold/20 border border-gold/40 hover:from-gold/40 hover:to-gold/30 hover:shadow-md hover:shadow-gold/30 transition-all duration-300 hover:scale-110"
-                                            aria-label="Sign in"
-                                        >
-                                            <User className="w-5 h-5 text-charcoal" />
-                                        </button>
-                                    </Link>
-                                )}
+                                                <span className="text-[10px] font-medium text-[#6B5D4F] group-hover:text-[#D4AF37]">Profile</span>
+                                            </button>
+
+                                            {/* User Menu Dropdown */}
+                                            {showUserMenu && (
+                                                <div className="absolute right-0 mt-3 w-64 bg-gradient-to-br from-ivory via-[#f2ead8] to-ivory rounded-2xl shadow-2xl shadow-gold/30 border-2 border-gold/30 py-3 z-50 backdrop-blur-sm">
+                                                    {hasAura ? (
+                                                        <>
+                                                            <Link
+                                                                to="/aura-profile"
+                                                                className="flex items-center gap-3 px-5 py-3 text-charcoal hover:bg-gradient-to-r hover:from-gold/20 hover:to-gold/10 transition-all duration-300 font-medium group"
+                                                                onClick={() => setShowUserMenu(false)}
+                                                            >
+                                                                <User className="w-4 h-4 text-gold group-hover:scale-110 transition-transform" />
+                                                                <span>View Aura Profile</span>
+                                                            </Link>
+                                                            <Link
+                                                                to="/ai-try-on"
+                                                                className="flex items-center gap-3 px-5 py-3 text-charcoal hover:bg-gradient-to-r hover:from-gold/20 hover:to-gold/10 transition-all duration-300 font-medium group"
+                                                                onClick={() => setShowUserMenu(false)}
+                                                            >
+                                                                <ShoppingBag className="w-4 h-4 text-gold group-hover:scale-110 transition-transform" />
+                                                                <span>AI Try-On</span>
+                                                            </Link>
+                                                            <div className="border-t border-gold/30 my-2 mx-3"></div>
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <Link
+                                                                to="/aura-dashboard"
+                                                                className="flex items-center gap-3 px-5 py-3 text-charcoal hover:bg-gradient-to-r hover:from-gold/20 hover:to-gold/10 transition-all duration-300 font-medium group"
+                                                                onClick={() => setShowUserMenu(false)}
+                                                            >
+                                                                <User className="w-4 h-4 text-gold group-hover:scale-110 transition-transform" />
+                                                                <span>Create Your Aura</span>
+                                                            </Link>
+                                                            <div className="border-t border-gold/30 my-2 mx-3"></div>
+                                                        </>
+                                                    )}
+                                                    <button
+                                                        onClick={() => {
+                                                            setShowUserMenu(false);
+                                                            setShowLogoutDialog(true);
+                                                        }}
+                                                        className="w-full flex items-center gap-3 px-5 py-3 text-charcoal hover:bg-gradient-to-r hover:from-red-50 hover:to-red-100 transition-all duration-300 font-medium group rounded-b-xl"
+                                                    >
+                                                        <LogOut className="w-4 h-4 text-red-600 group-hover:scale-110 transition-transform" />
+                                                        <span className="group-hover:text-red-700">Logout</span>
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <Link to="/user-login">
+                                            <button
+                                                className="flex flex-col items-center gap-0.5 transition-all duration-300 hover:scale-105 group"
+                                                aria-label="Sign in"
+                                            >
+                                                <User className="w-5 h-5 text-[#6B5D4F] group-hover:text-[#D4AF37] transition-colors" />
+                                                <span className="text-[10px] font-medium text-[#6B5D4F] group-hover:text-[#D4AF37]">Profile</span>
+                                            </button>
+                                        </Link>
+                                    )}
+
+                                    {/* Wishlist Icon */}
+                                    <WishlistBadge onClick={() => navigate('/wishlist')} showLabel />
+
+                                    {/* Cart Icon */}
+                                    <CartBadge onClick={() => navigate('/cart')} showLabel />
+                                </div>
 
                                 {/* Mobile Menu Button */}
                                 <button
