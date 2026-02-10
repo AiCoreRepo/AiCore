@@ -4,12 +4,15 @@ FROM node:18-alpine AS build
 WORKDIR /app
 
 COPY package*.json ./
+ENV NGROK_SKIP_POSTINSTALL=1
 RUN npm ci
 
 COPY . .
 
 ARG VITE_API_URL=http://localhost:3002
+ARG VITE_GOOGLE_CLIENT_ID=
 ENV VITE_API_URL=${VITE_API_URL}
+ENV VITE_GOOGLE_CLIENT_ID=${VITE_GOOGLE_CLIENT_ID}
 
 RUN npm run build
 

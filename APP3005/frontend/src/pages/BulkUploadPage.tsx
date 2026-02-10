@@ -22,6 +22,7 @@ const bodyShapes = ['Rectangle', 'Hourglass', 'Pear Shape', 'Apple Shape', 'Inve
 const skinTones = ['Light', 'Medium', 'Dusky', 'Deep'];
 const sizes = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
 const categories = ['Dress', 'Shirt', 'Pants', 'Skirt', 'Jacket', 'Accessories'];
+const API_BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
 
 const BulkUploadPage = () => {
     const navigate = useNavigate();
@@ -127,7 +128,7 @@ const BulkUploadPage = () => {
                 }))
             );
 
-            const response = await fetch('http://localhost:3000/api/products/bulk-upload', {
+            const response = await fetch(`${API_BASE_URL}/api/products/bulk-upload`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

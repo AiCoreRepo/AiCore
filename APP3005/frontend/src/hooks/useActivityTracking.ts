@@ -11,8 +11,8 @@ interface TrackingData {
     timestamp: string;
 }
 
-// ✅ Fix #1: Production webhook URL (not webhook-test)
-const TRACKING_ENDPOINT = 'https://atul56.app.n8n.cloud/webhook/track-visit';
+// Use same-origin proxy to avoid CORS. Override via VITE_TRACKING_URL if needed.
+const TRACKING_ENDPOINT = import.meta.env.VITE_TRACKING_URL ?? '/n8n/track-visit';
 const TRACKING_DELAY = 5000; // 5 seconds
 const DEDUPLICATION_WINDOW = 3000; // 3 seconds to prevent duplicate tracking
 
