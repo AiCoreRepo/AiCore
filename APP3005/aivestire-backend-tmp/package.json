@@ -6,7 +6,7 @@
   "private": true,
   "license": "UNLICENSED",
   "scripts": {
-    "build": "node ./node_modules/prisma/build/index.js generate && node ./node_modules/prisma/build/index.js migrate deploy && node ./node_modules/@nestjs/cli/bin/nest.js build",
+    "build": "npx prisma generate && nest build",
     "migrate:deploy": "node ./node_modules/prisma/build/index.js migrate deploy",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "node ./node_modules/@nestjs/cli/bin/nest.js start",
@@ -59,6 +59,7 @@
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
     "sharp": "^0.34.5",
+    "twilio": "^5.12.1",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {

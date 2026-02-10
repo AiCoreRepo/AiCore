@@ -13,6 +13,9 @@ RUN npm ci
 # Copy the rest of the code
 COPY . .
 
+# Set placeholder DATABASE_URL for Prisma generation during build
+ENV DATABASE_URL="postgresql://placeholder:placeholder@placeholder:5432/placeholder"
+
 # Build the app (this includes prisma generate from the build script)
 RUN npm run build
 
@@ -44,4 +47,4 @@ RUN ls -la /app/dist
 EXPOSE 3000
 
 # Start the app directly with node (lighter than npm start)
-CMD ["node", "dist/main"]
+CMD ["node", "dist/src/main.js"]

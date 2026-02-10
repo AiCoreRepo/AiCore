@@ -1,4 +1,5 @@
-version: '3.8'
+version: "3.8"
+
 services:
   backend:
     build:
@@ -7,7 +8,7 @@ services:
     env_file:
       - ./aivestire-backend-tmp/.env
     ports:
-      - "3002:3000"
+      - "3001:3000"
     depends_on:
       - db
       - redis
@@ -37,7 +38,7 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: aivestire
     ports:
-      - "5538:5432"
+      - "5432:5432"   # ⚠️ optional (can remove later for security)
     volumes:
       - postgres_data:/var/lib/postgresql/data
     restart: unless-stopped
@@ -49,7 +50,7 @@ services:
     container_name: redis-server
     command: redis-server --appendonly yes
     ports:
-      - "6379:6379"
+      - "6379:6379"   # ⚠️ optional (can remove later)
     volumes:
       - redis_data:/data
     restart: unless-stopped
@@ -61,7 +62,6 @@ services:
     networks:
       - app-network
 
-  # Optional: Redis Commander for GUI management
   redis-commander:
     image: rediscommander/redis-commander:latest
     container_name: redis-commander
