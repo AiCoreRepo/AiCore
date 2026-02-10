@@ -43,6 +43,10 @@ import { PopupProvider } from "./components/common/popups/PopupTime";
 import { SidebarProvider } from "./context/SidebarContext";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { useActivityTracking } from "./hooks/useActivityTracking";
+import ProductDetailsPage from "./pages/ProductDetailsPage";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import TermsCondition from "./pages/TermsCondition";
+import RefundPolicy from "./pages/RefundPolicy";
 
 const queryClient = new QueryClient();
 
@@ -67,6 +71,7 @@ const App = () => (
                   <Routes>
                     <Route path="/" element={<Index />} />
                     <Route path="/collection" element={<CollectionPage />} />
+                    <Route path="/product/:id" element={<ProductDetailsPage />} />
                     <Route path="/cart" element={
                       <Suspense fallback={<div className="min-h-screen bg-neutral-950 flex items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-2 border-[#D4AF37] border-t-transparent"></div></div>}>
                         <CartPage />
@@ -142,6 +147,11 @@ const App = () => (
                         <PaymentPage />
                       </Suspense>
                     } />
+
+                    {/* Legal Pages */}
+                    <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+                    <Route path="/terms-conditions" element={<TermsCondition />} />
+                    <Route path="/refund-policy" element={<RefundPolicy />} />
 
                     {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                     <Route path="*" element={<NotFound />} />

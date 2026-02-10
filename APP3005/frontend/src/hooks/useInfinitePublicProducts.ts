@@ -20,6 +20,7 @@ export interface PublicProduct {
     creator: {
         creator_id: string;
         store_name: string;
+        store_slug: string;
         verified: boolean;
     };
     metadata?: any;

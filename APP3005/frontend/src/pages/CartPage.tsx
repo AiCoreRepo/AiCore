@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { X, ChevronDown, ChevronUp, Tag, Gift, Percent, Heart } from 'lucide-react';
+import { X, ChevronDown, ChevronUp, Tag, Gift, Percent, Heart, ChevronLeft } from 'lucide-react';
 import { useCart } from '@/context/CartContext';
 import { useAuth } from '@/context/AuthContext';
 import { EmptyCart } from '@/components/cart/EmptyCart';
@@ -185,6 +185,19 @@ const CartPage = () => {
             <Navbar />
 
             <main className="flex-1">
+                {/* Back Button */}
+                <div className="bg-white border-b border-gray-100">
+                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+                        <button
+                            onClick={() => navigate('/collection')}
+                            className="flex items-center text-gray-500 hover:text-[#D4AF37] transition-colors group"
+                        >
+                            <ChevronLeft className="w-5 h-5 mr-1 group-hover:-translate-x-1 transition-transform" />
+                            <span className="font-medium text-sm">Back to Collection</span>
+                        </button>
+                    </div>
+                </div>
+
                 {/* Step Progress Bar - Mobile Optimized */}
                 <div className="bg-white border-b border-gray-200">
                     <div className="w-full px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto py-3 sm:py-4">

@@ -137,6 +137,65 @@ export class ProductsService {
     });
   }
 
+  /**
+   * Get a single product by ID
+   */
+  async findOne(id: string) {
+    const product = await this.prisma.product.findUnique({
+      where: { product_id: id },
+      include: {
+        creator: {
+          select: {
+            creator_id: true,
+            store_name: true,
+            store_slug: true,
+            verified: true,
+          },
+        },
+        images: {
+          orderBy: [{ is_primary: 'desc' }, { order_index: 'asc' }],
+        },
+        stats: {
+          select: {
+            views: true,
+            likes_count: true,
+            comments_count: true,
+          },
+        },
+      },
+    });
+
+    if (!product) {
+      throw new NotFoundException('Product not found');
+    }
+
+    return {
+      product_id: product.product_id,
+      title: product.title,
+      description: product.description,
+      price_cents: product.price_cents,
+      currency: product.currency,
+      thumbnail: product.images[0]?.url || null,
+      images: product.images.map((img) => ({
+        url: img.url,
+        is_primary: img.is_primary,
+        order_index: img.order_index,
+      })),
+      category: product.category,
+      is_featured: product.is_featured,
+      likes: product.stats?.likes_count || 0,
+      reviews: product.stats?.comments_count || 0,
+      views: product.stats?.views || 0,
+      creator: {
+        creator_id: product.creator.creator_id,
+        store_name: product.creator.store_name,
+        store_slug: product.creator.store_slug,
+        verified: product.creator.verified,
+      },
+      metadata: product.metadata,
+    };
+  }
+
 
   /**
    * Get approved products for public display (Collection page)
@@ -165,6 +224,7 @@ export class ProductsService {
           select: {
             creator_id: true,
             store_name: true,
+            store_slug: true,
             verified: true,
           },
         },
@@ -285,6 +345,7 @@ export class ProductsService {
         creator: {
           creator_id: product.creator.creator_id,
           store_name: product.creator.store_name,
+          store_slug: product.creator.store_slug,
           verified: product.creator.verified,
         },
         metadata: product.metadata,

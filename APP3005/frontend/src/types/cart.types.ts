@@ -15,6 +15,7 @@ export interface CartItem {
     // Creator info
     creator: {
         store_name: string;
+        store_slug: string;
         verified: boolean;
     };
 
@@ -51,6 +52,7 @@ export interface AddToCartParams {
     color?: string;
     creator: {
         store_name: string;
+        store_slug: string;
         verified: boolean;
     };
     max_quantity?: number;

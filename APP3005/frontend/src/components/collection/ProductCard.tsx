@@ -1,7 +1,7 @@
 import { Heart, Star, Eye, MessageCircle, ChevronLeft, ChevronRight, ShoppingCart } from "lucide-react";
 import { useState, useEffect } from "react";
 import { CommentsModal } from "./CommentsModal";
-import { ProductDetailsModal } from "./ProductDetailsModal";
+// import { ProductDetailsModal } from "./ProductDetailsModal";
 import { likeProduct, getProductLikes } from "../../lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { useCart } from "@/context/CartContext";
@@ -25,19 +25,24 @@ interface ProductCardProps {
         views: number;
         description?: string;
         creator: {
+            creator_id: string;
             store_name: string;
+            store_slug: string;
             verified: boolean;
         };
     };
     onTryOn?: () => void;
 }
 
+import { useNavigate } from "react-router-dom";
+
 export const ProductCard = ({ product, onTryOn }: ProductCardProps) => {
+    const navigate = useNavigate();
     const { toast } = useToast();
     const { addToCart } = useCart();
     const { toggleWishlist, isInWishlist } = useWishlist();
-    const [showDetails, setShowDetails] = useState(false);
     const [showComments, setShowComments] = useState(false);
+    // const [showDetails, setShowDetails] = useState(false); // Removed modal state
     // const [isLiked, setIsLiked] = useState(false); // Replaced by wishlist
     const [likesCount, setLikesCount] = useState(product.likes);
     const [commentsCount, setCommentsCount] = useState(product.reviews);
@@ -110,7 +115,7 @@ export const ProductCard = ({ product, onTryOn }: ProductCardProps) => {
         <>
             <div
                 className="group cursor-pointer"
-                onClick={() => setShowDetails(true)}
+                onClick={() => navigate(`/product/${product.product_id}`)}
             >
                 <div
                     className="relative overflow-hidden rounded-xl mb-3 transition-all duration-500 hover:-translate-y-2"
@@ -325,13 +330,13 @@ export const ProductCard = ({ product, onTryOn }: ProductCardProps) => {
                 </div>
             </div>
 
-            {/* Product Details Modal */}
-            <ProductDetailsModal
+            {/* Product Details Modal Removed - Now navigating to new page */}
+            {/* <ProductDetailsModal
                 isOpen={showDetails}
                 onClose={() => setShowDetails(false)}
                 product={product}
                 onTryOn={onTryOn}
-            />
+            /> */}
 
             {/* Comments Modal */}
             <CommentsModal

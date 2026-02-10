@@ -227,6 +227,30 @@ export async function getCreatorProducts(page: number = 1, limit: number = 10) {
   return res.json();
 }
 
+export async function getProductById(id: string) {
+  const res = await fetch(`${BASE_URL}/api/products/${id}`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!res.ok) {
+    const bodyText = await res.text();
+    let message = 'Failed to fetch product';
+    try {
+      const err = JSON.parse(bodyText);
+      message = err.message || message;
+    } catch {
+      message = bodyText || message;
+    }
+    const error = new Error(message) as ApiError;
+    error.status = res.status;
+    throw error;
+  }
+  return res.json();
+}
+
 export async function getProfile() {
   const token = localStorage.getItem('access_token');
   if (!token) {
@@ -1203,8 +1227,12 @@ export async function addToWishlist(productId: string): Promise<WishlistAPIRespo
 export async function toggleWishlist(productId: string): Promise<WishlistToggleResponse> {
   const token = localStorage.getItem('access_token');
   if (!token) {
+    console.error('❌ No access token found');
     throw new Error('Please login to update wishlist');
   }
+
+  console.log('🔄 Toggling wishlist for product:', productId);
+  console.log('📍 Request URL:', `${BASE_URL}/wishlist/toggle/${productId}`);
 
   const res = await fetch(`${BASE_URL}/wishlist/toggle/${productId}`, {
     method: 'POST',
@@ -1213,11 +1241,21 @@ export async function toggleWishlist(productId: string): Promise<WishlistToggleR
     },
   });
 
+  console.log('📥 Response status:', res.status, res.statusText);
+
   if (!res.ok) {
     const bodyText = await res.text();
+    console.error('❌ Wishlist toggle failed:', {
+      status: res.status,
+      statusText: res.statusText,
+      body: bodyText
+    });
     handleApiError(res, bodyText, 'Failed to update wishlist');
   }
-  return res.json();
+
+  const data = await res.json();
+  console.log('✅ Wishlist toggle success:', data);
+  return data;
 }
 
 // Remove item from wishlist by wishlist item ID
