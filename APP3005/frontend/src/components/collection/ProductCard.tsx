@@ -1,9 +1,11 @@
-import { Heart, Star, Eye, MessageCircle, ChevronLeft, ChevronRight } from "lucide-react";
+import { Heart, Star, Eye, MessageCircle, ChevronLeft, ChevronRight, ShoppingCart } from "lucide-react";
 import { useState, useEffect } from "react";
 import { CommentsModal } from "./CommentsModal";
-import { ProductDetailsModal } from "./ProductDetailsModal";
+// import { ProductDetailsModal } from "./ProductDetailsModal";
 import { likeProduct, getProductLikes } from "../../lib/api";
 import { useToast } from "@/hooks/use-toast";
+import { useCart } from "@/context/CartContext";
+import { useWishlist } from "@/context/WishlistContext";
 
 interface ProductCardProps {
     product: {
@@ -23,73 +25,79 @@ interface ProductCardProps {
         views: number;
         description?: string;
         creator: {
+            creator_id: string;
             store_name: string;
+            store_slug: string;
             verified: boolean;
         };
     };
     onTryOn?: () => void;
 }
 
+import { useNavigate } from "react-router-dom";
+
 export const ProductCard = ({ product, onTryOn }: ProductCardProps) => {
+    const navigate = useNavigate();
     const { toast } = useToast();
-    const [showDetails, setShowDetails] = useState(false);
+    const { addToCart } = useCart();
+    const { toggleWishlist, isInWishlist } = useWishlist();
     const [showComments, setShowComments] = useState(false);
-    const [isLiked, setIsLiked] = useState(false);
+    // const [showDetails, setShowDetails] = useState(false); // Removed modal state
+    // const [isLiked, setIsLiked] = useState(false); // Replaced by wishlist
     const [likesCount, setLikesCount] = useState(product.likes);
     const [commentsCount, setCommentsCount] = useState(product.reviews);
-    const [isLiking, setIsLiking] = useState(false);
+    const [isWishlistToggling, setIsWishlistToggling] = useState(false);
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
+    const [isAddingToCart, setIsAddingToCart] = useState(false);
+
+    const isInWishlistState = isInWishlist(product.product_id);
 
     // Prepare images array (use images if available, fallback to thumbnail)
     const productImages = product.images && product.images.length > 0
         ? product.images
         : (product.thumbnail ? [{ url: product.thumbnail, is_primary: true, order_index: 0 }] : []);
 
-    // Fetch like status on mount
-    useEffect(() => {
-        const fetchLikeStatus = async () => {
-            try {
-                const data = await getProductLikes(product.product_id);
-                setIsLiked(data.isLikedByUser);
-                setLikesCount(data.likesCount);
-            } catch (err) {
-                // User not logged in or error - use default values
-                console.error('Error fetching like status:', err);
-            }
-        };
-        fetchLikeStatus();
-    }, [product.product_id]);
+    // Likes status fetching removed as we are using Wishlist now
+    // If you still need to fetch public likes count, keep that part, but 'isLiked' logic is now 'isInWishlist'
 
-    const handleLike = async (e: React.MouseEvent) => {
-        if (isLiking) return;
+    const handleWishlistToggle = async (e: React.MouseEvent) => {
+        if (isWishlistToggling) return;
 
-        setIsLiking(true);
+        setIsWishlistToggling(true);
         try {
-            const result = await likeProduct(product.product_id);
-            setIsLiked(result.liked);
-            setLikesCount(prev => result.liked ? prev + 1 : prev - 1);
-
-            // Success toast
-            toast({
-                title: result.liked ? "Added to favorites!" : "Removed from favorites",
-                description: result.liked ? "Product added to your liked items" : "Product removed from liked items",
-                duration: 2000,
-            });
+            await toggleWishlist(product.product_id);
+            // Optional: You could update likes count here if you want wishlist add to count as a like
         } catch (err) {
-            // Error toast instead of alert
-            toast({
-                variant: "destructive",
-                title: "Action failed",
-                description: err instanceof Error ? err.message : 'Failed to like product',
-                duration: 3000,
-            });
+            console.error('Failed to toggle wishlist:', err);
         } finally {
-            setIsLiking(false);
+            setIsWishlistToggling(false);
         }
     };
 
     const handleCommentClick = (e: React.MouseEvent) => {
         setShowComments(true);
+    };
+
+    const handleAddToCart = async (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (isAddingToCart) return;
+
+        setIsAddingToCart(true);
+        try {
+            await addToCart({
+                product_id: product.product_id,
+                title: product.title,
+                thumbnail: product.thumbnail,
+                price_cents: product.price_cents,
+                currency: product.currency,
+                quantity: 1,
+                creator: product.creator,
+            });
+        } catch (error) {
+            console.error('Error adding to cart:', error);
+        } finally {
+            setIsAddingToCart(false);
+        }
     };
 
     const formatPrice = (priceCents: number, currency: string) => {
@@ -107,7 +115,7 @@ export const ProductCard = ({ product, onTryOn }: ProductCardProps) => {
         <>
             <div
                 className="group cursor-pointer"
-                onClick={() => setShowDetails(true)}
+                onClick={() => navigate(`/product/${product.product_id}`)}
             >
                 <div
                     className="relative overflow-hidden rounded-xl mb-3 transition-all duration-500 hover:-translate-y-2"
@@ -134,12 +142,13 @@ export const ProductCard = ({ product, onTryOn }: ProductCardProps) => {
                         }}
                         onClick={(e) => {
                             e.stopPropagation();
-                            handleLike(e);
+                            handleWishlistToggle(e);
                         }}
-                        disabled={isLiking}
+                        disabled={isWishlistToggling}
+                        aria-label={isInWishlistState ? "Remove from wishlist" : "Add to wishlist"}
                     >
                         <Heart
-                            className={`w-4 h-4 transition-all duration-300 ${isLiked ? 'text-red-500 fill-red-500 scale-110' : 'text-gray-400'}`}
+                            className={`w-4 h-4 transition-all duration-300 ${isInWishlistState ? 'text-red-500 fill-red-500 scale-110' : 'text-gray-400'}`}
                             strokeWidth={2}
                         />
                     </button>
@@ -206,14 +215,27 @@ export const ProductCard = ({ product, onTryOn }: ProductCardProps) => {
                             </>
                         )}
 
-                        {/* Hover Overlay */}
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-end justify-center p-4">
+                        {/* Hover Overlay with Two Buttons */}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-end justify-center p-4 gap-2">
+                            <button
+                                onClick={handleAddToCart}
+                                disabled={isAddingToCart}
+                                className="flex-1 px-4 py-2.5 rounded-lg font-medium text-xs uppercase tracking-wider transition-all duration-300 hover:scale-105 transform translate-y-4 group-hover:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                style={{
+                                    background: '#FFFFFF',
+                                    color: '#1a1a1a',
+                                    boxShadow: '0 4px 16px rgba(255, 255, 255, 0.3)',
+                                }}
+                            >
+                                <ShoppingCart className="w-4 h-4" />
+                                {isAddingToCart ? 'Adding...' : 'Add to Cart'}
+                            </button>
                             <button
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     if (onTryOn) onTryOn();
                                 }}
-                                className="px-6 py-2.5 rounded-lg font-medium text-xs uppercase tracking-wider transition-all duration-300 hover:scale-105 transform translate-y-4 group-hover:translate-y-0"
+                                className="flex-1 px-4 py-2.5 rounded-lg font-medium text-xs uppercase tracking-wider transition-all duration-300 hover:scale-105 transform translate-y-4 group-hover:translate-y-0"
                                 style={{
                                     background: 'linear-gradient(135deg, #D4AF37 0%, #C9A55C 100%)',
                                     color: '#1a1a1a',
@@ -308,13 +330,13 @@ export const ProductCard = ({ product, onTryOn }: ProductCardProps) => {
                 </div>
             </div>
 
-            {/* Product Details Modal */}
-            <ProductDetailsModal
+            {/* Product Details Modal Removed - Now navigating to new page */}
+            {/* <ProductDetailsModal
                 isOpen={showDetails}
                 onClose={() => setShowDetails(false)}
                 product={product}
                 onTryOn={onTryOn}
-            />
+            /> */}
 
             {/* Comments Modal */}
             <CommentsModal

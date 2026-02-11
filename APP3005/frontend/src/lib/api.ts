@@ -227,6 +227,30 @@ export async function getCreatorProducts(page: number = 1, limit: number = 10) {
   return res.json();
 }
 
+export async function getProductById(id: string) {
+  const res = await fetch(`${BASE_URL}/api/products/${id}`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!res.ok) {
+    const bodyText = await res.text();
+    let message = 'Failed to fetch product';
+    try {
+      const err = JSON.parse(bodyText);
+      message = err.message || message;
+    } catch {
+      message = bodyText || message;
+    }
+    const error = new Error(message) as ApiError;
+    error.status = res.status;
+    throw error;
+  }
+  return res.json();
+}
+
 export async function getProfile() {
   const token = localStorage.getItem('access_token');
   if (!token) {
@@ -960,4 +984,651 @@ export async function resolveTryOnPermission(userId: string, status: TryOnPermis
   });
 
   if (!res.ok) throw new Error('Failed to resolve request');
+}
+
+// ============================================================================
+// Address API Functions
+// ============================================================================
+
+import type { Address, CreateAddressParams } from '@/constants/address.constants';
+
+// Get all addresses for current user
+export async function getAddresses(): Promise<Address[]> {
+  const token = localStorage.getItem('access_token');
+  if (!token) {
+    throw new Error('Please login to view addresses');
+  }
+
+  const res = await fetch(`${BASE_URL}/addresses`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+  });
+
+  if (!res.ok) {
+    const bodyText = await res.text();
+    handleApiError(res, bodyText, 'Failed to fetch addresses');
+  }
+  return res.json();
+}
+
+// Get default address
+export async function getDefaultAddress(): Promise<Address | null> {
+  const token = localStorage.getItem('access_token');
+  if (!token) {
+    return null;
+  }
+
+  try {
+    const res = await fetch(`${BASE_URL}/addresses/default`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    if (!res.ok) {
+      return null;
+    }
+    return res.json();
+  } catch {
+    return null;
+  }
+}
+
+// Create new address
+export async function createAddress(data: CreateAddressParams): Promise<Address> {
+  const token = localStorage.getItem('access_token');
+  if (!token) {
+    throw new Error('Please login to add address');
+  }
+
+  const res = await fetch(`${BASE_URL}/addresses`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!res.ok) {
+    const bodyText = await res.text();
+    handleApiError(res, bodyText, 'Failed to create address');
+  }
+  return res.json();
+}
+
+// Update address
+export async function updateAddress(addressId: string, data: Partial<CreateAddressParams>): Promise<Address> {
+  const token = localStorage.getItem('access_token');
+  if (!token) {
+    throw new Error('Please login to update address');
+  }
+
+  const res = await fetch(`${BASE_URL}/addresses/${addressId}`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!res.ok) {
+    const bodyText = await res.text();
+    handleApiError(res, bodyText, 'Failed to update address');
+  }
+  return res.json();
+}
+
+// Delete address
+export async function deleteAddress(addressId: string): Promise<{ message: string }> {
+  const token = localStorage.getItem('access_token');
+  if (!token) {
+    throw new Error('Please login to delete address');
+  }
+
+  const res = await fetch(`${BASE_URL}/addresses/${addressId}`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+  });
+
+  if (!res.ok) {
+    const bodyText = await res.text();
+    handleApiError(res, bodyText, 'Failed to delete address');
+  }
+  return res.json();
+}
+
+// Set address as default
+export async function setDefaultAddress(addressId: string): Promise<Address> {
+  const token = localStorage.getItem('access_token');
+  if (!token) {
+    throw new Error('Please login to set default address');
+  }
+
+  const res = await fetch(`${BASE_URL}/addresses/${addressId}/set-default`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+  });
+
+  if (!res.ok) {
+    const bodyText = await res.text();
+    handleApiError(res, bodyText, 'Failed to set default address');
+  }
+  return res.json();
+}
+
+// ============================================================================
+// Wishlist API Functions
+// ============================================================================
+
+import type { WishlistAPIResponse, WishlistCheckResponse, WishlistToggleResponse, WishlistSummary } from '@/types/wishlist.types';
+
+// Get user's wishlist
+export async function getWishlist(): Promise<WishlistAPIResponse> {
+  const token = localStorage.getItem('access_token');
+  if (!token) {
+    throw new Error('Please login to view wishlist');
+  }
+
+  const res = await fetch(`${BASE_URL}/wishlist`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+  });
+
+  if (!res.ok) {
+    const bodyText = await res.text();
+    handleApiError(res, bodyText, 'Failed to fetch wishlist');
+  }
+  return res.json();
+}
+
+// Get wishlist summary
+export async function getWishlistSummary(): Promise<WishlistSummary> {
+  const token = localStorage.getItem('access_token');
+  if (!token) {
+    return { item_count: 0, total_value_cents: 0, currency: 'INR' };
+  }
+
+  try {
+    const res = await fetch(`${BASE_URL}/wishlist/summary`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    if (!res.ok) {
+      return { item_count: 0, total_value_cents: 0, currency: 'INR' };
+    }
+    return res.json();
+  } catch {
+    return { item_count: 0, total_value_cents: 0, currency: 'INR' };
+  }
+}
+
+// Check if product is in wishlist
+export async function checkProductInWishlist(productId: string): Promise<WishlistCheckResponse> {
+  const token = localStorage.getItem('access_token');
+  if (!token) {
+    return { is_in_wishlist: false };
+  }
+
+  try {
+    const res = await fetch(`${BASE_URL}/wishlist/check/${productId}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    if (!res.ok) {
+      return { is_in_wishlist: false };
+    }
+    return res.json();
+  } catch {
+    return { is_in_wishlist: false };
+  }
+}
+
+// Add product to wishlist
+export async function addToWishlist(productId: string): Promise<WishlistAPIResponse> {
+  const token = localStorage.getItem('access_token');
+  if (!token) {
+    throw new Error('Please login to add to wishlist');
+  }
+
+  const res = await fetch(`${BASE_URL}/wishlist/items`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify({ product_id: productId }),
+  });
+
+  if (!res.ok) {
+    const bodyText = await res.text();
+    handleApiError(res, bodyText, 'Failed to add to wishlist');
+  }
+  return res.json();
+}
+
+// Toggle product in wishlist (add/remove)
+export async function toggleWishlist(productId: string): Promise<WishlistToggleResponse> {
+  const token = localStorage.getItem('access_token');
+  if (!token) {
+    console.error('❌ No access token found');
+    throw new Error('Please login to update wishlist');
+  }
+
+  console.log('🔄 Toggling wishlist for product:', productId);
+  console.log('📍 Request URL:', `${BASE_URL}/wishlist/toggle/${productId}`);
+
+  const res = await fetch(`${BASE_URL}/wishlist/toggle/${productId}`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+  });
+
+  console.log('📥 Response status:', res.status, res.statusText);
+
+  if (!res.ok) {
+    const bodyText = await res.text();
+    console.error('❌ Wishlist toggle failed:', {
+      status: res.status,
+      statusText: res.statusText,
+      body: bodyText
+    });
+    handleApiError(res, bodyText, 'Failed to update wishlist');
+  }
+
+  const data = await res.json();
+  console.log('✅ Wishlist toggle success:', data);
+  return data;
+}
+
+// Remove item from wishlist by wishlist item ID
+export async function removeFromWishlist(wishlistItemId: string): Promise<WishlistAPIResponse> {
+  const token = localStorage.getItem('access_token');
+  if (!token) {
+    throw new Error('Please login to remove from wishlist');
+  }
+
+  const res = await fetch(`${BASE_URL}/wishlist/items/${wishlistItemId}`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+  });
+
+  if (!res.ok) {
+    const bodyText = await res.text();
+    handleApiError(res, bodyText, 'Failed to remove from wishlist');
+  }
+  return res.json();
+}
+
+// Remove item from wishlist by product ID
+export async function removeFromWishlistByProductId(productId: string): Promise<WishlistAPIResponse> {
+  const token = localStorage.getItem('access_token');
+  if (!token) {
+    throw new Error('Please login to remove from wishlist');
+  }
+
+  const res = await fetch(`${BASE_URL}/wishlist/product/${productId}`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+  });
+
+  if (!res.ok) {
+    const bodyText = await res.text();
+    handleApiError(res, bodyText, 'Failed to remove from wishlist');
+  }
+  return res.json();
+}
+
+// Move wishlist item to cart
+export async function moveWishlistItemToCart(wishlistItemId: string): Promise<{ message: string }> {
+  const token = localStorage.getItem('access_token');
+  if (!token) {
+    throw new Error('Please login to move item to cart');
+  }
+
+  const res = await fetch(`${BASE_URL}/wishlist/items/${wishlistItemId}/move-to-cart`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+  });
+
+  if (!res.ok) {
+    const bodyText = await res.text();
+    handleApiError(res, bodyText, 'Failed to move item to cart');
+  }
+  return res.json();
+}
+
+// Clear entire wishlist
+export async function clearWishlist(): Promise<{ message: string }> {
+  const token = localStorage.getItem('access_token');
+  if (!token) {
+    throw new Error('Please login to clear wishlist');
+  }
+
+  const res = await fetch(`${BASE_URL}/wishlist`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+  });
+
+  if (!res.ok) {
+    const bodyText = await res.text();
+    handleApiError(res, bodyText, 'Failed to clear wishlist');
+  }
+  return res.json();
+}
+
+// ============================================================================
+// Enterprise Cart API Functions
+// ============================================================================
+
+export interface CartItemAPI {
+  cart_item_id: string;
+  product_id: string;
+  quantity: number;
+  size?: string;
+  color?: string;
+  price_cents_snapshot: number;
+  currency_snapshot: string;
+  added_at: string;
+  product: {
+    product_id: string;
+    title: string;
+    slug: string;
+    price_cents: number;
+    currency: string;
+    inventory_count: number;
+    category: string;
+    creator: {
+      creator_id: string;
+      store_name: string;
+      store_slug: string;
+    };
+    images: Array<{
+      image_id: string;
+      url: string;
+      is_primary: boolean;
+      order_index: number;
+    }>;
+  };
+}
+
+export interface CartSummaryAPI {
+  item_count: number;
+  subtotal_cents: number;
+  tax_cents: number;
+  shipping_cents: number;
+  discount_cents: number;
+  total_cents: number;
+  currency: string;
+}
+
+export interface CartAPIResponse {
+  cart_id: string;
+  user_id: string;
+  items: CartItemAPI[];
+  summary: CartSummaryAPI;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface GuestCartAPIResponse {
+  guest_cart_id: string;
+  session_id: string;
+  expires_at: string;
+  items: Array<CartItemAPI & { guest_cart_item_id: string }>;
+  summary: CartSummaryAPI;
+}
+
+export interface AddToCartRequest {
+  product_id: string;
+  quantity?: number;
+  size?: string;
+  color?: string;
+}
+
+export interface MergeResult {
+  merged_items: number;
+  dropped_items: number;
+  capped_items: number;
+  price_updated_items: number;
+  dropped_reasons: string[];
+}
+
+// Get authenticated user's cart
+export async function getUserCart(): Promise<CartAPIResponse> {
+  const token = localStorage.getItem('access_token');
+  if (!token) {
+    throw new Error('Please login to view cart');
+  }
+
+  const res = await fetch(`${BASE_URL}/cart`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+    credentials: 'include',
+  });
+
+  if (!res.ok) {
+    const bodyText = await res.text();
+    handleApiError(res, bodyText, 'Failed to fetch cart');
+  }
+  return res.json();
+}
+
+// Get guest cart (no auth required)
+export async function getGuestCart(): Promise<GuestCartAPIResponse> {
+  const res = await fetch(`${BASE_URL}/cart/guest`, {
+    method: 'GET',
+    credentials: 'include', // Important: send cookies
+  });
+
+  if (!res.ok) {
+    const bodyText = await res.text();
+    throw new Error(bodyText || 'Failed to fetch guest cart');
+  }
+  return res.json();
+}
+
+// Add item to authenticated user's cart
+export async function addToUserCart(data: AddToCartRequest): Promise<CartAPIResponse> {
+  const token = localStorage.getItem('access_token');
+  if (!token) {
+    throw new Error('Please login to add to cart');
+  }
+
+  const res = await fetch(`${BASE_URL}/cart/items`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify(data),
+    credentials: 'include',
+  });
+
+  if (!res.ok) {
+    const bodyText = await res.text();
+    handleApiError(res, bodyText, 'Failed to add to cart');
+  }
+  return res.json();
+}
+
+// Add item to guest cart (no auth required)
+export async function addToGuestCart(data: AddToCartRequest): Promise<GuestCartAPIResponse> {
+  const res = await fetch(`${BASE_URL}/cart/guest/items`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(data),
+    credentials: 'include', // Important: send cookies
+  });
+
+  if (!res.ok) {
+    const bodyText = await res.text();
+    throw new Error(bodyText || 'Failed to add to guest cart');
+  }
+  return res.json();
+}
+
+// Update authenticated user's cart item
+export async function updateUserCartItem(cartItemId: string, quantity: number): Promise<CartAPIResponse> {
+  const token = localStorage.getItem('access_token');
+  if (!token) {
+    throw new Error('Please login to update cart');
+  }
+
+  const res = await fetch(`${BASE_URL}/cart/items/${cartItemId}`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify({ quantity }),
+    credentials: 'include',
+  });
+
+  if (!res.ok) {
+    const bodyText = await res.text();
+    handleApiError(res, bodyText, 'Failed to update cart item');
+  }
+  return res.json();
+}
+
+// Update guest cart item
+export async function updateGuestCartItem(cartItemId: string, quantity: number): Promise<GuestCartAPIResponse> {
+  const res = await fetch(`${BASE_URL}/cart/guest/items/${cartItemId}`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ quantity }),
+    credentials: 'include',
+  });
+
+  if (!res.ok) {
+    const bodyText = await res.text();
+    throw new Error(bodyText || 'Failed to update guest cart item');
+  }
+  return res.json();
+}
+
+// Remove item from authenticated user's cart
+export async function removeFromUserCart(cartItemId: string): Promise<CartAPIResponse> {
+  const token = localStorage.getItem('access_token');
+  if (!token) {
+    throw new Error('Please login to remove from cart');
+  }
+
+  const res = await fetch(`${BASE_URL}/cart/items/${cartItemId}`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+    credentials: 'include',
+  });
+
+  if (!res.ok) {
+    const bodyText = await res.text();
+    handleApiError(res, bodyText, 'Failed to remove from cart');
+  }
+  return res.json();
+}
+
+// Remove item from guest cart
+export async function removeFromGuestCart(cartItemId: string): Promise<GuestCartAPIResponse> {
+  const res = await fetch(`${BASE_URL}/cart/guest/items/${cartItemId}`, {
+    method: 'DELETE',
+    credentials: 'include',
+  });
+
+  if (!res.ok) {
+    const bodyText = await res.text();
+    throw new Error(bodyText || 'Failed to remove from guest cart');
+  }
+  return res.json();
+}
+
+// Clear authenticated user's cart
+export async function clearUserCart(): Promise<{ message: string }> {
+  const token = localStorage.getItem('access_token');
+  if (!token) {
+    throw new Error('Please login to clear cart');
+  }
+
+  const res = await fetch(`${BASE_URL}/cart`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+    credentials: 'include',
+  });
+
+  if (!res.ok) {
+    const bodyText = await res.text();
+    handleApiError(res, bodyText, 'Failed to clear cart');
+  }
+  return res.json();
+}
+
+// Clear guest cart
+export async function clearGuestCart(): Promise<{ message: string }> {
+  const res = await fetch(`${BASE_URL}/cart/guest`, {
+    method: 'DELETE',
+    credentials: 'include',
+  });
+
+  if (!res.ok) {
+    const bodyText = await res.text();
+    throw new Error(bodyText || 'Failed to clear guest cart');
+  }
+  return res.json();
+}
+
+// Merge guest cart into user cart (called on login)
+export async function mergeCart(): Promise<{ cart: CartAPIResponse; mergeResult: MergeResult }> {
+  const token = localStorage.getItem('access_token');
+  if (!token) {
+    throw new Error('Please login to merge cart');
+  }
+
+  const res = await fetch(`${BASE_URL}/cart/merge`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+    credentials: 'include', // Important: send cookies for guest session
+  });
+
+  if (!res.ok) {
+    const bodyText = await res.text();
+    handleApiError(res, bodyText, 'Failed to merge cart');
+  }
+  return res.json();
 }

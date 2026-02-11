@@ -6,6 +6,8 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { lazy, Suspense } from "react";
 import Index from "./pages/Index";
 import { AuthProvider } from "./context/AuthContext";
+import { CartProvider } from "./context/CartContext";
+import { WishlistProvider } from "./context/WishlistContext";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import OTPVerification from "./pages/OTPVerification";
@@ -26,6 +28,9 @@ import LetAIDecidePage from "./pages/LetAIDecidePage";
 import BulkUploadPage from "./app/bulk-upload";
 import AdminDashboardPage from "./app/admin-dashboard/page";
 const AtelierApprovalPage = lazy(() => import("./app/admin-approvals/page"));
+const CartPage = lazy(() => import("./pages/CartPage"));
+const PaymentPage = lazy(() => import("./pages/PaymentPage"));
+const WishlistPage = lazy(() => import("./pages/WishlistPage"));
 import CollectionPage from "./pages/CollectionPage";
 import AdminCollectionPage from "./app/admin-collection/page";
 import AdminTryOnApprovals from "./app/admin-tryon-approvals/page";
@@ -38,6 +43,10 @@ import { PopupProvider } from "./components/common/popups/PopupTime";
 import { SidebarProvider } from "./context/SidebarContext";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { useActivityTracking } from "./hooks/useActivityTracking";
+import ProductDetailsPage from "./pages/ProductDetailsPage";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import TermsCondition from "./pages/TermsCondition";
+import RefundPolicy from "./pages/RefundPolicy";
 
 const queryClient = new QueryClient();
 
@@ -55,75 +64,102 @@ const App = () => (
       <BrowserRouter>
         <ActivityTracker />
         <AuthProvider>
-          <PopupProvider>
-            <SidebarProvider>
-              <Routes>
-                <Route path="/" element={<Index />} />
-                <Route path="/collection" element={<CollectionPage />} />
-                <Route path="/login" element={<Login />} />
-                <Route path="/signup" element={<Signup />} />
-                <Route path="/verify-otp" element={<OTPVerification />} />
-                <Route path="/forgot-password" element={<ForgotPassword />} />
-                <Route path="/creator-login" element={<CreatorLogin />} />
-                <Route path="/ai-try-on" element={<AiTryOn />} />
-                <Route path="/let-ai-decide" element={<LetAIDecidePage />} />
+          <CartProvider>
+            <WishlistProvider>
+              <PopupProvider>
+                <SidebarProvider>
+                  <Routes>
+                    <Route path="/" element={<Index />} />
+                    <Route path="/collection" element={<CollectionPage />} />
+                    <Route path="/product/:id" element={<ProductDetailsPage />} />
+                    <Route path="/cart" element={
+                      <Suspense fallback={<div className="min-h-screen bg-neutral-950 flex items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-2 border-[#D4AF37] border-t-transparent"></div></div>}>
+                        <CartPage />
+                      </Suspense>
+                    } />
+                    <Route path="/wishlist" element={
+                      <Suspense fallback={<div className="min-h-screen bg-neutral-950 flex items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-2 border-[#D4AF37] border-t-transparent"></div></div>}>
+                        <WishlistPage />
+                      </Suspense>
+                    } />
+                    <Route path="/login" element={<Login />} />
+                    <Route path="/signup" element={<Signup />} />
+                    <Route path="/verify-otp" element={<OTPVerification />} />
+                    <Route path="/forgot-password" element={<ForgotPassword />} />
+                    <Route path="/creator-login" element={<CreatorLogin />} />
+                    <Route path="/ai-try-on" element={<AiTryOn />} />
+                    <Route path="/let-ai-decide" element={<LetAIDecidePage />} />
 
-                {/* Protected Creator Routes */}
-                <Route path="/creator-dashboard" element={
-                  <ProtectedRoute requiredRole="CREATOR" redirectTo="/login">
-                    <DashboardPage />
-                  </ProtectedRoute>
-                } />
-                <Route path="/settings" element={
-                  <ProtectedRoute requiredRole="CREATOR" redirectTo="/login">
-                    <SettingsPage />
-                  </ProtectedRoute>
-                } />
-                <Route path="/wardrobe" element={
-                  <ProtectedRoute requiredRole="CREATOR" redirectTo="/login">
-                    <WardrobePage />
-                  </ProtectedRoute>
-                } />
-                <Route path="/analytics" element={
-                  <ProtectedRoute requiredRole="CREATOR" redirectTo="/login">
-                    <AnalyticsPage />
-                  </ProtectedRoute>
-                } />
-                <Route path="/bulk-upload" element={
-                  <ProtectedRoute requiredRole="CREATOR" redirectTo="/login">
-                    <BulkUploadPage />
-                  </ProtectedRoute>
-                } />
+                    {/* Protected Creator Routes */}
+                    <Route path="/creator-dashboard" element={
+                      <ProtectedRoute requiredRole="CREATOR" redirectTo="/login">
+                        <DashboardPage />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/settings" element={
+                      <ProtectedRoute requiredRole="CREATOR" redirectTo="/login">
+                        <SettingsPage />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/wardrobe" element={
+                      <ProtectedRoute requiredRole="CREATOR" redirectTo="/login">
+                        <WardrobePage />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/analytics" element={
+                      <ProtectedRoute requiredRole="CREATOR" redirectTo="/login">
+                        <AnalyticsPage />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/bulk-upload" element={
+                      <ProtectedRoute requiredRole="CREATOR" redirectTo="/login">
+                        <BulkUploadPage />
+                      </ProtectedRoute>
+                    } />
 
-                {/* User Auth Routes */}
-                <Route path="/user-login" element={<UserLogin />} />
-                <Route path="/user-signup" element={<UserSignup />} />
-                <Route path="/user-forgot-password" element={<UserForgotPassword />} />
+                    {/* User Auth Routes */}
+                    <Route path="/user-login" element={<UserLogin />} />
+                    <Route path="/user-signup" element={<UserSignup />} />
+                    <Route path="/user-forgot-password" element={<UserForgotPassword />} />
 
-                {/* Aura Dashboard Route */}
-                <Route path="/aura-dashboard" element={<AuraDashboard />} />
-                <Route path="/aura-profile" element={<AuraProfile />} />
+                    {/* Aura Dashboard Route */}
+                    <Route path="/aura-dashboard" element={<AuraDashboard />} />
+                    <Route path="/aura-profile" element={<AuraProfile />} />
 
-                {/* Admin Routes */}
-                <Route path="/admin-login" element={<AdminLogin />} />
-                <Route path="/admin-dashboard" element={<AdminDashboardPage />} />
-                <Route path="/admin-approvals" element={
-                  <Suspense fallback={<div className="min-h-screen bg-neutral-950 flex items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-2 border-[#D4AF37] border-t-transparent"></div></div>}>
-                    <AtelierApprovalPage />
-                  </Suspense>
-                } />
-                <Route path="/admin-tryon-approvals" element={<AdminTryOnApprovals />} />
-                <Route path="/admin-collection" element={<AdminCollectionPage />} />
-                <Route path="/admin-artisans" element={<ArtisansPage />} />
-                <Route path="/admin-clientele" element={<ClientelePage />} />
-                <Route path="/admin-settings" element={<AdminSettingsPage />} />
-                <Route path="/admin-csv-upload" element={<AdminCSVUploadPage />} />
+                    {/* Admin Routes */}
+                    <Route path="/admin-login" element={<AdminLogin />} />
+                    <Route path="/admin-dashboard" element={<AdminDashboardPage />} />
+                    <Route path="/admin-approvals" element={
+                      <Suspense fallback={<div className="min-h-screen bg-neutral-950 flex items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-2 border-[#D4AF37] border-t-transparent"></div></div>}>
+                        <AtelierApprovalPage />
+                      </Suspense>
+                    } />
+                    <Route path="/admin-tryon-approvals" element={<AdminTryOnApprovals />} />
+                    <Route path="/admin-collection" element={<AdminCollectionPage />} />
+                    <Route path="/admin-artisans" element={<ArtisansPage />} />
+                    <Route path="/admin-clientele" element={<ClientelePage />} />
+                    <Route path="/admin-settings" element={<AdminSettingsPage />} />
+                    <Route path="/admin-csv-upload" element={<AdminCSVUploadPage />} />
 
-                {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </SidebarProvider>
-          </PopupProvider>
+                    {/* Payment Route */}
+                    <Route path="/payment" element={
+                      <Suspense fallback={<div className="min-h-screen bg-neutral-950 flex items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-2 border-[#D4AF37] border-t-transparent"></div></div>}>
+                        <PaymentPage />
+                      </Suspense>
+                    } />
+
+                    {/* Legal Pages */}
+                    <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+                    <Route path="/terms-conditions" element={<TermsCondition />} />
+                    <Route path="/refund-policy" element={<RefundPolicy />} />
+
+                    {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                    <Route path="*" element={<NotFound />} />
+                  </Routes>
+                </SidebarProvider>
+              </PopupProvider>
+            </WishlistProvider>
+          </CartProvider>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>

@@ -149,6 +149,16 @@ export class ProductsController {
   }
 
   /**
+   * GET /products/:id
+   * Get single product details
+   * Public endpoint
+   */
+  @Get(':id')
+  async getProduct(@Param('id') id: string) {
+    return this.productsService.findOne(id);
+  }
+
+  /**
    * GET /products/:id/comments
    * Get all comments for a product
    */

@@ -29,6 +29,9 @@ model User {
   product_comments    ProductComment[]
   product_likes       ProductLike[]
   try_on_history      TryOn[]
+  cart                Cart?
+  addresses           UserAddress[]
+  wishlist            Wishlist?
 }
 
 model Creator {
@@ -80,6 +83,112 @@ model Product {
   comments        ProductComment[]
   likes           ProductLike[]
   try_ons         TryOn[]
+  cart_items       CartItem[]
+  guest_cart_items GuestCartItem[]
+  wishlist_items   WishlistItem[]
+}
+
+// ============================================
+// ENTERPRISE CART SYSTEM
+// ============================================
+
+// Guest Cart - Session-based cart for unauthenticated users
+model GuestCart {
+  guest_cart_id String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  session_id    String          @unique // Cookie-based guest session
+  region        String          @default("IN")
+  channel       String          @default("WEB") // WEB, ANDROID, IOS
+  created_at    DateTime        @default(now())
+  updated_at    DateTime        @updatedAt
+  expires_at    DateTime        // Auto-expire inactive guest carts
+  items         GuestCartItem[]
+
+  @@index([session_id])
+  @@index([expires_at])
+  @@map("guest_carts")
+}
+
+model GuestCartItem {
+  guest_cart_item_id   String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  guest_cart_id        String    @db.Uuid
+  product_id           String    @db.Uuid
+  quantity             Int       @default(1)
+  size                 String?
+  color                String?
+  price_cents_snapshot Int
+  currency_snapshot    String    @default("INR")
+  added_at             DateTime  @default(now())
+  updated_at           DateTime  @updatedAt
+  guest_cart           GuestCart @relation(fields: [guest_cart_id], references: [guest_cart_id], onDelete: Cascade)
+  product              Product   @relation(fields: [product_id], references: [product_id], onDelete: Cascade)
+
+  @@unique([guest_cart_id, product_id, size, color])
+  @@index([guest_cart_id])
+  @@index([product_id])
+  @@map("guest_cart_items")
+}
+
+// User Cart - Persisted cart for authenticated users
+model Cart {
+  cart_id           String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id           String     @unique @db.Uuid
+  version           Int        @default(1) // Optimistic locking for race conditions
+  merged_from_guest Boolean    @default(false) // Idempotency guard for merge
+  region            String     @default("IN")
+  channel           String     @default("WEB")
+  created_at        DateTime   @default(now())
+  updated_at        DateTime   @updatedAt
+  user              User       @relation(fields: [user_id], references: [user_id], onDelete: Cascade)
+  items             CartItem[]
+
+  @@index([user_id])
+  @@map("carts")
+}
+
+model CartItem {
+  cart_item_id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  cart_id              String   @db.Uuid
+  product_id           String   @db.Uuid
+  quantity             Int      @default(1)
+  size                 String?
+  color                String?
+  price_cents_snapshot Int      // Price at time of adding
+  currency_snapshot    String   @default("INR")
+  added_at             DateTime @default(now())
+  updated_at           DateTime @updatedAt
+  cart                 Cart     @relation(fields: [cart_id], references: [cart_id], onDelete: Cascade)
+  product              Product  @relation(fields: [product_id], references: [product_id], onDelete: Cascade)
+
+  @@unique([cart_id, product_id, size, color])
+  @@index([cart_id])
+  @@index([product_id])
+  @@map("cart_items")
+}
+
+model Wishlist {
+  wishlist_id String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id     String         @unique @db.Uuid
+  created_at  DateTime       @default(now())
+  updated_at  DateTime       @updatedAt
+  user        User           @relation(fields: [user_id], references: [user_id], onDelete: Cascade)
+  items       WishlistItem[]
+
+  @@index([user_id])
+  @@map("wishlists")
+}
+
+model WishlistItem {
+  wishlist_item_id String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  wishlist_id      String   @db.Uuid
+  product_id       String   @db.Uuid
+  added_at         DateTime @default(now())
+  wishlist         Wishlist @relation(fields: [wishlist_id], references: [wishlist_id], onDelete: Cascade)
+  product          Product  @relation(fields: [product_id], references: [product_id], onDelete: Cascade)
+
+  @@unique([wishlist_id, product_id])
+  @@index([wishlist_id])
+  @@index([product_id])
+  @@map("wishlist_items")
 }
 
 model ProductImage {
@@ -257,3 +366,31 @@ enum TryOnPermissionStatus {
   APPROVED
   REJECTED
 }
+
+enum AddressType {
+  HOME
+  WORK
+  OTHER
+}
+
+model UserAddress {
+  address_id    String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id       String      @db.Uuid
+  full_name     String
+  phone         String
+  pincode       String
+  address_line1 String      // House No, Building, Street
+  address_line2 String?     // Locality, Area
+  city          String
+  state         String
+  landmark      String?
+  address_type  AddressType @default(HOME)
+  is_default    Boolean     @default(false)
+  created_at    DateTime    @default(now())
+  updated_at    DateTime    @updatedAt
+  user          User        @relation(fields: [user_id], references: [user_id], onDelete: Cascade)
+
+  @@index([user_id])
+  @@map("user_addresses")
+}
+

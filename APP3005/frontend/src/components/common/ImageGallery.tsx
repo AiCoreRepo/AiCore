@@ -39,18 +39,22 @@ export const ImageGallery = ({ images, className = "" }: ImageGalleryProps) => {
     return (
         <>
             {/* Thumbnail Grid */}
-            <div className={`flex gap-3 flex-wrap mt-2 ${className}`}>
+            <div className={`grid grid-cols-4 gap-2 mt-3 ${className}`}>
                 {images.map((url, index) => (
                     <div
                         key={index}
                         onClick={() => openLightbox(index)}
-                        className="relative w-24 h-24 rounded-lg overflow-hidden cursor-pointer hover:scale-105 transition-all duration-300 border-2 border-gold/30 shadow-sm hover:shadow-md hover:border-gold/50"
+                        className="relative w-full aspect-square rounded-lg overflow-hidden cursor-pointer hover:scale-105 transition-all duration-300 border-2 shadow-sm hover:shadow-md"
+                        style={{
+                            borderColor: index === 0 ? '#D4AF37' : 'rgba(212, 175, 55, 0.3)',
+                        }}
                     >
                         <img
                             src={url}
                             alt={`Review image ${index + 1}`}
                             className="w-full h-full object-cover"
                         />
+                        <div className="absolute inset-0 bg-black opacity-0 hover:opacity-10 transition-opacity" />
                     </div>
                 ))}
             </div>

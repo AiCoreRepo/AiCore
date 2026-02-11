@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Eye, EyeOff } from "lucide-react";
 import { AuthLayout } from "@/components/auth/AuthLayout";
 import { Button } from "@/components/ui/button";
@@ -21,6 +21,8 @@ const UserLogin = () => {
     const [showAuraPrompt, setShowAuraPrompt] = useState(false);
     const { toast } = useToast();
     const navigate = useNavigate();
+    const location = useLocation();
+    const { returnUrl, returnState } = location.state || {};
 
     const {
         register,
@@ -75,8 +77,12 @@ const UserLogin = () => {
             const auraStatus = await getAuraStatus();
 
             if (auraStatus.hasAura) {
-                // User already has Aura, redirect to home
-                navigate('/');
+                // User already has Aura
+                if (returnUrl) {
+                    navigate(returnUrl, { state: returnState });
+                } else {
+                    navigate('/');
+                }
             } else {
                 // No Aura, show creation prompt
                 setShowAuraPrompt(true);
@@ -129,7 +135,11 @@ const UserLogin = () => {
                 const auraStatus = await getAuraStatus();
 
                 if (auraStatus.hasAura) {
-                    navigate('/');
+                    if (returnUrl) {
+                        navigate(returnUrl, { state: returnState });
+                    } else {
+                        navigate('/');
+                    }
                 } else {
                     setShowAuraPrompt(true);
                 }
@@ -160,7 +170,11 @@ const UserLogin = () => {
 
     const handleAuraDecline = () => {
         setShowAuraPrompt(false);
-        navigate("/"); // Go to home page
+        if (returnUrl) {
+            navigate(returnUrl, { state: returnState });
+        } else {
+            navigate("/"); // Go to home page
+        }
     };
 
     return (

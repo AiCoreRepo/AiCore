@@ -301,59 +301,71 @@ export const CommentsModal = ({ productId, productTitle, isOpen, onClose, onComm
                         maxLength={1000}
                     />
 
-                    {/* Image Previews */}
-                    {selectedImages.length > 0 && (
-                        <div className="mt-3 grid grid-cols-5 gap-3">
-                            {selectedImages.map((img, index) => (
-                                <div key={index} className="relative w-full aspect-square rounded-lg overflow-hidden border-2 border-gold/30 shadow-sm hover:shadow-md transition-all">
-                                    <img src={img} alt={`Preview ${index + 1}`} className="w-full h-full object-cover" />
-                                    <button
-                                        onClick={() => removeImage(index)}
-                                        className="absolute top-1 right-1 w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center text-sm font-bold hover:bg-red-600 transition-all hover:scale-110 shadow-md"
+                    {/* Image Upload Section - More Prominent */}
+                    <div className="mt-4 p-4 rounded-xl border-2 border-dashed transition-all"
+                        style={{
+                            borderColor: selectedImages.length > 0 ? '#D4AF37' : 'rgba(212, 175, 55, 0.3)',
+                            background: selectedImages.length > 0 ? 'rgba(212, 175, 55, 0.05)' : 'transparent'
+                        }}
+                    >
+                        <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center gap-2">
+                                <ImageIcon className="w-5 h-5 text-[#D4AF37]" />
+                                <span className="text-sm font-semibold text-gray-700">Add Photos to Your Review</span>
+                            </div>
+                            <span className="text-xs text-gray-500">{selectedImages.length}/5 images</span>
+                        </div>
+
+                        {/* Image Previews */}
+                        {selectedImages.length > 0 && (
+                            <div className="mb-3 grid grid-cols-5 gap-2">
+                                {selectedImages.map((img, index) => (
+                                    <div key={index} className="relative w-full aspect-square rounded-lg overflow-hidden border-2 shadow-sm hover:shadow-md transition-all"
+                                        style={{ borderColor: '#D4AF37' }}
                                     >
-                                        ×
-                                    </button>
-                                </div>
-                            ))}
-                        </div>
-                    )}
+                                        <img src={img} alt={`Preview ${index + 1}`} className="w-full h-full object-cover" />
+                                        <button
+                                            onClick={() => removeImage(index)}
+                                            className="absolute top-1 right-1 w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center text-sm font-bold hover:bg-red-600 transition-all hover:scale-110 shadow-md"
+                                        >
+                                            ×
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
 
-                    <div className="flex items-center justify-between mt-3">
-                        <div className="flex items-center gap-3">
-                            <span className="text-xs text-gray-500">
-                                {newComment.length}/1000 characters
-                            </span>
+                        {/* Upload Button */}
+                        <label
+                            className="flex items-center justify-center gap-2 px-4 py-3 rounded-lg text-sm font-medium transition-all hover:scale-[1.02] cursor-pointer"
+                            style={{
+                                background: selectedImages.length >= 5 ? 'rgba(200, 200, 200, 0.3)' : 'linear-gradient(135deg, #D4AF37 0%, #C9A55C 100%)',
+                                color: selectedImages.length >= 5 ? '#999' : '#fff',
+                                boxShadow: selectedImages.length >= 5 ? 'none' : '0 2px 8px rgba(212, 175, 55, 0.3)',
+                                cursor: selectedImages.length >= 5 ? 'not-allowed' : 'pointer'
+                            }}
+                        >
+                            <input
+                                type="file"
+                                accept="image/jpeg,image/jpg,image/png,image/webp"
+                                multiple
+                                onChange={handleImageSelect}
+                                className="hidden"
+                                disabled={selectedImages.length >= 5}
+                            />
+                            <ImageIcon className="w-5 h-5" />
+                            <span>{selectedImages.length === 0 ? 'Choose Photos' : 'Add More Photos'}</span>
+                        </label>
 
-                            {/* Image Upload Button */}
-                            <label
-                                className="cursor-pointer flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-all hover:scale-105 disabled:opacity-50"
-                                style={{
-                                    background: selectedImages.length >= 5 ? 'rgba(200, 200, 200, 0.3)' : 'rgba(212, 175, 55, 0.1)',
-                                    color: selectedImages.length >= 5 ? '#999' : '#D4AF37',
-                                    border: `1px solid ${selectedImages.length >= 5 ? 'rgba(200, 200, 200, 0.3)' : 'rgba(212, 175, 55, 0.3)'}`,
-                                    cursor: selectedImages.length >= 5 ? 'not-allowed' : 'pointer'
-                                }}
-                            >
-                                <input
-                                    type="file"
-                                    accept="image/jpeg,image/jpg,image/png,image/webp"
-                                    multiple
-                                    onChange={handleImageSelect}
-                                    className="hidden"
-                                    disabled={selectedImages.length >= 5}
-                                />
-                                <ImageIcon className="w-4 h-4" />
-                                <span>{selectedImages.length}/5 images</span>
-                            </label>
+                        {selectedImages.length >= 5 && (
+                            <p className="text-xs text-amber-600 mt-2 text-center">Maximum 5 images allowed</p>
+                        )}
+                    </div>
 
-                            {/* Loading indicator during upload */}
-                            {submitting && selectedImages.length > 0 && (
-                                <div className="text-xs text-gray-500 flex items-center gap-1">
-                                    <div className="animate-spin h-3 w-3 border-2 rounded-full" style={{ borderColor: '#D4AF37', borderTopColor: 'transparent' }} />
-                                    Uploading {selectedImages.length} image{selectedImages.length > 1 ? 's' : ''}...
-                                </div>
-                            )}
-                        </div>
+                    <div className="flex items-center justify-between mt-4">
+                        <span className="text-xs text-gray-500">
+                            {newComment.length}/1000 characters
+                        </span>
                         <button
                             onClick={handleSubmitComment}
                             disabled={!newComment.trim() || submitting}
@@ -368,8 +380,17 @@ export const CommentsModal = ({ productId, productTitle, isOpen, onClose, onComm
                                     : 'none',
                             }}
                         >
-                            <Send className="w-4 h-4" />
-                            {submitting ? 'Posting...' : 'Post Comment'}
+                            {submitting ? (
+                                <>
+                                    <div className="animate-spin h-4 w-4 border-2 rounded-full" style={{ borderColor: '#1a1a1a', borderTopColor: 'transparent' }} />
+                                    Posting...
+                                </>
+                            ) : (
+                                <>
+                                    <Send className="w-4 h-4" />
+                                    Post Review
+                                </>
+                            )}
                         </button>
                     </div>
                 </div>
