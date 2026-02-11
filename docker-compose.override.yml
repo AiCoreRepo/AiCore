@@ -1,0 +1,10 @@
+version: "3.8"
+
+services:
+  frontend:
+    ports:
+      - "8080:8080"
+
+  backend:
+    environment:
+      CORS_ORIGIN: "http://localhost:8080"
