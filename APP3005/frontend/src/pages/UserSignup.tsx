@@ -11,8 +11,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { signupSchema, type SignupFormData } from "@/lib/validation";
 import { useToast } from "@/hooks/use-toast";
-import { useOTP } from "@/hooks/useOTP";
-import { userSignup, googleAuth, getAuraStatus } from "@/lib/api";
+// OTP BYPASSED: commented out - not needed currently
+// import { useOTP } from "@/hooks/useOTP";
+import { userSignup, googleAuth, getAuraStatus, login as loginApi } from "@/lib/api";
 import { useGoogleLogin } from "@react-oauth/google";
 import { getErrorMessage } from "@/lib/error-utils";
 import heroImage from "@/assets/aivestire-auth-model.png"; // Refined Indian model with mirror concept
@@ -25,7 +26,8 @@ const UserSignup = () => {
     const [phoneError, setPhoneError] = useState('');
     const navigate = useNavigate();
     const { toast } = useToast();
-    const { sendOTP } = useOTP();
+    // OTP BYPASSED: commented out - not needed currently
+    // const { sendOTP } = useOTP();
 
     const {
         register,
@@ -111,24 +113,60 @@ const UserSignup = () => {
                 }
             }
 
-            // Email is available, proceed to send OTP
-            // phoneNumber already includes country code from PhoneInput (e.g., "+919622387285")
-            const otpSent = await sendOTP(phoneNumber);
+            // OTP BYPASSED: Register directly without OTP verification
+            // ---- OLD OTP FLOW (commented out) ----
+            // const otpSent = await sendOTP(phoneNumber);
+            // if (otpSent) {
+            //     navigate('/verify-otp', {
+            //         state: {
+            //             phoneNumber: phoneNumber,
+            //             signupType: 'user',
+            //             signupData: {
+            //                 email: data.email!,
+            //                 password: data.password!,
+            //                 brandName: data.brandName!,
+            //                 phoneNumber: phoneNumber,
+            //             },
+            //         },
+            //     });
+            // }
+            // ---- END OLD OTP FLOW ----
 
-            if (otpSent) {
-                // Navigate to OTP verification page with signup data
-                navigate('/verify-otp', {
-                    state: {
-                        phoneNumber: phoneNumber,
-                        signupType: 'user',
-                        signupData: {
-                            email: data.email!,
-                            password: data.password!,
-                            brandName: data.brandName!,
-                            phoneNumber: phoneNumber,
-                        },
-                    },
-                });
+            // Directly register the user (phone number stored in DB, no OTP needed)
+            await userSignup({
+                email: data.email!,
+                password: data.password!,
+                name: data.brandName!,
+                phoneNumber: phoneNumber,
+            });
+
+            // Auto-login after successful registration
+            const loginResult = await loginApi({
+                email: data.email!,
+                password: data.password!,
+            });
+
+            if (loginResult.access_token) {
+                localStorage.setItem("access_token", loginResult.access_token);
+            }
+
+            toast({
+                title: "Welcome to AiVestire! 🎉",
+                description: "Your account has been created successfully.",
+            });
+
+            // Trigger auth refresh
+            window.dispatchEvent(new Event('auth-refresh'));
+            window.dispatchEvent(new Event('aura-updated'));
+
+            // Check if user already has an Aura
+            const auraStatus = await getAuraStatus();
+
+            if (auraStatus.hasAura) {
+                navigate('/');
+            } else {
+                // Show Aura prompt modal
+                setShowAuraPrompt(true);
             }
         } catch (error: unknown) {
             let message = getErrorMessage(error, "Something went wrong. Please try again.");
@@ -136,6 +174,11 @@ const UserSignup = () => {
             // Customize message for duplicate email
             if (message.toLowerCase().includes('email already registered') || message.toLowerCase().includes('already exists')) {
                 message = "Dear user, this email is already registered. Please try with another one or login to your existing account.";
+            }
+
+            // Customize message for duplicate phone number
+            if (message.toLowerCase().includes('phone number is already registered')) {
+                message = "This phone number is already registered. Please try with another number or login to your existing account.";
             }
 
             toast({
@@ -345,10 +388,10 @@ const UserSignup = () => {
                             {isLoading ? (
                                 <div className="flex items-center gap-2">
                                     <span className="h-4 w-4 border-2 border-luxury-black/30 border-t-luxury-black animate-spin rounded-full" />
-                                    <span>Sending OTP...</span>
+                                    <span>Creating Account...</span>
                                 </div>
                             ) : (
-                                "Continue with OTP"
+                                "Create Account"
                             )}
                         </Button>
 

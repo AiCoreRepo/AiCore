@@ -19,6 +19,11 @@ import { DifferentAnglesGenModule } from './DifferentAnglesGen/different-angles-
 import { CartModule } from './cart/cart.module';
 import { AddressModule } from './address/address.module';
 import { WishlistModule } from './wishlist/wishlist.module';
+import { OrderModule } from './order/order.module';
+import { RefundModule } from './refund/refund.module';
+import { ReturnModule } from './return/return.module';
+import { ReplacementModule } from './replace/replace.module';
+
 
 @Module({
   imports: [
@@ -39,6 +44,10 @@ import { WishlistModule } from './wishlist/wishlist.module';
     CartModule,
     AddressModule,
     WishlistModule,
+    OrderModule,
+    RefundModule,
+    ReturnModule,
+    ReplacementModule,
   ],
   controllers: [AppController],
   providers: [AppService, AdminSeederService],

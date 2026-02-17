@@ -306,6 +306,16 @@
         display: none;
     }
 
+    /* No scrollbar utility */
+    .no-scrollbar::-webkit-scrollbar {
+        display: none;
+    }
+
+    .no-scrollbar {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+    }
+
     /* Animation utilities */
     .animate-fadeIn {
         animation: fadeIn 0.3s ease-out;

@@ -1,5 +1,8 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useState, useMemo, useEffect } from 'react';
+import { useToast } from '@/hooks/use-toast';
+import { ordersApi } from '@/features/orders/api/orders.api';
+import type { CreateOrderPayload } from '@/features/orders/types/order.types';
 import {
     Star,
     Banknote,
@@ -60,13 +63,16 @@ interface LocationState {
 const PaymentPage = () => {
     const navigate = useNavigate();
     const location = useLocation();
-    const { cart } = useCart();
+    const { toast } = useToast();
+    const { cart, clearCart } = useCart();
     const [selectedMethod, setSelectedMethod] = useState('recommended');
     const [codOption, setCodOption] = useState<'cash' | 'upi'>('cash');
     const [showBankOffers, setShowBankOffers] = useState(false);
     const [showAddressSelector, setShowAddressSelector] = useState(false);
+
     const [selectedAddress, setSelectedAddress] = useState<Address | null>(null);
     const [isLoadingAddress, setIsLoadingAddress] = useState(true);
+    const [isPlacingOrder, setIsPlacingOrder] = useState(false);
 
     // Get order details from location state or recalculate
     const state = location.state as LocationState;
@@ -115,20 +121,91 @@ const PaymentPage = () => {
     const codFee = selectedMethod === 'cod' || selectedMethod === 'recommended' ? COD_FEE_CENTS : 0;
     const finalTotal = orderDetails.total + codFee;
 
-    const handlePlaceOrder = () => {
-        // TODO: Implement order placement
-        alert('Order placed successfully! (Demo)');
-        navigate('/');
+    const handlePlaceOrder = async () => {
+        if (!selectedAddress) {
+            toast({
+                title: "Address Required",
+                description: "Please select a delivery address to continue.",
+                variant: "destructive",
+            });
+            return;
+        }
+
+        setIsPlacingOrder(true);
+        try {
+            // Determine payment method
+            const isCOD = selectedMethod === 'cod' || (selectedMethod === 'recommended' && codOption === 'cash');
+            const paymentMethod = isCOD ? 'COD' : 'PREPAID';
+
+            // Prepare payload
+            const payload: CreateOrderPayload = {
+                items: cart.items.map(item => ({
+                    productId: item.product_id,
+                    quantity: item.quantity,
+                    size: item.size || undefined,
+                    color: item.color || undefined
+                })),
+                shippingAddressId: selectedAddress.address_id,
+                paymentMethod
+            };
+
+            console.log('Creating order with payload:', payload);
+
+            // Create order - wait for response
+            const orderResponse = await ordersApi.createOrder(payload);
+
+            console.log('Order created successfully:', orderResponse);
+
+            // Validate that we got a valid order response with an order_id
+            if (orderResponse && orderResponse.order_id) {
+                // Clear cart ONLY after successful order creation
+                await clearCart();
+
+                // Success toast
+                toast({
+                    title: "Order Placed Successfully! 🎉",
+                    description: `Order #${orderResponse.order_number || orderResponse.order_id} has been placed.`,
+                    className: "bg-green-50 border-green-200 text-green-900",
+                });
+
+                // Navigate to orders page with cart source indicator
+                setTimeout(() => {
+                    navigate('/my-orders?from=cart');
+                }, 500);
+            } else {
+                console.error('Invalid order response:', orderResponse);
+                throw new Error('Order creation failed - invalid response received');
+            }
+
+        } catch (error: any) {
+            console.error('Failed to place order:', error);
+            console.error('Error details:', {
+                message: error.message,
+                response: error.response?.data,
+                status: error.response?.status
+            });
+
+            // Show error toast - cart should NOT be cleared
+            toast({
+                title: "Order Failed",
+                description: error.response?.data?.message || error.message || "Failed to place order. Please try again.",
+                variant: "destructive",
+            });
+
+            // DO NOT clear cart or navigate when there's an error
+        } finally {
+            setIsPlacingOrder(false);
+        }
     };
 
-    const renderPaymentContent = () => {
-        switch (selectedMethod) {
+    const renderPaymentContent = (activeMethod = selectedMethod) => {
+        switch (activeMethod) {
             case 'recommended':
             case 'cod':
                 return (
                     <div className="space-y-4">
                         <h3 className="font-semibold text-gray-800">
-                            {selectedMethod === 'recommended' ? 'Recommended Payment Options' : 'Cash On Delivery Options'}
+                            {activeMethod === 'recommended' ? 'Recommended Payment Options' : 'Cash On Delivery Options'}
                         </h3>
 
                         {/* Cash/UPI Option */}
@@ -266,7 +343,7 @@ const PaymentPage = () => {
         <div className="min-h-screen flex flex-col bg-gray-50">
             <Navbar />
             {/* Spacer for fixed navbar */}
-            <div className="h-20"></div>
+            <div className="h-24"></div>
 
             <main className="flex-1">
                 {/* Step Progress Bar - Clean Design */}
@@ -278,7 +355,7 @@ const PaymentPage = () => {
                                 onClick={() => navigate('/cart')}
                                 className="text-gray-400 hover:text-gray-700 transition-colors cursor-pointer text-sm font-medium tracking-[0.15em]"
                             >
-                                CART
+                                BAG
                             </button>
 
                             {/* Dashed Line Connector */}
@@ -373,14 +450,93 @@ const PaymentPage = () => {
                             </div>
 
                             {/* Choose Payment Mode */}
-                            <div className="bg-white border border-gray-200 rounded">
+                            <div className="bg-white border border-gray-200 rounded overflow-hidden">
                                 <h2 className="font-semibold text-sm uppercase tracking-wide text-gray-600 p-4 border-b border-gray-200">
                                     Choose Payment Mode
                                 </h2>
 
-                                <div className="flex">
-                                    {/* Payment Method List */}
-                                    <div className="w-[240px] border-r border-gray-200">
+                                {/* Mobile Layout: Vertical Accordion */}
+                                <div className="block lg:hidden">
+                                    {PAYMENT_METHODS.map((method) => {
+                                        const Icon = ICON_MAP[method.icon];
+                                        const isSelected = selectedMethod === method.id;
+                                        return (
+                                            <div key={method.id} className="border-b border-gray-200 last:border-b-0">
+                                                {/* Header Step */}
+                                                <button
+                                                    onClick={() => setSelectedMethod(method.id)}
+                                                    className={`w-full px-4 py-4 flex items-center justify-between text-left transition-colors ${isSelected ? 'bg-gray-50' : 'bg-white hover:bg-gray-50'
+                                                        }`}
+                                                >
+                                                    <div className="flex items-center gap-3">
+                                                        {Icon && (
+                                                            <Icon
+                                                                className="w-5 h-5 flex-shrink-0"
+                                                                style={{ color: isSelected ? GOLD : '#6b7280' }}
+                                                            />
+                                                        )}
+                                                        <div>
+                                                            <span
+                                                                className={`text-sm block ${isSelected ? 'font-medium' : ''}`}
+                                                                style={{ color: isSelected ? GOLD : '#374151' }}
+                                                            >
+                                                                {method.label}
+                                                            </span>
+                                                            {method.offers && (
+                                                                <span className="text-xs mt-0.5 block" style={{ color: GOLD }}>
+                                                                    {method.offers}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                    <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${isSelected ? 'border-[color:var(--brand-gold)]' : 'border-gray-300'
+                                                        }`} style={{ borderColor: isSelected ? GOLD : undefined }}>
+                                                        {isSelected && <div className="w-2 h-2 rounded-full" style={{ backgroundColor: GOLD }} />}
+                                                    </div>
+                                                </button>
+
+                                                {/* Content Body */}
+                                                <AnimatePresence>
+                                                    {isSelected && (
+                                                        <motion.div
+                                                            initial={{ height: 0, opacity: 0 }}
+                                                            animate={{ height: 'auto', opacity: 1 }}
+                                                            exit={{ height: 0, opacity: 0 }}
+                                                            className="overflow-hidden bg-white"
+                                                        >
+                                                            <div className="p-4 border-t border-gray-100">
+                                                                {renderPaymentContent(method.id)}
+
+                                                                {/* Mobile Place Order Button inside Accordion */}
+                                                                <motion.button
+                                                                    onClick={handlePlaceOrder}
+                                                                    disabled={!selectedAddress || isPlacingOrder}
+                                                                    whileTap={{ scale: 0.98 }}
+                                                                    className="w-full mt-6 py-3.5 text-white font-semibold uppercase tracking-wide rounded-lg text-sm shadow-md"
+                                                                    style={{ backgroundColor: selectedAddress ? GOLD : undefined }}
+                                                                >
+                                                                    {isPlacingOrder ? (
+                                                                        <div className="flex items-center justify-center gap-2">
+                                                                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                                                            <span>Processing</span>
+                                                                        </div>
+                                                                    ) : (
+                                                                        selectedAddress ? 'Place Order' : 'Select Address'
+                                                                    )}
+                                                                </motion.button>
+                                                            </div>
+                                                        </motion.div>
+                                                    )}
+                                                </AnimatePresence>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+
+                                {/* Desktop Layout: Vertical Sidebar + Content Pane */}
+                                <div className="hidden lg:flex">
+                                    {/* Sidebar */}
+                                    <div className="w-[240px] border-r border-gray-200 bg-gray-50/30">
                                         {PAYMENT_METHODS.map((method) => {
                                             const Icon = ICON_MAP[method.icon];
                                             const isSelected = selectedMethod === method.id;
@@ -388,29 +544,30 @@ const PaymentPage = () => {
                                                 <button
                                                     key={method.id}
                                                     onClick={() => setSelectedMethod(method.id)}
-                                                    className={`w-full px-4 py-3 flex items-center gap-3 text-left transition-all border-l-4 ${isSelected
-                                                        ? 'bg-gray-50'
-                                                        : 'border-transparent hover:bg-gray-50'
-                                                        }`}
-                                                    style={{
-                                                        borderLeftColor: isSelected ? GOLD : 'transparent',
-                                                    }}
+                                                    className={`
+                                                        w-full px-4 py-4 flex items-center gap-3 text-left transition-all 
+                                                        border-l-4 hover:bg-white
+                                                        ${isSelected
+                                                            ? 'bg-white border-l-[#D4AF37] shadow-[0_1px_2px_rgba(0,0,0,0.05)]'
+                                                            : 'border-transparent hover:border-gray-200'
+                                                        }
+                                                    `}
                                                 >
                                                     {Icon && (
                                                         <Icon
-                                                            className="w-5 h-5"
+                                                            className="w-5 h-5 flex-shrink-0 transition-colors"
                                                             style={{ color: isSelected ? GOLD : '#6b7280' }}
                                                         />
                                                     )}
                                                     <div className="flex-1">
                                                         <span
-                                                            className={`text-sm ${isSelected ? 'font-medium' : ''}`}
+                                                            className={`text-sm block ${isSelected ? 'font-medium' : ''}`}
                                                             style={{ color: isSelected ? GOLD : '#374151' }}
                                                         >
                                                             {method.label}
                                                         </span>
                                                         {method.offers && (
-                                                            <span className="ml-2 text-xs" style={{ color: GOLD }}>
+                                                            <span className="text-xs mt-0.5 block" style={{ color: GOLD }}>
                                                                 {method.offers}
                                                             </span>
                                                         )}
@@ -420,17 +577,17 @@ const PaymentPage = () => {
                                         })}
                                     </div>
 
-                                    {/* Payment Content */}
-                                    <div className="flex-1 p-6">
-                                        {renderPaymentContent()}
+                                    {/* Content Pane */}
+                                    <div className="flex-1 p-6 min-h-[400px]">
+                                        {renderPaymentContent(selectedMethod)}
 
-                                        {/* Place Order Button */}
+                                        {/* Desktop Place Order Button */}
                                         <motion.button
                                             onClick={handlePlaceOrder}
-                                            disabled={!selectedAddress}
+                                            disabled={!selectedAddress || isPlacingOrder}
                                             whileHover={{ scale: selectedAddress ? 1.01 : 1 }}
                                             whileTap={{ scale: selectedAddress ? 0.99 : 1 }}
-                                            className="w-full mt-6 py-4 text-white font-semibold uppercase tracking-wide rounded disabled:bg-gray-300 disabled:cursor-not-allowed"
+                                            className="w-full mt-8 py-4 text-white font-semibold uppercase tracking-wide rounded hover:shadow-lg transition-all"
                                             style={{ backgroundColor: selectedAddress ? GOLD : undefined }}
                                             onMouseEnter={(e) => {
                                                 if (selectedAddress) e.currentTarget.style.backgroundColor = GOLD_HOVER;
@@ -439,7 +596,14 @@ const PaymentPage = () => {
                                                 if (selectedAddress) e.currentTarget.style.backgroundColor = GOLD;
                                             }}
                                         >
-                                            {selectedAddress ? 'Place Order' : 'Select Address to Continue'}
+                                            {isPlacingOrder ? (
+                                                <div className="flex items-center justify-center gap-2">
+                                                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                                    <span>Processing Order...</span>
+                                                </div>
+                                            ) : (
+                                                selectedAddress ? 'Place Order' : 'Select Address to Continue'
+                                            )}
                                         </motion.button>
                                     </div>
                                 </div>

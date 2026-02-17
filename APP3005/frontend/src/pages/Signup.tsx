@@ -10,7 +10,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { signupSchema, type SignupFormData } from "@/lib/validation";
 import { useToast } from "@/hooks/use-toast";
-import { useOTP } from "@/hooks/useOTP";
+// OTP BYPASSED: commented out - not needed currently
+// import { useOTP } from "@/hooks/useOTP";
 import { signup as signupApi, login as loginApi, googleAuth } from "@/lib/api";
 import { useGoogleLogin } from "@react-oauth/google";
 import heroImage from "@/assets/auth-hero-signup.jpg";
@@ -22,7 +23,8 @@ const Signup = () => {
   const [phoneNumber, setPhoneNumber] = useState('');
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { sendOTP } = useOTP();
+  // OTP BYPASSED: commented out - not needed currently
+  // const { sendOTP } = useOTP();
 
   const {
     register,
@@ -55,30 +57,63 @@ const Signup = () => {
         }
       }
 
-      // Email is available, proceed to send OTP
-      const otpSent = await sendOTP(phoneNumber);
+      // OTP BYPASSED: Register directly without OTP verification
+      // ---- OLD OTP FLOW (commented out) ----
+      // const otpSent = await sendOTP(phoneNumber);
+      // if (otpSent) {
+      //   navigate('/verify-otp', {
+      //     state: {
+      //       phoneNumber,
+      //       signupType: 'creator',
+      //       signupData: {
+      //         email: data.email!,
+      //         password: data.password!,
+      //         brandName: data.brandName!,
+      //         phoneNumber,
+      //       },
+      //     },
+      //   });
+      // }
+      // ---- END OLD OTP FLOW ----
 
-      if (otpSent) {
-        // Navigate to OTP verification page with signup data
-        navigate('/verify-otp', {
-          state: {
-            phoneNumber,
-            signupType: 'creator',
-            signupData: {
-              email: data.email!,
-              password: data.password!,
-              brandName: data.brandName!,
-              phoneNumber,
-            },
-          },
-        });
+      // Directly register the creator (phone number stored in DB, no OTP needed)
+      await signupApi({
+        email: data.email!,
+        password: data.password!,
+        brandName: data.brandName!,
+        phoneNumber: phoneNumber,
+      });
+
+      // Auto-login after successful registration
+      const loginResult = await loginApi({
+        email: data.email!,
+        password: data.password!,
+      });
+
+      if (loginResult.access_token) {
+        localStorage.setItem("access_token", loginResult.access_token);
       }
+
+      toast({
+        title: "Welcome to AiVestire! 🎉",
+        description: "Your creator account has been created successfully.",
+      });
+
+      // Trigger auth refresh
+      window.dispatchEvent(new Event('auth-refresh'));
+
+      navigate("/creator-dashboard");
     } catch (error: unknown) {
       let message = (error as Error).message || "Something went wrong. Please try again.";
 
       // Customize message for duplicate email
       if (message.toLowerCase().includes('email already registered') || message.toLowerCase().includes('already exists')) {
         message = "Dear user, this email is already registered. Please try with another one or login to your existing account.";
+      }
+
+      // Customize message for duplicate phone number
+      if (message.toLowerCase().includes('phone number is already registered')) {
+        message = "This phone number is already registered. Please try with another number or login to your existing account.";
       }
 
       toast({
@@ -265,7 +300,7 @@ const Signup = () => {
             className="w-full mt-6"
             disabled={isLoading || !phoneNumber}
           >
-            {isLoading ? "Sending OTP..." : "Continue with OTP"}
+            {isLoading ? "Creating Account..." : "Create Account"}
           </Button>
 
           <div className="relative">

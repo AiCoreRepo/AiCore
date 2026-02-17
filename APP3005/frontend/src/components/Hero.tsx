@@ -1,6 +1,6 @@
 export const Hero = () => {
     // Video hosted on Cloudinary for better performance and smaller bundle size
-    const videoUrl = "https://res.cloudinary.com/dxfxicebq/video/upload/v1769011649/IMG_4472_iq7p47.mp4";
+    const videoUrl = "https://res.cloudinary.com/dxfxicebq/video/upload/v1771164261/IMG_4859_sgqnkj.mp4";
 
     return (
         <section className="w-full bg-[#F8F4EC]">

@@ -61,45 +61,73 @@ export class GeminiAIService {
             // Build dynamic prompt from user attributes
             const { height, weight, skinTone, gender, bodyShape, ageRange, hairStyle } = attributes;
 
-            // Create attribute descriptions for the prompt
-            const attributeDescriptions: string[] = [];
-
             // Helper to clean up internal keys (e.g., 'pear_shape' -> 'pear shape')
             const formatAttr = (val: string) => val.replace(/_/g, ' ');
 
-            if (gender && gender !== 'unspecified') {
-                attributeDescriptions.push(`${formatAttr(gender)} person`);
-            }
-            if (ageRange) {
-                attributeDescriptions.push(`appearing to be in their ${ageRange} age range`);
-            }
-            if (skinTone) {
-                attributeDescriptions.push(`with ${formatAttr(skinTone)} skin tone`);
-            }
-            if (bodyShape && bodyShape !== 'average') {
-                attributeDescriptions.push(`with a ${formatAttr(bodyShape)} body shape`);
-            }
-            if (height) {
-                attributeDescriptions.push(`approximately ${height}cm tall`);
-            }
-            if (weight) {
-                attributeDescriptions.push(`weighing around ${weight}kg`);
-            }
-            if (hairStyle) {
-                attributeDescriptions.push(`with ${formatAttr(hairStyle)} hair`);
+            // Check which attributes the user actually provided (non-empty, non-default)
+            const hasGender = gender && gender !== 'unspecified';
+            const hasAgeRange = !!ageRange;
+            const hasSkinTone = !!skinTone;
+            const hasBodyShape = bodyShape && bodyShape !== 'average';
+            const hasHeight = !!height;
+            const hasWeight = !!weight;
+            const hasHairStyle = !!hairStyle;
+
+            const hasAnyAttribute = hasGender || hasAgeRange || hasSkinTone || hasBodyShape || hasHeight || hasWeight || hasHairStyle;
+
+            let prompt: string;
+
+            if (hasAnyAttribute) {
+                // ---- ATTRIBUTES PROVIDED: Build a detailed, attribute-driven prompt ----
+                // Build specific attribute instructions so Gemini follows them precisely
+                const specificInstructions: string[] = [];
+
+                if (hasGender) {
+                    specificInstructions.push(`- Gender: The person is ${formatAttr(gender)}. The avatar MUST clearly represent a ${formatAttr(gender)} person.`);
+                }
+                if (hasAgeRange) {
+                    specificInstructions.push(`- Age: The person appears to be in the ${ageRange} age range. Reflect this age accurately in the avatar's face and body.`);
+                }
+                if (hasSkinTone) {
+                    specificInstructions.push(`- Skin Tone: The person has a ${formatAttr(skinTone)} skin tone. The avatar's skin MUST match this ${formatAttr(skinTone)} tone exactly — do NOT lighten or darken it.`);
+                }
+                if (hasBodyShape) {
+                    specificInstructions.push(`- Body Shape: The person has a ${formatAttr(bodyShape)} body shape. The avatar's body proportions MUST reflect a ${formatAttr(bodyShape)} silhouette.`);
+                }
+                if (hasHeight) {
+                    specificInstructions.push(`- Height: The person is approximately ${height}cm tall. Reflect appropriate body proportions for this height.`);
+                }
+                if (hasWeight) {
+                    specificInstructions.push(`- Weight: The person weighs approximately ${weight}kg. The avatar's build should match this weight realistically.`);
+                }
+                if (hasHairStyle) {
+                    specificInstructions.push(`- Hair: The person has ${formatAttr(hairStyle)} hair. The avatar MUST have ${formatAttr(hairStyle)} hair style.`);
+                }
+
+                prompt = `You are generating a hyper-realistic full-body avatar based on the reference photo AND the following user-specified attributes. The attributes below are PROVIDED BY THE USER and MUST take priority over what you see in the photo.
+
+USER-SPECIFIED ATTRIBUTES (MUST FOLLOW):
+${specificInstructions.join('\n')}
+
+INSTRUCTIONS:
+1. Use the reference photo for facial features, expression, and posture.
+2. CRITICALLY IMPORTANT: Apply ALL the user-specified attributes above to the generated avatar. These attributes OVERRIDE what you observe in the photo.
+3. Beautify the face subtly while preserving the person's recognizable facial features.
+4. Create a full-body avatar. If the photo is not full body, extend realistically to full body with matching outfit and appropriate footwear.
+5. Keep the existing clothing unchanged but ensure it looks clean and well-fitted.
+6. Set the background to a clean, premium studio look with soft, natural lighting.
+7. Maintain photorealism with sharp details throughout.
+8. The final image must look like a professional fashion model photo.`;
+            } else {
+                // ---- NO ATTRIBUTES: Simple photo-based avatar generation ----
+                prompt = `Create a hyper-realistic full-body avatar based on this photo. Beautify the face subtly while preserving the person's exact facial features, skin tone, and natural appearance. Maintain their current hairstyle and body proportions. Preserve the same posture and expression. Keep clothing unchanged; if the photo is not full body, extend realistically to full body with matching outfit and appropriate footwear. Enhance the background to a clean premium studio look that complements the outfit. Maintain photorealism, sharp details, and natural lighting. The final image must look like a professional fashion model photo.`;
             }
 
-            // Build the dynamic prompt incorporating user attributes
-            const personDescription = attributeDescriptions.length > 0
-                ? `This is a ${attributeDescriptions.join(', ')}. `
-                : '';
-
-            const prompt = `${personDescription}Create a hyper-realistic full-body avatar of this person. Beautify the face subtly while preserving their exact facial features and natural ${skinTone || 'original'} skin tone. Maintain their ${hairStyle || 'current'} hairstyle and ${bodyShape || 'natural'} body proportions. Preserve the same posture and expression. Keep clothing unchanged; if the photo is not full body, extend realistically to full body with matching outfit and appropriate footwear that suits a ${gender || 'person'} of this style. Enhance the background to a clean premium studio look that complements the outfit. Maintain photorealism, sharp details, and natural lighting.`;
-
-            console.log('📝 [GeminiAI] Generated dynamic prompt:', prompt.substring(0, 100) + '...');
+            console.log(' [GeminiAI] Has user attributes:', hasAnyAttribute);
+            console.log(' [GeminiAI] Generated prompt:', prompt.substring(0, 150) + '...');
 
             // Add timeout wrapper for Gemini API call
-            console.log('🚀 [GeminiAI] Calling Gemini API...');
+            console.log(' [GeminiAI] Calling Gemini API...');
             const startTime = Date.now();
 
             const timeoutPromise = new Promise((_, reject) => {
