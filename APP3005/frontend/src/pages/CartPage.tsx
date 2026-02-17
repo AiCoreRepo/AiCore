@@ -183,6 +183,8 @@ const CartPage = () => {
     return (
         <div className="min-h-screen flex flex-col bg-gray-50">
             <Navbar />
+            {/* Spacer for fixed navbar */}
+            <div className="h-24"></div>
 
             <main className="flex-1">
                 {/* Back Button */}
@@ -201,18 +203,14 @@ const CartPage = () => {
                 {/* Step Progress Bar - Mobile Optimized */}
                 <div className="bg-white border-b border-gray-200">
                     <div className="w-full px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto py-3 sm:py-4">
-                        <div className="flex items-center justify-center gap-1 sm:gap-2 text-xs sm:text-sm">
+                        <div className="flex items-center justify-center gap-3 sm:gap-4 text-xs sm:text-sm">
                             <span
                                 className="font-medium pb-1 border-b-2"
                                 style={{ color: GOLD, borderColor: GOLD }}
                             >
                                 BAG
                             </span>
-                            <span className="text-gray-300 hidden sm:inline">---------</span>
-                            <span className="text-gray-300 sm:hidden">---</span>
-                            <span className="text-gray-400">ADDRESS</span>
-                            <span className="text-gray-300 hidden sm:inline">---------</span>
-                            <span className="text-gray-300 sm:hidden">---</span>
+                            <div className="w-12 sm:w-24 border-t border-dashed border-gray-300"></div>
                             <span className="text-gray-400">PAYMENT</span>
                         </div>
                     </div>
@@ -576,8 +574,8 @@ const CartPage = () => {
                                     )}
                                 </div>
 
-                                {/* Place Order Button - Full width on mobile, sticky on mobile */}
-                                <div className="lg:block">
+                                {/* Place Order Button - Desktop Only (Hidden on mobile as we have sticky bar) */}
+                                <div className="hidden lg:block">
                                     <motion.button
                                         whileHover={{ scale: 1.01 }}
                                         whileTap={{ scale: 0.99 }}

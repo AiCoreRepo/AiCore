@@ -35,6 +35,7 @@ model User {
   cart                Cart?
   addresses           UserAddress[]
   wishlist            Wishlist?
+  orders              Order[]
 }
 
 model Creator {
@@ -89,6 +90,7 @@ model Product {
   cart_items       CartItem[]
   guest_cart_items GuestCartItem[]
   wishlist_items   WishlistItem[]
+  order_items      OrderItem[]
 }
 
 // ============================================
@@ -392,7 +394,407 @@ model UserAddress {
   created_at    DateTime    @default(now())
   updated_at    DateTime    @updatedAt
   user          User        @relation(fields: [user_id], references: [user_id], onDelete: Cascade)
+  orders        Order[]
 
   @@index([user_id])
   @@map("user_addresses")
+}
+
+// ============================================
+// ORDER STATES & TRACKING SYSTEM
+// ============================================
+
+model Order {
+  order_id                String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  order_number            String              @unique
+  user_id                 String              @db.Uuid
+  
+  // Order Details
+  total_amount            Decimal             @db.Decimal(10, 2)
+  payment_method          PaymentMethod
+  payment_status          PaymentStatus       @default(PENDING)
+  
+  // Current State
+  current_status          OrderStatus         @default(PENDING)
+  
+  // COD Specific
+  cod_collected           Boolean             @default(false)
+  cod_collected_at        DateTime?
+  cod_collected_by        String?             @db.Uuid
+  
+  // Shipping Address
+  shipping_address_id     String              @db.Uuid
+  
+  // Tracking
+  tracking_number         String?
+  delivery_partner        String?
+  estimated_delivery_date DateTime?
+  
+  // Cancellation
+  cancelled_at            DateTime?
+  cancelled_by            String?             @db.Uuid
+  cancellation_reason     String?
+  cancel_feedback         String?
+  
+  // Refund Tracking
+  refund_status           RefundStatus?
+  refund_amount           Decimal?            @db.Decimal(10, 2)
+  
+  // Return Tracking
+  return_status           ReturnStatus?
+  return_requested_at     DateTime?
+  
+  // Replacement Tracking
+  replace_status          ReplacementStatus?
+  replace_requested_at    DateTime?
+  
+  // Timestamps
+  created_at              DateTime            @default(now())
+  updated_at              DateTime            @updatedAt
+  
+  // Relations
+  user                    User                @relation(fields: [user_id], references: [user_id])
+  shipping_address        UserAddress         @relation(fields: [shipping_address_id], references: [address_id])
+  items                   OrderItem[]
+  status_history          OrderStatusHistory[]
+  delivery_tracking       DeliveryTracking[]
+  refunds                 OrderRefund[]
+  returns                 OrderReturn[]
+  replacements            OrderReplacement[]
+  
+  @@index([user_id])
+  @@index([current_status])
+  @@index([order_number])
+  @@index([tracking_number])
+  @@index([created_at(sort: Desc)])
+  @@map("orders")
+}
+
+model OrderItem {
+  order_item_id   String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  order_id        String   @db.Uuid
+  product_id      String   @db.Uuid
+  
+  // Item Details
+  quantity        Int
+  unit_price      Decimal  @db.Decimal(10, 2)
+  total_price     Decimal  @db.Decimal(10, 2)
+  
+  // Snapshot data (in case product deleted)
+  product_name    String
+  product_image   String?
+  variant_details Json?
+  size            String?
+  color           String?
+  
+  created_at      DateTime @default(now())
+  
+  // Relations
+  order           Order    @relation(fields: [order_id], references: [order_id], onDelete: Cascade)
+  product         Product  @relation(fields: [product_id], references: [product_id])
+  
+  @@index([order_id])
+  @@index([product_id])
+  @@map("order_items")
+}
+
+model OrderStatusHistory {
+  history_id      String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  order_id        String          @db.Uuid
+  
+  // Status Change
+  from_status     String?
+  to_status       String
+  
+  // Metadata
+  changed_by      String?         @db.Uuid
+  changed_by_type ChangedByType?
+  
+  // Additional Info
+  notes           String?
+  metadata        Json?
+  
+  // Timestamp (immutable)
+  created_at      DateTime        @default(now())
+  
+  // Relations
+  order           Order           @relation(fields: [order_id], references: [order_id], onDelete: Cascade)
+  
+  @@index([order_id])
+  @@index([created_at(sort: Desc)])
+  @@map("order_status_history")
+}
+
+model DeliveryTracking {
+  tracking_id             String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  order_id                String             @db.Uuid
+  
+  // Location Data
+  location_name           String
+  location_type           LocationType
+  
+  // Coordinates
+  latitude                Decimal?           @db.Decimal(10, 8)
+  longitude               Decimal?           @db.Decimal(11, 8)
+  
+  // Details
+  status_description      String
+  delivery_partner_agent  String?
+  
+  // Metadata
+  metadata                Json?
+  
+  // Timestamp (immutable)
+  created_at              DateTime           @default(now())
+  
+  // Relations
+  order                   Order              @relation(fields: [order_id], references: [order_id], onDelete: Cascade)
+  
+  @@index([order_id])
+  @@index([created_at(sort: Desc)])
+  @@map("delivery_tracking")
+}
+
+// ============================================
+// REFUND SYSTEM
+// ============================================
+
+model OrderRefund {
+  refund_id         String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  order_id          String        @db.Uuid
+  
+  // Refund Details
+  amount            Decimal       @db.Decimal(10, 2)
+  refund_status     RefundStatus  @default(INITIATED)
+  refund_reason     String?
+  
+  // Approval
+  approved_by       String?       @db.Uuid
+  approved_at       DateTime?
+  rejection_reason  String?
+  
+  // Processing
+  refund_method     String?       // Bank transfer, original payment method, etc.
+  transaction_id    String?       // Transaction ref from payment gateway
+  
+  // Timestamps
+  initiated_at      DateTime      @default(now())
+  processing_at     DateTime?
+  completed_at      DateTime?
+  failed_at         DateTime?
+  
+  // Notes
+  notes             String?
+  metadata          Json?
+  
+  // Relations
+  order             Order         @relation(fields: [order_id], references: [order_id], onDelete: Cascade)
+  
+  @@index([order_id])
+  @@index([refund_status])
+  @@index([initiated_at(sort: Desc)])
+  @@map("order_refunds")
+}
+
+// ============================================
+// RETURN SYSTEM
+// ============================================
+
+model OrderReturn {
+  return_id         String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  order_id          String        @db.Uuid
+  
+  // Return Request
+  return_reason     ReturnReason
+  custom_reason     String?
+  feedback          String?
+  
+  // Status
+  return_status     ReturnStatus  @default(REQUESTED)
+  
+  // Approval/Rejection
+  approved_by       String?       @db.Uuid
+  approved_at       DateTime?
+  rejected_by       String?       @db.Uuid
+  rejected_at       DateTime?
+  rejection_reason  String?
+  
+  // Pickup Details
+  pickup_scheduled  DateTime?
+  pickup_partner    String?
+  pickup_tracking   String?
+  picked_up_at      DateTime?
+  
+  // Quality Check
+  qc_passed         Boolean?
+  qc_notes          String?
+  qc_completed_at   DateTime?
+  
+  // Refund (if applicable)
+  refund_id         String?       @db.Uuid
+  
+  // Timestamps
+  requested_at      DateTime      @default(now())
+  completed_at      DateTime?
+  
+  // Notes
+  notes             String?
+  metadata          Json?
+  
+  // Relations
+  order             Order         @relation(fields: [order_id], references: [order_id], onDelete: Cascade)
+  
+  @@index([order_id])
+  @@index([return_status])
+  @@index([requested_at(sort: Desc)])
+  @@map("order_returns")
+}
+
+// ============================================
+// REPLACEMENT SYSTEM
+// ============================================
+
+model OrderReplacement {
+  replacement_id      String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  original_order_id   String              @db.Uuid
+  new_order_id        String?             @db.Uuid
+  
+  // Replacement Request
+  replace_reason      ReplaceReason
+  custom_reason       String?
+  feedback            String?
+  
+  // Status
+  replacement_status  ReplacementStatus   @default(REQUESTED)
+  
+  // Approval/Rejection
+  approved_by         String?             @db.Uuid
+  approved_at         DateTime?
+  rejected_by         String?             @db.Uuid
+  rejected_at         DateTime?
+  rejection_reason    String?
+  
+  // Pickup Details (for original item)
+  pickup_scheduled    DateTime?
+  pickup_partner      String?
+  pickup_tracking     String?
+  picked_up_at        DateTime?
+  
+  // Delivery Details (for replacement)
+  dispatched_at       DateTime?
+  delivery_tracking   String?
+  delivered_at        DateTime?
+  
+  // Timestamps
+  requested_at        DateTime            @default(now())
+  completed_at        DateTime?
+  
+  // Notes
+  notes               String?
+  metadata            Json?
+  
+  // Relations
+  original_order      Order               @relation(fields: [original_order_id], references: [order_id], onDelete: Cascade)
+  
+  @@index([original_order_id])
+  @@index([new_order_id])
+  @@index([replacement_status])
+  @@index([requested_at(sort: Desc)])
+  @@map("order_replacements")
+}
+
+// ============================================
+// ORDER ENUMS
+// ============================================
+
+enum OrderStatus {
+  PENDING
+  BOOKED
+  DISPATCHED
+  SHIPPED
+  OUT_FOR_DELIVERY
+  DELIVERED
+  CANCELLED
+}
+
+enum PaymentMethod {
+  PREPAID
+  COD
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+enum ChangedByType {
+  SYSTEM
+  ADMIN
+  DELIVERY_PARTNER
+  USER
+}
+
+enum LocationType {
+  WAREHOUSE
+  TRANSIT_HUB
+  LOCAL_FACILITY
+  OUT_FOR_DELIVERY
+  DELIVERED
+}
+
+// ============================================
+// REFUND, RETURN, REPLACEMENT ENUMS
+// ============================================
+
+enum RefundStatus {
+  INITIATED
+  PROCESSING
+  COMPLETED
+  FAILED
+  REJECTED
+}
+
+enum ReturnReason {
+  DAMAGED
+  WRONG_ITEM
+  SIZE_ISSUE
+  QUALITY_ISSUE
+  NOT_AS_DESCRIBED
+  DEFECTIVE
+  CHANGED_MIND
+  OTHER
+}
+
+enum ReturnStatus {
+  REQUESTED
+  APPROVED
+  PICKUP_SCHEDULED
+  PICKED_UP
+  QC_IN_PROGRESS
+  QC_PASSED
+  QC_FAILED
+  COMPLETED
+  REJECTED
+}
+
+enum ReplaceReason {
+  DAMAGED
+  WRONG_ITEM
+  SIZE_ISSUE
+  DEFECTIVE
+  QUALITY_ISSUE
+  OTHER
+}
+
+enum ReplacementStatus {
+  REQUESTED
+  APPROVED
+  PICKUP_SCHEDULED
+  PICKED_UP
+  DISPATCHED
+  DELIVERED
+  COMPLETED
+  REJECTED
 }

@@ -1,5 +1,5 @@
 import { Variants } from 'framer-motion';
-import { LayoutDashboard, CheckSquare, ShoppingBag, Palette, Users, Settings, Sparkles, Upload } from 'lucide-react';
+import { LayoutDashboard, CheckSquare, ShoppingBag, Palette, Users, Settings, Sparkles, Upload, Package } from 'lucide-react';
 
 /**
  * Midnight Luxury Design Tokens
@@ -97,6 +97,14 @@ export const menuItems: MenuItem[] = [
         icon: Sparkles,
         href: '/admin-tryon-approvals',
         isBeta: false,
+    },
+    {
+        id: 'order-management',
+        label: 'Order Management',
+        icon: Package,
+        href: '/admin-orders',
+        isBeta: false,
+        // View and manage all customer orders - approve, track, update status
     },
     {
         id: 'collection',

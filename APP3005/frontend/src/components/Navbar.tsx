@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Menu, X, ShoppingBag, User, LogOut, Heart } from "lucide-react";
+import { Menu, X, ShoppingBag, User, LogOut, Package } from "lucide-react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { getAuraStatus } from "@/lib/api";
 import { LogoutConfirmDialog } from "@/components/LogoutConfirmDialog";
@@ -8,6 +8,7 @@ import { useAuth } from "@/context/AuthContext";
 import { cn } from "@/utils/cn";
 import { CartBadge } from "@/components/cart/CartBadge";
 import { WishlistBadge } from "@/components/wishlist/WishlistBadge";
+import { useProfileSidebar } from "@/context/ProfileSidebarContext";
 
 const navLinks = [
     { name: "Home", href: "/", isRoute: true },
@@ -31,6 +32,7 @@ export const Navbar = () => {
     const menuRef = useRef<HTMLDivElement>(null);
     const { toast } = useToast();
     const { user, logout: authLogout } = useAuth();
+    const { toggleSidebar } = useProfileSidebar();
 
     useEffect(() => {
         const handleScroll = () => {
@@ -205,7 +207,7 @@ export const Navbar = () => {
                                     {isLoggedIn ? (
                                         <div className="relative" ref={menuRef}>
                                             <button
-                                                onClick={() => setShowUserMenu(!showUserMenu)}
+                                                onClick={() => navigate('/user-dashboard')}
                                                 className="flex flex-col items-center gap-0.5 transition-all duration-300 hover:scale-105 group"
                                                 aria-label="Profile"
                                             >
@@ -257,6 +259,16 @@ export const Navbar = () => {
                                                             <div className="border-t border-gold/30 my-2 mx-3"></div>
                                                         </>
                                                     )}
+                                                    <div className="border-t border-gold/30 my-2 mx-3"></div>
+                                                    <Link
+                                                        to="/my-orders"
+                                                        className="flex items-center gap-3 px-5 py-3 text-charcoal hover:bg-gradient-to-r hover:from-gold/20 hover:to-gold/10 transition-all duration-300 font-medium group"
+                                                        onClick={() => setShowUserMenu(false)}
+                                                    >
+                                                        <Package className="w-4 h-4 text-gold group-hover:scale-110 transition-transform" />
+                                                        <span>My Orders</span>
+                                                    </Link>
+                                                    <div className="border-t border-gold/30 my-2 mx-3"></div>
                                                     <button
                                                         onClick={() => {
                                                             setShowUserMenu(false);
@@ -331,6 +343,64 @@ export const Navbar = () => {
                                         </a>
                                     )
                                 )}
+
+                                {/* Common Mobile Links (Cart, Wishlist) */}
+                                <div className="border-t border-gold/20 my-2 mx-4"></div>
+                                <Link
+                                    to="/cart"
+                                    className="px-4 py-3 text-charcoal font-medium tracking-wide rounded-2xl hover:bg-gold/20 transition-all duration-300 border border-transparent hover:border-gold/30 block"
+                                    onClick={() => setIsMobileMenuOpen(false)}
+                                >
+                                    🛍️ Cart
+                                </Link>
+                                <Link
+                                    to="/wishlist"
+                                    className="px-4 py-3 text-charcoal font-medium tracking-wide rounded-2xl hover:bg-gold/20 transition-all duration-300 border border-transparent hover:border-gold/30 block"
+                                    onClick={() => setIsMobileMenuOpen(false)}
+                                >
+                                    💖 Wishlist
+                                </Link>
+
+                                {/* Logged In User Specific Links */}
+                                {isLoggedIn && (
+                                    <>
+                                        <div className="border-t border-gold/20 my-2 mx-4"></div>
+                                        <Link
+                                            to="/my-orders"
+                                            className="px-4 py-3 text-charcoal font-medium tracking-wide rounded-2xl hover:bg-gold/20 transition-all duration-300 border border-transparent hover:border-gold/30 block"
+                                            onClick={() => setIsMobileMenuOpen(false)}
+                                        >
+                                            📦 My Orders
+                                        </Link>
+                                        {hasAura ? (
+                                            <Link
+                                                to="/aura-profile"
+                                                className="px-4 py-3 text-charcoal font-medium tracking-wide rounded-2xl hover:bg-gold/20 transition-all duration-300 border border-transparent hover:border-gold/30 block"
+                                                onClick={() => setIsMobileMenuOpen(false)}
+                                            >
+                                                ✨ Aura Profile
+                                            </Link>
+                                        ) : (
+                                            <Link
+                                                to="/aura-dashboard"
+                                                className="px-4 py-3 text-charcoal font-medium tracking-wide rounded-2xl hover:bg-gold/20 transition-all duration-300 border border-transparent hover:border-gold/30 block"
+                                                onClick={() => setIsMobileMenuOpen(false)}
+                                            >
+                                                ✨ Create Aura
+                                            </Link>
+                                        )}
+                                        <button
+                                            onClick={() => {
+                                                setIsMobileMenuOpen(false);
+                                                setShowLogoutDialog(true);
+                                            }}
+                                            className="w-full text-left px-4 py-3 text-red-600 font-medium tracking-wide rounded-2xl hover:bg-red-50 transition-all duration-300 border border-transparent"
+                                        >
+                                            🚪 Logout
+                                        </button>
+                                    </>
+                                )}
+
                                 {/* Login/Signup button for non-logged-in users */}
                                 {!isLoggedIn && (
                                     <Link

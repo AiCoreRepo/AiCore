@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, ArrowRight, Wand2, Loader2, CheckCircle2, AlertCircle, ArrowLeft } from "lucide-react";
+import { Sparkles, ArrowRight, Wand2, CheckCircle2, AlertCircle, ArrowLeft } from "lucide-react";
 import { PhotoUploadZone } from "./PhotoUploadZone";
 import { BodyAttributesForm } from "./BodyAttributesForm";
 import { useAuth } from "@/context/AuthContext";
@@ -454,32 +454,69 @@ export const AuraFormCard = ({ onCreateAura, isProcessing }: AuraFormCardProps) 
                                         <button
                                             onClick={handleProceedToConfirm}
                                             disabled={!photoFile || isAnalyzing}
-                                            className="group relative w-full overflow-hidden rounded-2xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-[1.02] active:scale-[0.98]"
+                                            className={`group relative w-full overflow-hidden rounded-2xl transition-all duration-300 ${isAnalyzing ? '' : 'disabled:opacity-50 disabled:cursor-not-allowed hover:scale-[1.02] active:scale-[0.98]'}`}
                                             style={{
-                                                boxShadow: photoFile && !isAnalyzing
-                                                    ? '0 8px 24px rgba(201, 165, 95, 0.35), 0 4px 12px rgba(201, 165, 95, 0.2)'
-                                                    : '0 2px 8px rgba(0, 0, 0, 0.1)'
+                                                boxShadow: isAnalyzing
+                                                    ? '0 8px 30px rgba(201, 165, 95, 0.5), 0 4px 15px rgba(201, 165, 95, 0.3)'
+                                                    : photoFile
+                                                        ? '0 8px 24px rgba(201, 165, 95, 0.35), 0 4px 12px rgba(201, 165, 95, 0.2)'
+                                                        : '0 2px 8px rgba(0, 0, 0, 0.1)'
                                             }}
                                         >
-                                            {/* 3D Effect Layers */}
-                                            <div className={`absolute inset-0 bg-gradient-to-br from-gold via-amber-400 to-gold transition-all duration-300 ${photoFile && !isAnalyzing ? 'opacity-100' : 'opacity-0'}`}></div>
-                                            <div className={`absolute inset-0 bg-gradient-to-br from-gray-200 to-gray-300 ${photoFile && !isAnalyzing ? 'opacity-0' : 'opacity-100'}`}></div>
-
-                                            {/* Top Highlight for 3D Effect */}
-                                            {photoFile && !isAnalyzing && (
-                                                <div className="absolute top-0 inset-x-0 h-1/2 bg-gradient-to-b from-white/40 to-transparent rounded-t-2xl" />
-                                            )}
-
-                                            {/* Shine Animation */}
-                                            {photoFile && !isAnalyzing && (
-                                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
+                                            {/* Background layers */}
+                                            {isAnalyzing ? (
+                                                <>
+                                                    {/* Golden animated gradient background when analyzing */}
+                                                    <div className="absolute inset-0 bg-gradient-to-r from-amber-400 via-gold to-amber-400 bg-[length:200%_100%] animate-[shimmer_2s_ease-in-out_infinite]"></div>
+                                                    {/* Sweep shimmer effect */}
+                                                    <motion.div
+                                                        className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent"
+                                                        animate={{ x: ['-100%', '100%'] }}
+                                                        transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+                                                    />
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <div className={`absolute inset-0 bg-gradient-to-br from-gold via-amber-400 to-gold transition-all duration-300 ${photoFile ? 'opacity-100' : 'opacity-0'}`}></div>
+                                                    <div className={`absolute inset-0 bg-gradient-to-br from-gray-200 to-gray-300 ${photoFile ? 'opacity-0' : 'opacity-100'}`}></div>
+                                                    {/* Top Highlight for 3D Effect */}
+                                                    {photoFile && (
+                                                        <div className="absolute top-0 inset-x-0 h-1/2 bg-gradient-to-b from-white/40 to-transparent rounded-t-2xl" />
+                                                    )}
+                                                    {/* Shine Animation */}
+                                                    {photoFile && (
+                                                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
+                                                    )}
+                                                </>
                                             )}
 
                                             <div className="relative px-8 py-4 flex items-center justify-center gap-3">
                                                 {isAnalyzing ? (
                                                     <>
-                                                        <Loader2 className="w-5 h-5 text-charcoal animate-spin" />
-                                                        <span className="font-bold text-base text-charcoal">Analyzing Photo...</span>
+                                                        {/* Animated scanning icon */}
+                                                        <motion.div
+                                                            animate={{ rotate: 360 }}
+                                                            transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
+                                                        >
+                                                            <Wand2 className="w-5 h-5 text-charcoal" />
+                                                        </motion.div>
+                                                        <span className="font-bold text-base text-charcoal">Analyzing Photo</span>
+                                                        {/* Bouncing dots */}
+                                                        <div className="flex gap-1 items-end h-5">
+                                                            {[0, 1, 2].map(i => (
+                                                                <motion.span
+                                                                    key={i}
+                                                                    className="w-1.5 h-1.5 bg-charcoal rounded-full"
+                                                                    animate={{ y: [0, -6, 0] }}
+                                                                    transition={{
+                                                                        duration: 0.6,
+                                                                        repeat: Infinity,
+                                                                        delay: i * 0.15,
+                                                                        ease: 'easeInOut',
+                                                                    }}
+                                                                />
+                                                            ))}
+                                                        </div>
                                                     </>
                                                 ) : (
                                                     <>
@@ -492,7 +529,19 @@ export const AuraFormCard = ({ onCreateAura, isProcessing }: AuraFormCardProps) 
                                                 )}
                                             </div>
 
-                                            {/* Enhanced Glow Effect */}
+                                            {/* Progress bar at bottom when analyzing */}
+                                            {isAnalyzing && (
+                                                <div className="absolute bottom-0 left-0 right-0 h-1 bg-black/10 overflow-hidden">
+                                                    <motion.div
+                                                        className="h-full bg-charcoal/60 rounded-full"
+                                                        initial={{ width: '0%', x: '0%' }}
+                                                        animate={{ width: ['0%', '40%', '20%', '70%', '40%', '100%'], x: ['0%', '10%', '30%', '10%', '40%', '0%'] }}
+                                                        transition={{ duration: 8, ease: 'easeInOut' }}
+                                                    />
+                                                </div>
+                                            )}
+
+                                            {/* Enhanced Glow Effect - only when not analyzing */}
                                             {photoFile && !isAnalyzing && (
                                                 <motion.div
                                                     className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-3/4 h-4 bg-gold/50 blur-2xl rounded-full"
@@ -501,6 +550,18 @@ export const AuraFormCard = ({ onCreateAura, isProcessing }: AuraFormCardProps) 
                                                         scale: [1, 1.1, 1]
                                                     }}
                                                     transition={{ duration: 2, repeat: Infinity }}
+                                                />
+                                            )}
+
+                                            {/* Pulsing glow when analyzing */}
+                                            {isAnalyzing && (
+                                                <motion.div
+                                                    className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-full h-6 bg-gold/60 blur-2xl rounded-full"
+                                                    animate={{
+                                                        opacity: [0.4, 0.8, 0.4],
+                                                        scale: [0.9, 1.1, 0.9]
+                                                    }}
+                                                    transition={{ duration: 1.5, repeat: Infinity }}
                                                 />
                                             )}
                                         </button>
