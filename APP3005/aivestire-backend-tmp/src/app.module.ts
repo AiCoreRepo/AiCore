@@ -23,6 +23,7 @@ import { OrderModule } from './order/order.module';
 import { RefundModule } from './refund/refund.module';
 import { ReturnModule } from './return/return.module';
 import { ReplacementModule } from './replace/replace.module';
+import { PaymentModule } from './payment/payment.module';
 
 
 @Module({
@@ -48,6 +49,7 @@ import { ReplacementModule } from './replace/replace.module';
     RefundModule,
     ReturnModule,
     ReplacementModule,
+    PaymentModule,
   ],
   controllers: [AppController],
   providers: [AppService, AdminSeederService],

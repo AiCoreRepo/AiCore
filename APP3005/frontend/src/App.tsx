@@ -53,6 +53,7 @@ import RefundPolicy from "./pages/RefundPolicy";
 import { MyOrdersPage } from "./features/orders";
 import { OrderTrackingPage } from "./features/orders/OrderTrackingPage";
 import UserDashboard from "./pages/UserDashboard";
+import PaymentSuccessPage from "./pages/PaymentSuccessPage";
 
 const queryClient = new QueryClient();
 
@@ -157,12 +158,13 @@ const App = () => (
                       <Route path="/admin-settings" element={<AdminSettingsPage />} />
                       <Route path="/admin-csv-upload" element={<AdminCSVUploadPage />} />
 
-                      {/* Payment Route */}
+                      {/* Payment Routes */}
                       <Route path="/payment" element={
                         <Suspense fallback={<div className="min-h-screen bg-neutral-950 flex items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-2 border-[#D4AF37] border-t-transparent"></div></div>}>
                           <PaymentPage />
                         </Suspense>
                       } />
+                      <Route path="/payment-success" element={<PaymentSuccessPage />} />
 
                       {/* Legal Pages */}
                       <Route path="/privacy-policy" element={<PrivacyPolicy />} />

@@ -23,6 +23,13 @@ import { OrderShippedEvent } from '../events/order-shipped.event';
 import { OrderOutForDeliveryEvent } from '../events/order-out-for-delivery.event';
 import { OrderDeliveredEvent } from '../events/order-delivered.event';
 import { OrderCancelledEvent } from '../events/order-cancelled.event';
+import {
+    OrderCalculations,
+    OrderValidations,
+    OrderUtils,
+} from '../utils';
+
+
 
 @Injectable()
 export class OrderService {
@@ -38,16 +45,15 @@ export class OrderService {
      * Generate unique order number
      */
     private async generateOrderNumber(): Promise<string> {
-        const year = new Date().getFullYear();
         const count = await this.prisma.order.count();
-        const orderNumber = `ORD-${year}-${String(count + 1).padStart(6, '0')}`;
-        return orderNumber;
+        return OrderUtils.generateOrderNumber(count);
     }
 
     /**
      * Create a new order from cart items
      */
     async createOrder(userId: string, dto: CreateOrderDto) {
+        console.log("OrderService: createOrder called with items:", dto.items.length);
         this.logger.log(`Creating order for user ${userId}`);
 
         // Validate shipping address belongs to user
@@ -63,7 +69,7 @@ export class OrderService {
         }
 
         // Fetch product details and validate inventory
-        const productIds = dto.items.map((item) => item.productId);
+        const productIds = OrderUtils.extractProductIds(dto.items);
         const products = await this.prisma.product.findMany({
             where: {
                 product_id: { in: productIds },
@@ -78,12 +84,10 @@ export class OrderService {
             },
         });
 
-        if (products.length !== productIds.length) {
-            throw new BadRequestException('One or more products not found or unavailable');
-        }
+        // Validate all products were found
+        OrderValidations.validateProductsFound(products.length, productIds.length);
 
         // Calculate total and prepare order items
-        let totalAmount = 0;
         const orderItems = dto.items.map((item) => {
             const product = products.find((p) => p.product_id === item.productId);
 
@@ -91,16 +95,15 @@ export class OrderService {
                 throw new BadRequestException(`Product ${item.productId} not found`);
             }
 
-            // Check inventory
-            if (product.inventory_count < item.quantity) {
-                throw new BadRequestException(
-                    `Insufficient inventory for ${product.title}`,
-                );
-            }
+            // Validate inventory using utility
+            OrderValidations.validateInventory(
+                product.inventory_count,
+                item.quantity,
+                product.title,
+            );
 
             const unitPrice = product.price_cents / 100;
-            const totalPrice = unitPrice * item.quantity;
-            totalAmount += totalPrice;
+            const totalPrice = OrderCalculations.calculateItemTotal(item.quantity, unitPrice);
 
             return {
                 product: {
@@ -118,6 +121,16 @@ export class OrderService {
                     : undefined,
             };
         });
+        // Calculate total amount using utility
+        const totalAmount = OrderCalculations.calculateOrderTotal(
+            orderItems.map(item => ({
+                quantity: item.quantity,
+                unitPrice: item.unit_price,
+            })),
+        );
+
+        console.log("Total Amount:", totalAmount);
+
 
         // Create order in transaction
         const order = await this.prisma.$transaction(async (tx) => {
@@ -228,8 +241,9 @@ export class OrderService {
                     return currentOrder;
                 }
 
-                // Validate transition
-                this.stateMachine.validateTransition(currentOrder, dto.status);
+                // Validate transition (admins can skip steps forward)
+                const isAdmin = userRole === UserRole.ADMIN;
+                this.stateMachine.validateTransition(currentOrder, dto.status, isAdmin);
 
                 // Update order
                 const updatedOrder = await tx.order.update({
@@ -429,17 +443,23 @@ export class OrderService {
         }
 
         return {
+            // Explicitly select only necessary fields
             orderId: order.order_id,
             orderNumber: order.order_number,
+            totalAmount: order.total_amount, // Ensure this matches frontend expectation
+            total_amount: order.total_amount, // Provide both casing for compatibility
             currentStatus: order.current_status,
+            paymentMethod: order.payment_method,
+            paymentStatus: order.payment_status,
             trackingNumber: order.tracking_number,
             estimatedDelivery: order.estimated_delivery_date,
+            createdAt: order.created_at,
             items: order.items,
             shippingAddress: order.shipping_address,
             statusHistory: order.status_history.map((h) => ({
                 status: h.to_status,
                 timestamp: h.created_at,
-                description: h.notes || this.getStatusDescription(h.to_status),
+                description: h.notes || this.getStatusDescription(h.to_status as OrderStatus),
                 changedBy: h.changed_by_type,
             })),
             deliveryTracking: order.delivery_tracking.map((t) => ({
@@ -541,16 +561,7 @@ export class OrderService {
     /**
      * Get default status description
      */
-    private getStatusDescription(status: string): string {
-        const descriptions = {
-            PENDING: 'Order placed successfully',
-            BOOKED: 'Order confirmed and booked',
-            DISPATCHED: 'Package dispatched from warehouse',
-            SHIPPED: 'Package shipped',
-            OUT_FOR_DELIVERY: 'Out for delivery',
-            DELIVERED: 'Package delivered',
-            CANCELLED: 'Order cancelled',
-        };
-        return descriptions[status] || status;
+    private getStatusDescription(status: OrderStatus): string {
+        return OrderUtils.getStatusDescription(status);
     }
 }

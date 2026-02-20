@@ -23,6 +23,7 @@
     "script:check-db": "ts-node scripts/check-db-status.ts",
     "script:migrate-draft": "ts-node scripts/migrate-products-to-draft.ts",
     "script:cleanup-users": "ts-node scripts/cleanup-users.ts",
+    "script:delete-auras": "ts-node scripts/delete-auras.ts",
     "prisma:generate": "npx prisma generate"
   },
   "dependencies": {
@@ -57,6 +58,7 @@
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "prisma": "^6.19.0",
+    "razorpay": "^2.9.6",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
     "sharp": "^0.34.5",

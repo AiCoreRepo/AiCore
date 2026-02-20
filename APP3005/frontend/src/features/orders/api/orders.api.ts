@@ -52,14 +52,20 @@ export const ordersApi = {
     },
 
     // Create a new order
+    // Create a new order
     createOrder: async (payload: CreateOrderPayload): Promise<Order> => {
+        console.log("Creating Order with Payload:", payload);
         const { data } = await api.post('/orders', payload);
+        console.log("Order Created Response:", data);
         return data;
     },
 
     // Get single order details
     getOrder: async (orderId: string): Promise<Order> => {
+        console.log(`Fetching Order Details for ID: ${orderId}`);
         const { data } = await api.get(`/orders/${orderId}`);
+        console.log("Order Details Fetched:", data);
+        console.log("Order Total Amount:", data.total_amount);
         return data;
     },
 
@@ -91,6 +97,7 @@ export const ordersApi = {
         const { data } = await api.get(`/returns/order/${orderId}`);
         return data;
     },
+
 
     // ============================================
     // REPLACEMENT ORDER

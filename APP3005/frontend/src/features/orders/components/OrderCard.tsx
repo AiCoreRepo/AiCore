@@ -4,10 +4,47 @@
 // ============================================
 
 import React, { useState } from 'react';
-import type { Order } from '../types/order.types';
+import type { Order, PaymentMethod, PaymentStatus } from '../types/order.types';
 import { StatusBadge } from './StatusBadge';
 import { OrderTimeline } from './OrderTimeline';
 import { formatOrderDate, getRelativeTime } from '../utils/order.utils';
+import {
+    ORDER_PAYMENT_METHOD_CONFIG,
+    ORDER_PAYMENT_STATUS_CONFIG,
+} from '@/constants/payment.constants';
+
+// ── Payment Method Badge ──────────────────────────────────────────────────────
+const PaymentMethodBadge: React.FC<{ method: PaymentMethod; status: PaymentStatus }> = ({ method, status }) => {
+    const isCOD = method === 'COD';
+
+    // Look up from shared constants (payment.constants.ts)
+    const mc = ORDER_PAYMENT_METHOD_CONFIG[method] ?? ORDER_PAYMENT_METHOD_CONFIG.PREPAID;
+
+    const statusKey =
+        status === 'COMPLETED' ? (isCOD ? 'PAY_ON_DELIVERY' : 'PAID_ONLINE')
+            : status === 'FAILED' ? 'FAILED'
+                : status === 'REFUNDED' ? 'REFUNDED'
+                    : isCOD ? 'PENDING_COD'
+                        : 'PENDING_ONLINE';
+
+    const sc = ORDER_PAYMENT_STATUS_CONFIG[statusKey as keyof typeof ORDER_PAYMENT_STATUS_CONFIG];
+
+    return (
+        <div className="flex items-center gap-2 flex-wrap">
+            {/* Method pill */}
+            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${mc.bg} ${mc.border} ${mc.text}`}>
+                <span>{mc.icon}</span>
+                {mc.label}
+            </span>
+
+            {/* Payment status pill */}
+            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${sc.bg} ${sc.border} ${sc.text}`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${sc.dot}`} />
+                {sc.label}
+            </span>
+        </div>
+    );
+};
 
 interface OrderCardProps {
     order: Order;
@@ -62,9 +99,14 @@ export const OrderCard: React.FC<OrderCardProps> = ({
                         <h3 className="font-bold text-gray-900 text-base md:text-lg mb-1.5 line-clamp-2" style={{ letterSpacing: '0.2px' }}>
                             {primaryItem?.product_name}
                         </h3>
-                        <p className="text-sm text-gray-500 font-medium">
+                        <p className="text-sm text-gray-500 font-medium mb-2">
                             Order #{order.order_number}
                         </p>
+                        {/* Payment Method + Status — like Myntra/Flipkart */}
+                        <PaymentMethodBadge
+                            method={order.payment_method}
+                            status={order.payment_status}
+                        />
                     </div>
 
                     {/* Status Grid */}
@@ -125,6 +167,7 @@ export const OrderCard: React.FC<OrderCardProps> = ({
                         <p className="text-xs text-gray-500 mb-1 uppercase tracking-wide font-medium">Total Amount</p>
                         <p className="text-xl font-bold bg-gradient-to-r from-amber-600 to-yellow-600 bg-clip-text text-transparent">
                             ₹{order.total_amount.toLocaleString('en-IN')}
+
                         </p>
                     </div>
 

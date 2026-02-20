@@ -32,7 +32,7 @@ export class BodyAnalyzerService {
         // Default to port 8000 where the main FastAPI service runs
         this.fastApiUrl =
             this.configService.get<string>('FASTAPI_BODY_ANALYZE_URL') ||
-            'http://localhost:8001/body_analyze_json';
+            'http://localhost:8000/body_analyze_json';
 
         this.fastApiEnabled = !!this.configService.get<string>('FASTAPI_BODY_ANALYZE_URL');
 

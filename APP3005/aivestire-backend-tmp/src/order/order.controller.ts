@@ -29,6 +29,7 @@ export class OrderController {
      */
     @Post()
     async createOrder(@Request() req, @Body() createOrderDto: CreateOrderDto) {
+        console.log("OrderController: Received create order request");
         return this.orderService.createOrder(req.user.user_id, createOrderDto);
     }
 

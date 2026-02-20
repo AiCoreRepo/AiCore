@@ -1,22 +1,29 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect, useRef, useCallback } from 'react';
+import ReactDOM from 'react-dom';
 import {
     ShoppingBag, Search, Calendar, CreditCard, Package,
-    Truck, CheckCircle2, XCircle, Clock, MapPin,
-    ChevronRight, Store, User, Phone, Edit3, Save, X as XIcon,
-    PackageCheck, PackageX, Loader2, AlertCircle
+    Truck, CheckCircle2, MapPin,
+    ChevronRight, ChevronLeft, Edit3, Save, X as XIcon,
+    Loader2, AlertCircle, RefreshCw,
+    ImageOff, ChevronDown, Menu
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { colors, typography } from '@/constants/theme';
 import { Sidebar } from '@/components/admin/Sidebar';
+
+// ─── Types ───────────────────────────────────────────────────────────────────
 
 interface OrderItem {
     order_item_id: string;
     product_id: string;
     product_name: string;
-    product_image?: string;
+    product_image?: string | null;
     quantity: number;
     unit_price: number;
     total_price: number;
+    size?: string | null;
+    color?: string | null;
+    product?: {
+        images?: Array<{ url: string; is_primary: boolean }>;
+    };
 }
 
 interface ShippingAddress {
@@ -43,257 +50,500 @@ interface Order {
     delivery_partner?: string;
 }
 
-type FilterType = 'all' | 'PENDING' | 'BOOKED' | 'DISPATCHED' | 'SHIPPED' | 'OUT_FOR_DELIVERY' | 'DELIVERED' | 'CANCELLED';
+// ─── Constants ───────────────────────────────────────────────────────────────
+
+const ITEMS_PER_PAGE = 10;
+
+const STATUS_ORDER = ['PENDING', 'BOOKED', 'DISPATCHED', 'SHIPPED', 'OUT_FOR_DELIVERY', 'DELIVERED'];
+
+const getAdminAllowedNextStatuses = (currentStatus: string): string[] => {
+    if (currentStatus === 'DELIVERED' || currentStatus === 'CANCELLED') return [];
+    const idx = STATUS_ORDER.indexOf(currentStatus);
+    const forward = idx === -1 ? STATUS_ORDER : STATUS_ORDER.slice(idx + 1);
+    return [...forward, 'CANCELLED'];
+};
+
+const STATUS_META: Record<string, { color: string; bg: string; border: string; label: string; dot: string }> = {
+    PENDING: { color: '#F59E0B', bg: 'rgba(245,158,11,0.1)', border: 'rgba(245,158,11,0.35)', label: 'Pending Approval', dot: '#F59E0B' },
+    BOOKED: { color: '#3B82F6', bg: 'rgba(59,130,246,0.1)', border: 'rgba(59,130,246,0.35)', label: 'Confirmed', dot: '#3B82F6' },
+    DISPATCHED: { color: '#8B5CF6', bg: 'rgba(139,92,246,0.1)', border: 'rgba(139,92,246,0.35)', label: 'Dispatched', dot: '#8B5CF6' },
+    SHIPPED: { color: '#6366F1', bg: 'rgba(99,102,241,0.1)', border: 'rgba(99,102,241,0.35)', label: 'In Transit', dot: '#6366F1' },
+    OUT_FOR_DELIVERY: { color: '#EC4899', bg: 'rgba(236,72,153,0.1)', border: 'rgba(236,72,153,0.35)', label: 'Out for Delivery', dot: '#EC4899' },
+    DELIVERED: { color: '#10B981', bg: 'rgba(16,185,129,0.1)', border: 'rgba(16,185,129,0.35)', label: 'Delivered', dot: '#10B981' },
+    CANCELLED: { color: '#EF4444', bg: 'rgba(239,68,68,0.1)', border: 'rgba(239,68,68,0.35)', label: 'Cancelled', dot: '#EF4444' },
+};
+
+const STATUS_LABELS: Record<string, string> = {
+    PENDING: 'Pending',
+    BOOKED: 'Booked / Confirmed',
+    DISPATCHED: 'Dispatched',
+    SHIPPED: 'Shipped / In Transit',
+    OUT_FOR_DELIVERY: 'Out for Delivery',
+    DELIVERED: 'Delivered',
+    CANCELLED: 'Cancelled',
+};
+
+const ALL_FILTER_TABS = [
+    { id: 'all', label: 'All Orders', },
+    { id: 'PENDING', label: 'Pending', },
+    { id: 'BOOKED', label: 'Booked', },
+    { id: 'DISPATCHED', label: 'Dispatched', },
+    { id: 'SHIPPED', label: 'Shipped', },
+    { id: 'OUT_FOR_DELIVERY', label: 'Out for Delivery' },
+    { id: 'DELIVERED', label: 'Delivered', },
+    { id: 'CANCELLED', label: 'Cancelled', },
+];
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+const getItemImage = (item: OrderItem): string | null => {
+    if (item.product_image) return item.product_image;
+    if (item.product?.images?.length) {
+        const primary = item.product.images.find(img => img.is_primary);
+        return primary?.url || item.product.images[0]?.url || null;
+    }
+    return null;
+};
+
+// ─── Sub-components ──────────────────────────────────────────────────────────
+
+const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
+    const m = STATUS_META[status] || STATUS_META.PENDING;
+    return (
+        <span
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border whitespace-nowrap"
+            style={{ color: m.color, background: m.bg, borderColor: m.border }}
+        >
+            <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: m.dot }} />
+            {m.label}
+        </span>
+    );
+};
+
+// Skeleton card for lazy loading
+const SkeletonCard = () => (
+    <div className="bg-neutral-900/50 border border-neutral-800 rounded-2xl p-4 sm:p-6 animate-pulse">
+        <div className="flex gap-4">
+            <div className="w-16 h-20 sm:w-20 sm:h-24 rounded-xl bg-neutral-800 flex-shrink-0" />
+            <div className="flex-1 space-y-3">
+                <div className="flex gap-3 flex-wrap">
+                    <div className="h-5 w-36 bg-neutral-800 rounded" />
+                    <div className="h-5 w-24 bg-neutral-800 rounded-full" />
+                </div>
+                <div className="h-4 w-56 bg-neutral-800 rounded" />
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-2">
+                    {[1, 2, 3, 4].map(i => (
+                        <div key={i} className="h-8 bg-neutral-800 rounded" />
+                    ))}
+                </div>
+            </div>
+        </div>
+        <div className="mt-4 flex justify-end">
+            <div className="h-9 w-32 bg-neutral-800 rounded-xl" />
+        </div>
+    </div>
+);
+
+// ─── Custom Status Dropdown — Portal-based so it's never clipped ──────────────
+
+
+interface StatusDropdownProps {
+    value: string;
+    options: string[];
+    onChange: (v: string) => void;
+    labels: Record<string, string>;
+    colors: Record<string, { dot: string; color: string }>;
+}
+
+const StatusDropdown: React.FC<StatusDropdownProps> = ({ value, options, onChange, labels, colors }) => {
+    const [open, setOpen] = React.useState(false);
+    const [rect, setRect] = React.useState<DOMRect | null>(null);
+    const triggerRef = React.useRef<HTMLButtonElement>(null);
+    const panelRef = React.useRef<HTMLDivElement>(null);
+
+    // Calculate position when opening
+    const handleOpen = () => {
+        if (triggerRef.current) {
+            setRect(triggerRef.current.getBoundingClientRect());
+        }
+        setOpen(o => !o);
+    };
+
+    // Close on outside click
+    React.useEffect(() => {
+        if (!open) return;
+        const handler = (e: MouseEvent) => {
+            const target = e.target as Node;
+            if (
+                triggerRef.current && !triggerRef.current.contains(target) &&
+                panelRef.current && !panelRef.current.contains(target)
+            ) {
+                setOpen(false);
+            }
+        };
+        // Update rect on scroll so panel follows the trigger
+        const updateRect = () => {
+            if (triggerRef.current) setRect(triggerRef.current.getBoundingClientRect());
+        };
+        document.addEventListener('mousedown', handler);
+        window.addEventListener('scroll', updateRect, true);
+        window.addEventListener('resize', updateRect);
+        return () => {
+            document.removeEventListener('mousedown', handler);
+            window.removeEventListener('scroll', updateRect, true);
+            window.removeEventListener('resize', updateRect);
+        };
+    }, [open]);
+
+    const selected = labels[value] || value;
+    const dotColor = colors[value]?.dot || '#888';
+
+    if (options.length === 0) {
+        return (
+            <div className="w-full px-3 py-2.5 bg-neutral-800 border border-neutral-700 rounded-xl text-neutral-500 text-sm">
+                No transitions available
+            </div>
+        );
+    }
+
+    // Dropdown panel — rendered via portal on body
+    const panelStyle: React.CSSProperties = rect
+        ? {
+            position: 'fixed',
+            top: rect.bottom + 4,
+            left: rect.left,
+            width: rect.width,
+            zIndex: 99999,
+            background: '#ffffff',
+            borderRadius: '0.75rem',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.5), 0 4px 16px rgba(0,0,0,0.3)',
+            border: '1px solid #d1d5db',
+            overflow: 'hidden',
+        }
+        : { display: 'none' };
+
+    return (
+        <>
+            {/* Trigger button */}
+            <button
+                ref={triggerRef}
+                type="button"
+                onClick={handleOpen}
+                className="w-full flex items-center justify-between gap-2 px-3 py-2.5 bg-neutral-800 border border-amber-500/60 rounded-xl text-sm font-medium hover:border-amber-500 transition-colors focus:outline-none"
+            >
+                <span className="flex items-center gap-2 truncate">
+                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: dotColor }} />
+                    <span className="text-white truncate">{selected}</span>
+                </span>
+                <ChevronDown className={`w-4 h-4 text-amber-400 flex-shrink-0 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
+            </button>
+
+            {/* Portal panel — renders directly on body, above everything */}
+            {open && ReactDOM.createPortal(
+                <div ref={panelRef} style={panelStyle}>
+                    {options.map(opt => {
+                        const label = labels[opt] || opt;
+                        const dot = colors[opt]?.dot || '#888';
+                        const isSelected = opt === value;
+                        return (
+                            <button
+                                key={opt}
+                                type="button"
+                                onClick={() => { onChange(opt); setOpen(false); }}
+                                className="w-full flex items-center gap-3 px-4 py-3 text-left text-sm font-semibold transition-colors"
+                                style={{
+                                    background: isSelected ? '#FEF3C7' : '#ffffff',
+                                    color: '#111827',
+                                    borderBottom: '1px solid #f3f4f6',
+                                }}
+                                onMouseEnter={e => {
+                                    if (!isSelected) (e.currentTarget as HTMLElement).style.background = '#F9FAFB';
+                                }}
+                                onMouseLeave={e => {
+                                    (e.currentTarget as HTMLElement).style.background = isSelected ? '#FEF3C7' : '#ffffff';
+                                }}
+                            >
+                                <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: dot }} />
+                                <span className="flex-1">{label}</span>
+                                {isSelected && (
+                                    <span style={{ color: '#D97706', fontSize: '0.875rem', fontWeight: 700 }}>✓</span>
+                                )}
+                            </button>
+                        );
+                    })}
+                </div>,
+                document.body
+            )}
+        </>
+    );
+};
+
+
 
 const AdminOrdersPage = () => {
-    const [orders, setOrders] = useState<Order[]>([]);
-    const [filteredOrders, setFilteredOrders] = useState<Order[]>([]);
+    const [allOrders, setAllOrders] = useState<Order[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [searchQuery, setSearchQuery] = useState('');
-    const [activeFilter, setActiveFilter] = useState<FilterType>('all');
-    const [editingOrder, setEditingOrder] = useState<string | null>(null);
+    const [search, setSearch] = useState('');
+    const [activeFilter, setActiveFilter] = useState('all');
+    const [currentPage, setCurrentPage] = useState(1);
+    const [sidebarOpen, setSidebarOpen] = useState(false);
+    const [filterOpen, setFilterOpen] = useState(false);
+
+    // Edit state
+    const [editingId, setEditingId] = useState<string | null>(null);
     const [newStatus, setNewStatus] = useState('');
-    const [trackingNumber, setTrackingNumber] = useState('');
+    const [trackingNum, setTrackingNum] = useState('');
     const [deliveryPartner, setDeliveryPartner] = useState('');
     const [isUpdating, setIsUpdating] = useState(false);
+    const [updateMsg, setUpdateMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-    const filters = [
-        { id: 'all' as FilterType, label: 'All Orders', icon: ShoppingBag },
-        { id: 'PENDING' as FilterType, label: 'Pending', icon: Clock },
-        { id: 'BOOKED' as FilterType, label: 'Booked', icon: CheckCircle2 },
-        { id: 'DISPATCHED' as FilterType, label: 'Dispatched', icon: Package },
-        { id: 'SHIPPED' as FilterType, label: 'Shipped', icon: Truck },
-        { id: 'DELIVERED' as FilterType, label: 'Delivered', icon: PackageCheck },
-        { id: 'CANCELLED' as FilterType, label: 'Cancelled', icon: XCircle },
-    ];
+    // Lazy-load: which order cards are visible
+    const [visibleSet, setVisibleSet] = useState<Set<string>>(new Set());
+    const observerRef = useRef<IntersectionObserver | null>(null);
+    const observedNodes = useRef<Map<string, Element>>(new Map());
 
+    // Create ONE persistent observer at mount
     useEffect(() => {
-        fetchOrders();
+        observerRef.current = new IntersectionObserver(
+            (entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        const id = (entry.target as HTMLElement).dataset.orderid;
+                        if (id) setVisibleSet(prev => new Set([...prev, id]));
+                    }
+                });
+            },
+            { threshold: 0.05, rootMargin: '100px' }
+        );
+        return () => observerRef.current?.disconnect();
     }, []);
 
-    useEffect(() => {
-        filterOrders();
-    }, [searchQuery, activeFilter, orders]);
+    const registerCardRef = useCallback((node: HTMLDivElement | null, orderId: string) => {
+        if (!node) return;
+        observedNodes.current.set(orderId, node);
+        observerRef.current?.observe(node);
+    }, []);
 
-    const fetchOrders = async () => {
+    // ── Fetch ─────────────────────────────────────────────────────────────────
+
+    const fetchOrders = useCallback(async () => {
         setIsLoading(true);
         try {
             const token = localStorage.getItem('access_token');
-            const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/orders/all`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                },
-            });
-
-            if (response.ok) {
-                const data = await response.json();
-                setOrders(data);
-            }
-        } catch (error) {
-            console.error('Failed to fetch orders:', error);
+            const res = await fetch(
+                `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/orders/all`,
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+            if (res.ok) setAllOrders(await res.json());
+        } catch (e) {
+            console.error(e);
         } finally {
             setIsLoading(false);
         }
-    };
+    }, []);
 
-    const filterOrders = () => {
-        let filtered = orders;
+    useEffect(() => { fetchOrders(); }, [fetchOrders]);
 
-        if (activeFilter !== 'all') {
-            filtered = filtered.filter(order => order.current_status === activeFilter);
-        }
+    // ── Filtering & Pagination ────────────────────────────────────────────────
 
-        if (searchQuery) {
-            const query = searchQuery.toLowerCase();
-            filtered = filtered.filter(order =>
-                order.order_number.toLowerCase().includes(query) ||
-                order.user_id.toLowerCase().includes(query)
-            );
-        }
+    const filtered = allOrders.filter(order => {
+        const matchFilter = activeFilter === 'all' || order.current_status === activeFilter;
+        const q = search.toLowerCase();
+        const matchSearch = !q ||
+            order.order_number.toLowerCase().includes(q) ||
+            order.items?.some(i => i.product_name?.toLowerCase().includes(q));
+        return matchFilter && matchSearch;
+    });
 
-        setFilteredOrders(filtered);
-    };
+    const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
+    const paginatedOrders = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
-    const getOrderCountByFilter = (filter: FilterType) => {
-        if (filter === 'all') return orders.length;
-        return orders.filter(order => order.current_status === filter).length;
-    };
 
-    const startEditingOrder = (order: Order) => {
-        setEditingOrder(order.order_id);
-        setNewStatus(order.current_status);
-        setTrackingNumber(order.tracking_number || '');
+    // reset page on filter/search change
+    useEffect(() => { setCurrentPage(1); setVisibleSet(new Set()); }, [activeFilter, search]);
+
+    // Re-observe cards whenever page changes
+    useEffect(() => {
+        const obs = observerRef.current;
+        if (!obs) return;
+        const timer = setTimeout(() => {
+            observedNodes.current.forEach((node) => obs.observe(node));
+        }, 50);
+        return () => clearTimeout(timer);
+    }, [paginatedOrders]);
+
+    // ── Edit helpers ──────────────────────────────────────────────────────────
+
+    const startEditing = (order: Order) => {
+        setEditingId(order.order_id);
+        const allowed = getAdminAllowedNextStatuses(order.current_status);
+        setNewStatus(allowed[0] || '');
+        setTrackingNum(order.tracking_number || '');
         setDeliveryPartner(order.delivery_partner || '');
+        setUpdateMsg(null);
     };
 
     const cancelEditing = () => {
-        setEditingOrder(null);
+        setEditingId(null);
         setNewStatus('');
-        setTrackingNumber('');
+        setTrackingNum('');
         setDeliveryPartner('');
+        setUpdateMsg(null);
     };
 
-    const updateOrderStatus = async (orderId: string) => {
+    const submitUpdate = async (orderId: string) => {
+        if (!newStatus) return;
         setIsUpdating(true);
+        setUpdateMsg(null);
         try {
             const token = localStorage.getItem('access_token');
-            const response = await fetch(
+            const res = await fetch(
                 `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/orders/${orderId}/status`,
                 {
                     method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json',
-                    },
+                    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         status: newStatus,
-                        trackingNumber: trackingNumber || undefined,
+                        trackingNumber: trackingNum || undefined,
                         deliveryPartner: deliveryPartner || undefined,
-                        notes: `Status updated by admin to ${newStatus}`,
+                        notes: `Admin updated to ${newStatus}`,
                     }),
                 }
             );
-
-            if (response.ok) {
+            if (res.ok) {
+                setUpdateMsg({ type: 'success', text: '✓ Order updated successfully!' });
                 await fetchOrders();
-                cancelEditing();
+                setTimeout(cancelEditing, 1500);
             } else {
-                const errorData = await response.json();
-                alert(`Failed to update order: ${errorData.message || 'Unknown error'}`);
+                const err = await res.json();
+                setUpdateMsg({ type: 'error', text: err.message || 'Update failed.' });
             }
-        } catch (error) {
-            console.error('Failed to update order:', error);
-            alert('Failed to update order status');
+        } catch {
+            setUpdateMsg({ type: 'error', text: 'Network error. Please try again.' });
         } finally {
             setIsUpdating(false);
         }
     };
 
-    const getStatusConfig = (status: string) => {
-        const configs: Record<string, { color: string; bg: string; icon: any; label: string }> = {
-            'PENDING': {
-                color: '#F59E0B',
-                bg: 'bg-orange-500/10',
-                icon: Clock,
-                label: 'Pending Approval'
-            },
-            'BOOKED': {
-                color: '#3B82F6',
-                bg: 'bg-blue-500/10',
-                icon: CheckCircle2,
-                label: 'Order Confirmed'
-            },
-            'DISPATCHED': {
-                color: '#8B5CF6',
-                bg: 'bg-purple-500/10',
-                icon: Package,
-                label: 'Dispatched'
-            },
-            'SHIPPED': {
-                color: '#6366F1',
-                bg: 'bg-indigo-500/10',
-                icon: Truck,
-                label: 'In Transit'
-            },
-            'OUT_FOR_DELIVERY': {
-                color: '#EC4899',
-                bg: 'bg-pink-500/10',
-                icon: Truck,
-                label: 'Out for Delivery'
-            },
-            'DELIVERED': {
-                color: '#10B981',
-                bg: 'bg-green-500/10',
-                icon: PackageCheck,
-                label: 'Delivered'
-            },
-            'CANCELLED': {
-                color: '#EF4444',
-                bg: 'bg-red-500/10',
-                icon: XCircle,
-                label: 'Cancelled'
-            },
-        };
-        return configs[status] || configs['PENDING'];
+    // ── Pagination pages array ────────────────────────────────────────────────
+
+    const getPageNumbers = () => {
+        if (totalPages <= 7) return Array.from({ length: totalPages }, (_, i) => i + 1);
+        const pages: (number | '...')[] = [1];
+        if (currentPage > 3) pages.push('...');
+        for (let p = Math.max(2, currentPage - 1); p <= Math.min(totalPages - 1, currentPage + 1); p++) {
+            pages.push(p);
+        }
+        if (currentPage < totalPages - 2) pages.push('...');
+        pages.push(totalPages);
+        return pages;
     };
 
-    const statusOptions = [
-        { value: 'PENDING', label: 'Pending', icon: Clock },
-        { value: 'BOOKED', label: 'Booked', icon: CheckCircle2 },
-        { value: 'DISPATCHED', label: 'Dispatched', icon: Package },
-        { value: 'SHIPPED', label: 'Shipped', icon: Truck },
-        { value: 'OUT_FOR_DELIVERY', label: 'Out for Delivery', icon: Truck },
-        { value: 'DELIVERED', label: 'Delivered', icon: PackageCheck },
-        { value: 'CANCELLED', label: 'Cancelled', icon: XCircle },
-    ];
+    // ── Render ────────────────────────────────────────────────────────────────
 
     return (
-        <div className="flex min-h-screen bg-neutral-950">
-            <Sidebar />
+        <div className="flex min-h-screen bg-neutral-950 font-sans">
 
-            <div className="flex-1 ml-[280px]" style={{ fontFamily: typography.fontSans }}>
-                {/* Header */}
-                <div className="bg-neutral-900/80 border-b border-neutral-800 sticky top-0 z-20 backdrop-blur-xl">
-                    <div className="px-8 py-6">
-                        <div className="flex items-center justify-between mb-6">
-                            <div>
-                                <h1 className="text-2xl font-bold text-white mb-1" style={{ fontFamily: typography.fontSerif }}>
-                                    Order Management
-                                </h1>
-                                <p className="text-neutral-400 text-sm">
-                                    Manage and track all customer orders
-                                </p>
-                            </div>
-                            <div className="flex items-center gap-6">
-                                <div className="text-right">
-                                    <p className="text-3xl font-bold" style={{ color: colors.gold }}>
-                                        {filteredOrders.length}
+            {/* ── Sidebar: desktop always visible, mobile slide-in overlay ── */}
+            {/* Dark dimmer behind mobile sidebar */}
+            {sidebarOpen && (
+                <div
+                    className="fixed inset-0 bg-black/70 z-40 lg:hidden"
+                    onClick={() => setSidebarOpen(false)}
+                />
+            )}
+
+            {/* Sidebar wrapper — clips it out of flow on mobile */}
+            <div
+                className="flex-shrink-0 hidden lg:block"
+                style={{ width: 280 }}
+            >
+                {/* Actual sidebar (it is position:fixed internally so this div is just a spacer) */}
+                <Sidebar />
+            </div>
+
+            {/* Mobile sidebar: slide in as overlay */}
+            <div
+                className={`
+                    fixed top-0 left-0 h-full z-50 lg:hidden
+                    transition-transform duration-300 ease-in-out
+                    ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+                `}
+            >
+                <Sidebar />
+            </div>
+
+            {/* Main content — always fills remaining space */}
+            <div className="flex-1 min-w-0 flex flex-col min-h-screen overflow-x-hidden">
+
+                {/* ── Top Bar ─────────────────────────────────────────────── */}
+                <div className="bg-neutral-900/95 border-b border-neutral-800 sticky top-0 z-30 backdrop-blur-xl">
+                    <div className="px-4 sm:px-6 lg:px-8 py-4">
+
+                        {/* Title Row */}
+                        <div className="flex items-center justify-between gap-3 mb-4">
+                            <div className="flex items-center gap-3">
+                                {/* Mobile hamburger */}
+                                <button
+                                    className="lg:hidden p-2 rounded-lg bg-neutral-800 text-neutral-300"
+                                    onClick={() => setSidebarOpen(true)}
+                                >
+                                    <Menu className="w-5 h-5" />
+                                </button>
+                                <div>
+                                    <h1 className="text-lg sm:text-2xl font-bold text-white leading-tight" style={{ fontFamily: 'Georgia, serif' }}>
+                                        Order Management
+                                    </h1>
+                                    <p className="text-neutral-500 text-xs hidden sm:block">
+                                        {filtered.length} order{filtered.length !== 1 ? 's' : ''} found
                                     </p>
-                                    <p className="text-xs text-neutral-500 uppercase tracking-wider">Total</p>
                                 </div>
                             </div>
+                            <button
+                                onClick={fetchOrders}
+                                disabled={isLoading}
+                                className="flex items-center gap-2 px-3 py-2 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 rounded-xl text-sm font-medium transition-all border border-neutral-700 whitespace-nowrap"
+                            >
+                                <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+                                <span className="hidden sm:inline">Refresh</span>
+                            </button>
                         </div>
 
                         {/* Search */}
-                        <div className="relative">
-                            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-neutral-500" />
+                        <div className="relative mb-3">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500" />
                             <input
                                 type="text"
-                                placeholder="Search orders by number, user ID..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full pl-12 pr-4 py-3 bg-neutral-800/50 border border-neutral-700 rounded-xl text-white placeholder-neutral-500 focus:outline-none focus:border-[#D4AF37] transition-all"
+                                placeholder="Search orders, products..."
+                                value={search}
+                                onChange={e => setSearch(e.target.value)}
+                                className="w-full pl-10 pr-4 py-2.5 bg-neutral-800/60 border border-neutral-700 rounded-xl text-white placeholder-neutral-500 focus:outline-none focus:border-amber-500 transition-all text-sm"
                             />
                         </div>
-                    </div>
 
-                    {/* Filter Tabs */}
-                    <div className="px-8 pb-4 overflow-x-auto no-scrollbar">
-                        <div className="flex gap-2 min-w-max">
-                            {filters.map((filter) => {
-                                const count = getOrderCountByFilter(filter.id);
-                                const isActive = activeFilter === filter.id;
-                                const Icon = filter.icon;
-
+                        {/* Filter Tabs — scroll horizontal */}
+                        <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
+                            {ALL_FILTER_TABS.map(tab => {
+                                const count = tab.id === 'all' ? allOrders.length : allOrders.filter(o => o.current_status === tab.id).length;
+                                const isActive = activeFilter === tab.id;
+                                const meta = STATUS_META[tab.id];
                                 return (
                                     <button
-                                        key={filter.id}
-                                        onClick={() => setActiveFilter(filter.id)}
+                                        key={tab.id}
+                                        onClick={() => setActiveFilter(tab.id)}
                                         className={`
-                                            relative px-5 py-2.5 rounded-lg font-medium text-sm transition-all duration-300
-                                            flex items-center gap-2 whitespace-nowrap
+                                            flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all flex-shrink-0
                                             ${isActive
-                                                ? 'bg-[#D4AF37] text-black shadow-lg shadow-[#D4AF37]/20'
-                                                : 'bg-neutral-800/50 text-neutral-400 hover:bg-neutral-800 hover:text-neutral-300'
+                                                ? 'bg-amber-500 text-black shadow-md'
+                                                : 'bg-neutral-800/60 text-neutral-400 hover:bg-neutral-800 hover:text-neutral-200'
                                             }
                                         `}
                                     >
-                                        <Icon className="w-4 h-4" />
-                                        <span>{filter.label}</span>
-                                        <span className={`
-                                            ml-1 px-2 py-0.5 rounded-full text-xs font-bold
-                                            ${isActive ? 'bg-black/20 text-black' : 'bg-neutral-700 text-neutral-400'}
-                                        `}>
+                                        {tab.id !== 'all' && meta && (
+                                            <span className="w-1.5 h-1.5 rounded-full" style={{ background: isActive ? '#000' : meta.dot }} />
+                                        )}
+                                        {tab.label}
+                                        <span className={`px-1.5 py-0.5 rounded-full text-xs font-bold ${isActive ? 'bg-black/20' : 'bg-neutral-700 text-neutral-400'}`}>
                                             {count}
                                         </span>
                                     </button>
@@ -303,238 +553,356 @@ const AdminOrdersPage = () => {
                     </div>
                 </div>
 
-                {/* Orders List */}
-                <div className="p-8">
+                {/* ── Orders List ─────────────────────────────────────────── */}
+                <div className="flex-1 p-4 sm:p-6 lg:p-8">
+
+                    {/* Loading skeletons */}
                     {isLoading ? (
-                        <div className="flex flex-col items-center justify-center py-32">
-                            <Loader2 className="w-12 h-12 animate-spin mb-4" style={{ color: colors.gold }} />
-                            <p className="text-neutral-400">Loading orders...</p>
+                        <div className="space-y-4">
+                            {[1, 2, 3, 4].map(i => <SkeletonCard key={i} />)}
                         </div>
-                    ) : filteredOrders.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center py-32">
-                            <div className="w-24 h-24 rounded-full bg-neutral-800/50 flex items-center justify-center mb-6">
-                                <ShoppingBag className="w-12 h-12 text-neutral-600" />
+                    ) : paginatedOrders.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center py-24">
+                            <div className="w-20 h-20 rounded-full bg-neutral-800/50 flex items-center justify-center mb-4">
+                                <ShoppingBag className="w-10 h-10 text-neutral-600" />
                             </div>
-                            <h3 className="text-xl font-semibold text-neutral-300 mb-2">No orders found</h3>
-                            <p className="text-neutral-500 text-sm">
-                                {searchQuery ? 'Try adjusting your search' : 'Orders will appear here once customers place them'}
+                            <h3 className="text-lg font-semibold text-neutral-400 mb-1">No orders found</h3>
+                            <p className="text-neutral-600 text-sm text-center max-w-xs">
+                                {search ? 'Try a different search term' : 'Orders will appear here once customers place them'}
                             </p>
                         </div>
                     ) : (
                         <div className="space-y-4">
-                            {filteredOrders.map((order, index) => {
-                                const statusConfig = getStatusConfig(order.current_status);
-                                const StatusIcon = statusConfig.icon;
-                                const isEditing = editingOrder === order.order_id;
+                            {paginatedOrders.map((order, idx) => {
+                                const isEditing = editingId === order.order_id;
+                                const isTerminal = ['DELIVERED', 'CANCELLED'].includes(order.current_status);
+                                const allowed = getAdminAllowedNextStatuses(order.current_status);
+                                const meta = STATUS_META[order.current_status] || STATUS_META.PENDING;
+                                const primaryItem = order.items?.[0];
+                                const primaryImg = primaryItem ? getItemImage(primaryItem) : null;
+                                const isVisible = visibleSet.has(order.order_id);
 
                                 return (
-                                    <motion.div
+                                    <div
                                         key={order.order_id}
-                                        initial={{ opacity: 0, y: 20 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        transition={{ delay: index * 0.05 }}
-                                        className="bg-neutral-900/50 border border-neutral-800 rounded-2xl overflow-hidden hover:border-neutral-700 transition-all duration-300"
+                                        ref={node => registerCardRef(node, order.order_id)}
+                                        data-orderid={order.order_id}
+                                        className={`
+                                            bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden
+                                            hover:border-neutral-700 transition-all duration-500
+                                            ${isVisible
+                                                ? 'opacity-100 translate-y-0'
+                                                : 'opacity-0 translate-y-2'
+                                            }
+                                        `}
+                                        style={{ transitionDelay: `${Math.min(idx * 60, 300)}ms` }}
                                     >
-                                        <div className="p-6">
-                                            {/* Order Header */}
-                                            <div className="flex items-start justify-between mb-6">
-                                                <div className="flex-1">
-                                                    <div className="flex items-center gap-3 mb-3">
-                                                        <h3 className="text-lg font-bold text-white">
-                                                            {order.order_number}
-                                                        </h3>
-                                                        <div
-                                                            className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full ${statusConfig.bg}`}
-                                                            style={{ color: statusConfig.color }}
-                                                        >
-                                                            <StatusIcon className="w-3.5 h-3.5" />
-                                                            <span className="text-xs font-semibold">
-                                                                {statusConfig.label}
-                                                            </span>
-                                                        </div>
+                                        <div className="p-4 sm:p-5 lg:p-6">
+
+                                            {/* ── Card Header ───────────────────────────── */}
+                                            <div className="flex gap-3 sm:gap-4">
+
+                                                {/* Image */}
+                                                <div className="relative flex-shrink-0">
+                                                    <div
+                                                        className="rounded-xl overflow-hidden border border-neutral-700 bg-neutral-800"
+                                                        style={{ width: '3.5rem', height: '4.5rem' }}
+                                                    >
+                                                        {primaryImg ? (
+                                                            <img
+                                                                src={primaryImg}
+                                                                alt={primaryItem?.product_name || 'Product'}
+                                                                className="w-full h-full object-cover"
+                                                                loading="lazy"
+                                                                onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
+                                                            />
+                                                        ) : (
+                                                            <div className="w-full h-full flex items-center justify-center">
+                                                                <ImageOff className="w-6 h-6 text-neutral-600" />
+                                                            </div>
+                                                        )}
                                                     </div>
-
-                                                    <div className="grid grid-cols-4 gap-6">
-                                                        <div className="flex items-center gap-2 text-sm">
-                                                            <Calendar className="w-4 h-4 text-neutral-500" />
-                                                            <div>
-                                                                <p className="text-neutral-500 text-xs mb-0.5">Placed On</p>
-                                                                <p className="text-neutral-300 font-medium">
-                                                                    {new Date(order.created_at).toLocaleDateString('en-IN', {
-                                                                        day: 'numeric',
-                                                                        month: 'short',
-                                                                        year: 'numeric'
-                                                                    })}
-                                                                </p>
-                                                            </div>
+                                                    {(order.items?.length || 0) > 1 && (
+                                                        <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-amber-500 text-black text-xs font-bold flex items-center justify-center">
+                                                            +{order.items.length - 1}
                                                         </div>
-
-                                                        <div className="flex items-center gap-2 text-sm">
-                                                            <CreditCard className="w-4 h-4 text-neutral-500" />
-                                                            <div>
-                                                                <p className="text-neutral-500 text-xs mb-0.5">Payment</p>
-                                                                <p className="text-neutral-300 font-medium">
-                                                                    {order.payment_method}
-                                                                </p>
-                                                            </div>
-                                                        </div>
-
-                                                        <div className="flex items-center gap-2 text-sm">
-                                                            <Package className="w-4 h-4 text-neutral-500" />
-                                                            <div>
-                                                                <p className="text-neutral-500 text-xs mb-0.5">Items</p>
-                                                                <p className="text-neutral-300 font-medium">
-                                                                    {order.items?.length || 0} item{order.items?.length !== 1 ? 's' : ''}
-                                                                </p>
-                                                            </div>
-                                                        </div>
-
-                                                        <div className="flex items-center gap-2 text-sm">
-                                                            <ShoppingBag className="w-4 h-4 text-neutral-500" />
-                                                            <div>
-                                                                <p className="text-neutral-500 text-xs mb-0.5">Total</p>
-                                                                <p className="text-xl font-bold" style={{ color: colors.gold }}>
-                                                                    ₹{order.total_amount.toLocaleString('en-IN')}
-                                                                </p>
-                                                            </div>
-                                                        </div>
-                                                    </div>
+                                                    )}
                                                 </div>
 
-                                                {!isEditing && (
-                                                    <button
-                                                        onClick={() => startEditingOrder(order)}
-                                                        className="ml-4 px-4 py-2 bg-[#D4AF37]/10 border border-[#D4AF37]/30 rounded-xl text-[#D4AF37] hover:bg-[#D4AF37]/20 transition-all flex items-center gap-2 text-sm font-semibold"
-                                                    >
-                                                        <Edit3 className="w-4 h-4" />
-                                                        Update Status
-                                                    </button>
-                                                )}
+                                                {/* Info block */}
+                                                <div className="flex-1 min-w-0">
+
+                                                    {/* Order number + status + UPDATE BUTTON */}
+                                                    <div className="flex flex-wrap items-center gap-2 mb-2">
+                                                        <span className="text-sm font-bold text-white truncate max-w-[160px] sm:max-w-none">
+                                                            {order.order_number}
+                                                        </span>
+                                                        <StatusBadge status={order.current_status} />
+                                                        {/* UPDATE STATUS BUTTON */}
+                                                        {!isEditing && !isTerminal && (
+                                                            <button
+                                                                onClick={() => startEditing(order)}
+                                                                className="ml-auto flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/40 text-amber-400 hover:bg-amber-500/20 transition-all text-xs font-semibold whitespace-nowrap"
+                                                            >
+                                                                <Edit3 className="w-3 h-3" />
+                                                                <span className="hidden xs:inline">Update</span>
+                                                                <span className="xs:hidden">✎</span>
+                                                            </button>
+                                                        )}
+                                                        {isTerminal && (
+                                                            <span className="ml-auto text-xs text-neutral-600 italic">Done</span>
+                                                        )}
+                                                    </div>
+
+                                                    {/* Product name */}
+                                                    {primaryItem && (
+                                                        <p className="text-xs sm:text-sm text-neutral-400 mb-2 line-clamp-1">
+                                                            {primaryItem.product_name}
+                                                            {(order.items?.length || 0) > 1 && (
+                                                                <span className="text-neutral-600"> + {order.items.length - 1} more</span>
+                                                            )}
+                                                        </p>
+                                                    )}
+
+                                                    {/* Meta grid — 2 col mobile, 4 col desktop */}
+                                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-3 gap-y-2">
+                                                        <MetaCell icon={<Calendar className="w-3 h-3" />} label="Date" value={
+                                                            new Date(order.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: '2-digit' })
+                                                        } />
+                                                        <MetaCell icon={<CreditCard className="w-3 h-3" />} label="Payment" value={order.payment_method} />
+                                                        <MetaCell icon={<Package className="w-3 h-3" />} label="Items" value={`${order.items?.length || 0} item${(order.items?.length || 0) !== 1 ? 's' : ''}`} />
+                                                        <MetaCell icon={<ShoppingBag className="w-3 h-3" />} label="Total" value={`₹${Number(order.total_amount).toLocaleString('en-IN')}`} gold />
+                                                    </div>
+                                                </div>
                                             </div>
 
-                                            {/* Tracking Info */}
-                                            {(order.tracking_number || order.delivery_partner) && !isEditing && (
-                                                <div className="flex items-center gap-4 px-4 py-3 bg-neutral-800/30 rounded-xl border border-neutral-800">
-                                                    <Truck className="w-5 h-5 text-[#D4AF37]" />
-                                                    <div className="flex-1">
-                                                        {order.tracking_number && (
-                                                            <p className="text-sm text-neutral-300">
-                                                                <span className="text-neutral-500">Tracking:</span> <span className="font-semibold">{order.tracking_number}</span>
-                                                            </p>
-                                                        )}
-                                                        {order.delivery_partner && (
-                                                            <p className="text-xs text-neutral-500">
-                                                                {order.delivery_partner}
-                                                            </p>
-                                                        )}
+                                            {/* Address */}
+                                            {order.shipping_address && !isEditing && (
+                                                <div className="flex items-start gap-2 mt-3 px-3 py-2 bg-neutral-800/30 rounded-xl border border-neutral-800">
+                                                    <MapPin className="w-3.5 h-3.5 text-neutral-500 mt-0.5 flex-shrink-0" />
+                                                    <p className="text-xs text-neutral-500 line-clamp-1">
+                                                        {order.shipping_address.address_line1}
+                                                        {order.shipping_address.city ? `, ${order.shipping_address.city}` : ''}
+                                                        {order.shipping_address.state ? `, ${order.shipping_address.state}` : ''}
+                                                    </p>
+                                                </div>
+                                            )}
+
+                                            {/* Tracking badge */}
+                                            {!isEditing && (
+                                                <div className="flex items-center gap-2 mt-2 px-3 py-2 bg-neutral-800/30 rounded-xl border border-neutral-800">
+                                                    <Truck className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
+                                                    <div className="text-xs text-neutral-400 truncate">
+                                                        {order.delivery_partner && <span className="font-semibold text-neutral-300">{order.delivery_partner}</span>}
+                                                        {order.tracking_number && <span className="text-neutral-500 ml-1.5 font-mono">{order.tracking_number}</span>}
                                                     </div>
                                                 </div>
                                             )}
 
-                                            {/* Edit Panel */}
-                                            <AnimatePresence>
-                                                {isEditing && (
-                                                    <motion.div
-                                                        initial={{ opacity: 0, height: 0 }}
-                                                        animate={{ opacity: 1, height: 'auto' }}
-                                                        exit={{ opacity: 0, height: 0 }}
-                                                        className="mt-6 pt-6 border-t border-neutral-800"
-                                                    >
-                                                        <div className="bg-neutral-800/30 rounded-xl p-6 border border-neutral-800">
-                                                            <h4 className="text-sm font-semibold text-white mb-4 flex items-center gap-2">
-                                                                <Edit3 className="w-4 h-4" style={{ color: colors.gold }} />
-                                                                Update Order Status
-                                                            </h4>
+                                            {/* ── Edit Panel ─────────────────────────────── */}
+                                            {isEditing && (
+                                                <div className="mt-4 pt-4 border-t border-neutral-800">
+                                                    <div className="bg-neutral-800/40 rounded-xl p-4 border border-neutral-700">
+                                                        <p className="text-sm font-semibold text-white mb-1 flex items-center gap-2">
+                                                            <Edit3 className="w-4 h-4 text-amber-400" />
+                                                            Update Status
+                                                            <span className="text-xs text-neutral-500 font-normal">
+                                                                (currently: <span className="text-amber-400">{order.current_status}</span>)
+                                                            </span>
+                                                        </p>
 
-                                                            <div className="grid grid-cols-3 gap-4 mb-6">
-                                                                <div>
-                                                                    <label className="block text-xs font-medium text-neutral-400 mb-2 uppercase tracking-wide">
-                                                                        Order Status
-                                                                    </label>
-                                                                    <div className="relative">
-                                                                        <select
-                                                                            value={newStatus}
-                                                                            onChange={(e) => setNewStatus(e.target.value)}
-                                                                            className="w-full px-4 py-3 bg-neutral-900/50 border border-neutral-700 rounded-xl text-white focus:outline-none focus:border-[#D4AF37] transition-all appearance-none cursor-pointer"
-                                                                        >
-                                                                            {statusOptions.map(opt => (
-                                                                                <option key={opt.value} value={opt.value}>
-                                                                                    {opt.label}
-                                                                                </option>
-                                                                            ))}
-                                                                        </select>
-                                                                        <ChevronRight className="absolute right-3 top-1/2 transform -translate-y-1/2 rotate-90 w-5 h-5 text-neutral-500 pointer-events-none" />
-                                                                    </div>
-                                                                </div>
+                                                        {/* Alert */}
+                                                        {updateMsg && editingId === order.order_id && (
+                                                            <div className={`flex items-start gap-2 px-3 py-2.5 rounded-xl text-xs mb-3 mt-2 border ${updateMsg.type === 'success'
+                                                                ? 'bg-green-500/10 border-green-500/30 text-green-400'
+                                                                : 'bg-red-500/10 border-red-500/30 text-red-400'
+                                                                }`}>
+                                                                {updateMsg.type === 'error'
+                                                                    ? <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+                                                                    : <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+                                                                }
+                                                                {updateMsg.text}
+                                                            </div>
+                                                        )}
 
-                                                                <div>
-                                                                    <label className="block text-xs font-medium text-neutral-400 mb-2 uppercase tracking-wide">
-                                                                        Tracking Number
-                                                                    </label>
-                                                                    <input
-                                                                        type="text"
-                                                                        value={trackingNumber}
-                                                                        onChange={(e) => setTrackingNumber(e.target.value)}
-                                                                        placeholder="e.g., TRK123456789"
-                                                                        className="w-full px-4 py-3 bg-neutral-900/50 border border-neutral-700 rounded-xl text-white placeholder-neutral-600 focus:outline-none focus:border-[#D4AF37] transition-all"
-                                                                    />
-                                                                </div>
-
-                                                                <div>
-                                                                    <label className="block text-xs font-medium text-neutral-400 mb-2 uppercase tracking-wide">
-                                                                        Delivery Partner
-                                                                    </label>
-                                                                    <input
-                                                                        type="text"
-                                                                        value={deliveryPartner}
-                                                                        onChange={(e) => setDeliveryPartner(e.target.value)}
-                                                                        placeholder="e.g., FedEx, DHL"
-                                                                        className="w-full px-4 py-3 bg-neutral-900/50 border border-neutral-700 rounded-xl text-white placeholder-neutral-600 focus:outline-none focus:border-[#D4AF37] transition-all"
-                                                                    />
-                                                                </div>
+                                                        {/* Fields — stack on mobile, 3-col on sm+ */}
+                                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3">
+                                                            {/* Status custom dropdown */}
+                                                            <div>
+                                                                <label className="block text-xs text-neutral-500 mb-1 font-medium uppercase tracking-wide">New Status *</label>
+                                                                <StatusDropdown
+                                                                    value={newStatus}
+                                                                    options={allowed}
+                                                                    onChange={setNewStatus}
+                                                                    labels={STATUS_LABELS}
+                                                                    colors={STATUS_META}
+                                                                />
                                                             </div>
 
-                                                            <div className="flex gap-3">
-                                                                <button
-                                                                    onClick={() => updateOrderStatus(order.order_id)}
-                                                                    disabled={isUpdating}
-                                                                    className="px-6 py-3 bg-[#D4AF37] text-black rounded-xl font-bold hover:bg-[#C5A028] transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-[#D4AF37]/20"
-                                                                >
-                                                                    {isUpdating ? (
-                                                                        <>
-                                                                            <Loader2 className="w-4 h-4 animate-spin" />
-                                                                            Updating...
-                                                                        </>
-                                                                    ) : (
-                                                                        <>
-                                                                            <Save className="w-4 h-4" />
-                                                                            Save Changes
-                                                                        </>
-                                                                    )}
-                                                                </button>
-                                                                <button
-                                                                    onClick={cancelEditing}
-                                                                    disabled={isUpdating}
-                                                                    className="px-6 py-3 bg-neutral-800 text-neutral-300 rounded-xl font-semibold hover:bg-neutral-700 transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                                                                >
-                                                                    <XIcon className="w-4 h-4" />
-                                                                    Cancel
-                                                                </button>
+                                                            {/* Tracking */}
+                                                            <div>
+                                                                <label className="block text-xs text-neutral-500 mb-1 font-medium uppercase tracking-wide">Tracking ID</label>
+                                                                <input
+                                                                    type="text"
+                                                                    value={trackingNum}
+                                                                    onChange={e => setTrackingNum(e.target.value)}
+                                                                    placeholder="e.g. TRK123456"
+                                                                    className="w-full px-3 py-2.5 border border-neutral-600 rounded-xl text-sm focus:outline-none focus:border-amber-500 transition-colors"
+                                                                    style={{ background: '#1c1c2e', color: '#ffffff' }}
+                                                                />
+                                                            </div>
+
+                                                            {/* Delivery partner */}
+                                                            <div>
+                                                                <label className="block text-xs text-neutral-500 mb-1 font-medium uppercase tracking-wide">Delivery Partner</label>
+                                                                <input
+                                                                    type="text"
+                                                                    value={deliveryPartner}
+                                                                    onChange={e => setDeliveryPartner(e.target.value)}
+                                                                    placeholder="e.g. Delhivery"
+                                                                    className="w-full px-3 py-2.5 border border-neutral-600 rounded-xl text-sm focus:outline-none focus:border-amber-500 transition-colors"
+                                                                    style={{ background: '#1c1c2e', color: '#ffffff' }}
+                                                                />
                                                             </div>
                                                         </div>
-                                                    </motion.div>
-                                                )}
-                                            </AnimatePresence>
+
+                                                        {/* Action buttons — full width on mobile */}
+                                                        <div className="flex flex-col xs:flex-row gap-2 mt-4">
+                                                            <button
+                                                                onClick={() => submitUpdate(order.order_id)}
+                                                                disabled={isUpdating || !newStatus}
+                                                                className="flex-1 xs:flex-none flex items-center justify-center gap-2 px-5 py-2.5 bg-amber-500 text-black rounded-xl text-xs font-bold hover:bg-amber-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md shadow-amber-500/20"
+                                                            >
+                                                                {isUpdating ? (
+                                                                    <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Updating...</>
+                                                                ) : (
+                                                                    <><Save className="w-3.5 h-3.5" /> Save Changes</>
+                                                                )}
+                                                            </button>
+                                                            <button
+                                                                onClick={cancelEditing}
+                                                                disabled={isUpdating}
+                                                                className="flex-1 xs:flex-none flex items-center justify-center gap-2 px-5 py-2.5 bg-neutral-800 text-neutral-300 rounded-xl text-xs font-semibold hover:bg-neutral-700 transition-all disabled:opacity-50"
+                                                            >
+                                                                <XIcon className="w-3.5 h-3.5" /> Cancel
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* Multi-item thumbnails */}
+                                            {!isEditing && order.items.length > 1 && (
+                                                <div className="mt-4 pt-3 border-t border-neutral-800/60">
+                                                    <p className="text-xs text-neutral-600 mb-2">All items:</p>
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {order.items.map((item, i) => {
+                                                            const img = getItemImage(item);
+                                                            return (
+                                                                <div key={item.order_item_id || i} className="flex items-center gap-2 bg-neutral-800/40 rounded-lg px-2.5 py-1.5 border border-neutral-700/50 max-w-[10rem]">
+                                                                    <div className="w-7 h-9 rounded overflow-hidden bg-neutral-800 flex-shrink-0">
+                                                                        {img ? (
+                                                                            <img src={img} alt={item.product_name} className="w-full h-full object-cover" loading="lazy" />
+                                                                        ) : (
+                                                                            <div className="w-full h-full flex items-center justify-center">
+                                                                                <Package className="w-3 h-3 text-neutral-600" />
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                    <div className="min-w-0">
+                                                                        <p className="text-xs text-neutral-300 font-medium truncate">{item.product_name}</p>
+                                                                        <p className="text-xs text-neutral-500">×{item.quantity} · ₹{Number(item.total_price).toLocaleString('en-IN')}</p>
+                                                                    </div>
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
-                                    </motion.div>
+                                    </div>
                                 );
                             })}
                         </div>
                     )}
+
+                    {/* ── Pagination ───────────────────────────────────────── */}
+                    {!isLoading && totalPages > 1 && (
+                        <div className="mt-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+                            <p className="text-xs text-neutral-500 order-2 sm:order-1">
+                                Showing{' '}
+                                <span className="text-neutral-300 font-semibold">
+                                    {(currentPage - 1) * ITEMS_PER_PAGE + 1}–{Math.min(currentPage * ITEMS_PER_PAGE, filtered.length)}
+                                </span>
+                                {' '}of{' '}
+                                <span className="text-neutral-300 font-semibold">{filtered.length}</span> orders
+                            </p>
+
+                            <div className="flex items-center gap-1.5 order-1 sm:order-2">
+                                {/* Prev */}
+                                <button
+                                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                    disabled={currentPage === 1}
+                                    className="flex items-center gap-1 px-3 py-2 rounded-xl bg-neutral-800 border border-neutral-700 text-neutral-300 hover:bg-neutral-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all text-xs font-medium"
+                                >
+                                    <ChevronLeft className="w-3.5 h-3.5" /> Prev
+                                </button>
+
+                                {/* Page numbers */}
+                                <div className="flex items-center gap-1">
+                                    {getPageNumbers().map((p, idx) =>
+                                        p === '...' ? (
+                                            <span key={`dots-${idx}`} className="px-2 text-neutral-600 text-sm">…</span>
+                                        ) : (
+                                            <button
+                                                key={p}
+                                                onClick={() => setCurrentPage(p as number)}
+                                                className={`
+                                                    w-8 h-8 rounded-lg text-xs font-semibold transition-all
+                                                    ${currentPage === p
+                                                        ? 'bg-amber-500 text-black shadow-md shadow-amber-500/20'
+                                                        : 'bg-neutral-800 border border-neutral-700 text-neutral-400 hover:bg-neutral-700 hover:text-neutral-200'
+                                                    }
+                                                `}
+                                            >
+                                                {p}
+                                            </button>
+                                        )
+                                    )}
+                                </div>
+
+                                {/* Next */}
+                                <button
+                                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                    disabled={currentPage === totalPages}
+                                    className="flex items-center gap-1 px-3 py-2 rounded-xl bg-neutral-800 border border-neutral-700 text-neutral-300 hover:bg-neutral-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all text-xs font-medium"
+                                >
+                                    Next <ChevronRight className="w-3.5 h-3.5" />
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Bottom spacer */}
+                    <div className="h-8" />
                 </div>
             </div>
         </div>
     );
 };
+
+// ── MetaCell helper ───────────────────────────────────────────────────────────
+
+const MetaCell: React.FC<{ icon: React.ReactNode; label: string; value: string; gold?: boolean }> = ({
+    icon, label, value, gold
+}) => (
+    <div className="flex items-center gap-1.5">
+        <span className="text-neutral-600 flex-shrink-0">{icon}</span>
+        <div className="min-w-0">
+            <p className="text-neutral-600 text-[10px] leading-none mb-0.5">{label}</p>
+            <p className={`text-xs font-semibold truncate ${gold ? 'text-amber-400' : 'text-neutral-300'}`}>{value}</p>
+        </div>
+    </div>
+);
 
 export default AdminOrdersPage;

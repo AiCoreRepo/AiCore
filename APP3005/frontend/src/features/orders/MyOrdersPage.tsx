@@ -90,18 +90,21 @@ export const MyOrdersPage = () => {
 
         switch (normalizedStatus) {
             case 'DELIVERED':
-                return { label: 'Delivered', className: 'bg-[#408EC6] text-white border-none' }; // Blue
+                return { label: '✓ Delivered', className: 'bg-green-100 text-green-700 border border-green-200' };
+            case 'OUT_FOR_DELIVERY':
+                return { label: '🚚 Out for Delivery', className: 'bg-pink-100 text-pink-700 border border-pink-200' };
             case 'SHIPPED':
-                return { label: 'Shipped', className: 'bg-[#74B886] text-white border-none' }; // Green
+                return { label: '📦 Shipped', className: 'bg-blue-100 text-blue-700 border border-blue-200' };
+            case 'DISPATCHED':
+                return { label: '🚀 Dispatched', className: 'bg-purple-100 text-purple-700 border border-purple-200' };
+            case 'BOOKED':
+                return { label: '✅ Confirmed', className: 'bg-indigo-100 text-indigo-700 border border-indigo-200' };
             case 'CANCELLED':
-                return { label: 'Cancelled', className: 'bg-red-100 text-red-600 border border-red-200' };
+                return { label: '✕ Cancelled', className: 'bg-red-100 text-red-600 border border-red-200' };
             case 'ORDER_PLACED':
             case 'PENDING':
-            case 'BOOKED':
-            case 'DISPATCHED':
-                return { label: 'Processing', className: 'bg-[#E3D5B9] text-[#8C7A5B] border-none' }; // Beige/Gold-ish
+                return { label: '⏳ Pending', className: 'bg-[#E3D5B9] text-[#8C7A5B] border-none' };
             default:
-                // Handle UNKNOWN or other statuses gracefully
                 return {
                     label: normalizedStatus.replace(/_/g, ' ') || 'Processing',
                     className: 'bg-gray-100 text-gray-600'
@@ -309,6 +312,24 @@ export const MyOrdersPage = () => {
                                                     <p className="text-base sm:text-lg font-bold text-[#2C2416] mb-3">
                                                         ₹{Number(order.total_amount).toLocaleString('en-IN')}
                                                     </p>
+
+                                                    {/* Tracking Info (if available) */}
+                                                    {(order.delivery_partner || order.tracking_number) && (
+                                                        <div className="flex items-center gap-2 mb-3 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg">
+                                                            <svg className="w-4 h-4 text-amber-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM15 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" />
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 00-1 1v10a1 1 0 001 1h1.05a2.5 2.5 0 014.9 0H10a1 1 0 001-1V5a1 1 0 00-1-1H3zM14 7a1 1 0 00-1 1v6.05A2.5 2.5 0 0115.95 16H17a1 1 0 001-1v-5a1 1 0 00-.293-.707l-2-2A1 1 0 0015 7h-1z" />
+                                                            </svg>
+                                                            <div className="text-xs">
+                                                                {order.delivery_partner && (
+                                                                    <span className="font-semibold text-amber-800">{order.delivery_partner}</span>
+                                                                )}
+                                                                {order.tracking_number && (
+                                                                    <span className="text-amber-700 ml-1">· {order.tracking_number}</span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    )}
 
                                                     {/* Action Buttons */}
                                                     <div className="flex flex-wrap gap-2">

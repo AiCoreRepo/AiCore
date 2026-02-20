@@ -4,6 +4,7 @@
 
 export type OrderStatus =
     | 'PENDING'
+    | 'PENDING_APPROVAL'
     | 'BOOKED'
     | 'DISPATCHED'
     | 'SHIPPED'
@@ -23,10 +24,10 @@ export interface CreateOrderItem {
 export interface CreateOrderPayload {
     items: CreateOrderItem[];
     shippingAddressId: string;
-    paymentMethod: 'COD' | 'PREPAID';
+    paymentMethod: 'COD' | 'PREPAID' | 'RAZORPAY';
 }
 
-export type PaymentMethod = 'PREPAID' | 'COD';
+export type PaymentMethod = 'PREPAID' | 'COD' | 'RAZORPAY';
 
 export type RefundStatus = 'INITIATED' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'REJECTED';
 
@@ -62,11 +63,24 @@ export interface OrderItem {
     color?: string | null;
 }
 
+export interface ShippingAddress {
+    address_id?: string;
+    first_name?: string;
+    last_name?: string;
+    address_line1?: string;
+    address_line2?: string;
+    city?: string;
+    state?: string;
+    pincode?: string;
+    country?: string;
+    phone?: string;
+}
+
 export interface Order {
     order_id: string;
     order_number: string;
     user_id: string;
-    total_amount: number;
+    total_amount: Number;
     payment_method: PaymentMethod;
     payment_status: PaymentStatus;
     current_status: OrderStatus;
@@ -96,6 +110,7 @@ export interface Order {
 
     // Relations
     items: OrderItem[];
+    shipping_address?: ShippingAddress | null;
 
     // Action flags (from backend)
     can_cancel?: boolean;
