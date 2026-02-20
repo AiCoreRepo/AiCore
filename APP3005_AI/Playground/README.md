@@ -18,3 +18,4 @@ uv run streamlit run src/streamlit_app.py
 
 ## Copy/paste
 Copy the whole `streamlit_bundle/` folder to any machine, run the commands above, and it should work as-is.
+# AiCore uv run uvicorn api:app --host 0.0.0.0 --port 8000 --reload

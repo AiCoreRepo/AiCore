@@ -458,6 +458,7 @@ model Order {
   refunds                 OrderRefund[]
   returns                 OrderReturn[]
   replacements            OrderReplacement[]
+  payment_transactions    PaymentTransaction[]
   
   @@index([user_id])
   @@index([current_status])
@@ -717,6 +718,7 @@ enum OrderStatus {
 enum PaymentMethod {
   PREPAID
   COD
+  RAZORPAY
 }
 
 enum PaymentStatus {
@@ -794,4 +796,69 @@ enum ReplacementStatus {
   DELIVERED
   COMPLETED
   REJECTED
+}
+
+// ============================================
+// PAYMENT GATEWAY SYSTEM
+// ============================================
+
+/**
+ * Tracks every Razorpay order/payment attempt for an order.
+ * One order can have multiple attempts (e.g., user retries after failure).
+ */
+model PaymentTransaction {
+  transaction_id     String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  order_id           String                   @db.Uuid
+
+  // Gateway Info
+  gateway            PaymentGateway           @default(RAZORPAY)
+  gateway_order_id   String?                  @unique // Razorpay order ID (order_XXXX)
+  gateway_payment_id String?                  // Razorpay payment ID (pay_XXXX)
+
+  // Amount
+  amount_paise       Int                      // Amount in paise (smallest unit)
+  currency           String                   @default("INR")
+  receipt            String?                  // Unique receipt sent to Razorpay
+
+  // Status
+  status             PaymentTransactionStatus @default(CREATED)
+  payment_method     String?                  // card, upi, netbanking, wallet, etc.
+
+  // Refund
+  refund_id          String?                  // Razorpay refund ID
+  refunded_at        DateTime?
+
+  // Timestamps
+  created_at         DateTime                 @default(now())
+  captured_at        DateTime?
+  updated_at         DateTime                 @updatedAt
+
+  // Metadata (raw Razorpay response)
+  metadata           Json?
+
+  // Relations
+  order              Order                    @relation(fields: [order_id], references: [order_id], onDelete: Cascade)
+
+  @@index([order_id])
+  @@index([gateway_order_id])
+  @@index([gateway_payment_id])
+  @@index([status])
+  @@index([created_at(sort: Desc)])
+  @@map("payment_transactions")
+}
+
+enum PaymentGateway {
+  RAZORPAY
+  COD
+}
+
+enum PaymentTransactionStatus {
+  CREATED
+  ATTEMPTED
+  AUTHORIZED
+  CAPTURED
+  FAILED
+  REFUNDED
+  PARTIALLY_REFUNDED
+  CANCELLED
 }

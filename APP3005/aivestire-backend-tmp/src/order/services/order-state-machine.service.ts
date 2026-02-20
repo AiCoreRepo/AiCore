@@ -1,28 +1,32 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { OrderStatus, PaymentMethod, Order } from '@prisma/client';
 
+
+
 @Injectable()
 export class OrderStateMachineService {
     private readonly transitions: Record<OrderStatus, OrderStatus[]> = {
-        PENDING: ['BOOKED', 'CANCELLED'],
-        BOOKED: ['DISPATCHED', 'CANCELLED'],
-        DISPATCHED: ['SHIPPED', 'CANCELLED'],
-        SHIPPED: ['OUT_FOR_DELIVERY'],
-        OUT_FOR_DELIVERY: ['DELIVERED'],
-        DELIVERED: [],
-        CANCELLED: [],
+        [OrderStatus.PENDING]: [OrderStatus.BOOKED, OrderStatus.CANCELLED],
+        [OrderStatus.BOOKED]: [OrderStatus.DISPATCHED, OrderStatus.CANCELLED],
+        [OrderStatus.DISPATCHED]: [OrderStatus.SHIPPED, OrderStatus.CANCELLED],
+        [OrderStatus.SHIPPED]: [OrderStatus.OUT_FOR_DELIVERY],
+        [OrderStatus.OUT_FOR_DELIVERY]: [OrderStatus.DELIVERED],
+        [OrderStatus.DELIVERED]: [],
+        [OrderStatus.CANCELLED]: [],
     };
 
     private readonly cancellableStates: OrderStatus[] = [
-        'PENDING',
-        'BOOKED',
-        'DISPATCHED',
+        OrderStatus.PENDING,
+        OrderStatus.BOOKED,
+        OrderStatus.DISPATCHED,
     ];
-
     /**
      * Check if transition from one status to another is valid
      */
-    canTransition(from: OrderStatus, to: OrderStatus): boolean {
+    canTransition(from: OrderStatus, to: OrderStatus, isAdminOverride: boolean = false): boolean {
+        if (isAdminOverride) {
+            return true;
+        }
         const allowedStates = this.transitions[from];
         return allowedStates?.includes(to) ?? false;
     }
@@ -53,46 +57,48 @@ export class OrderStateMachineService {
     /**
      * Comprehensive validation before state transition
      */
-    validateTransition(order: Order, newStatus: OrderStatus): void {
+    validateTransition(order: Order, newStatus: OrderStatus, isAdminOverride: boolean = false): void {
         // Check if transition is valid
-        if (!this.canTransition(order.current_status, newStatus)) {
+        if (!this.canTransition(order.current_status, newStatus, isAdminOverride)) {
             throw new BadRequestException(
                 `Invalid state transition from ${order.current_status} to ${newStatus}`,
             );
         }
 
-        // Check if already in terminal state
-        if (
+        // Check if already in terminal state (unless admin override)
+        if (!isAdminOverride && (
             order.current_status === OrderStatus.DELIVERED ||
             order.current_status === OrderStatus.CANCELLED
-        ) {
+        )) {
             throw new BadRequestException(
                 `Cannot change status from terminal state: ${order.current_status}`,
             );
         }
 
-        // COD validation
+        // COD validation (always applies)
         this.validateCOD(order, newStatus);
     }
 
     /**
      * Validate cancellation request
      */
-    validateCancellation(order: Order): void {
-        if (!this.canCancel(order.current_status)) {
-            throw new BadRequestException(
-                `Cannot cancel order in ${order.current_status} state. Only orders in PENDING, BOOKED, or DISPATCHED state can be cancelled.`,
-            );
-        }
-
+    validateCancellation(order: Order, isAdminOverride: boolean = false): void {
         if (order.current_status === OrderStatus.CANCELLED) {
             throw new BadRequestException('Order is already cancelled');
         }
 
-        if (order.current_status === OrderStatus.DELIVERED) {
-            throw new BadRequestException(
-                'Cannot cancel delivered order. Please initiate a return instead.',
-            );
+        if (!isAdminOverride) {
+            if (!this.canCancel(order.current_status)) {
+                throw new BadRequestException(
+                    `Cannot cancel order in ${order.current_status} state. Only orders in PENDING, BOOKED, or DISPATCHED state can be cancelled.`,
+                );
+            }
+
+            if (order.current_status === OrderStatus.DELIVERED) {
+                throw new BadRequestException(
+                    'Cannot cancel delivered order. Please initiate a return instead.',
+                );
+            }
         }
     }
 

@@ -1,0 +1,25 @@
+{
+    "name": "aivestire-monorepo",
+    "version": "1.0.0",
+    "private": true,
+    "scripts": {
+        "frontend": "npm run dev --prefix frontend",
+        "backend": "npm run start:dev --prefix aivestire-backend-tmp",
+        "dev": "concurrently \"npm run backend\" \"npm run frontend\"",
+        "start": "npm run dev",
+        "db:generate": "npm run prisma:generate --prefix aivestire-backend-tmp",
+        "db:migrate": "npm run migrate:deploy --prefix aivestire-backend-tmp",
+        "script:cleanup-users": "npm run script:cleanup-users --prefix aivestire-backend-tmp",
+        "script:create-admin": "npm run script:create-admin --prefix aivestire-backend-tmp",
+        "script:check-db": "npm run script:check-db --prefix aivestire-backend-tmp",
+        "script:migrate-draft": "npm run script:migrate-draft --prefix aivestire-backend-tmp"
+    },
+    "devDependencies": {
+        "concurrently": "^8.2.2",
+        "nx": "latest"
+    },
+    "workspaces": [
+        "frontend",
+        "aivestire-backend-tmp"
+    ]
+}

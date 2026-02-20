@@ -18,7 +18,7 @@ export class RecommendationService {
         private readonly configService: ConfigService,
     ) {
         this.fastApiUrl = this.configService.get<string>('FASTAPI_RECOMMENDATION_URL') ||
-            'http://localhost:8001/recommendation/ai-decide';
+            'http://localhost:8000/recommendation/ai-decide';
     }
 
     /**
