@@ -293,7 +293,7 @@ export const ProductDetailsModal = ({ isOpen, onClose, product, onTryOn }: Produ
                                         color: '#1a1a1a',
                                     }}
                                 >
-                                    Try on with AI
+                                    Vestire Try On
                                 </button>
                                 <button
                                     onClick={handleLike}

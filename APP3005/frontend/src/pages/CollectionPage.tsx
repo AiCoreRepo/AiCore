@@ -47,6 +47,7 @@ const CollectionPage = () => {
     const [tryOnError, setTryOnError] = useState<string | null>(null);
     const [generatingAngles, setGeneratingAngles] = useState(false);
     const [originalTryOnImage, setOriginalTryOnImage] = useState<string | null>(null);
+    const [generatedImages, setGeneratedImages] = useState<string[]>([]);
 
     // Fetch Aura for user photo in modal
     useEffect(() => {
@@ -190,6 +191,7 @@ const CollectionPage = () => {
                     : `data:image/jpeg;base64,${result.resultImage}`;
                 setResultImage(imageData);
                 setOriginalTryOnImage(imageData);
+                setGeneratedImages([imageData]);
             } else {
                 throw new Error(result.message || 'Try-on failed');
             }
@@ -217,6 +219,7 @@ const CollectionPage = () => {
                     ? result.resultImage
                     : `data:image/jpeg;base64,${result.resultImage}`;
                 setResultImage(imageData);
+                setGeneratedImages(prev => [...prev, imageData]);
             }
         } catch (error: any) {
             setTryOnError(error.message || 'Failed to generate angles');
@@ -537,6 +540,8 @@ const CollectionPage = () => {
                 generatingAngles={generatingAngles}
                 userPhoto={aura?.image_url}
                 garmentId={selectedTryOnProduct || undefined}
+                generatedImages={generatedImages}
+                onSelectImage={(img) => setResultImage(img)}
             />
         </div>
     );

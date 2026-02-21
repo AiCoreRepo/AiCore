@@ -242,7 +242,7 @@ export const ProductCard = ({ product, onTryOn }: ProductCardProps) => {
                                     boxShadow: '0 4px 16px rgba(212, 175, 55, 0.5)',
                                 }}
                             >
-                                Try on with AI
+                                Vestire Try On
                             </button>
                         </div>
                     </div>

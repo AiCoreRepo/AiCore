@@ -20,10 +20,10 @@ export const OPTIMAL_IMAGE_HEIGHT = 1024;
 
 // Supported MIME Types
 export const SUPPORTED_MIME_TYPES = [
-    'image/jpeg',
-    'image/jpg',
-    'image/png',
-    'image/webp',
+  'image/jpeg',
+  'image/jpg',
+  'image/png',
+  'image/webp',
 ] as const;
 
 // Supported File Extensions
@@ -84,36 +84,37 @@ OUTPUT: A single, high-quality, photorealistic image of the person wearing the c
 
 // Error Messages
 export const ERROR_MESSAGES = {
-    INVALID_IMAGE_FORMAT: 'Invalid image format. Supported formats: JPEG, PNG, WEBP',
-    IMAGE_TOO_LARGE: `Image size exceeds maximum limit of ${MAX_IMAGE_SIZE_MB}MB`,
-    IMAGE_TOO_SMALL: 'Image size is too small. Minimum size is 1KB',
-    INVALID_DIMENSIONS: `Image dimensions must be between ${MIN_IMAGE_WIDTH}x${MIN_IMAGE_HEIGHT} and ${MAX_IMAGE_WIDTH}x${MAX_IMAGE_HEIGHT}`,
-    CORRUPTED_IMAGE: 'Image file is corrupted or cannot be processed',
-    MISSING_AVATAR: 'Avatar image is required',
-    MISSING_CLOTHING: 'Clothing image is required',
-    RATE_LIMIT_EXCEEDED: 'Rate limit exceeded. Please try again later',
-    SERVICE_UNAVAILABLE: 'AI service is temporarily unavailable',
-    TIMEOUT: 'Request timeout. Please try again',
-    PROCESSING_FAILED: 'Failed to process try-on request',
-    INVALID_PROVIDER: 'Invalid AI provider specified',
-    MISSING_API_KEY: 'AI service API key is not configured',
+  INVALID_IMAGE_FORMAT:
+    'Invalid image format. Supported formats: JPEG, PNG, WEBP',
+  IMAGE_TOO_LARGE: `Image size exceeds maximum limit of ${MAX_IMAGE_SIZE_MB}MB`,
+  IMAGE_TOO_SMALL: 'Image size is too small. Minimum size is 1KB',
+  INVALID_DIMENSIONS: `Image dimensions must be between ${MIN_IMAGE_WIDTH}x${MIN_IMAGE_HEIGHT} and ${MAX_IMAGE_WIDTH}x${MAX_IMAGE_HEIGHT}`,
+  CORRUPTED_IMAGE: 'Image file is corrupted or cannot be processed',
+  MISSING_AVATAR: 'Avatar image is required',
+  MISSING_CLOTHING: 'Clothing image is required',
+  RATE_LIMIT_EXCEEDED: 'Rate limit exceeded. Please try again later',
+  SERVICE_UNAVAILABLE: 'AI service is temporarily unavailable',
+  TIMEOUT: 'Request timeout. Please try again',
+  PROCESSING_FAILED: 'Failed to process try-on request',
+  INVALID_PROVIDER: 'Invalid AI provider specified',
+  MISSING_API_KEY: 'AI service API key is not configured',
 } as const;
 
 // Success Messages
 export const SUCCESS_MESSAGES = {
-    TRYON_COMPLETED: 'Virtual try-on completed successfully',
-    IMAGE_VALIDATED: 'Image validation passed',
-    PROCESSING_STARTED: 'Try-on processing started',
+  TRYON_COMPLETED: 'Virtual try-on completed successfully',
+  IMAGE_VALIDATED: 'Image validation passed',
+  PROCESSING_STARTED: 'Try-on processing started',
 } as const;
 
 // Service Configuration Keys
 export const CONFIG_KEYS = {
-    VERTEX_AI_PROJECT_ID: 'VERTEX_AI_PROJECT_ID',
-    VERTEX_AI_LOCATION: 'VERTEX_AI_LOCATION',
-    VERTEX_AI_MODEL: 'VERTEX_AI_MODEL',
-    GOOGLE_APPLICATION_CREDENTIALS: 'GOOGLE_APPLICATION_CREDENTIALS',
-    GEMINI_API_KEY: 'GEMINI_API_KEY',
-    GEMINI_MODEL: 'GEMINI_MODEL',
+  VERTEX_AI_PROJECT_ID: 'VERTEX_AI_PROJECT_ID',
+  VERTEX_AI_LOCATION: 'VERTEX_AI_LOCATION',
+  VERTEX_AI_MODEL: 'VERTEX_AI_MODEL',
+  GOOGLE_APPLICATION_CREDENTIALS: 'GOOGLE_APPLICATION_CREDENTIALS',
+  GEMINI_API_KEY: 'GEMINI_API_KEY',
+  GEMINI_MODEL: 'GEMINI_MODEL',
 } as const;
 
 // Default Model Names (can be overridden via environment variables)
