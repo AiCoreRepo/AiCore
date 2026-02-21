@@ -7,19 +7,15 @@ import { AngleGenerationController } from './controllers/angle-generation.contro
 import { AngleGenerationService } from './services/angle-generation.service';
 import { AngleSessionManagerService } from './services/angle-session-manager.service';
 
-
 @Module({
-    imports: [
-        ConfigModule,
-        PrismaModule,
-    ],
-    controllers: [AngleGenerationController],
-    providers: [
-        AngleGenerationService,
-        AngleSessionManagerService,
-        CloudinaryService,
-        ImageOptimizerService,
-    ],
-    exports: [AngleGenerationService, AngleSessionManagerService],
+  imports: [ConfigModule, PrismaModule],
+  controllers: [AngleGenerationController],
+  providers: [
+    AngleGenerationService,
+    AngleSessionManagerService,
+    CloudinaryService,
+    ImageOptimizerService,
+  ],
+  exports: [AngleGenerationService, AngleSessionManagerService],
 })
-export class DifferentAnglesGenModule { }
+export class DifferentAnglesGenModule {}

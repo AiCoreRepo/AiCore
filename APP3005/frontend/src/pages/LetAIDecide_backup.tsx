@@ -42,6 +42,8 @@ const AiTryOn = () => {
   const [generatingAngles, setGeneratingAngles] = useState(false);
   const [showGallery, setShowGallery] = useState(false);
   const [tryOnHistory, setTryOnHistory] = useState<any[]>([]);
+  const [generatedImages, setGeneratedImages] = useState<string[]>([]);
+  const [originalTryOnImage, setOriginalTryOnImage] = useState<string | null>(null);
 
   // Fetch products
   const { data: productsData, isLoading: productsLoading, error: productsError } = usePublicProducts(1);
@@ -101,6 +103,8 @@ const AiTryOn = () => {
           ? result.resultImage
           : `data:image/jpeg;base64,${result.resultImage}`;
         setResultImage(imageData);
+        setOriginalTryOnImage(imageData);
+        setGeneratedImages([imageData]);
       } else {
         throw new Error(result.message || 'Try-on failed');
       }
@@ -123,7 +127,7 @@ const AiTryOn = () => {
       const result = await generateMoreAngles({
         userId: aura.user_id,
         productId: currentProductId!,
-        previousImageUrl: resultImage,
+        previousImageUrl: originalTryOnImage || resultImage,
       });
 
       if (result.success && result.resultImage) {
@@ -131,6 +135,7 @@ const AiTryOn = () => {
           ? result.resultImage
           : `data:image/jpeg;base64,${result.resultImage}`;
         setResultImage(imageData);
+        setGeneratedImages(prev => [...prev, imageData]);
       } else {
         throw new Error(result.message || 'Failed to generate more angles');
       }
@@ -296,6 +301,8 @@ const AiTryOn = () => {
         error={tryOnError}
         onGenerateMoreAngles={handleGenerateMoreAngles}
         generatingAngles={generatingAngles}
+        generatedImages={generatedImages}
+        onSelectImage={(img) => setResultImage(img)}
       />
 
       {/* Gallery Modal */}

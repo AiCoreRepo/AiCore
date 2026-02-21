@@ -3,21 +3,21 @@ import { AngleType, ANGLE_DEFINITIONS } from '../enums/angle.enum';
 /**
  * Generate optimized prompt for angle generation
  * Uses a SIMPLE, DIRECT approach - less is more with generative AI
- * 
+ *
  * @param angle - The target angle to generate
  * @param cachedMetadata - Optional cached image metadata for optimization
  * @returns Optimized prompt for Gemini AI
  */
 export function generateAnglePrompt(
-    angle: AngleType,
-    cachedMetadata?: Record<string, any>,
+  angle: AngleType,
+  cachedMetadata?: Record<string, any>,
 ): string {
-    const angleInstruction = ANGLE_DEFINITIONS[angle];
+  const angleInstruction = ANGLE_DEFINITIONS[angle];
 
-    // SIMPLE PROMPT - FACE-FIRST approach since model preserves clothes well
-    // Background: If input has plain/white bg, generate nice fashion studio background
-    // If input already has styled bg, preserve it
-    const prompt = `FULL BODY FASHION PHOTOGRAPHY.
+  // SIMPLE PROMPT - FACE-FIRST approach since model preserves clothes well
+  // Background: If input has plain/white bg, generate nice fashion studio background
+  // If input already has styled bg, preserve it
+  const prompt = `FULL BODY FASHION PHOTOGRAPHY.
     
 This photo shows a specific person. Generate a ${angleInstruction} of THIS EXACT PERSON.
 
@@ -42,7 +42,7 @@ BACKGROUND INSTRUCTIONS (CRITICAL consistency):
 
 CAMERA: Rotate strictly to ${angleInstruction}. Person identity and clothes stay EXACTLY the same.`;
 
-    return prompt;
+  return prompt;
 }
 
 /**
@@ -50,5 +50,5 @@ CAMERA: Rotate strictly to ${angleInstruction}. Person identity and clothes stay
  * Used when starting a new try-on to ensure fresh angle generation
  */
 export function generateResetPrompt(): string {
-    return 'Session reset. Ready for new angle generation sequence.';
+  return 'Session reset. Ready for new angle generation sequence.';
 }
