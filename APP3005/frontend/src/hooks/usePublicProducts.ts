@@ -51,7 +51,7 @@ export function usePublicProducts(
             if (search) params.append('search', search);
             if (category && category !== 'All') params.append('category', category);
 
-            const url = `${import.meta.env.VITE_API_URL ?? 'http://localhost:3000'}/api/products/approved?${params}`;
+            const url = `${import.meta.env.VITE_API_URL ?? 'http://localhost:3000'}/products/approved?${params}`;
 
             // Public endpoint - no authentication required
             const response = await fetch(url);

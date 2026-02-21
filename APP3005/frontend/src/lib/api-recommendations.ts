@@ -45,7 +45,7 @@ export async function getAIRecommendations(data: RecommendationRequest): Promise
         throw new Error('Please login to get AI recommendations');
     }
 
-    const res = await fetch(`${BASE_URL}/api/recommendations/dummy`, {
+    const res = await fetch(`${BASE_URL}/recommendations/dummy`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',

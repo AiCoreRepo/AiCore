@@ -51,8 +51,11 @@ services:
       FASTAPI_BODY_ANALYZE_URL: http://body-analyzer:8898/body_analyze_json
       FASTAPI_RECOMMENDATION_URL: http://recommendation-api:8799/recommend-base64
       CORS_ORIGIN: ${CORS_ORIGIN:-}
+      GOOGLE_APPLICATION_CREDENTIALS: /app/service_account.json
       SEED_COLLECTION_PATH: /app/seed/main_train_data.csv
       SEED_LIMIT: ${SEED_LIMIT:-200}
+    volumes:
+      - ./APP3005/aivestire-backend-tmp/service_account.json:/app/service_account.json:ro
     depends_on:
       - db
       - redis
@@ -69,10 +72,10 @@ services:
       target: frontend
       args:
         VITE_API_URL: ${VITE_API_URL:-/api}
-        VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID:-}
+        VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID:?Set VITE_GOOGLE_CLIENT_ID in .env}
     container_name: aivestire-frontend
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8088:8080"
     depends_on:
       - backend
     restart: unless-stopped
@@ -86,7 +89,7 @@ services:
       target: body-analyzer
     container_name: body-analyzer-api
     ports:
-      - "8898:8898"
+      - "127.0.0.1:8898:8898"
     restart: unless-stopped
     networks:
       - app-network
@@ -98,7 +101,7 @@ services:
       target: recommendation-api
     container_name: recommendation-api
     ports:
-      - "8799:8799"
+      - "127.0.0.1:8799:8799"
     environment:
       RECOMMENDATION_COLLECTION_PATH: /app/main_train_data.csv
     restart: unless-stopped

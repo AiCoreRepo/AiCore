@@ -1,11 +1,11 @@
 // API Endpoints
 export const CART_ENDPOINTS = {
-    FETCH_CART: '/api/cart',
-    ADD_ITEM: '/api/cart/add',
-    UPDATE_ITEM: '/api/cart/update',
-    REMOVE_ITEM: '/api/cart/remove',
-    CLEAR_CART: '/api/cart/clear',
-    SYNC_CART: '/api/cart/sync',
+    FETCH_CART: '/cart',
+    ADD_ITEM: '/cart/add',
+    UPDATE_ITEM: '/cart/update',
+    REMOVE_ITEM: '/cart/remove',
+    CLEAR_CART: '/cart/clear',
+    SYNC_CART: '/cart/sync',
 } as const;
 
 // Route Paths

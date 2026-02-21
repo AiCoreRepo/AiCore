@@ -228,7 +228,7 @@ export async function getCreatorProducts(page: number = 1, limit: number = 10) {
 }
 
 export async function getProductById(id: string) {
-  const res = await fetch(`${BASE_URL}/api/products/${id}`, {
+  const res = await fetch(`${BASE_URL}/products/${id}`, {
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',
@@ -460,7 +460,7 @@ export async function likeProduct(productId: string) {
     throw new Error('Please login to like products');
   }
 
-  const res = await fetch(`${BASE_URL}/api/products/like`, {
+  const res = await fetch(`${BASE_URL}/products/like`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -488,7 +488,7 @@ export async function addComment(productId: string, commentText: string, images?
     throw new Error('Please login to comment');
   }
 
-  const res = await fetch(`${BASE_URL}/api/products/comment`, {
+  const res = await fetch(`${BASE_URL}/products/comment`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -521,7 +521,7 @@ export async function getProductLikes(productId: string) {
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  const res = await fetch(`${BASE_URL}/api/products/${productId}/likes`, {
+  const res = await fetch(`${BASE_URL}/products/${productId}/likes`, {
     method: 'GET',
     headers,
   });
@@ -540,7 +540,7 @@ export async function getProductLikes(productId: string) {
 
 // Get product comments
 export async function getProductComments(productId: string) {
-  const res = await fetch(`${BASE_URL}/api/products/${productId}/comments`, {
+  const res = await fetch(`${BASE_URL}/products/${productId}/comments`, {
     method: 'GET',
     headers: { 'Content-Type': 'application/json' },
   });
@@ -564,7 +564,7 @@ export async function deleteComment(commentId: string) {
     throw new Error('Please login to delete comments');
   }
 
-  const res = await fetch(`${BASE_URL}/api/products/comment/${commentId}`, {
+  const res = await fetch(`${BASE_URL}/products/comment/${commentId}`, {
     method: 'DELETE',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -624,7 +624,7 @@ export async function tryOnWithGemini(data: {
     throw new Error('Please login to use AI Try-On');
   }
 
-  const res = await fetch(`${BASE_URL}/api/v1/tryon/3d/gemini`, {
+  const res = await fetch(`${BASE_URL}/v1/tryon/3d/gemini`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -656,7 +656,7 @@ export async function tryOnWithVertex(data: {
     throw new Error('Please login to use AI Try-On');
   }
 
-  const res = await fetch(`${BASE_URL}/api/v1/tryon/3d/vertex`, {
+  const res = await fetch(`${BASE_URL}/v1/tryon/3d/vertex`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -702,7 +702,7 @@ export async function generateMoreAngles(data: {
   }
 
   // Call new NestJS angle generation endpoint
-  const res = await fetch(`${BASE_URL}/api/angles/generate`, {
+  const res = await fetch(`${BASE_URL}/angles/generate`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -739,7 +739,7 @@ export async function getTryOnHistory() {
     throw new Error('Please login to view try-on history');
   }
 
-  const res = await fetch(`${BASE_URL}/api/v1/tryon/history`, {
+  const res = await fetch(`${BASE_URL}/v1/tryon/history`, {
     method: 'GET',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -890,7 +890,7 @@ export async function getAIRecommendations(data: RecommendationRequest): Promise
 
   console.log('🤖 Sending AI Recommendation Request:', JSON.stringify(data, null, 2));
 
-  const res = await fetch(`${BASE_URL}/api/recommendations/dummy`, {
+  const res = await fetch(`${BASE_URL}/recommendations/dummy`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
