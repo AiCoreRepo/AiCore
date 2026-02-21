@@ -1,0 +1,223 @@
+# =============================================================================
+# Aivestire AI Services - Unified Docker Compose
+# =============================================================================
+#
+# This compose file starts ALL AI services needed by the backend:
+#
+#   1. vertex-vt-api   (port 8000) - Try-On (Gemini/Vertex), Body Analysis, Recommendations
+#   2. fusion-reco-api (port 8001) - ML Recommendation Engine (Fusion MLP)
+#   3. milvus          (port 19530) - Vector database for embeddings
+#   4. etcd            (port 2379) - Milvus dependency
+#   5. minio           (port 9000/9001) - Milvus object storage
+#   6. attu            (port 8017) - Milvus web UI (optional, for debugging)
+#   7. model-demo-ui   (port 8501) - Streamlit UI for Model Demo (Image Echo/Testing)
+#   8. reco-demo-ui    (port 8505) - Streamlit UI for Recommendation Demo
+#
+# Usage:
+#   docker compose up -d          # Start all services
+#   docker compose up -d --build  # Rebuild and start
+#   docker compose down           # Stop all services
+#   docker compose logs -f        # Follow all logs
+#   docker compose logs -f fusion-reco-api  # Follow specific service
+#
+# =============================================================================
+
+services:
+
+  # ---------------------------------------------------------------------------
+  # 1. Vertex VT API - Virtual Try-On, Body Analysis & Recommendation Proxy
+  #    Port: 8000
+  #    Endpoints:
+  #      - POST /gemini/try-on-json        (Gemini Try-On)
+  #      - POST /vertex/try-on-json        (Vertex Try-On)
+  #      - POST /gemini/generate-angles    (Angle Generation)
+  #      - POST /body_analyze_json         (Body Analysis)
+  #      - POST /recommendation/ai-decide  (Recommendation - local model)
+  #      - GET  /health                    (Health Check)
+  # ---------------------------------------------------------------------------
+  vertex-vt-api:
+    build:
+      context: ./Playground/vertexVT
+    container_name: aivestire-vertex-vt-api
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./Playground/vertexVT/.env
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # ---------------------------------------------------------------------------
+  # 2. Fusion Recommendation API - ML Model for AI-Decide
+  #    Port: 8001
+  #    This is the main recommendation service the NestJS backend calls.
+  #    Endpoints:
+  #      - POST /recommendation/ai-decide       (Main recommendation endpoint)
+  #      - POST /recommend-base64               (Legacy endpoint)
+  #      - GET  /collection                     (Debug: view product collection)
+  # ---------------------------------------------------------------------------
+  fusion-reco-api:
+    build:
+      context: ./recommend_demo
+      dockerfile: Dockerfile.api
+    container_name: aivestire-fusion-reco-api
+    command: ["uvicorn", "app.fusion_api:app", "--host", "0.0.0.0", "--port", "8001"]
+    ports:
+      - "8001:8001"
+    environment:
+      PORT: "8001"
+      MILVUS_HOST: milvus
+      MILVUS_PORT: "19530"
+      MILVUS_COLLECTION: fusion_training_embeddings
+    volumes:
+      - ./recommend_demo/artifacts:/app/artifacts:ro
+      - ./recommend_demo/main_train_data.csv:/app/main_train_data.csv:ro
+      - ./recommend_demo/collection2.json:/app/collection2.json:ro
+      - ./recommend_demo/collection2_train.json:/app/collection2_train.json:ro
+      - ./recommend_demo/collection2_test.json:/app/collection2_test.json:ro
+    restart: unless-stopped
+    depends_on:
+      milvus:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/docs"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # ---------------------------------------------------------------------------
+  # 3. Milvus Vector Database
+  #    Port: 19530 (gRPC), 9091 (metrics)
+  #    Used by the recommendation engine for embedding similarity search
+  # ---------------------------------------------------------------------------
+  milvus:
+    image: milvusdb/milvus:v2.4.4
+    container_name: aivestire-milvus
+    command: ["milvus", "run", "standalone"]
+    environment:
+      ETCD_ENDPOINTS: "etcd:2379"
+      MINIO_ADDRESS: "minio:9000"
+      MINIO_ACCESS_KEY: "minioadmin"
+      MINIO_SECRET_KEY: "minioadmin"
+      MINIO_USE_SSL: "false"
+    ports:
+      - "19530:19530"
+      - "9091:9091"
+    volumes:
+      - milvus_data:/var/lib/milvus
+    restart: unless-stopped
+    depends_on:
+      - etcd
+      - minio
+
+  # ---------------------------------------------------------------------------
+  # 4. etcd - Distributed key-value store (Milvus dependency)
+  #    Port: 2379
+  # ---------------------------------------------------------------------------
+  etcd:
+    image: quay.io/coreos/etcd:v3.5.5
+    container_name: aivestire-etcd
+    environment:
+      ETCD_AUTO_COMPACTION_MODE: revision
+      ETCD_AUTO_COMPACTION_RETENTION: "1000"
+      ETCD_QUOTA_BACKEND_BYTES: "4294967296"
+      ETCD_SNAPSHOT_COUNT: "50000"
+    command:
+      [
+        "etcd",
+        "--advertise-client-urls", "http://0.0.0.0:2379",
+        "--listen-client-urls", "http://0.0.0.0:2379",
+        "--data-dir", "/etcd",
+      ]
+    volumes:
+      - etcd_data:/etcd
+    ports:
+      - "2379:2379"
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # 5. MinIO - Object storage (Milvus dependency)
+  #    Port: 9000 (API), 9001 (Console)
+  # ---------------------------------------------------------------------------
+  minio:
+    image: minio/minio:RELEASE.2023-03-20T20-16-18Z
+    container_name: aivestire-minio
+    environment:
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+    command: ["minio", "server", "/minio_data", "--console-address", ":9001"]
+    volumes:
+      - minio_data:/minio_data
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # 6. Attu - Milvus Web UI (Optional - for debugging vector DB)
+  #    Port: 8017
+  # ---------------------------------------------------------------------------
+  attu:
+    image: zilliz/attu:latest
+    container_name: aivestire-attu
+    environment:
+      MILVUS_URL: milvus:19530
+    ports:
+      - "8017:3000"
+    depends_on:
+      - milvus
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # 7. Model Demo UI - Streamlit (Optional)
+  #    Port: 8501
+  #    Simple visual debugging interface for models
+  # ---------------------------------------------------------------------------
+  model-demo-ui:
+    build:
+      context: ./ModelDemo
+    container_name: aivestire-model-demo
+    ports:
+      - "8501:8501"
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # 8. Recommendation Demo UI - Streamlit (Optional)
+  #    Port: 8505
+  #    Visual interface for testing recommendation engine directly
+  # ---------------------------------------------------------------------------
+  reco-demo-ui:
+    build:
+      context: ./recommend_demo
+      dockerfile: Dockerfile
+    container_name: aivestire-reco-demo
+    command: ["streamlit", "run", "app/main.py", "--server.port=8505", "--server.address=0.0.0.0"]
+    ports:
+      - "8505:8505"
+    environment:
+      MILVUS_HOST: milvus
+      MILVUS_PORT: "19530"
+      MILVUS_COLLECTION: fusion_training_embeddings
+    volumes:
+      - ./recommend_demo/data:/app/data
+      - ./recommend_demo/artifacts:/app/artifacts
+      - ./recommend_demo/collection2.json:/app/collection2.json:ro
+    depends_on:
+      - milvus
+    restart: unless-stopped
+
+# =============================================================================
+# Named volumes for data persistence
+# =============================================================================
+volumes:
+  milvus_data:
+    driver: local
+  etcd_data:
+    driver: local
+  minio_data:
+    driver: local
