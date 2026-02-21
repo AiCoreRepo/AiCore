@@ -7,4 +7,4 @@ export const MAX_OTP_REQUESTS_PER_WINDOW = 3;
 
 // OTP Messages
 export const OTP_MESSAGE_TEMPLATE = (otp: string) =>
-    `Your AiVestire verification code is: ${otp}. Valid for ${OTP_EXPIRY_MINUTES} minutes. Do not share this code.`;
+  `Your AiVestire verification code is: ${otp}. Valid for ${OTP_EXPIRY_MINUTES} minutes. Do not share this code.`;

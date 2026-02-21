@@ -25,7 +25,7 @@ import { UpdateProductDto } from './dto/update-product.dto';
 export class CreatorDashboardController {
   constructor(
     private readonly creatorDashboardService: CreatorDashboardService,
-  ) { }
+  ) {}
 
   @Get('profile')
   async getProfile(@CurrentUser() user: { user_id: string }) {
@@ -56,7 +56,11 @@ export class CreatorDashboardController {
     @Query('page') page: number = 1,
     @Query('limit') limit: number = 10,
   ) {
-    return await this.creatorDashboardService.getCreatorProducts(user.user_id, page, limit);
+    return await this.creatorDashboardService.getCreatorProducts(
+      user.user_id,
+      page,
+      limit,
+    );
   }
 
   @Post('products')

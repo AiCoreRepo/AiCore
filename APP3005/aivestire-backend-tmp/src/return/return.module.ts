@@ -6,9 +6,9 @@ import { PrismaModule } from '../prisma/prisma.module';
 import { RefundModule } from '../refund/refund.module';
 
 @Module({
-    imports: [PrismaModule, EventEmitterModule, RefundModule],
-    controllers: [ReturnController],
-    providers: [ReturnService],
-    exports: [ReturnService],
+  imports: [PrismaModule, EventEmitterModule, RefundModule],
+  controllers: [ReturnController],
+  providers: [ReturnService],
+  exports: [ReturnService],
 })
-export class ReturnModule { }
+export class ReturnModule {}

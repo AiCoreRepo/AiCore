@@ -24,7 +24,7 @@ import { RefundModule } from './refund/refund.module';
 import { ReturnModule } from './return/return.module';
 import { ReplacementModule } from './replace/replace.module';
 import { PaymentModule } from './payment/payment.module';
-
+import { EmailModule } from './email/email.module';
 
 @Module({
   imports: [
@@ -50,9 +50,9 @@ import { PaymentModule } from './payment/payment.module';
     ReturnModule,
     ReplacementModule,
     PaymentModule,
+    EmailModule,
   ],
   controllers: [AppController],
   providers: [AppService, AdminSeederService],
 })
-export class AppModule { }
-
+export class AppModule {}

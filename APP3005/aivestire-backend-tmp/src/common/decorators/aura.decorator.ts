@@ -12,8 +12,8 @@ export const RequireAura = () => SetMetadata('requireAura', true);
  * Use after @RequireAura() guard has validated and attached Aura
  */
 export const CurrentAura = createParamDecorator(
-    (data: unknown, ctx: ExecutionContext) => {
-        const request = ctx.switchToHttp().getRequest();
-        return request.aura;
-    },
+  (data: unknown, ctx: ExecutionContext) => {
+    const request = ctx.switchToHttp().getRequest();
+    return request.aura;
+  },
 );

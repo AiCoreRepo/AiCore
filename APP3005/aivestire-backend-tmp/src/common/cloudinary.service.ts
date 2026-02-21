@@ -60,7 +60,8 @@ export class CloudinaryService {
   private readonly cloudName: string;
 
   constructor(private readonly configService: ConfigService) {
-    this.cloudName = this.configService.get<string>('CLOUDINARY_CLOUD_NAME') || '';
+    this.cloudName =
+      this.configService.get<string>('CLOUDINARY_CLOUD_NAME') || '';
     const apiKey = this.configService.get<string>('CLOUDINARY_API_KEY');
     const apiSecret = this.configService.get<string>('CLOUDINARY_API_SECRET');
 
@@ -96,7 +97,8 @@ export class CloudinaryService {
       const context: Record<string, string> = {};
       Object.entries(metadata).forEach(([key, value]) => {
         if (value !== undefined && value !== null) {
-          context[key] = typeof value === 'object' ? JSON.stringify(value) : String(value);
+          context[key] =
+            typeof value === 'object' ? JSON.stringify(value) : String(value);
         }
       });
 
@@ -153,7 +155,10 @@ export class CloudinaryService {
    * @param transformations - Transformation options
    * @returns Transformed URL
    */
-  getTransformedUrl(publicId: string, transformations: CloudinaryTransformation = {}): string {
+  getTransformedUrl(
+    publicId: string,
+    transformations: CloudinaryTransformation = {},
+  ): string {
     const {
       width,
       height,
@@ -172,7 +177,9 @@ export class CloudinaryService {
       effect,
     });
 
-    this.logger.log(`🔗 Generated transformed URL: ${url.substring(0, 100)}...`);
+    this.logger.log(
+      `🔗 Generated transformed URL: ${url.substring(0, 100)}...`,
+    );
     return url;
   }
 
@@ -227,7 +234,9 @@ export class CloudinaryService {
 
       return publicId;
     } catch (error) {
-      this.logger.error(`Failed to extract public ID from URL: ${error.message}`);
+      this.logger.error(
+        `Failed to extract public ID from URL: ${error.message}`,
+      );
       return null;
     }
   }
@@ -258,7 +267,9 @@ export class CloudinaryService {
 
       return null;
     } catch (error) {
-      this.logger.error(`Failed to get metadata for ${publicId}: ${error.message}`);
+      this.logger.error(
+        `Failed to get metadata for ${publicId}: ${error.message}`,
+      );
       return null;
     }
   }

@@ -11,4 +11,4 @@ import { CloudinaryService } from '../common/cloudinary.service';
   providers: [ProductsService, BulkUploadService, CloudinaryService],
   exports: [ProductsService],
 })
-export class ProductsModule { }
+export class ProductsModule {}

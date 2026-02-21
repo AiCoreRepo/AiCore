@@ -8,17 +8,9 @@ import { PrismaModule } from '../prisma/prisma.module';
 import { TrackingModule } from '../tracking/tracking.module';
 
 @Module({
-    imports: [
-        PrismaModule,
-        TrackingModule,
-        EventEmitterModule.forRoot(),
-    ],
-    controllers: [OrderController],
-    providers: [
-        OrderService,
-        OrderStateMachineService,
-        OrderEventListener,
-    ],
-    exports: [OrderService, OrderStateMachineService],
+  imports: [PrismaModule, TrackingModule, EventEmitterModule.forRoot()],
+  controllers: [OrderController],
+  providers: [OrderService, OrderStateMachineService, OrderEventListener],
+  exports: [OrderService, OrderStateMachineService],
 })
-export class OrderModule { }
+export class OrderModule {}

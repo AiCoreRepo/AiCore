@@ -19,7 +19,7 @@ export class CreatorDashboardService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly cloudinaryService: CloudinaryService,
-  ) { }
+  ) {}
 
   /**
    * Helper method to get creator_id from user_id
@@ -80,16 +80,16 @@ export class CreatorDashboardService {
     const products = await this.prisma.product.findMany({
       where: {
         creator_id: creatorId,
-        is_deleted: false
+        is_deleted: false,
       },
       include: {
         stats: true,
         images: {
           where: { is_primary: true },
-          take: 1
-        }
+          take: 1,
+        },
       },
-      orderBy: { created_at: 'desc' }
+      orderBy: { created_at: 'desc' },
     });
 
     let totalLikes = 0;
@@ -98,8 +98,8 @@ export class CreatorDashboardService {
     // Get latest 3 images
     const latestImages = products
       .slice(0, 3)
-      .map(p => p.images[0]?.url)
-      .filter(url => url !== undefined);
+      .map((p) => p.images[0]?.url)
+      .filter((url) => url !== undefined);
 
     for (const product of products) {
       if (product.stats) {
@@ -110,11 +110,15 @@ export class CreatorDashboardService {
     return {
       totalLikes,
       totalUploads,
-      latestImages
+      latestImages,
     };
   }
 
-  async getCreatorProducts(userId: string, page: number = 1, limit: number = 10) {
+  async getCreatorProducts(
+    userId: string,
+    page: number = 1,
+    limit: number = 10,
+  ) {
     const creatorId = await this.getCreatorIdFromUserId(userId);
     const skip = (page - 1) * limit;
 
@@ -181,9 +185,10 @@ export class CreatorDashboardService {
       // Get latest approval feedback (if any)
       const latestApproval = product.approvals[0];
       const isRejected = product.status === ProductStatus.REJECTED;
-      const rejectionReason = isRejected && latestApproval?.comment
-        ? latestApproval.comment
-        : undefined;
+      const rejectionReason =
+        isRejected && latestApproval?.comment
+          ? latestApproval.comment
+          : undefined;
 
       return {
         product_id: product.product_id,
@@ -191,17 +196,18 @@ export class CreatorDashboardService {
         title: product.title,
         description: product.description,
         image_url: imageUrl,
-        images: product.images.map(img => img.url),
+        images: product.images.map((img) => img.url),
         price_cents: product.price_cents,
         currency: product.currency,
         inventory_count: product.inventory_count,
-        status: product.status === ProductStatus.APPROVED
-          ? 'Active'
-          : product.status === ProductStatus.REJECTED
-            ? 'Rejected'
-            : product.status === ProductStatus.DRAFT
-              ? 'Draft'
-              : 'Pending',
+        status:
+          product.status === ProductStatus.APPROVED
+            ? 'Active'
+            : product.status === ProductStatus.REJECTED
+              ? 'Rejected'
+              : product.status === ProductStatus.DRAFT
+                ? 'Draft'
+                : 'Pending',
         rejectionReason, // Only present if status is REJECTED
         tags: tags,
         stats: {
@@ -246,7 +252,9 @@ export class CreatorDashboardService {
 
     // Handle new image uploads (raw/base64)
     if (dto.images && Array.isArray(dto.images)) {
-      this.logger.log(`Received ${dto.images.length} images for product ${product.product_id}`);
+      this.logger.log(
+        `Received ${dto.images.length} images for product ${product.product_id}`,
+      );
       await Promise.all(
         dto.images.map(async (image, index) => {
           try {
@@ -254,7 +262,9 @@ export class CreatorDashboardService {
               ? image
               : `data:image/jpeg;base64,${image}`;
 
-            this.logger.log(`Uploading image ${index + 1}/${dto.images?.length || 0} for product ${product.product_id}`);
+            this.logger.log(
+              `Uploading image ${index + 1}/${dto.images?.length || 0} for product ${product.product_id}`,
+            );
             const uploadedUrl =
               await this.cloudinaryService.uploadImage(formattedImage);
 
@@ -269,7 +279,10 @@ export class CreatorDashboardService {
             });
             this.logger.log(`Product image record created for ${uploadedUrl}`);
           } catch (error) {
-            this.logger.error(`Failed to upload image ${index}: ${error.message}`, error.stack);
+            this.logger.error(
+              `Failed to upload image ${index}: ${error.message}`,
+              error.stack,
+            );
             throw new BadRequestException(`Failed to upload image`);
           }
         }),
@@ -365,7 +378,9 @@ export class CreatorDashboardService {
 
     // Handle image updates
     if (dto.images && Array.isArray(dto.images)) {
-      this.logger.log(`Updating images for product ${productId}. Received ${dto.images.length} images.`);
+      this.logger.log(
+        `Updating images for product ${productId}. Received ${dto.images.length} images.`,
+      );
 
       // 1. Delete existing images
       await this.prisma.productImage.deleteMany({
@@ -380,7 +395,9 @@ export class CreatorDashboardService {
 
             // If it's a base64 string, upload to Cloudinary
             if (image.startsWith('data:')) {
-              this.logger.log(`Uploading new image ${index + 1}/${dto.images?.length} for product ${productId}`);
+              this.logger.log(
+                `Uploading new image ${index + 1}/${dto.images?.length} for product ${productId}`,
+              );
               imageUrl = await this.cloudinaryService.uploadImage(image);
             }
 
@@ -393,8 +410,11 @@ export class CreatorDashboardService {
               },
             });
           } catch (error) {
-            this.logger.error(`Failed to process image ${index} during update: ${error.message}`, error.stack);
-            // Continue with other images even if one fails? Or throw? 
+            this.logger.error(
+              `Failed to process image ${index} during update: ${error.message}`,
+              error.stack,
+            );
+            // Continue with other images even if one fails? Or throw?
             // For now, let's log and continue to avoid breaking the whole update
           }
         }),
@@ -443,7 +463,7 @@ export class CreatorDashboardService {
     return {
       message: 'Product deleted successfully',
       totalUploads: metrics.totalUploads,
-      latestImages: metrics.latestImages
+      latestImages: metrics.latestImages,
     };
   }
 
@@ -511,7 +531,9 @@ export class CreatorDashboardService {
     return {
       name: creator.store_name,
       subtitle: verificationData.subtitle || creator.about || 'Creator',
-      avatar: verificationData.avatar || 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&h=200&fit=crop&crop=face',
+      avatar:
+        verificationData.avatar ||
+        'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&h=200&fit=crop&crop=face',
       role: creator.user.role,
     };
   }
@@ -565,7 +587,12 @@ export class CreatorDashboardService {
       price_cents: product.price_cents,
       currency: product.currency,
       inventory_count: product.inventory_count,
-      status: product.status === ProductStatus.APPROVED ? 'Active' : product.status === ProductStatus.DRAFT ? 'Draft' : 'Pending',
+      status:
+        product.status === ProductStatus.APPROVED
+          ? 'Active'
+          : product.status === ProductStatus.DRAFT
+            ? 'Draft'
+            : 'Pending',
       tags: tags,
       stats: {
         likes_count: product.stats?.likes_count || 0,

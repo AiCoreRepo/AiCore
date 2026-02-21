@@ -14,14 +14,14 @@ export enum PaymentGateway {
  * Internal payment status lifecycle
  */
 export enum PaymentTransactionStatus {
-  CREATED = 'CREATED',         // Order created in gateway
-  ATTEMPTED = 'ATTEMPTED',     // User initiated payment
-  AUTHORIZED = 'AUTHORIZED',   // Payment authorized (captured pending)
-  CAPTURED = 'CAPTURED',       // Payment fully captured/completed
-  FAILED = 'FAILED',           // Payment failed
-  REFUNDED = 'REFUNDED',       // Payment refunded
+  CREATED = 'CREATED', // Order created in gateway
+  ATTEMPTED = 'ATTEMPTED', // User initiated payment
+  AUTHORIZED = 'AUTHORIZED', // Payment authorized (captured pending)
+  CAPTURED = 'CAPTURED', // Payment fully captured/completed
+  FAILED = 'FAILED', // Payment failed
+  REFUNDED = 'REFUNDED', // Payment refunded
   PARTIALLY_REFUNDED = 'PARTIALLY_REFUNDED',
-  CANCELLED = 'CANCELLED',     // Payment cancelled before completion
+  CANCELLED = 'CANCELLED', // Payment cancelled before completion
 }
 
 /**

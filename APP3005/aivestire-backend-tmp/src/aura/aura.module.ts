@@ -11,27 +11,29 @@ import { AiTryOnModule } from '../ai-tryon/ai-tryon.module';
 import { QUEUE_NAMES } from '../common/constants/queue.constants';
 
 @Module({
-    imports: [
-        PrismaModule,
-        AiTryOnModule,
-        BullModule.registerQueue({
-            name: QUEUE_NAMES.AURA_GENERATION,
-        }),
-    ],
-    controllers: [AuraController],
-    providers: [
-        AuraService,
-        AuraQueueService,
-        AuraProcessor,
-        CloudinaryService,
-        GeminiAIService,
-    ],
-    exports: [AuraService],
+  imports: [
+    PrismaModule,
+    AiTryOnModule,
+    BullModule.registerQueue({
+      name: QUEUE_NAMES.AURA_GENERATION,
+    }),
+  ],
+  controllers: [AuraController],
+  providers: [
+    AuraService,
+    AuraQueueService,
+    AuraProcessor,
+    CloudinaryService,
+    GeminiAIService,
+  ],
+  exports: [AuraService],
 })
 export class AuraModule implements OnModuleInit {
-    onModuleInit() {
-        console.log('🚀 [AuraModule] Module initialized with queue:', QUEUE_NAMES.AURA_GENERATION);
-        console.log('🚀 [AuraModule] Processor should be registered now');
-    }
+  onModuleInit() {
+    console.log(
+      '🚀 [AuraModule] Module initialized with queue:',
+      QUEUE_NAMES.AURA_GENERATION,
+    );
+    console.log('🚀 [AuraModule] Processor should be registered now');
+  }
 }
-

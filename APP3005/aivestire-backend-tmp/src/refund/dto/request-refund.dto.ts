@@ -1,7 +1,7 @@
 import { IsString, IsOptional } from 'class-validator';
 
 export class RequestRefundDto {
-    @IsString()
-    @IsOptional()
-    reason?: string;
+  @IsString()
+  @IsOptional()
+  reason?: string;
 }

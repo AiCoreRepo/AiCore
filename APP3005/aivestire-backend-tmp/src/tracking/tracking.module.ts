@@ -3,8 +3,8 @@ import { TrackingService } from './tracking.service';
 import { PrismaModule } from '../prisma/prisma.module';
 
 @Module({
-    imports: [PrismaModule],
-    providers: [TrackingService],
-    exports: [TrackingService],
+  imports: [PrismaModule],
+  providers: [TrackingService],
+  exports: [TrackingService],
 })
-export class TrackingModule { }
+export class TrackingModule {}
