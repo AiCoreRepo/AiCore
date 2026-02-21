@@ -41,7 +41,7 @@ export class AuthService {
     private prisma: PrismaService,
     private jwtService: JwtService,
     private otpService: OtpService,
-  ) { }
+  ) {}
 
   private slugify(input: string): string {
     return input
@@ -72,7 +72,7 @@ export class AuthService {
       });
       if (phoneExists) {
         throw new BadRequestException(
-          `This phone number is already registered as a ${dto.role.toLowerCase()}`
+          `This phone number is already registered as a ${dto.role.toLowerCase()}`,
         );
       }
     }

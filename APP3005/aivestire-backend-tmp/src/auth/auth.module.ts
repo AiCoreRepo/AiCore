@@ -26,4 +26,4 @@ import { JWT_ACCESS_TOKEN_EXPIRES_IN } from '../common/constants';
   controllers: [AuthController],
   exports: [AuthService, OtpService],
 })
-export class AuthModule { }
+export class AuthModule {}

@@ -1,6 +1,6 @@
 export class AdminStatsDto {
-    totalCreators: number;
-    totalProducts: number;
-    pendingApprovals: number;
-    totalRevenue: number;
+  totalCreators: number;
+  totalProducts: number;
+  pendingApprovals: number;
+  totalRevenue: number;
 }

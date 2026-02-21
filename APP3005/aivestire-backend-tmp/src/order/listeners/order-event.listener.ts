@@ -15,170 +15,164 @@ import { OrderReplaceDispatchedEvent } from '../../replace/events/order-replace-
 
 @Injectable()
 export class OrderEventListener {
-    private readonly logger = new Logger(OrderEventListener.name);
+  private readonly logger = new Logger(OrderEventListener.name);
 
-    // ============================================
-    // ORDER LIFECYCLE EVENTS
-    // ============================================
+  // ============================================
+  // ORDER LIFECYCLE EVENTS
+  // ============================================
 
-    @OnEvent('order.booked')
-    async handleOrderBooked(event: OrderBookedEvent) {
-        this.logger.log(`Order ${event.order.order_number} has been booked`);
+  @OnEvent('order.booked')
+  async handleOrderBooked(event: OrderBookedEvent) {
+    this.logger.log(`Order ${event.order.order_number} has been booked`);
 
-        // TODO: Send confirmation email
-        // TODO: Send push notification
-        // TODO: Notify warehouse system
+    // TODO: Send confirmation email
+    // TODO: Send push notification
+    // TODO: Notify warehouse system
 
-        this.logger.log('Order booked notifications sent');
-    }
+    this.logger.log('Order booked notifications sent');
+  }
 
-    @OnEvent('order.shipped')
-    async handleOrderShipped(event: OrderShippedEvent) {
-        this.logger.log(
-            `Order ${event.order.order_number} shipped with tracking: ${event.trackingNumber}`,
-        );
+  @OnEvent('order.shipped')
+  async handleOrderShipped(event: OrderShippedEvent) {
+    this.logger.log(
+      `Order ${event.order.order_number} shipped with tracking: ${event.trackingNumber}`,
+    );
 
-        // TODO: Send shipping update email
-        // TODO: Send SMS with tracking link
-        // TODO: Update customer
+    // TODO: Send shipping update email
+    // TODO: Send SMS with tracking link
+    // TODO: Update customer
 
-        this.logger.log('Shipping notifications sent');
-    }
+    this.logger.log('Shipping notifications sent');
+  }
 
-    @OnEvent('order.out_for_delivery')
-    async handleOutForDelivery(event: OrderOutForDeliveryEvent) {
-        this.logger.log(
-            `Order ${event.order.order_number} is out for delivery`,
-        );
+  @OnEvent('order.out_for_delivery')
+  async handleOutForDelivery(event: OrderOutForDeliveryEvent) {
+    this.logger.log(`Order ${event.order.order_number} is out for delivery`);
 
-        // TODO: Send push notification
-        // TODO: Send SMS alert
+    // TODO: Send push notification
+    // TODO: Send SMS alert
 
-        this.logger.log('Out for delivery notifications sent');
-    }
+    this.logger.log('Out for delivery notifications sent');
+  }
 
-    @OnEvent('order.delivered')
-    async handleDelivered(event: OrderDeliveredEvent) {
-        this.logger.log(`Order ${event.order.order_number} has been delivered`);
+  @OnEvent('order.delivered')
+  async handleDelivered(event: OrderDeliveredEvent) {
+    this.logger.log(`Order ${event.order.order_number} has been delivered`);
 
-        // TODO: Send delivery confirmation email
-        // TODO: Request product review
-        // TODO: Update analytics
+    // TODO: Send delivery confirmation email
+    // TODO: Request product review
+    // TODO: Update analytics
 
-        this.logger.log('Delivery confirmation sent');
-    }
+    this.logger.log('Delivery confirmation sent');
+  }
 
-    @OnEvent('order.cancelled')
-    async handleCancelled(event: OrderCancelledEvent) {
-        this.logger.log(`Order ${event.order.order_number} has been cancelled`);
+  @OnEvent('order.cancelled')
+  async handleCancelled(event: OrderCancelledEvent) {
+    this.logger.log(`Order ${event.order.order_number} has been cancelled`);
 
-        // TODO: Send cancellation email
-        // TODO: Process refund if prepaid
-        // TODO: Update reports
+    // TODO: Send cancellation email
+    // TODO: Process refund if prepaid
+    // TODO: Update reports
 
-        this.logger.log('Cancellation notifications sent');
-    }
+    this.logger.log('Cancellation notifications sent');
+  }
 
-    // ============================================
-    // REFUND EVENTS
-    // ============================================
+  // ============================================
+  // REFUND EVENTS
+  // ============================================
 
-    @OnEvent('order.refund.initiated')
-    async handleRefundInitiated(event: OrderRefundInitiatedEvent) {
-        this.logger.log(
-            `Refund initiated for order ${event.order.order_number} - Amount: ${event.refund.amount}`,
-        );
+  @OnEvent('order.refund.initiated')
+  async handleRefundInitiated(event: OrderRefundInitiatedEvent) {
+    this.logger.log(
+      `Refund initiated for order ${event.order.order_number} - Amount: ${event.refund.amount}`,
+    );
 
-        // TODO: Send email to customer about refund initiation
-        // TODO: Notify finance team
-        // TODO: Update customer dashboard
+    // TODO: Send email to customer about refund initiation
+    // TODO: Notify finance team
+    // TODO: Update customer dashboard
 
-        this.logger.log('Refund initiation notifications sent');
-    }
+    this.logger.log('Refund initiation notifications sent');
+  }
 
-    @OnEvent('order.refund.completed')
-    async handleRefundCompleted(event: OrderRefundCompletedEvent) {
-        this.logger.log(
-            `Refund completed for order ${event.order.order_number} - Transaction ID: ${event.refund.transaction_id}`,
-        );
+  @OnEvent('order.refund.completed')
+  async handleRefundCompleted(event: OrderRefundCompletedEvent) {
+    this.logger.log(
+      `Refund completed for order ${event.order.order_number} - Transaction ID: ${event.refund.transaction_id}`,
+    );
 
-        // TODO: Send refund completion email with transaction details
-        // TODO: Send SMS confirmation
-        // TODO: Update analytics
+    // TODO: Send refund completion email with transaction details
+    // TODO: Send SMS confirmation
+    // TODO: Update analytics
 
-        this.logger.log('Refund completion notifications sent');
-    }
+    this.logger.log('Refund completion notifications sent');
+  }
 
-    // ============================================
-    // RETURN EVENTS
-    // ============================================
+  // ============================================
+  // RETURN EVENTS
+  // ============================================
 
-    @OnEvent('order.return.requested')
-    async handleReturnRequested(event: OrderReturnRequestedEvent) {
-        this.logger.log(
-            `Return requested for order ${event.order.order_number} - Reason: ${event.returnRequest.return_reason}`,
-        );
+  @OnEvent('order.return.requested')
+  async handleReturnRequested(event: OrderReturnRequestedEvent) {
+    this.logger.log(
+      `Return requested for order ${event.order.order_number} - Reason: ${event.returnRequest.return_reason}`,
+    );
 
-        // TODO: Send email to customer confirming return request
-        // TODO: Notify admin team for approval
-        // TODO: Send SMS confirmation
+    // TODO: Send email to customer confirming return request
+    // TODO: Notify admin team for approval
+    // TODO: Send SMS confirmation
 
-        this.logger.log('Return request notifications sent');
-    }
+    this.logger.log('Return request notifications sent');
+  }
 
-    @OnEvent('order.return.approved')
-    async handleReturnApproved(event: OrderReturnApprovedEvent) {
-        this.logger.log(
-            `Return approved for order ${event.order.order_number}`,
-        );
+  @OnEvent('order.return.approved')
+  async handleReturnApproved(event: OrderReturnApprovedEvent) {
+    this.logger.log(`Return approved for order ${event.order.order_number}`);
 
-        // TODO: Send email to customer with pickup instructions
-        // TODO: Notify logistics partner
-        // TODO: Send pickup scheduling link
+    // TODO: Send email to customer with pickup instructions
+    // TODO: Notify logistics partner
+    // TODO: Send pickup scheduling link
 
-        this.logger.log('Return approval notifications sent');
-    }
+    this.logger.log('Return approval notifications sent');
+  }
 
-    @OnEvent('order.return.completed')
-    async handleReturnCompleted(event: OrderReturnCompletedEvent) {
-        this.logger.log(
-            `Return completed for order ${event.order.order_number}`,
-        );
+  @OnEvent('order.return.completed')
+  async handleReturnCompleted(event: OrderReturnCompletedEvent) {
+    this.logger.log(`Return completed for order ${event.order.order_number}`);
 
-        // TODO: Send return completion email
-        // TODO: Notify customer about refund status
-        // TODO: Update analytics
+    // TODO: Send return completion email
+    // TODO: Notify customer about refund status
+    // TODO: Update analytics
 
-        this.logger.log('Return completion notifications sent');
-    }
+    this.logger.log('Return completion notifications sent');
+  }
 
-    // ============================================
-    // REPLACEMENT EVENTS
-    // ============================================
+  // ============================================
+  // REPLACEMENT EVENTS
+  // ============================================
 
-    @OnEvent('order.replace.requested')
-    async handleReplaceRequested(event: OrderReplaceRequestedEvent) {
-        this.logger.log(
-            `Replacement requested for order ${event.order.order_number} - Reason: ${event.replacement.replace_reason}`,
-        );
+  @OnEvent('order.replace.requested')
+  async handleReplaceRequested(event: OrderReplaceRequestedEvent) {
+    this.logger.log(
+      `Replacement requested for order ${event.order.order_number} - Reason: ${event.replacement.replace_reason}`,
+    );
 
-        // TODO: Send email to customer confirming replacement request
-        // TODO: Notify admin team for approval
-        // TODO: Send SMS confirmation
+    // TODO: Send email to customer confirming replacement request
+    // TODO: Notify admin team for approval
+    // TODO: Send SMS confirmation
 
-        this.logger.log('Replacement request notifications sent');
-    }
+    this.logger.log('Replacement request notifications sent');
+  }
 
-    @OnEvent('order.replace.dispatched')
-    async handleReplaceDispatched(event: OrderReplaceDispatchedEvent) {
-        this.logger.log(
-            `Replacement dispatched for order ${event.order.order_number} - Tracking: ${event.replacement.delivery_tracking}`,
-        );
+  @OnEvent('order.replace.dispatched')
+  async handleReplaceDispatched(event: OrderReplaceDispatchedEvent) {
+    this.logger.log(
+      `Replacement dispatched for order ${event.order.order_number} - Tracking: ${event.replacement.delivery_tracking}`,
+    );
 
-        // TODO: Send email with new tracking number
-        // TODO: Send SMS with delivery estimate
-        // TODO: Update customer dashboard
+    // TODO: Send email with new tracking number
+    // TODO: Send SMS with delivery estimate
+    // TODO: Update customer dashboard
 
-        this.logger.log('Replacement dispatch notifications sent');
-    }
+    this.logger.log('Replacement dispatch notifications sent');
+  }
 }

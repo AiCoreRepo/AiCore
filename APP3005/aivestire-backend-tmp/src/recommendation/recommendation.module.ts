@@ -8,16 +8,16 @@ import { RecommendationController } from './recommendation.controller';
 import { AuraGuard } from '../common/guards/aura.guard';
 
 @Module({
-    imports: [
-        HttpModule.register({
-            timeout: 60000, // 60 seconds
-            maxRedirects: 5,
-        }),
-        ConfigModule,
-        PrismaModule,
-    ],
-    controllers: [RecommendationController],
-    providers: [RecommendationService, DummyRecommendationService, AuraGuard],
-    exports: [RecommendationService],
+  imports: [
+    HttpModule.register({
+      timeout: 60000, // 60 seconds
+      maxRedirects: 5,
+    }),
+    ConfigModule,
+    PrismaModule,
+  ],
+  controllers: [RecommendationController],
+  providers: [RecommendationService, DummyRecommendationService, AuraGuard],
+  exports: [RecommendationService],
 })
-export class RecommendationModule { }
+export class RecommendationModule {}

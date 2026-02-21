@@ -83,6 +83,18 @@ const STATUS_LABELS: Record<string, string> = {
     CANCELLED: 'Cancelled',
 };
 
+const PAYMENT_LABELS: Record<string, string> = {
+    PENDING: 'Pending',
+    COMPLETED: 'Completed / Paid',
+    FAILED: 'Failed / Rejected',
+};
+
+const PAYMENT_META: Record<string, { color: string; dot: string }> = {
+    PENDING: { color: '#ffffff', dot: '#F59E0B' },
+    COMPLETED: { color: '#ffffff', dot: '#10B981' },
+    FAILED: { color: '#ffffff', dot: '#EF4444' },
+};
+
 const ALL_FILTER_TABS = [
     { id: 'all', label: 'All Orders', },
     { id: 'PENDING', label: 'Pending', },
@@ -214,10 +226,10 @@ const StatusDropdown: React.FC<StatusDropdownProps> = ({ value, options, onChang
             left: rect.left,
             width: rect.width,
             zIndex: 99999,
-            background: '#ffffff',
+            background: '#1c1c2e',
             borderRadius: '0.75rem',
             boxShadow: '0 20px 60px rgba(0,0,0,0.5), 0 4px 16px rgba(0,0,0,0.3)',
-            border: '1px solid #d1d5db',
+            border: '1px solid rgba(245,158,11,0.6)',
             overflow: 'hidden',
         }
         : { display: 'none' };
@@ -252,21 +264,21 @@ const StatusDropdown: React.FC<StatusDropdownProps> = ({ value, options, onChang
                                 onClick={() => { onChange(opt); setOpen(false); }}
                                 className="w-full flex items-center gap-3 px-4 py-3 text-left text-sm font-semibold transition-colors"
                                 style={{
-                                    background: isSelected ? '#FEF3C7' : '#ffffff',
-                                    color: '#111827',
-                                    borderBottom: '1px solid #f3f4f6',
+                                    background: isSelected ? 'rgba(245,158,11,0.15)' : 'transparent',
+                                    color: '#ffffff',
+                                    borderBottom: '1px solid rgba(255,255,255,0.05)',
                                 }}
                                 onMouseEnter={e => {
-                                    if (!isSelected) (e.currentTarget as HTMLElement).style.background = '#F9FAFB';
+                                    if (!isSelected) (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.05)';
                                 }}
                                 onMouseLeave={e => {
-                                    (e.currentTarget as HTMLElement).style.background = isSelected ? '#FEF3C7' : '#ffffff';
+                                    (e.currentTarget as HTMLElement).style.background = isSelected ? 'rgba(245,158,11,0.15)' : 'transparent';
                                 }}
                             >
                                 <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: dot }} />
-                                <span className="flex-1">{label}</span>
+                                <span className="flex-1 text-white">{label}</span>
                                 {isSelected && (
-                                    <span style={{ color: '#D97706', fontSize: '0.875rem', fontWeight: 700 }}>✓</span>
+                                    <span style={{ color: '#F59E0B', fontSize: '0.875rem', fontWeight: 700 }}>✓</span>
                                 )}
                             </button>
                         );
@@ -294,6 +306,7 @@ const AdminOrdersPage = () => {
     const [newStatus, setNewStatus] = useState('');
     const [trackingNum, setTrackingNum] = useState('');
     const [deliveryPartner, setDeliveryPartner] = useState('');
+    const [paymentStatus, setPaymentStatus] = useState('');
     const [isUpdating, setIsUpdating] = useState(false);
     const [updateMsg, setUpdateMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
@@ -324,6 +337,10 @@ const AdminOrdersPage = () => {
         observerRef.current?.observe(node);
     }, []);
 
+    // Date filter state
+    const [startDate, setStartDate] = useState('');
+    const [endDate, setEndDate] = useState('');
+
     // ── Fetch ─────────────────────────────────────────────────────────────────
 
     const fetchOrders = useCallback(async () => {
@@ -352,7 +369,26 @@ const AdminOrdersPage = () => {
         const matchSearch = !q ||
             order.order_number.toLowerCase().includes(q) ||
             order.items?.some(i => i.product_name?.toLowerCase().includes(q));
-        return matchFilter && matchSearch;
+
+        let matchDate = true;
+        if (startDate || endDate) {
+            const orderDate = new Date(order.created_at);
+            // Reset time part for accurate date comparison
+            orderDate.setHours(0, 0, 0, 0);
+
+            if (startDate) {
+                const sDate = new Date(startDate);
+                sDate.setHours(0, 0, 0, 0);
+                if (orderDate < sDate) matchDate = false;
+            }
+            if (endDate) {
+                const eDate = new Date(endDate);
+                eDate.setHours(23, 59, 59, 999); // end of the day
+                if (orderDate > eDate) matchDate = false;
+            }
+        }
+
+        return matchFilter && matchSearch && matchDate;
     });
 
     const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
@@ -360,7 +396,7 @@ const AdminOrdersPage = () => {
 
 
     // reset page on filter/search change
-    useEffect(() => { setCurrentPage(1); setVisibleSet(new Set()); }, [activeFilter, search]);
+    useEffect(() => { setCurrentPage(1); }, [activeFilter, search, startDate, endDate]);
 
     // Re-observe cards whenever page changes
     useEffect(() => {
@@ -380,6 +416,7 @@ const AdminOrdersPage = () => {
         setNewStatus(allowed[0] || '');
         setTrackingNum(order.tracking_number || '');
         setDeliveryPartner(order.delivery_partner || '');
+        setPaymentStatus(order.payment_status || '');
         setUpdateMsg(null);
     };
 
@@ -388,6 +425,7 @@ const AdminOrdersPage = () => {
         setNewStatus('');
         setTrackingNum('');
         setDeliveryPartner('');
+        setPaymentStatus('');
         setUpdateMsg(null);
     };
 
@@ -406,6 +444,7 @@ const AdminOrdersPage = () => {
                         status: newStatus,
                         trackingNumber: trackingNum || undefined,
                         deliveryPartner: deliveryPartner || undefined,
+                        paymentStatus: paymentStatus || undefined,
                         notes: `Admin updated to ${newStatus}`,
                     }),
                 }
@@ -509,22 +548,75 @@ const AdminOrdersPage = () => {
                             </button>
                         </div>
 
-                        {/* Search */}
-                        <div className="relative mb-3">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500" />
-                            <input
-                                type="text"
-                                placeholder="Search orders, products..."
-                                value={search}
-                                onChange={e => setSearch(e.target.value)}
-                                className="w-full pl-10 pr-4 py-2.5 bg-neutral-800/60 border border-neutral-700 rounded-xl text-white placeholder-neutral-500 focus:outline-none focus:border-amber-500 transition-all text-sm"
-                            />
+                        {/* Filters Row: Search + Dates */}
+                        <div className="flex flex-col sm:flex-row gap-3 mb-4">
+                            <div className="relative flex-1">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500" />
+                                <input
+                                    type="text"
+                                    placeholder="Search orders, products..."
+                                    value={search}
+                                    onChange={e => setSearch(e.target.value)}
+                                    className="w-full pl-10 pr-4 py-2 bg-neutral-800/60 border border-neutral-700 rounded-xl text-white placeholder-neutral-500 focus:outline-none focus:border-amber-500 transition-all text-sm"
+                                />
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <input
+                                    type="date"
+                                    value={startDate}
+                                    onChange={e => setStartDate(e.target.value)}
+                                    className="px-4 py-2 bg-neutral-800 border border-amber-500/60 rounded-xl text-white text-sm focus:outline-none focus:border-amber-500 transition-colors cursor-pointer [&::-webkit-datetime-edit]:text-white [&::-webkit-calendar-picker-indicator]:invert"
+                                    style={{ color: '#ffffff', colorScheme: 'dark' }}
+                                    title="Start Date"
+                                />
+                                <span className="text-neutral-500 text-sm font-medium px-1">to</span>
+                                <input
+                                    type="date"
+                                    value={endDate}
+                                    onChange={e => setEndDate(e.target.value)}
+                                    className="px-4 py-2 bg-neutral-800 border border-amber-500/60 rounded-xl text-white text-sm focus:outline-none focus:border-amber-500 transition-colors cursor-pointer [&::-webkit-datetime-edit]:text-white [&::-webkit-calendar-picker-indicator]:invert"
+                                    style={{ color: '#ffffff', colorScheme: 'dark' }}
+                                    title="End Date"
+                                />
+                                {(startDate || endDate) && (
+                                    <button
+                                        onClick={() => { setStartDate(''); setEndDate(''); }}
+                                        className="p-2 text-neutral-400 hover:text-red-400 bg-neutral-800/60 hover:bg-neutral-800 border border-neutral-700 rounded-xl transition-all"
+                                        title="Clear Dates"
+                                    >
+                                        <XIcon className="w-4 h-4" />
+                                    </button>
+                                )}
+                            </div>
                         </div>
 
                         {/* Filter Tabs — scroll horizontal */}
                         <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
                             {ALL_FILTER_TABS.map(tab => {
-                                const count = tab.id === 'all' ? allOrders.length : allOrders.filter(o => o.current_status === tab.id).length;
+                                // Important: We should show the count based on the DATE/SEARCH filter as well so it's accurate
+                                // or show total in category. Let's show total in category respecting date bounds
+                                const inTab = allOrders.filter(o => {
+                                    if (tab.id !== 'all' && o.current_status !== tab.id) return false;
+
+                                    let matchDate = true;
+                                    if (startDate || endDate) {
+                                        const orderDate = new Date(o.created_at);
+                                        orderDate.setHours(0, 0, 0, 0);
+
+                                        if (startDate) {
+                                            const sDate = new Date(startDate);
+                                            sDate.setHours(0, 0, 0, 0);
+                                            if (orderDate < sDate) matchDate = false;
+                                        }
+                                        if (endDate) {
+                                            const eDate = new Date(endDate);
+                                            eDate.setHours(23, 59, 59, 999);
+                                            if (orderDate > eDate) matchDate = false;
+                                        }
+                                    }
+                                    return matchDate;
+                                });
+                                const count = inTab.length;
                                 const isActive = activeFilter === tab.id;
                                 const meta = STATUS_META[tab.id];
                                 return (
@@ -725,8 +817,8 @@ const AdminOrdersPage = () => {
                                                             </div>
                                                         )}
 
-                                                        {/* Fields — stack on mobile, 3-col on sm+ */}
-                                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3">
+                                                        {/* Fields — dynamic columns depending on payment status visibility */}
+                                                        <div className={`grid grid-cols-1 gap-3 mt-3 \${order.payment_method === 'COD' && order.payment_status !== 'COMPLETED' ? 'sm:grid-cols-2 lg:grid-cols-4' : 'sm:grid-cols-3'}`}>
                                                             {/* Status custom dropdown */}
                                                             <div>
                                                                 <label className="block text-xs text-neutral-500 mb-1 font-medium uppercase tracking-wide">New Status *</label>
@@ -747,8 +839,7 @@ const AdminOrdersPage = () => {
                                                                     value={trackingNum}
                                                                     onChange={e => setTrackingNum(e.target.value)}
                                                                     placeholder="e.g. TRK123456"
-                                                                    className="w-full px-3 py-2.5 border border-neutral-600 rounded-xl text-sm focus:outline-none focus:border-amber-500 transition-colors"
-                                                                    style={{ background: '#1c1c2e', color: '#ffffff' }}
+                                                                    className="w-full px-3 py-2.5 bg-neutral-800 border border-amber-500/60 rounded-xl text-white text-sm focus:outline-none focus:border-amber-500 transition-colors placeholder-neutral-500"
                                                                 />
                                                             </div>
 
@@ -760,10 +851,30 @@ const AdminOrdersPage = () => {
                                                                     value={deliveryPartner}
                                                                     onChange={e => setDeliveryPartner(e.target.value)}
                                                                     placeholder="e.g. Delhivery"
-                                                                    className="w-full px-3 py-2.5 border border-neutral-600 rounded-xl text-sm focus:outline-none focus:border-amber-500 transition-colors"
-                                                                    style={{ background: '#1c1c2e', color: '#ffffff' }}
+                                                                    className="w-full px-3 py-2.5 bg-neutral-800 border border-amber-500/60 rounded-xl text-white text-sm focus:outline-none focus:border-amber-500 transition-colors placeholder-neutral-500"
                                                                 />
                                                             </div>
+
+                                                            {/* Payment Status Dropdown (Cash on delivery only when not completed) */}
+                                                            {order.payment_method === 'COD' && order.payment_status !== 'COMPLETED' && (
+                                                                <div>
+                                                                    <label className="block text-xs text-neutral-500 mb-1 font-medium uppercase tracking-wide">Payment Status</label>
+                                                                    <StatusDropdown
+                                                                        value={paymentStatus}
+                                                                        options={['PENDING', 'COMPLETED', 'FAILED']}
+                                                                        onChange={val => {
+                                                                            setPaymentStatus(val);
+                                                                            if (val === 'COMPLETED' && allowed.includes('DELIVERED')) {
+                                                                                setNewStatus('DELIVERED');
+                                                                            } else if (val === 'FAILED' && allowed.includes('CANCELLED')) {
+                                                                                setNewStatus('CANCELLED');
+                                                                            }
+                                                                        }}
+                                                                        labels={PAYMENT_LABELS}
+                                                                        colors={PAYMENT_META as any}
+                                                                    />
+                                                                </div>
+                                                            )}
                                                         </div>
 
                                                         {/* Action buttons — full width on mobile */}

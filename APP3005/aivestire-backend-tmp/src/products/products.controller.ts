@@ -19,13 +19,12 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 
-
 @Controller('api/products')
 export class ProductsController {
   constructor(
     private readonly productsService: ProductsService,
     private readonly bulkUploadService: BulkUploadService,
-  ) { }
+  ) {}
 
   /**
    * GET /products/approved
@@ -70,10 +69,7 @@ export class ProductsController {
    */
   @Post('like')
   @UseGuards(JwtAuthGuard)
-  async likeProduct(
-    @Request() req,
-    @Body() body: { product_id: string },
-  ) {
+  async likeProduct(@Request() req, @Body() body: { product_id: string }) {
     console.log('Like endpoint - req.user:', req.user);
     console.log('Like endpoint - user_id:', req.user.user_id);
     return this.productsService.likeProduct(req.user.user_id, body.product_id);
@@ -86,10 +82,7 @@ export class ProductsController {
    */
   @Post('comment')
   @UseGuards(JwtAuthGuard)
-  async addComment(
-    @Request() req,
-    @Body() createCommentDto: CreateCommentDto,
-  ) {
+  async addComment(@Request() req, @Body() createCommentDto: CreateCommentDto) {
     return this.productsService.addComment(
       req.user.user_id,
       createCommentDto.product_id,
@@ -105,10 +98,7 @@ export class ProductsController {
    */
   @Delete('comment/:commentId')
   @UseGuards(JwtAuthGuard)
-  async deleteComment(
-    @Param('commentId') commentId: string,
-    @Request() req,
-  ) {
+  async deleteComment(@Param('commentId') commentId: string, @Request() req) {
     return this.productsService.deleteComment(commentId, req.user.user_id);
   }
 
@@ -127,10 +117,7 @@ export class ProductsController {
   @Post('bulk-upload')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('CREATOR')
-  async bulkUpload(
-    @Request() req,
-    @Body() body: { products: any[] },
-  ) {
+  async bulkUpload(@Request() req, @Body() body: { products: any[] }) {
     const creatorId = req.user.user_id;
     return this.bulkUploadService.bulkCreateProducts(body.products, creatorId);
   }
@@ -140,10 +127,7 @@ export class ProductsController {
    * Get product likes count and user's like status
    */
   @Get(':id/likes')
-  async getProductLikes(
-    @Param('id') productId: string,
-    @Request() req,
-  ) {
+  async getProductLikes(@Param('id') productId: string, @Request() req) {
     const userId = req.user?.user_id;
     return this.productsService.getProductLikes(productId, userId);
   }

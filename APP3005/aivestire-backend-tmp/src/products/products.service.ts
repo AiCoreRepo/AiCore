@@ -23,7 +23,7 @@ export class ProductsService {
   constructor(
     private prisma: PrismaService,
     private cloudinaryService: CloudinaryService,
-  ) { }
+  ) {}
 
   async create(dto: CreateProductDto) {
     try {
@@ -196,7 +196,6 @@ export class ProductsService {
     };
   }
 
-
   /**
    * Get approved products for public display (Collection page)
    * No authentication required
@@ -302,8 +301,7 @@ export class ProductsService {
           break;
         case 'Most Popular':
           filtered.sort(
-            (a, b) =>
-              (b.stats?.likes_count || 0) - (a.stats?.likes_count || 0),
+            (a, b) => (b.stats?.likes_count || 0) - (a.stats?.likes_count || 0),
           );
           break;
         case 'Newest':
@@ -420,7 +418,12 @@ export class ProductsService {
   /**
    * Add a comment to a product
    */
-  async addComment(userId: string, productId: string, commentText: string, images?: string[]) {
+  async addComment(
+    userId: string,
+    productId: string,
+    commentText: string,
+    images?: string[],
+  ) {
     // Check if product exists
     const product = await this.prisma.product.findUnique({
       where: { product_id: productId },
@@ -445,7 +448,7 @@ export class ProductsService {
               productId,
               imageType: 'review',
             },
-            'review-images'  // Separate folder for review images
+            'review-images', // Separate folder for review images
           );
           imageUrls.push(uploadedUrl.secureUrl);
         } catch (error) {

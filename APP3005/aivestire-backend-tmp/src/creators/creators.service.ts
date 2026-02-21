@@ -4,7 +4,7 @@ import type { Prisma } from '@prisma/client';
 
 @Injectable()
 export class CreatorsService {
-  constructor(private prisma: PrismaService) { }
+  constructor(private prisma: PrismaService) {}
 
   async verifyCreator(
     creator_id: string,
@@ -15,9 +15,9 @@ export class CreatorsService {
       typeof verification_data === 'object' && verification_data !== null
         ? verification_data
         : {
-          verifiedBy: admin_user_id,
-          verifiedAt: new Date().toISOString(),
-        };
+            verifiedBy: admin_user_id,
+            verifiedAt: new Date().toISOString(),
+          };
     return this.prisma.creator.update({
       where: { creator_id },
       data: {

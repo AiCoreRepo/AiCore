@@ -7,4 +7,4 @@ import { PrismaModule } from '../prisma/prisma.module';
   providers: [ApprovalsService],
   exports: [ApprovalsService],
 })
-export class ApprovalsModule { }
+export class ApprovalsModule {}

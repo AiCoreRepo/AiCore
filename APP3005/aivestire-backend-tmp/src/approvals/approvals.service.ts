@@ -8,7 +8,7 @@ import { ApprovalStatus, ProductStatus } from '@prisma/client';
 
 @Injectable()
 export class ApprovalsService {
-  constructor(private prisma: PrismaService) { }
+  constructor(private prisma: PrismaService) {}
 
   async approve(productId: string, adminUserId: string, comment?: string) {
     return this.prisma.$transaction(async (tx) => {
