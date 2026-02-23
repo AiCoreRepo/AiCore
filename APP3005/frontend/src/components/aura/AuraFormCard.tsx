@@ -1,17 +1,18 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, ArrowRight, Wand2, Loader2, CheckCircle2, AlertCircle, Settings2, ArrowLeft } from "lucide-react";
+import { Sparkles, ArrowRight, Wand2, Loader2, CheckCircle2, AlertCircle, ArrowLeft } from "lucide-react";
 import { PhotoUploadZone } from "./PhotoUploadZone";
 import { BodyAttributesForm } from "./BodyAttributesForm";
 import { useAuth } from "@/context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { analyzeBodyImage, BodyAnalysisResult } from "@/lib/api";
 import { SKIN_TONE_OPTIONS, BODY_SHAPE_OPTIONS } from "@/constants/aura.constants";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import "./aura-styles.css";
 
 interface BodyAttributes {
-    height?: number;
-    weight?: number;
     skinTone?: string;
     gender?: string;
     bodyShape?: string;
@@ -68,6 +69,22 @@ const mapBodyShape = (aiValue: string | null | undefined): string => {
 
 type Step = "upload" | "confirm";
 
+const getDobStorageKey = (email?: string) =>
+    email ? `aivestire:dob:${email.toLowerCase()}` : "";
+
+const getStoredDob = (email?: string): string => {
+    if (!email) return "";
+    const key = getDobStorageKey(email);
+    return key ? localStorage.getItem(key) || "" : "";
+};
+
+const setStoredDob = (email: string, dob: string): void => {
+    const key = getDobStorageKey(email);
+    if (key) {
+        localStorage.setItem(key, dob);
+    }
+};
+
 // Helper to determine age range from DOB
 const calculateAgeRangeFromDob = (dobString?: string): string => {
     if (!dobString) return "";
@@ -103,12 +120,38 @@ export const AuraFormCard = ({ onCreateAura, isProcessing }: AuraFormCardProps) 
 
     const [photoFile, setPhotoFile] = useState<File | null>(null);
     const [photoPreview, setPhotoPreview] = useState<string | null>(null);
-    const [attributes, setAttributes] = useState<BodyAttributes>({});
+    const [attributes, setAttributes] = useState<BodyAttributes>({ gender: "female" });
+    const [dob, setDob] = useState<string>(user?.dob || "");
+    const [dobInput, setDobInput] = useState<string>(user?.dob || "");
+    const [dobError, setDobError] = useState<string>("");
+    const [showDobDialog, setShowDobDialog] = useState(false);
 
     // AI Analysis state
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [analysisResult, setAnalysisResult] = useState<BodyAnalysisResult | null>(null);
     const [analysisError, setAnalysisError] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (!user?.email) return;
+
+        const initialDob = user?.dob || getStoredDob(user.email);
+        if (initialDob) {
+            setDob(initialDob);
+            setDobInput(initialDob);
+            const calculatedRange = calculateAgeRangeFromDob(initialDob);
+            if (calculatedRange) {
+                setAttributes(prev => ({ ...prev, ageRange: calculatedRange, gender: "female" }));
+            }
+        }
+    }, [user?.dob, user?.email]);
+
+    useEffect(() => {
+        if (currentStep === "confirm" && !dob) {
+            setDobInput("");
+            setDobError("");
+            setShowDobDialog(true);
+        }
+    }, [currentStep, dob]);
 
     const handlePhotoSelect = (file: File, preview: string) => {
         setPhotoFile(file);
@@ -117,22 +160,14 @@ export const AuraFormCard = ({ onCreateAura, isProcessing }: AuraFormCardProps) 
         setAnalysisResult(null);
         setAnalysisError(null);
 
-        // Auto-populate age range:
-        // Priority 1: Existing age_range from profile
-        // Priority 2: Calculated from DOB
-        if (user?.age_range) {
+        // Auto-populate age range and default gender.
+        const calculatedRange = calculateAgeRangeFromDob(dob);
+        if (calculatedRange) {
             setAttributes(prev => ({
                 ...prev,
-                ageRange: user.age_range
+                ageRange: calculatedRange,
+                gender: "female",
             }));
-        } else if (user?.dob) {
-            const calculatedRange = calculateAgeRangeFromDob(user.dob);
-            if (calculatedRange) {
-                setAttributes(prev => ({
-                    ...prev,
-                    ageRange: calculatedRange
-                }));
-            }
         }
     };
 
@@ -141,7 +176,7 @@ export const AuraFormCard = ({ onCreateAura, isProcessing }: AuraFormCardProps) 
         setPhotoPreview(null);
         setAnalysisResult(null);
         setAnalysisError(null);
-        setAttributes({});
+        setAttributes({ gender: "female" });
         setCurrentStep("upload");
     };
 
@@ -171,26 +206,26 @@ export const AuraFormCard = ({ onCreateAura, isProcessing }: AuraFormCardProps) 
                     ...prev,
                     skinTone: mapSkinTone(result.skinToneLabel) || prev.skinTone,
                     bodyShape: mapBodyShape(result.bodyShape) || prev.bodyShape,
-                    // Persist age range logic
-                    ageRange: prev.ageRange || user?.age_range || calculateAgeRangeFromDob(user?.dob)
+                    ageRange: prev.ageRange || calculateAgeRangeFromDob(dob),
+                    gender: "female",
                 }));
                 console.log('✅ AI detected:', result.skinToneLabel, result.bodyShape);
             } else {
                 console.log('⚠️ Analysis failed, proceeding with manual entry');
                 setAnalysisError(result.error || "Analysis unavailable");
                 // Ensure age range is still populated even if analysis fails
-                const ageRange = user?.age_range || calculateAgeRangeFromDob(user?.dob);
+                const ageRange = calculateAgeRangeFromDob(dob);
                 if (ageRange) {
-                    setAttributes(prev => ({ ...prev, ageRange }));
+                    setAttributes(prev => ({ ...prev, ageRange, gender: "female" }));
                 }
             }
         } catch (error: any) {
             console.log('⚠️ Analysis error, proceeding with manual entry:', error.message);
             setAnalysisError("AI analysis unavailable - please fill manually");
             // Ensure age range is still populated
-            const ageRange = user?.age_range || calculateAgeRangeFromDob(user?.dob);
+            const ageRange = calculateAgeRangeFromDob(dob);
             if (ageRange) {
-                setAttributes(prev => ({ ...prev, ageRange }));
+                setAttributes(prev => ({ ...prev, ageRange, gender: "female" }));
             }
         } finally {
             clearTimeout(failsafeTimeout);
@@ -208,9 +243,56 @@ export const AuraFormCard = ({ onCreateAura, isProcessing }: AuraFormCardProps) 
     };
 
     const handleCreateAura = () => {
-        if (photoFile) {
-            console.log('🚀 Creating Aura with attributes:', attributes);
-            onCreateAura(photoFile, attributes);
+        if (!photoFile) return;
+
+        if (!dob) {
+            setShowDobDialog(true);
+            return;
+        }
+
+        const calculatedAgeRange = calculateAgeRangeFromDob(dob);
+        if (!calculatedAgeRange) {
+            setDobError("Please enter a valid date of birth.");
+            setShowDobDialog(true);
+            return;
+        }
+
+        const finalAttributes: BodyAttributes = {
+            ...attributes,
+            gender: "female",
+            ageRange: calculatedAgeRange,
+        };
+
+        console.log('🚀 Creating Aura with attributes:', finalAttributes);
+        onCreateAura(photoFile, finalAttributes);
+    };
+
+    const handleDobSave = () => {
+        if (!dobInput) {
+            setDobError("Date of birth is required.");
+            return;
+        }
+
+        const birthDate = new Date(dobInput);
+        const today = new Date();
+        if (isNaN(birthDate.getTime()) || birthDate > today) {
+            setDobError("Please enter a valid date of birth.");
+            return;
+        }
+
+        const calculatedRange = calculateAgeRangeFromDob(dobInput);
+        if (!calculatedRange) {
+            setDobError("You must be at least 13 years old.");
+            return;
+        }
+
+        setDob(dobInput);
+        setDobError("");
+        setShowDobDialog(false);
+        setAttributes(prev => ({ ...prev, ageRange: calculatedRange, gender: "female" }));
+
+        if (user?.email) {
+            setStoredDob(user.email, dobInput);
         }
     };
 
@@ -465,6 +547,27 @@ export const AuraFormCard = ({ onCreateAura, isProcessing }: AuraFormCardProps) 
                                                 : "Fill in your body attributes below."}
                                         </p>
 
+                                        {!dob && (
+                                            <div className="bg-amber-50/60 border border-amber-300 rounded-2xl p-4 mb-6">
+                                                <div className="flex items-center justify-between gap-3">
+                                                    <p className="text-xs text-amber-700">
+                                                        Date of birth is required to calculate age range.
+                                                    </p>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setDobInput(dob);
+                                                            setDobError("");
+                                                            setShowDobDialog(true);
+                                                        }}
+                                                        className="px-3 py-1.5 rounded-lg bg-amber-200/70 hover:bg-amber-300/70 text-amber-900 text-xs font-semibold transition-colors"
+                                                    >
+                                                        Add DOB
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        )}
+
                                         {/* AI Detection Results */}
                                         {analysisResult?.success && (
                                             <div className="bg-emerald-50/50 border border-emerald-200 rounded-2xl p-4 mb-6">
@@ -574,6 +677,45 @@ export const AuraFormCard = ({ onCreateAura, isProcessing }: AuraFormCardProps) 
                     </div>
                 </motion.div>
             </div>
+
+            <Dialog open={showDobDialog} onOpenChange={setShowDobDialog}>
+                <DialogContent className="max-w-md bg-white border-gold/30">
+                    <DialogHeader>
+                        <DialogTitle className="text-charcoal">Enter Date of Birth</DialogTitle>
+                        <DialogDescription className="text-charcoal/70">
+                            We use this to calculate your age range for better Aura matching.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-3">
+                        <Input
+                            type="date"
+                            value={dobInput}
+                            onChange={(event) => {
+                                setDobInput(event.target.value);
+                                setDobError("");
+                            }}
+                            className="text-charcoal"
+                        />
+                        {dobError && <p className="text-xs text-red-600">{dobError}</p>}
+                    </div>
+                    <div className="flex justify-end gap-2">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setShowDobDialog(false)}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            type="button"
+                            onClick={handleDobSave}
+                            className="bg-luxury-gold hover:bg-luxury-gold/90 text-luxury-black"
+                        >
+                            Save DOB
+                        </Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 };

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
@@ -31,6 +31,7 @@ interface AuraData {
 
 const AiTryOn = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, loading: authLoading, fetchUser } = useAuth();
   const [aura, setAura] = useState<AuraData | null>(null);
   const [loadingAura, setLoadingAura] = useState(true);
@@ -49,6 +50,9 @@ const AiTryOn = () => {
   const [requestingAccess, setRequestingAccess] = useState(false);
   const [requestSuccess, setRequestSuccess] = useState(false);
   const [generatedImages, setGeneratedImages] = useState<string[]>([]);
+  const [pendingAutoTryOnProductId, setPendingAutoTryOnProductId] = useState<string | null>(
+    (location.state as { autoTryOnProductId?: string } | null)?.autoTryOnProductId || null
+  );
 
   // Fetch products
   const { data: productsData, isLoading: productsLoading, error: productsError } = usePublicProducts(1);
@@ -126,6 +130,17 @@ const AiTryOn = () => {
       setSelectedProduct(null);
     }
   };
+
+  useEffect(() => {
+    if (!aura || !pendingAutoTryOnProductId || tryOnLoading) return;
+
+    const productId = pendingAutoTryOnProductId;
+    setPendingAutoTryOnProductId(null);
+    handleTryOn(productId, 'vertex');
+
+    // Clear one-time navigation state so auto-try doesn't trigger again on remount.
+    navigate(location.pathname, { replace: true });
+  }, [aura, pendingAutoTryOnProductId, tryOnLoading, navigate, location.pathname]);
 
   const handleGenerateMoreAngles = async () => {
     if (!aura || !resultImage) return;

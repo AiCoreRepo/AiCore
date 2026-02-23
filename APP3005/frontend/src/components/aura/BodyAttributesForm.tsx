@@ -1,19 +1,15 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { HelpCircle, Ruler, Weight, Palette, User, Calendar } from "lucide-react";
+import { HelpCircle, Ruler, Palette, User } from "lucide-react";
 import {
     SKIN_TONE_OPTIONS,
     BODY_SHAPE_OPTIONS,
-    BODY_SIZE_OPTIONS,
-    GENDER_OPTIONS,
-    AGE_RANGE_OPTIONS
+    BODY_SIZE_OPTIONS
 } from "@/constants/aura.constants";
 import { BodyShapeGuideModal } from "./BodyShapeGuideModal";
 import { SkinToneGuideModal } from "./SkinToneGuideModal";
 
 interface BodyAttributes {
-    height?: number;
-    weight?: number;
     skinTone?: string;
     gender?: string;
     bodyShape?: string;
@@ -29,7 +25,6 @@ interface BodyAttributesFormProps {
 export const BodyAttributesForm = ({ attributes, onChange }: BodyAttributesFormProps) => {
     const [showBodyShapeGuide, setShowBodyShapeGuide] = useState(false);
     const [showSkinToneGuide, setShowSkinToneGuide] = useState(false);
-    const [focusedField, setFocusedField] = useState<string | null>(null);
 
     const handleChange = (field: keyof BodyAttributes, value: string | number) => {
         onChange({ ...attributes, [field]: value });
@@ -47,6 +42,8 @@ export const BodyAttributesForm = ({ attributes, onChange }: BodyAttributesFormP
     `;
 
     const labelClass = "block text-xs font-bold text-charcoal/80 mb-2.5 uppercase tracking-wider";
+    const guideHeaderLabelClass = "block text-xs font-bold text-charcoal/80 uppercase tracking-wider";
+    const guideButtonClass = "flex items-center gap-1.5 px-3 py-1.5 text-xs text-gold hover:text-amber-600 transition-all group bg-gold/10 hover:bg-gold/20 rounded-lg";
 
     return (
         <div className="space-y-6">
@@ -67,11 +64,11 @@ export const BodyAttributesForm = ({ attributes, onChange }: BodyAttributesFormP
                 className="relative"
             >
                 <div className="flex items-center justify-between mb-2.5">
-                    <label className={labelClass}>Body Shape</label>
+                    <label className={guideHeaderLabelClass}>Body Shape</label>
                     <button
                         type="button"
                         onClick={() => setShowBodyShapeGuide(true)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-gold hover:text-amber-600 transition-all group bg-gold/10 hover:bg-gold/20 rounded-lg"
+                        className={guideButtonClass}
                     >
                         <HelpCircle className="w-4 h-4 group-hover:scale-110 transition-transform" />
                         <span className="font-semibold">Guide</span>
@@ -84,8 +81,6 @@ export const BodyAttributesForm = ({ attributes, onChange }: BodyAttributesFormP
                     <select
                         value={attributes.bodyShape || ""}
                         onChange={(e) => handleChange("bodyShape", e.target.value)}
-                        onFocus={() => setFocusedField("bodyShape")}
-                        onBlur={() => setFocusedField(null)}
                         className={inputClass}
                     >
                         <option value="">Select Shape</option>
@@ -121,128 +116,36 @@ export const BodyAttributesForm = ({ attributes, onChange }: BodyAttributesFormP
                 </div>
             </motion.div>
 
-            {/* Height & Weight Grid */}
-            <div className="grid grid-cols-2 gap-4">
-                <motion.div
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.2 }}
-                    className="relative"
-                >
-                    <label className={labelClass}>Height (cm)</label>
-                    <div className="relative">
-                        <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gold/70 pointer-events-none">
-                            <Ruler className="w-5 h-5" />
-                        </div>
-                        <input
-                            type="number"
-                            placeholder="162"
-                            value={attributes.height || ""}
-                            onChange={(e) => handleChange("height", parseInt(e.target.value) || 0)}
-                            className={inputClass}
-                        />
-                    </div>
-                </motion.div>
-                <motion.div
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.2 }}
-                    className="relative"
-                >
-                    <label className={labelClass}>Weight (kg)</label>
-                    <div className="relative">
-                        <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gold/70 pointer-events-none">
-                            <Weight className="w-5 h-5" />
-                        </div>
-                        <input
-                            type="number"
-                            placeholder="55"
-                            value={attributes.weight || ""}
-                            onChange={(e) => handleChange("weight", parseInt(e.target.value) || 0)}
-                            className={inputClass}
-                        />
-                    </div>
-                </motion.div>
-            </div>
-
-            {/* Skin Tone & Gender Grid */}
-            <div className="grid grid-cols-2 gap-4">
-                <motion.div
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.3 }}
-                    className="relative"
-                >
-                    <div className="flex items-center justify-between mb-2.5">
-                        <label className={labelClass}>Skin Tone</label>
-                        <button
-                            type="button"
-                            onClick={() => setShowSkinToneGuide(true)}
-                            className="flex items-center gap-1 text-xs text-gold hover:text-amber-600 transition-colors group"
-                        >
-                            <HelpCircle className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
-                        </button>
-                    </div>
-                    <div className="relative">
-                        <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gold/70 pointer-events-none">
-                            <Palette className="w-5 h-5" />
-                        </div>
-                        <select
-                            value={attributes.skinTone || ""}
-                            onChange={(e) => handleChange("skinTone", e.target.value)}
-                            className={inputClass}
-                        >
-                            <option value="">Select Tone</option>
-                            {SKIN_TONE_OPTIONS.map(opt => (
-                                <option key={opt.value} value={opt.value}>{opt.label}</option>
-                            ))}
-                        </select>
-                    </div>
-                </motion.div>
-                <motion.div
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.3 }}
-                    className="relative"
-                >
-                    <label className={labelClass}>Gender</label>
-                    <div className="relative">
-                        <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gold/70 pointer-events-none">
-                            <User className="w-5 h-5" />
-                        </div>
-                        <select
-                            value={attributes.gender || ""}
-                            onChange={(e) => handleChange("gender", e.target.value)}
-                            className={inputClass}
-                        >
-                            <option value="">Select Gender</option>
-                            {GENDER_OPTIONS.map(opt => (
-                                <option key={opt.value} value={opt.value}>{opt.label}</option>
-                            ))}
-                        </select>
-                    </div>
-                </motion.div>
-            </div>
-
-            {/* Age Range (Full Width) */}
+            {/* Skin Tone */}
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.4 }}
+                transition={{ delay: 0.3 }}
                 className="relative"
             >
-                <label className={labelClass}>Age Range</label>
+                <div className="flex items-center justify-between mb-2.5">
+
+                    <label className={guideHeaderLabelClass}>Skin Tone</label>
+                    <button
+                        type="button"
+                        onClick={() => setShowSkinToneGuide(true)}
+                        className={guideButtonClass}
+                    >
+                        <HelpCircle className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                        <span className="font-semibold">Guide</span>
+                    </button>
+                    </div>
                 <div className="relative">
                     <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gold/70 pointer-events-none">
-                        <Calendar className="w-5 h-5" />
+                        <Palette className="w-5 h-5" />
                     </div>
                     <select
-                        value={attributes.ageRange || ""}
-                        onChange={(e) => handleChange("ageRange", e.target.value)}
+                        value={attributes.skinTone || ""}
+                        onChange={(e) => handleChange("skinTone", e.target.value)}
                         className={inputClass}
                     >
-                        <option value="">Select Age Range</option>
-                        {AGE_RANGE_OPTIONS.map(opt => (
+                        <option value="">Select Tone</option>
+                        {SKIN_TONE_OPTIONS.map(opt => (
                             <option key={opt.value} value={opt.value}>{opt.label}</option>
                         ))}
                     </select>

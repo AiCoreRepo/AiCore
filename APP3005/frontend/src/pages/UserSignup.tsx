@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { useState, type KeyboardEvent } from "react";
+import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Link, useNavigate } from "react-router-dom";
 import { Eye, EyeOff } from "lucide-react";
@@ -23,12 +23,37 @@ const UserSignup = () => {
     const { toast } = useToast();
 
     const {
+        control,
         register,
         handleSubmit,
         formState: { errors },
     } = useForm<SignupFormData>({
         resolver: zodResolver(signupSchema),
+        defaultValues: {
+            phoneNumber: "+91",
+        },
     });
+
+    const normalizePhoneNumber = (value: string) => {
+        const cleaned = value.replace(/[^\d+]/g, "");
+        if (!cleaned.startsWith("+91")) {
+            const localNumber = cleaned.replace(/^\+?91/, "").replace(/\D/g, "");
+            return `+91${localNumber}`.slice(0, 13);
+        }
+        return `+91${cleaned.slice(3).replace(/\D/g, "")}`.slice(0, 13);
+    };
+
+    const handlePhoneKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+        const input = event.currentTarget;
+        const start = input.selectionStart ?? 0;
+        const end = input.selectionEnd ?? 0;
+        const touchesPrefix = start < 3 || end < 3;
+        const isDeleteKey = event.key === "Backspace" || event.key === "Delete";
+
+        if (isDeleteKey && touchesPrefix) {
+            event.preventDefault();
+        }
+    };
 
     const onSubmit = async (data: SignupFormData) => {
         setIsLoading(true);
@@ -57,8 +82,9 @@ const UserSignup = () => {
                 email: data.email,
                 password: data.password,
                 name: data.brandName,
-                phoneNumber: data.phoneNumber || undefined,
+                phoneNumber: data.phoneNumber && data.phoneNumber !== "+91" ? data.phoneNumber : undefined,
             });
+            localStorage.setItem(`aivestire:dob:${data.email.toLowerCase()}`, data.dateOfBirth);
 
             const loginResponse = await loginApi({
                 email: data.email,
@@ -237,12 +263,20 @@ const UserSignup = () => {
                                 <Label htmlFor="phoneNumber" className="text-xs uppercase tracking-widest text-luxury-gold font-medium ml-1">
                                     Phone Number
                                 </Label>
-                                <Input
-                                    id="phoneNumber"
-                                    type="tel"
-                                    placeholder="+919876543210"
-                                    {...register("phoneNumber")}
-                                    className="bg-luxury-cream border-neutral-200 text-luxury-black placeholder:text-neutral-500 h-9 text-sm rounded-xl shadow-sm focus:border-luxury-gold/50 focus:ring-2 focus:ring-luxury-gold/5 transition-all duration-300"
+                                <Controller
+                                    name="phoneNumber"
+                                    control={control}
+                                    render={({ field }) => (
+                                        <Input
+                                            id="phoneNumber"
+                                            type="tel"
+                                            placeholder="+919876543210"
+                                            value={field.value ?? "+91"}
+                                            onChange={(event) => field.onChange(normalizePhoneNumber(event.target.value))}
+                                            onKeyDown={handlePhoneKeyDown}
+                                            className="bg-luxury-cream border-neutral-200 text-luxury-black placeholder:text-neutral-500 h-9 text-sm rounded-xl shadow-sm focus:border-luxury-gold/50 focus:ring-2 focus:ring-luxury-gold/5 transition-all duration-300"
+                                        />
+                                    )}
                                 />
                                 {errors.phoneNumber && (
                                     <p className="text-xs text-red-500 mt-1 ml-1">{errors.phoneNumber.message}</p>

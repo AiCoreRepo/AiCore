@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast"; // Import toast hook
 import { EditableAttributeCard } from "@/components/aura/EditableAttributeCard";
 import { AvatarDisplay } from "@/components/aura/AvatarDisplay";
-import { BODY_SIZE_OPTIONS, SKIN_TONE_OPTIONS, BODY_SHAPE_OPTIONS, AGE_RANGE_OPTIONS, GENDER_OPTIONS } from "@/constants/aura.constants";
+import { BODY_SIZE_OPTIONS, SKIN_TONE_OPTIONS, BODY_SHAPE_OPTIONS, GENDER_OPTIONS } from "@/constants/aura.constants";
 import "@/components/aura/aura-styles.css";
 
 interface AuraData {
@@ -25,11 +25,8 @@ interface AuraData {
 interface AttributeValues {
     bodyShape: string;
     bodySize: string;
-    height: string;
-    weight: string;
     skinTone: string;
     gender: string;
-    ageRange: string;
 }
 
 export default function AuraProfile() {
@@ -38,6 +35,8 @@ export default function AuraProfile() {
     const [isEditing, setIsEditing] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [userName, setUserName] = useState<string>('');
+    const [avatarUserName, setAvatarUserName] = useState<string>('');
+    const [exactAge, setExactAge] = useState<number | null>(null);
     const [isRecreateDisabled, setIsRecreateDisabled] = useState(false);
     const navigate = useNavigate();
     const { toast } = useToast();
@@ -46,23 +45,40 @@ export default function AuraProfile() {
     const [attributes, setAttributes] = useState<AttributeValues>({
         bodyShape: '',
         bodySize: '',
-        height: '',
-        weight: '',
         skinTone: '',
         gender: '',
-        ageRange: '',
     });
 
     // Store original values for cancel functionality
     const [originalAttributes, setOriginalAttributes] = useState<AttributeValues>({
         bodyShape: '',
         bodySize: '',
-        height: '',
-        weight: '',
         skinTone: '',
         gender: '',
-        ageRange: '',
     });
+
+    const calculateExactAge = (dobString?: string): number | null => {
+        if (!dobString) return null;
+
+        const birthDate = new Date(dobString);
+        if (Number.isNaN(birthDate.getTime())) return null;
+
+        const today = new Date();
+        let age = today.getFullYear() - birthDate.getFullYear();
+        const monthDiff = today.getMonth() - birthDate.getMonth();
+        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+            age--;
+        }
+
+        return age >= 0 ? age : null;
+    };
+
+    const toTitleCase = (value: string) =>
+        value
+            .split(/\s+/)
+            .filter(Boolean)
+            .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+            .join(' ');
 
     // Check for pending login from signup
     useEffect(() => {
@@ -113,9 +129,16 @@ export default function AuraProfile() {
                 if (userResponse.ok) {
                     const userData = await userResponse.json();
                     setUserName(userData.email.split('@')[0].toUpperCase());
+                    const rawName = String(userData.name || userData.store_name || userData.email.split('@')[0] || '');
+                    const cleanedName = toTitleCase(rawName.replace(/[._-]+/g, ' '));
+                    setAvatarUserName(cleanedName);
                     const regenUsed = Number(userData.avatar_regenerations_used ?? 0);
                     const regenMax = Number(userData.max_avatar_regenerations ?? 2);
                     setIsRecreateDisabled(regenUsed >= regenMax);
+
+                    const localDobKey = `aivestire:dob:${(userData.email || '').toLowerCase()}`;
+                    const storedDob = userData?.dob || localStorage.getItem(localDobKey) || undefined;
+                    setExactAge(calculateExactAge(storedDob));
                 }
 
                 const response = await fetch(`${import.meta.env.VITE_API_URL}/aura`, {
@@ -135,11 +158,8 @@ export default function AuraProfile() {
                 const initialAttributes = {
                     bodyShape: data.body_shape || '',
                     bodySize: data.body_size || '',
-                    height: data.height_cm ? data.height_cm.toString() : '',
-                    weight: data.weight_kg ? data.weight_kg.toString() : '',
                     skinTone: data.skin_tone || '',
                     gender: data.gender || '',
-                    ageRange: data.age_range || '',
                 };
                 setAttributes(initialAttributes);
                 setOriginalAttributes(initialAttributes);
@@ -169,11 +189,8 @@ export default function AuraProfile() {
             const updateData = {
                 bodyShape: attributes.bodyShape,
                 bodySize: attributes.bodySize,
-                height: attributes.height ? parseInt(attributes.height) : undefined,
-                weight: attributes.weight ? parseInt(attributes.weight) : undefined,
                 skinTone: attributes.skinTone,
                 gender: attributes.gender,
-                ageRange: attributes.ageRange,
             };
 
             const response = await fetch(`${import.meta.env.VITE_API_URL}/aura`, {
@@ -303,26 +320,6 @@ export default function AuraProfile() {
                             options={BODY_SHAPE_OPTIONS}
                         />
 
-                        {/* Height */}
-                        <EditableAttributeCard
-                            label="HEIGHT"
-                            value={attributes.height}
-                            isEditing={isEditing}
-                            onChange={(value) => handleAttributeChange('height', value)}
-                            type="text"
-                            unit="cm"
-                        />
-
-                        {/* Weight */}
-                        <EditableAttributeCard
-                            label="WEIGHT"
-                            value={attributes.weight}
-                            isEditing={isEditing}
-                            onChange={(value) => handleAttributeChange('weight', value)}
-                            type="text"
-                            unit="kg"
-                        />
-
                         {/* Skin Tone */}
                         <EditableAttributeCard
                             label="SKIN TONE"
@@ -353,15 +350,13 @@ export default function AuraProfile() {
                             options={GENDER_OPTIONS}
                         />
 
-                        {/* Age Range */}
-                        <EditableAttributeCard
-                            label="AGE RANGE"
-                            value={attributes.ageRange}
-                            isEditing={isEditing}
-                            onChange={(value) => handleAttributeChange('ageRange', value)}
-                            type="select"
-                            options={AGE_RANGE_OPTIONS}
-                        />
+                        {/* Exact Age (Read-only) */}
+                        <div className="editable-attribute-card">
+                            <div className="attribute-label">AGE</div>
+                            <div className="attribute-value">
+                                {exactAge !== null ? `${exactAge} years` : 'Not specified'}
+                            </div>
+                        </div>
                     </div>
 
                     {/* Action Buttons */}
@@ -395,7 +390,7 @@ export default function AuraProfile() {
                                 onClick={() => navigate('/')}
                                 className="action-btn continue-btn"
                             >
-                                CONTINUE
+                                Continue
                             </button>
                         </div>
                     )}
@@ -403,7 +398,7 @@ export default function AuraProfile() {
 
                 {/* Right Panel - Avatar Display */}
                 <div className="avatar-panel">
-                    <AvatarDisplay imageUrl={aura.model_url || aura.image_url} />
+                    <AvatarDisplay imageUrl={aura.model_url || aura.image_url} userName={avatarUserName} />
                 </div>
             </div>
         </div>
