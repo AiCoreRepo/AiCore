@@ -3,7 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CloudinaryService } from '../common/cloudinary.service';
 import { AuraQueueService } from './aura-queue.service';
 import { CreateAuraDto } from './dto/create-aura.dto';
-import { AuraStatus } from '@prisma/client';
+import { AuraStatus, Prisma } from '@prisma/client';
 
 @Injectable()
 export class AuraService {
@@ -14,13 +14,27 @@ export class AuraService {
     ) { }
 
     async createAura(userId: string, file: Express.Multer.File, attributes: CreateAuraDto) {
-        // Check if user already has an Aura
         const existingAura = await this.prisma.aura.findUnique({
             where: { user_id: userId },
         });
+        const userLimits = await this.prisma.user.findUnique({
+            where: { user_id: userId },
+            select: {
+                has_created_aura: true,
+                max_avatar_regenerations: true,
+                avatar_regenerations_used: true,
+            },
+        });
 
-        if (existingAura) {
-            throw new ConflictException('User already has an Aura. Only one Aura per user is allowed.');
+        if (!userLimits) {
+            throw new ConflictException('User not found');
+        }
+
+        const isRegeneration = userLimits.has_created_aura;
+        if (isRegeneration && userLimits.avatar_regenerations_used >= userLimits.max_avatar_regenerations) {
+            throw new ConflictException(
+                `Avatar regeneration limit reached. You can regenerate up to ${userLimits.max_avatar_regenerations} times.`
+            );
         }
 
         try {
@@ -32,25 +46,61 @@ export class AuraService {
             const imageUrl = await this.cloudinary.uploadImage(base64Image);
             console.log('✅ Image uploaded:', imageUrl);
 
-            // Create Aura record with PENDING status
-            const aura = await this.prisma.aura.create({
-                data: {
-                    user_id: userId,
-                    image_url: imageUrl,
-                    height_cm: attributes.height,
-                    weight_kg: attributes.weight,
-                    skin_tone: attributes.skinTone,
-                    gender: attributes.gender,
-                    body_shape: attributes.bodyShape,
-                    body_type: attributes.bodyType, // Added mapping
-                    body_size: attributes.bodySize, // Added mapping for body size
-                    age_range: attributes.ageRange,
-                    hair_style: attributes.hairStyle,
-                    status: AuraStatus.PENDING, // Changed from READY
-                },
+            // If aura already exists, recycle it so users can re-create avatars.
+            const aura = await this.prisma.$transaction(async (tx) => {
+                const savedAura = existingAura
+                    ? await tx.aura.update({
+                        where: { user_id: userId },
+                        data: {
+                            image_url: imageUrl,
+                            height_cm: attributes.height,
+                            weight_kg: attributes.weight,
+                            skin_tone: attributes.skinTone,
+                            gender: attributes.gender,
+                            body_shape: attributes.bodyShape,
+                            body_type: attributes.bodyType,
+                            body_size: attributes.bodySize,
+                            age_range: attributes.ageRange,
+                            hair_style: attributes.hairStyle,
+                            model_url: null,
+                            generated_avatar_urls: [],
+                            attributes: Prisma.JsonNull,
+                            status: AuraStatus.PENDING,
+                        },
+                    })
+                    : await tx.aura.create({
+                        data: {
+                            user_id: userId,
+                            image_url: imageUrl,
+                            height_cm: attributes.height,
+                            weight_kg: attributes.weight,
+                            skin_tone: attributes.skinTone,
+                            gender: attributes.gender,
+                            body_shape: attributes.bodyShape,
+                            body_type: attributes.bodyType,
+                            body_size: attributes.bodySize,
+                            age_range: attributes.ageRange,
+                            hair_style: attributes.hairStyle,
+                            status: AuraStatus.PENDING,
+                        },
+                    });
+
+                await tx.user.update({
+                    where: { user_id: userId },
+                    data: isRegeneration
+                        ? { avatar_regenerations_used: { increment: 1 } }
+                        : { has_created_aura: true },
+                });
+
+                return savedAura;
             });
 
-            console.log('✅ Aura created with PENDING status:', aura.aura_id);
+            if (existingAura) {
+                await this.deleteCloudinaryImages(existingAura);
+                console.log('♻️ Existing Aura refreshed:', aura.aura_id);
+            } else {
+                console.log('✅ Aura created with PENDING status:', aura.aura_id);
+            }
 
             // Add job to queue for background processing
             const job = await this.auraQueue.addAuraGenerationJob({
@@ -75,7 +125,7 @@ export class AuraService {
                 user_id: aura.user_id,
                 image_url: aura.image_url,
                 status: aura.status,
-                job_id: job.id.toString(), // Return job ID for polling
+                job_id: job.id.toString(),
                 created_at: aura.created_at,
             };
         } catch (error) {
@@ -158,35 +208,7 @@ export class AuraService {
         }
 
         try {
-            // Delete images from Cloudinary
-            const imagesToDelete: string[] = [];
-
-            // Add original image URL
-            if (existingAura.image_url) {
-                imagesToDelete.push(existingAura.image_url);
-            }
-
-            // Add model URL (AI generated avatar)
-            if (existingAura.model_url) {
-                imagesToDelete.push(existingAura.model_url);
-            }
-
-            // Add any generated avatar URLs
-            if (existingAura.generated_avatar_urls && existingAura.generated_avatar_urls.length > 0) {
-                imagesToDelete.push(...existingAura.generated_avatar_urls);
-            }
-
-            // Delete all images from Cloudinary
-            console.log('🗑️ Deleting images from Cloudinary:', imagesToDelete);
-            for (const imageUrl of imagesToDelete) {
-                try {
-                    await this.cloudinary.deleteImage(imageUrl);
-                    console.log('✅ Deleted:', imageUrl);
-                } catch (error) {
-                    console.error('⚠️ Failed to delete image from Cloudinary:', imageUrl, error);
-                    // Continue even if Cloudinary deletion fails
-                }
-            }
+            await this.deleteCloudinaryImages(existingAura);
 
             // Delete Aura from database
             await this.prisma.aura.delete({
@@ -202,6 +224,33 @@ export class AuraService {
         } catch (error) {
             console.error('Error deleting Aura:', error);
             throw new InternalServerErrorException('Failed to delete Aura. Please try again.');
+        }
+    }
+
+    private async deleteCloudinaryImages(aura: {
+        image_url: string | null;
+        model_url: string | null;
+        generated_avatar_urls: string[];
+    }) {
+        const imagesToDelete = Array.from(new Set([
+            aura.image_url,
+            aura.model_url,
+            ...(aura.generated_avatar_urls || []),
+        ].filter((url): url is string => Boolean(url))));
+
+        if (imagesToDelete.length === 0) {
+            return;
+        }
+
+        console.log('🗑️ Deleting images from Cloudinary:', imagesToDelete);
+        for (const imageUrl of imagesToDelete) {
+            try {
+                await this.cloudinary.deleteImage(imageUrl);
+                console.log('✅ Deleted:', imageUrl);
+            } catch (error) {
+                console.error('⚠️ Failed to delete image from Cloudinary:', imageUrl, error);
+                // Continue even if Cloudinary deletion fails
+            }
         }
     }
 }

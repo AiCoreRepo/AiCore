@@ -211,7 +211,11 @@ const ProductDetailsPage = () => {
     const isInWishlistState = isInWishlist(product.product_id);
     const averageRating = calculateAverageRating();
     const sizeChart = getSizeChart(product.category);
-    const availableSizes = product.metadata?.sizes ? product.metadata.sizes.split(',').map((s: string) => s.trim()) : getAvailableSizes(product.category);
+    const availableSizes = product.metadata?.sizes
+        ? (Array.isArray(product.metadata.sizes)
+            ? product.metadata.sizes
+            : product.metadata.sizes.split(',').map((s: string) => s.trim()))
+        : getAvailableSizes(product.category);
 
     return (
         <div className="min-h-screen bg-white">

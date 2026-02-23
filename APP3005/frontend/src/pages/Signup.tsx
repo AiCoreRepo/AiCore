@@ -4,13 +4,11 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Link, useNavigate } from "react-router-dom";
 import { Eye, EyeOff } from "lucide-react";
 import { AuthLayout } from "@/components/auth/AuthLayout";
-import { PhoneInput } from "@/components/auth/PhoneInput";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { signupSchema, type SignupFormData } from "@/lib/validation";
 import { useToast } from "@/hooks/use-toast";
-import { useOTP } from "@/hooks/useOTP";
 import { signup as signupApi, login as loginApi, googleAuth } from "@/lib/api";
 import { useGoogleLogin } from "@react-oauth/google";
 import heroImage from "@/assets/auth-hero-signup.jpg";
@@ -19,10 +17,8 @@ const Signup = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [phoneNumber, setPhoneNumber] = useState('');
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { sendOTP } = useOTP();
 
   const {
     register,
@@ -55,24 +51,29 @@ const Signup = () => {
         }
       }
 
-      // Email is available, proceed to send OTP
-      const otpSent = await sendOTP(phoneNumber);
+      await signupApi({
+        email: data.email,
+        password: data.password,
+        brandName: data.brandName,
+        phoneNumber: data.phoneNumber || undefined,
+      });
 
-      if (otpSent) {
-        // Navigate to OTP verification page with signup data
-        navigate('/verify-otp', {
-          state: {
-            phoneNumber,
-            signupType: 'creator',
-            signupData: {
-              email: data.email!,
-              password: data.password!,
-              brandName: data.brandName!,
-              phoneNumber,
-            },
-          },
-        });
+      const loginResponse = await loginApi({
+        email: data.email,
+        password: data.password,
+      });
+
+      if (loginResponse.access_token) {
+        localStorage.setItem("access_token", loginResponse.access_token);
+        window.dispatchEvent(new Event("auth-refresh"));
       }
+
+      toast({
+        title: "Welcome to AiVestire!",
+        description: "Your creator account has been created successfully.",
+      });
+
+      navigate("/creator-dashboard");
     } catch (error: unknown) {
       let message = (error as Error).message || "Something went wrong. Please try again.";
 
@@ -200,13 +201,21 @@ const Signup = () => {
             )}
           </div>
 
-          {/* Phone Number Input */}
-          <PhoneInput
-            value={phoneNumber}
-            onChange={setPhoneNumber}
-            label="Phone Number"
-            placeholder="1234567890"
-          />
+          <div className="space-y-2">
+            <Label htmlFor="phoneNumber" className="text-luxury-cream">
+              Phone Number
+            </Label>
+            <Input
+              id="phoneNumber"
+              type="tel"
+              placeholder="+919876543210"
+              {...register("phoneNumber")}
+              className="bg-luxury-cream border-neutral-200 text-luxury-black placeholder:text-neutral-500 h-11 rounded-xl shadow-sm focus:border-luxury-gold/50 focus:ring-4 focus:ring-luxury-gold/5 transition-all duration-300"
+            />
+            {errors.phoneNumber && (
+              <p className="text-sm text-destructive">{errors.phoneNumber.message}</p>
+            )}
+          </div>
 
           <div className="space-y-2">
             <Label htmlFor="password" className="text-luxury-cream">
@@ -263,9 +272,9 @@ const Signup = () => {
             variant="luxury"
             size="lg"
             className="w-full mt-6"
-            disabled={isLoading || !phoneNumber}
+            disabled={isLoading}
           >
-            {isLoading ? "Sending OTP..." : "Continue with OTP"}
+            {isLoading ? "Creating Account..." : "Create Account"}
           </Button>
 
           <div className="relative">

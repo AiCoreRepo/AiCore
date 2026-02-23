@@ -11,7 +11,7 @@ mediapipe==0.10.9
 numpy>=1.26.0,<2.0
 torch==2.2.0+cpu
 torchvision==0.17.0+cpu
-transformers>=4.38.0
+transformers==4.38.2
 clip @ git+https://github.com/openai/CLIP.git
 open_clip_torch>=2.24.0
 sentence-transformers>=2.6.0

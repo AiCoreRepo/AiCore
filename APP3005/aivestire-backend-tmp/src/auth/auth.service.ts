@@ -87,7 +87,8 @@ export class AuthService {
         email: dto.email,
         password_hash,
         phone: dto.phoneNumber,
-        phone_verified: true, // Set to true since OTP was verified before registration
+        // Keep verified only when a phone number is explicitly supplied.
+        phone_verified: !!dto.phoneNumber,
         role: dto.role,
       },
     });
@@ -237,20 +238,22 @@ export class AuthService {
   }
 
   async getProfile(user_id: string) {
-    const user = await this.prisma.user.findUnique({
-      where: { user_id },
-      select: {
-        user_id: true,
-        email: true,
-        role: true,
-        try_on_permission: true,
-        try_ons_used: true,
-        max_try_ons: true,
-        creatorProfile: {
-          select: {
-            store_name: true,
-          },
-        },
+        const user = await this.prisma.user.findUnique({
+            where: { user_id },
+            select: {
+                user_id: true,
+                email: true,
+                role: true,
+                try_on_permission: true,
+                try_ons_used: true,
+                max_try_ons: true,
+                avatar_regenerations_used: true,
+                max_avatar_regenerations: true,
+                creatorProfile: {
+                    select: {
+                        store_name: true,
+                    },
+                },
       },
     });
 
@@ -259,18 +262,20 @@ export class AuthService {
     }
 
     // If the user is a creator, return their creator profile details
-    if (user.role === UserRole.CREATOR && user.creatorProfile) {
-      return {
-        user_id: user.user_id,
-        email: user.email,
-        role: user.role,
-        try_on_permission: user.try_on_permission,
-        store_name: user.creatorProfile.store_name,
-        try_ons_used: user.try_ons_used,
-        max_try_ons: user.max_try_ons,
-        // Add other creator-specific fields you might need
-      };
-    }
+        if (user.role === UserRole.CREATOR && user.creatorProfile) {
+            return {
+                user_id: user.user_id,
+                email: user.email,
+                role: user.role,
+                try_on_permission: user.try_on_permission,
+                store_name: user.creatorProfile.store_name,
+                try_ons_used: user.try_ons_used,
+                max_try_ons: user.max_try_ons,
+                avatar_regenerations_used: user.avatar_regenerations_used,
+                max_avatar_regenerations: user.max_avatar_regenerations,
+                // Add other creator-specific fields you might need
+            };
+        }
 
     // For other roles or non-creator users, return basic user info
     return {
@@ -280,6 +285,8 @@ export class AuthService {
       try_on_permission: user.try_on_permission,
       try_ons_used: user.try_ons_used,
       max_try_ons: user.max_try_ons,
+      avatar_regenerations_used: user.avatar_regenerations_used,
+      max_avatar_regenerations: user.max_avatar_regenerations,
     };
   }
 

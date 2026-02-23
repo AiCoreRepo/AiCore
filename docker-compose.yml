@@ -1,0 +1,117 @@
+version: "3.8"
+
+services:
+  db:
+    image: postgres:15
+    container_name: postgres-db-testcoth2
+    command: ["postgres", "-p", "5540"]
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: aivestire
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: redis-server-testcoth2
+    command: redis-server --appendonly yes --port 6380
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "-p", "6380", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app-network
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: backend
+    container_name: nest-server
+    command:
+      [
+        "sh",
+        "-c",
+        "set -e; until node -e \"const net=require('net');const s=net.createConnection({host:'db',port:5540},()=>process.exit(0));s.on('error',()=>process.exit(1));\"; do echo 'waiting for db...'; sleep 2; done; node ./node_modules/prisma/build/index.js migrate deploy || node ./node_modules/prisma/build/index.js migrate reset --force --skip-seed; node scripts/seed-products.js; node dist/src/main"
+      ]
+    env_file:
+      - ./APP3005/aivestire-backend-tmp/.env
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5540/aivestire
+      REDIS_HOST: redis
+      REDIS_PORT: 6380
+      FASTAPI_BODY_ANALYZE_URL: http://body-analyzer:8898/body_analyze_json
+      FASTAPI_RECOMMENDATION_URL: http://recommendation-api:8799/recommend-base64
+      CORS_ORIGIN: ${CORS_ORIGIN:-}
+      GOOGLE_APPLICATION_CREDENTIALS: /app/service_account.json
+      SEED_COLLECTION_PATH: /app/seed/main_train_data.csv
+      SEED_LIMIT: ${SEED_LIMIT:-200}
+    volumes:
+      - ./APP3005/aivestire-backend-tmp/service_account.json:/app/service_account.json:ro
+    depends_on:
+      - db
+      - redis
+      - body-analyzer
+      - recommendation-api
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: frontend
+      args:
+        VITE_API_URL: ${VITE_API_URL:-/api}
+        VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID:?Set VITE_GOOGLE_CLIENT_ID in .env}
+    container_name: aivestire-frontend
+    ports:
+      - "127.0.0.1:8088:8080"
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  body-analyzer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: body-analyzer
+    container_name: body-analyzer-api
+    ports:
+      - "127.0.0.1:8898:8898"
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  recommendation-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: recommendation-api
+    container_name: recommendation-api
+    ports:
+      - "127.0.0.1:8799:8799"
+    environment:
+      RECOMMENDATION_COLLECTION_PATH: /app/main_train_data.csv
+    restart: unless-stopped
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:

@@ -1,0 +1,2 @@
+# Ignore root-owned etcd data to avoid permission errors in build context
+APP3005_AI/recommend_demo/etcd

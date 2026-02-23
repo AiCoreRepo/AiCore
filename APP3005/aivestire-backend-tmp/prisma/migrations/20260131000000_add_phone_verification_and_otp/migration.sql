@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS "otp_verifications" (
 );
 
 -- AlterTable
-ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "phone_verified" BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "phone_verified" BOOLEAN NOT NULL DEFAULT false;
 
 -- CreateIndex
 CREATE INDEX IF NOT EXISTS "otp_verifications_phone_number_idx" ON "otp_verifications"("phone_number");

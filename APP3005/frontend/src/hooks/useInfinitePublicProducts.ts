@@ -66,7 +66,7 @@ export function useInfinitePublicProducts(
             if (sizes && sizes.length > 0) params.append('sizes', sizes.join(','));
             if (colors && colors.length > 0) params.append('colors', colors.join(','));
 
-            const url = `${import.meta.env.VITE_API_URL ?? 'http://localhost:3000'}/api/products/approved?${params}`;
+            const url = `${import.meta.env.VITE_API_URL ?? 'http://localhost:3000'}/products/approved?${params}`;
 
             const response = await fetch(url);
 

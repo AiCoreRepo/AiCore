@@ -35,7 +35,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS "wishlist_items_wishlist_id_product_id_key" ON
 DO $$ BEGIN
     ALTER TABLE "wishlists" 
     ADD CONSTRAINT "wishlists_user_id_fkey" 
-    FOREIGN KEY ("user_id") REFERENCES "users"("user_id") ON DELETE CASCADE ON UPDATE CASCADE;
+    FOREIGN KEY ("user_id") REFERENCES "User"("user_id") ON DELETE CASCADE ON UPDATE CASCADE;
 EXCEPTION
     WHEN duplicate_object THEN null;
 END $$;
@@ -53,7 +53,7 @@ END $$;
 DO $$ BEGIN
     ALTER TABLE "wishlist_items" 
     ADD CONSTRAINT "wishlist_items_product_id_fkey" 
-    FOREIGN KEY ("product_id") REFERENCES "products"("product_id") ON DELETE CASCADE ON UPDATE CASCADE;
+    FOREIGN KEY ("product_id") REFERENCES "Product"("product_id") ON DELETE CASCADE ON UPDATE CASCADE;
 EXCEPTION
     WHEN duplicate_object THEN null;
 END $$;

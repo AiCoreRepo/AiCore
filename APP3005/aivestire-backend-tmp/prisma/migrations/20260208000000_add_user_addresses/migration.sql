@@ -39,7 +39,7 @@ CREATE INDEX IF NOT EXISTS "user_addresses_is_default_idx" ON "user_addresses"("
 DO $$ BEGIN
     ALTER TABLE "user_addresses" 
     ADD CONSTRAINT "user_addresses_user_id_fkey" 
-    FOREIGN KEY ("user_id") REFERENCES "users"("user_id") ON DELETE CASCADE ON UPDATE CASCADE;
+    FOREIGN KEY ("user_id") REFERENCES "User"("user_id") ON DELETE CASCADE ON UPDATE CASCADE;
 EXCEPTION
     WHEN duplicate_object THEN null;
 END $$;
