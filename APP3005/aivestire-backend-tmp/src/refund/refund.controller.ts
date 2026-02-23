@@ -18,7 +18,7 @@ import { RefundStatus } from '@prisma/client';
 @Controller('refunds')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class RefundController {
-  constructor(private readonly refundService: RefundService) {}
+  constructor(private readonly refundService: RefundService) { }
 
   /**
    * Request refund for cancelled order
@@ -30,7 +30,7 @@ export class RefundController {
     @Body() dto: RequestRefundDto,
     @Req() req: any,
   ) {
-    return this.refundService.initiateRefund(orderId, req.user.userId, dto);
+    return this.refundService.initiateRefund(orderId, req.user.user_id, dto);
   }
 
   /**
@@ -59,7 +59,7 @@ export class RefundController {
   @Post(':refundId/process')
   @Roles('ADMIN')
   async processRefund(@Param('refundId') refundId: string, @Req() req: any) {
-    return this.refundService.processRefund(refundId, req.user.userId);
+    return this.refundService.processRefund(refundId, req.user.user_id);
   }
 
   /**
@@ -75,7 +75,7 @@ export class RefundController {
   ) {
     return this.refundService.completeRefund(
       refundId,
-      req.user.userId,
+      req.user.user_id,
       transactionId,
     );
   }
@@ -91,6 +91,6 @@ export class RefundController {
     @Body('reason') reason: string,
     @Req() req: any,
   ) {
-    return this.refundService.rejectRefund(refundId, req.user.userId, reason);
+    return this.refundService.rejectRefund(refundId, req.user.user_id, reason);
   }
 }

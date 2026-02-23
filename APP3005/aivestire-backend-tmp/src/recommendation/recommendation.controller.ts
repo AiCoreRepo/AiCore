@@ -34,7 +34,7 @@ export class RecommendationController {
   constructor(
     private readonly recommendationService: RecommendationService,
     private readonly dummyRecommendationService: DummyRecommendationService,
-  ) {}
+  ) { }
 
   @Post('ai-decide')
   @HttpCode(HttpStatus.OK)
@@ -156,7 +156,7 @@ export class RecommendationController {
     @Request() req,
     @Body() dto: GetRecommendationsDto,
   ): Promise<RecommendationsResponseDto> {
-    const userId = req.user.userId;
+    const userId = req.user.user_id;
 
     this.logger.log('='.repeat(80));
     this.logger.log('📥 DUMMY RECOMMENDATION REQUEST RECEIVED');

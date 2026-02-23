@@ -61,6 +61,18 @@ export const ORDER_STATUS_CONFIG: Record<
         bgColor: '#FEE2E2',
         icon: '✕',
     },
+    PENDING: {
+        label: 'Pending',
+        color: '#F59E0B',
+        bgColor: '#FEF3C7',
+        icon: '⏳',
+    },
+    PENDING_APPROVAL: {
+        label: 'Pending Approval',
+        color: '#F59E0B',
+        bgColor: '#FEF3C7',
+        icon: '⏳',
+    },
 };
 
 export const PAYMENT_STATUS_CONFIG: Record<

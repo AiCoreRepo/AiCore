@@ -20,4 +20,12 @@ export class UpdateOrderStatusDto {
   @IsOptional()
   @IsEnum(PaymentStatus)
   paymentStatus?: PaymentStatus;
+
+  @IsOptional()
+  @IsString()
+  returnStatus?: string;
+
+  @IsOptional()
+  @IsString()
+  replaceStatus?: string;
 }

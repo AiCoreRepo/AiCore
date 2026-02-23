@@ -37,11 +37,11 @@ async function bootstrap() {
     'https://www.aivestire.com'
   ];
 
-  console.log('🔧 CORS Configuration:');
-  console.log(
-    '   Allowed origins:',
-    allowedOrigins.length > 0 ? allowedOrigins : 'all (development mode)',
-  );
+  // console.log('🔧 CORS Configuration:');
+  // console.log(
+  //   '   Allowed origins:',
+  //   allowedOrigins.length > 0 ? allowedOrigins : 'all (development mode)',
+  // );
 
   // CORS configuration for production
   app.enableCors({

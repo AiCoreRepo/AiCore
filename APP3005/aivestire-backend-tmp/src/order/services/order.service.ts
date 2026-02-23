@@ -276,6 +276,12 @@ export class OrderService {
         if (dto.paymentStatus) {
           updatedData.payment_status = dto.paymentStatus;
         }
+        if (dto.returnStatus !== undefined) {
+          updatedData.return_status = dto.returnStatus === '' ? null : dto.returnStatus;
+        }
+        if (dto.replaceStatus !== undefined) {
+          updatedData.replace_status = dto.replaceStatus === '' ? null : dto.replaceStatus;
+        }
 
         const updatedOrder = await tx.order.update({
           where: { order_id: orderId },
@@ -522,6 +528,7 @@ export class OrderService {
             },
           },
         },
+        shipping_address: true,
       },
       orderBy: { created_at: 'desc' },
     });

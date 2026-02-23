@@ -20,7 +20,7 @@ import { ReturnStatus } from '@prisma/client';
 @Controller('returns')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class ReturnController {
-  constructor(private readonly returnService: ReturnService) {}
+  constructor(private readonly returnService: ReturnService) { }
 
   /**
    * Request return for delivered order
@@ -32,7 +32,7 @@ export class ReturnController {
     @Body() dto: RequestReturnDto,
     @Req() req: any,
   ) {
-    return this.returnService.requestReturn(orderId, req.user.userId, dto);
+    return this.returnService.requestReturn(orderId, req.user.user_id, dto);
   }
 
   /**
@@ -61,7 +61,7 @@ export class ReturnController {
   @Post(':returnId/approve')
   @Roles('ADMIN')
   async approveReturn(@Param('returnId') returnId: string, @Req() req: any) {
-    return this.returnService.approveReturn(returnId, req.user.userId);
+    return this.returnService.approveReturn(returnId, req.user.user_id);
   }
 
   /**
@@ -75,7 +75,7 @@ export class ReturnController {
     @Body('reason') reason: string,
     @Req() req: any,
   ) {
-    return this.returnService.rejectReturn(returnId, req.user.userId, reason);
+    return this.returnService.rejectReturn(returnId, req.user.user_id, reason);
   }
 
   /**
