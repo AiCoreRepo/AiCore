@@ -81,7 +81,7 @@ const UserLogin = () => {
                 if (returnUrl) {
                     navigate(returnUrl, { state: returnState });
                 } else {
-                    navigate('/');
+                    navigate('/collection');
                 }
             } else {
                 // No Aura, show creation prompt
@@ -138,7 +138,7 @@ const UserLogin = () => {
                     if (returnUrl) {
                         navigate(returnUrl, { state: returnState });
                     } else {
-                        navigate('/');
+                        navigate('/collection');
                     }
                 } else {
                     setShowAuraPrompt(true);
@@ -173,7 +173,7 @@ const UserLogin = () => {
         if (returnUrl) {
             navigate(returnUrl, { state: returnState });
         } else {
-            navigate("/"); // Go to home page
+            navigate("/collection");
         }
     };
 
