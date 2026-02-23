@@ -6,6 +6,9 @@ interface AvatarDisplayProps {
 }
 
 export const AvatarDisplay: React.FC<AvatarDisplayProps> = ({ imageUrl, userName }) => {
+    const firstName = userName?.trim().split(/\s+/)[0];
+    const avatarLabel = firstName ? `${firstName}'s Avatar` : "Your Avatar";
+
     return (
         <div className="avatar-display-container">
             <div className="avatar-frame">
@@ -26,7 +29,7 @@ export const AvatarDisplay: React.FC<AvatarDisplayProps> = ({ imageUrl, userName
                     />
                 </div>
             </div>
-            <div className="avatar-label">User's 2D Avatar</div>
+            <div className="avatar-label">{avatarLabel}</div>
         </div>
     );
 };

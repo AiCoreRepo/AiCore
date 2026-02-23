@@ -265,7 +265,7 @@ export class TryOnController {
      */
     @Post('3d/vertex')
     @HttpCode(HttpStatus.OK)
-    @UseGuards(AuraGuard)
+    @UseGuards(JwtAuthGuard, AuraGuard, TryOnPermissionGuard)
     @ApiOperation({
         summary: '3D Try-on with Vertex AI (no background)',
         description:
@@ -281,7 +281,6 @@ export class TryOnController {
         description: 'User does not have Aura avatar',
         type: TryOnErrorResponseDto,
     })
-    @UseGuards(AuraGuard, TryOnPermissionGuard)
     async tryOn3DWithVertex(
         @Body() request: TryOn3DRequestDto,
         @CurrentAura() aura: Aura,
@@ -299,7 +298,7 @@ export class TryOnController {
      */
     @Post('3d/gemini')
     @HttpCode(HttpStatus.OK)
-    @UseGuards(AuraGuard)
+    @UseGuards(JwtAuthGuard, AuraGuard, TryOnPermissionGuard)
     @ApiOperation({
         summary: '3D Try-on with Gemini AI (with background)',
         description:
@@ -315,7 +314,6 @@ export class TryOnController {
         description: 'User does not have Aura avatar',
         type: TryOnErrorResponseDto,
     })
-    @UseGuards(AuraGuard, TryOnPermissionGuard)
     async tryOn3DWithGemini(
         @Body() request: TryOn3DRequestDto,
         @CurrentAura() aura: Aura,
@@ -333,7 +331,7 @@ export class TryOnController {
      */
     @Post('3d/more-angles')
     @HttpCode(HttpStatus.OK)
-    @UseGuards(AuraGuard)
+    @UseGuards(JwtAuthGuard, AuraGuard, TryOnPermissionGuard)
     @ApiOperation({
         summary: 'Generate more angles from existing try-on',
         description:
@@ -349,7 +347,6 @@ export class TryOnController {
         description: 'User does not have Aura avatar',
         type: TryOnErrorResponseDto,
     })
-    @UseGuards(AuraGuard, TryOnPermissionGuard)
     async generateMoreAngles(
         @Body() request: GenerateAnglesRequestDto,
         @CurrentAura() aura: Aura,

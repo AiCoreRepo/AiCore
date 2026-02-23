@@ -11,12 +11,21 @@ export class AuraGuard implements CanActivate {
 
     async canActivate(context: ExecutionContext): Promise<boolean> {
         const request = context.switchToHttp().getRequest();
-        const userId = request.body?.userId || request.params?.userId || request.query?.userId;
+        const authenticatedUserId = request.user?.user_id;
+        const requestedUserId = request.body?.userId || request.params?.userId || request.query?.userId;
+        const userId = authenticatedUserId || requestedUserId;
 
         if (!userId) {
             throw new HttpException(
                 'User ID is required',
                 HttpStatus.BAD_REQUEST,
+            );
+        }
+
+        if (authenticatedUserId && requestedUserId && requestedUserId.toString() !== authenticatedUserId.toString()) {
+            throw new HttpException(
+                'User ID does not match authenticated user.',
+                HttpStatus.FORBIDDEN,
             );
         }
 

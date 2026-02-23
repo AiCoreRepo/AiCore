@@ -39,7 +39,7 @@ export const signupSchema = z
     phoneNumber: z
       .string()
       .trim()
-      .regex(/^\+\d{10,15}$/, { message: "Use international format, e.g. +919876543210" })
+      .regex(/^(\+91|\+\d{10,15})$/, { message: "Use international format, e.g. +919876543210" })
       .optional()
       .or(z.literal("")),
     password: z

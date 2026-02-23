@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { X, ChevronLeft, ChevronRight, Star, Share2, Heart, ShoppingBag, Truck, ShieldCheck, RotateCcw } from "lucide-react";
+import { X, ChevronLeft, ChevronRight, Star, Share2, Heart, ShoppingBag, Truck, ShieldCheck, RotateCcw, Sparkles } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
 import { useAuth } from "@/context/AuthContext";
 import { useCart } from "@/context/CartContext";
@@ -150,6 +150,20 @@ const ProductDetailsPage = () => {
                 description: "Failed to add product to cart.",
             });
         }
+    };
+
+    const handleVirtualTryOn = () => {
+        if (!product) return;
+
+        const token = localStorage.getItem('access_token');
+        if (!token) {
+            navigate('/user-login', { state: { returnUrl: location.pathname } });
+            return;
+        }
+
+        navigate('/ai-try-on', {
+            state: { autoTryOnProductId: product.product_id },
+        });
     };
 
     const formatPrice = (priceCents: number, currency: string) => {
@@ -350,6 +364,14 @@ const ProductDetailsPage = () => {
                                 WISHLIST
                             </button>
                         </div>
+
+                        <button
+                            onClick={handleVirtualTryOn}
+                            className="w-full bg-black text-white py-3 px-6 rounded font-semibold hover:bg-neutral-800 transition-colors flex items-center justify-center gap-2"
+                        >
+                            <Sparkles className="w-5 h-5" />
+                            VIRTUAL TRY ON
+                        </button>
 
                         {/* Delivery Options */}
                         <div className="pt-3 border-t">
