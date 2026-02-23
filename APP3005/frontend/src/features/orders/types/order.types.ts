@@ -5,6 +5,7 @@
 export type OrderStatus =
     | 'PENDING'
     | 'PENDING_APPROVAL'
+    | 'ORDER_PLACED'
     | 'BOOKED'
     | 'DISPATCHED'
     | 'SHIPPED'

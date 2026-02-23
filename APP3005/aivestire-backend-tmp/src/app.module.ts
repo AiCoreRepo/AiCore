@@ -55,4 +55,4 @@ import { EmailModule } from './email/email.module';
   controllers: [AppController],
   providers: [AppService, AdminSeederService],
 })
-export class AppModule {}
+export class AppModule { }

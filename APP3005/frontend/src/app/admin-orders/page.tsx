@@ -48,6 +48,8 @@ interface Order {
     shipping_address?: ShippingAddress;
     tracking_number?: string;
     delivery_partner?: string;
+    return_status?: string | null;
+    replace_status?: string | null;
 }
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -104,6 +106,8 @@ const ALL_FILTER_TABS = [
     { id: 'OUT_FOR_DELIVERY', label: 'Out for Delivery' },
     { id: 'DELIVERED', label: 'Delivered', },
     { id: 'CANCELLED', label: 'Cancelled', },
+    { id: 'RETURN_REQUESTED', label: 'Returns', },
+    { id: 'REPLACE_REQUESTED', label: 'Replacements', },
 ];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -307,6 +311,8 @@ const AdminOrdersPage = () => {
     const [trackingNum, setTrackingNum] = useState('');
     const [deliveryPartner, setDeliveryPartner] = useState('');
     const [paymentStatus, setPaymentStatus] = useState('');
+    const [returnStatus, setReturnStatus] = useState('');
+    const [replaceStatus, setReplaceStatus] = useState('');
     const [isUpdating, setIsUpdating] = useState(false);
     const [updateMsg, setUpdateMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
@@ -364,7 +370,10 @@ const AdminOrdersPage = () => {
     // ── Filtering & Pagination ────────────────────────────────────────────────
 
     const filtered = allOrders.filter(order => {
-        const matchFilter = activeFilter === 'all' || order.current_status === activeFilter;
+        let matchFilter = activeFilter === 'all' || order.current_status === activeFilter;
+        if (activeFilter === 'RETURN_REQUESTED') matchFilter = !!order.return_status;
+        if (activeFilter === 'REPLACE_REQUESTED') matchFilter = !!order.replace_status;
+
         const q = search.toLowerCase();
         const matchSearch = !q ||
             order.order_number.toLowerCase().includes(q) ||
@@ -417,6 +426,8 @@ const AdminOrdersPage = () => {
         setTrackingNum(order.tracking_number || '');
         setDeliveryPartner(order.delivery_partner || '');
         setPaymentStatus(order.payment_status || '');
+        setReturnStatus(order.return_status || '');
+        setReplaceStatus(order.replace_status || '');
         setUpdateMsg(null);
     };
 
@@ -426,6 +437,8 @@ const AdminOrdersPage = () => {
         setTrackingNum('');
         setDeliveryPartner('');
         setPaymentStatus('');
+        setReturnStatus('');
+        setReplaceStatus('');
         setUpdateMsg(null);
     };
 
@@ -445,6 +458,8 @@ const AdminOrdersPage = () => {
                         trackingNumber: trackingNum || undefined,
                         deliveryPartner: deliveryPartner || undefined,
                         paymentStatus: paymentStatus || undefined,
+                        returnStatus: returnStatus || undefined,
+                        replaceStatus: replaceStatus || undefined,
                         notes: `Admin updated to ${newStatus}`,
                     }),
                 }
@@ -596,25 +611,24 @@ const AdminOrdersPage = () => {
                                 // Important: We should show the count based on the DATE/SEARCH filter as well so it's accurate
                                 // or show total in category. Let's show total in category respecting date bounds
                                 const inTab = allOrders.filter(o => {
-                                    if (tab.id !== 'all' && o.current_status !== tab.id) return false;
+                                    let match = tab.id === 'all' || o.current_status === tab.id;
+                                    if (tab.id === 'RETURN_REQUESTED') match = !!o.return_status;
+                                    if (tab.id === 'REPLACE_REQUESTED') match = !!o.replace_status;
 
-                                    let matchDate = true;
-                                    if (startDate || endDate) {
-                                        const orderDate = new Date(o.created_at);
-                                        orderDate.setHours(0, 0, 0, 0);
-
-                                        if (startDate) {
-                                            const sDate = new Date(startDate);
-                                            sDate.setHours(0, 0, 0, 0);
-                                            if (orderDate < sDate) matchDate = false;
-                                        }
-                                        if (endDate) {
-                                            const eDate = new Date(endDate);
-                                            eDate.setHours(23, 59, 59, 999);
-                                            if (orderDate > eDate) matchDate = false;
-                                        }
+                                    if (!match) return false;
+                                    if (startDate) {
+                                        const s = new Date(startDate);
+                                        s.setHours(0, 0, 0, 0);
+                                        const d = new Date(o.created_at);
+                                        d.setHours(0, 0, 0, 0);
+                                        if (d < s) return false;
                                     }
-                                    return matchDate;
+                                    if (endDate) {
+                                        const e = new Date(endDate);
+                                        e.setHours(23, 59, 59, 999);
+                                        if (new Date(o.created_at) > e) return false;
+                                    }
+                                    return true;
                                 });
                                 const count = inTab.length;
                                 const isActive = activeFilter === tab.id;
@@ -730,6 +744,19 @@ const AdminOrdersPage = () => {
                                                             {order.order_number}
                                                         </span>
                                                         <StatusBadge status={order.current_status} />
+
+                                                        {order.return_status && (
+                                                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-500/10 border border-blue-500/35 text-blue-400 whitespace-nowrap">
+                                                                🔄 Return: {order.return_status.replace(/_/g, ' ')}
+                                                            </span>
+                                                        )}
+
+                                                        {order.replace_status && (
+                                                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-purple-500/10 border border-purple-500/35 text-purple-400 whitespace-nowrap">
+                                                                🔁 Replace: {order.replace_status.replace(/_/g, ' ')}
+                                                            </span>
+                                                        )}
+
                                                         {/* UPDATE STATUS BUTTON */}
                                                         {!isEditing && !isTerminal && (
                                                             <button
@@ -875,6 +902,50 @@ const AdminOrdersPage = () => {
                                                                     />
                                                                 </div>
                                                             )}
+                                                        </div>
+
+                                                        {/* Return & Replace Statuses */}
+                                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
+                                                            {/* Return Status Dropdown */}
+                                                            <div>
+                                                                <label className="block text-xs text-neutral-500 mb-1 font-medium uppercase tracking-wide">Return Status</label>
+                                                                <select
+                                                                    value={returnStatus}
+                                                                    onChange={e => setReturnStatus(e.target.value)}
+                                                                    className="w-full px-3 py-2.5 bg-neutral-800 border border-amber-500/60 rounded-xl text-white text-sm focus:outline-none focus:border-amber-500 transition-colors"
+                                                                >
+                                                                    <option value="">None</option>
+                                                                    <option value="REQUESTED">Requested</option>
+                                                                    <option value="APPROVED">Approved</option>
+                                                                    <option value="PICKUP_SCHEDULED">Pickup Scheduled</option>
+                                                                    <option value="PICKED_UP">Picked Up</option>
+                                                                    <option value="QC_IN_PROGRESS">QC In Progress</option>
+                                                                    <option value="QC_PASSED">QC Passed</option>
+                                                                    <option value="QC_FAILED">QC Failed</option>
+                                                                    <option value="COMPLETED">Completed</option>
+                                                                    <option value="REJECTED">Rejected</option>
+                                                                </select>
+                                                            </div>
+
+                                                            {/* Replace Status Dropdown */}
+                                                            <div>
+                                                                <label className="block text-xs text-neutral-500 mb-1 font-medium uppercase tracking-wide">Replace Status</label>
+                                                                <select
+                                                                    value={replaceStatus}
+                                                                    onChange={e => setReplaceStatus(e.target.value)}
+                                                                    className="w-full px-3 py-2.5 bg-neutral-800 border border-amber-500/60 rounded-xl text-white text-sm focus:outline-none focus:border-amber-500 transition-colors"
+                                                                >
+                                                                    <option value="">None</option>
+                                                                    <option value="REQUESTED">Requested</option>
+                                                                    <option value="APPROVED">Approved</option>
+                                                                    <option value="PICKUP_SCHEDULED">Pickup Scheduled</option>
+                                                                    <option value="PICKED_UP">Picked Up</option>
+                                                                    <option value="DISPATCHED">Dispatched</option>
+                                                                    <option value="DELIVERED">Delivered</option>
+                                                                    <option value="COMPLETED">Completed</option>
+                                                                    <option value="REJECTED">Rejected</option>
+                                                                </select>
+                                                            </div>
                                                         </div>
 
                                                         {/* Action buttons — full width on mobile */}

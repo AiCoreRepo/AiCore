@@ -4,11 +4,10 @@ import { Search, ChevronRight, ChevronLeft, Package } from 'lucide-react';
 import { UserDashboardLayout } from '@/components/layout/UserDashboardLayout';
 import { ordersApi } from './api/orders.api';
 import { Order } from './types/order.types';
-import { OrderDetailsModal } from '@/components/orders/OrderDetailsModal';
 import { OrderCancellationModal } from '@/components/orders/OrderCancellationModal';
 import { toast } from 'sonner';
 
-type FilterType = 'all' | 'processing' | 'shipped' | 'delivered';
+type FilterType = 'all' | 'processing' | 'shipped' | 'delivered' | 'returned' | 'replaced';
 
 const ITEMS_PER_PAGE = 3;
 
@@ -26,16 +25,20 @@ export const MyOrdersPage = () => {
     const fromCart = searchParams.get('from') === 'cart';
     const hideSidebar = fromCart;
 
-    // Modal State
-    const [detailsOrder, setDetailsOrder] = useState<Order | null>(null);
+    // Modal State — only cancel remains as modal; details/return/replace are full pages
     const [cancelOrder, setCancelOrder] = useState<Order | null>(null);
     const [isCancelling, setIsCancelling] = useState(false);
+    const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+    // Info popup for already-requested actions
+    const [infoPopup, setInfoPopup] = useState<{ title: string; message: string } | null>(null);
 
     const filters: { id: FilterType; label: string }[] = [
         { id: 'all', label: 'All Orders' },
         { id: 'processing', label: 'Processing' },
         { id: 'shipped', label: 'Shipped' },
         { id: 'delivered', label: 'Delivered' },
+        { id: 'returned', label: 'Returned' },
+        { id: 'replaced', label: 'Replaced' },
     ];
 
     useEffect(() => {
@@ -70,6 +73,8 @@ export const MyOrdersPage = () => {
                 }
                 if (activeFilter === 'shipped') return status === 'SHIPPED';
                 if (activeFilter === 'delivered') return status === 'DELIVERED';
+                if (activeFilter === 'returned') return !!order.return_status;
+                if (activeFilter === 'replaced') return !!order.replace_status;
                 return false;
             });
         }
@@ -145,6 +150,7 @@ export const MyOrdersPage = () => {
         }
     };
 
+
     // Pagination Calculation
     const totalPages = Math.ceil(filteredOrders.length / ITEMS_PER_PAGE);
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
@@ -194,28 +200,53 @@ export const MyOrdersPage = () => {
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-6">
                     {/* Filters and Search */}
                     <div className="bg-white rounded-xl shadow-sm border border-[#E0E0D8] p-5 sm:p-6 mb-6">
-                        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+                        <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-5">
                             {/* Tabs */}
-                            <div className="flex gap-2 overflow-x-auto pb-2 lg:pb-0 scrollbar-hide">
+                            <div className="flex gap-2 overflow-x-auto pb-2 xl:pb-0 scrollbar-hide flex-1 min-w-0 w-full">
                                 {filters.map((filter) => {
                                     const isActive = activeFilter === filter.id;
+
+                                    const count = filter.id === 'all' ? orders.length : orders.filter(order => {
+                                        const status = order.current_status.toUpperCase();
+                                        if (filter.id === 'processing') {
+                                            return ['ORDER_PLACED', 'PENDING', 'BOOKED', 'DISPATCHED'].includes(status);
+                                        }
+                                        if (filter.id === 'shipped') return status === 'SHIPPED';
+                                        if (filter.id === 'delivered') return status === 'DELIVERED';
+                                        if (filter.id === 'returned') return !!order.return_status;
+                                        if (filter.id === 'replaced') return !!order.replace_status;
+                                        return false;
+                                    }).length;
+
+                                    const badgeColor = isActive
+                                        ? 'bg-white/20 text-white border-transparent'
+                                        : filter.id === 'processing' ? 'bg-amber-50 text-amber-700 border-amber-200'
+                                            : filter.id === 'shipped' ? 'bg-blue-50 text-blue-700 border-blue-200'
+                                                : filter.id === 'delivered' ? 'bg-green-50 text-green-700 border-green-200'
+                                                    : filter.id === 'returned' ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                                                        : filter.id === 'replaced' ? 'bg-purple-50 text-purple-700 border-purple-200'
+                                                            : 'bg-neutral-100 text-[#6B6B6B] border-[#E0E0D8]';
+
                                     return (
                                         <button
                                             key={filter.id}
                                             onClick={() => handleFilterChange(filter.id)}
-                                            className={`px-5 py-2.5 text-sm font-medium rounded-lg whitespace-nowrap transition-all ${isActive
-                                                ? 'bg-[#C9A55C] text-white shadow-md'
-                                                : 'bg-[#F5F3EE] text-[#6B6B6B] hover:bg-[#EAE8E4]'
+                                            className={`px-5 py-2.5 text-sm font-medium rounded-lg whitespace-nowrap transition-all flex items-center gap-2 ${isActive
+                                                ? 'bg-[#C9A55C] text-white shadow-md border border-[#C9A55C]'
+                                                : 'bg-[#F5F3EE] text-[#6B6B6B] hover:bg-[#EAE8E4] border border-transparent hover:border-[#E0E0D8]'
                                                 }`}
                                         >
                                             {filter.label}
+                                            <span className={`px-2 py-0.5 rounded-full text-xs font-semibold border ${badgeColor}`}>
+                                                {count}
+                                            </span>
                                         </button>
                                     );
                                 })}
                             </div>
 
                             {/* Search */}
-                            <div className="relative w-full lg:w-96">
+                            <div className="relative w-full xl:w-80 flex-shrink-0">
                                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#999999]" />
                                 <input
                                     type="text"
@@ -259,7 +290,8 @@ export const MyOrdersPage = () => {
                                 return (
                                     <div
                                         key={order.order_id}
-                                        className="bg-white rounded-xl shadow-sm border border-[#E0E0D8] overflow-hidden hover:shadow-md transition-shadow"
+                                        className="bg-white rounded-xl shadow-sm border border-[#E0E0D8] overflow-hidden hover:shadow-md transition-shadow cursor-pointer"
+                                        onClick={() => navigate(`/my-orders/${order.order_id}`)}
                                     >
                                         {/* Order Header */}
                                         <div className="bg-gradient-to-r from-[#FDFBF7] to-[#F5F3EE] px-4 sm:px-6 py-3 border-b border-[#E0E0D8]">
@@ -331,30 +363,186 @@ export const MyOrdersPage = () => {
                                                         </div>
                                                     )}
 
+                                                    {/* Return / Replace Status Badges */}
+                                                    {(order.return_status || order.replace_status) && (
+                                                        <div className="flex flex-col gap-2 mb-3">
+                                                            <div className="flex flex-wrap gap-2">
+                                                                {order.return_status && (
+                                                                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 text-blue-700 text-xs font-semibold shadow-sm">
+                                                                        🔄 Return: {order.return_status.replace(/_/g, ' ')}
+                                                                    </span>
+                                                                )}
+                                                                {order.replace_status && (
+                                                                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-purple-50 to-fuchsia-50 border border-purple-200 text-purple-700 text-xs font-semibold shadow-sm">
+                                                                        🔁 Replace: {order.replace_status.replace(/_/g, ' ')}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                            <div className="text-[11px] sm:text-xs text-[#6B6B6B] font-medium flex items-center gap-1.5 mt-0.5">
+                                                                <svg className="w-3.5 h-3.5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                                </svg>
+                                                                Estimated {order.return_status && order.replace_status ? 'Return & Replacement' : order.return_status ? 'Return' : 'Replacement'}: Within 7 days
+                                                            </div>
+                                                        </div>
+                                                    )}
+
                                                     {/* Action Buttons */}
-                                                    <div className="flex flex-wrap gap-2">
+                                                    <div className="flex flex-wrap gap-2 items-center">
                                                         {!['DELIVERED', 'CANCELLED'].includes(order.current_status) && (
                                                             <button
-                                                                onClick={() => navigate(`/track-order/${order.order_id}${fromCart ? '?from=cart' : ''}`)}
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    navigate(`/track-order/${order.order_id}${fromCart ? '?from=cart' : ''}`);
+                                                                }}
                                                                 className="px-4 py-2 border border-[#C9A55C] text-[#C9A55C] text-xs font-medium rounded-lg hover:bg-[#C9A55C] hover:text-white transition-colors"
                                                             >
                                                                 Track Order
                                                             </button>
                                                         )}
                                                         <button
-                                                            onClick={() => setDetailsOrder(order)}
+                                                            onClick={(e) => { e.stopPropagation(); navigate(`/my-orders/${order.order_id}`); }}
                                                             className="px-4 py-2 bg-[#C9A55C] text-white text-xs font-medium rounded-lg hover:bg-[#b08d4b] transition-colors"
                                                         >
                                                             View Details
                                                         </button>
-                                                        {['PENDING', 'BOOKED'].includes(order.current_status) && (
+
+                                                        {/* Three Dot Options Menu */}
+                                                        <div className="relative">
                                                             <button
-                                                                onClick={() => setCancelOrder(order)}
-                                                                className="px-4 py-2 border border-red-300 text-red-600 text-xs font-medium rounded-lg hover:bg-red-50 transition-colors"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    setOpenMenuId(openMenuId === order.order_id ? null : order.order_id);
+                                                                }}
+                                                                className="p-1.5 sm:p-2 border border-[#E0E0D8] text-[#6B6B6B] rounded-lg hover:bg-[#F5F3EE] transition-colors flex items-center justify-center focus:outline-none"
+                                                                aria-label="More options"
                                                             >
-                                                                Cancel
+                                                                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                                                    <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
+                                                                </svg>
                                                             </button>
-                                                        )}
+
+                                                            {openMenuId === order.order_id && (
+                                                                <>
+                                                                    <div
+                                                                        className="fixed inset-0 z-10"
+                                                                        onClick={() => setOpenMenuId(null)}
+                                                                    />
+                                                                    <div className="absolute right-0 bottom-full mb-2 w-48 bg-white rounded-xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.1)] border border-[#E0E0D8] z-20 overflow-hidden py-1">
+                                                                        {/* Cancel Order - only for PENDING/BOOKED */}
+                                                                        {['PENDING', 'BOOKED'].includes(order.current_status) && (
+                                                                            <button
+                                                                                onClick={(e) => {
+                                                                                    e.stopPropagation();
+                                                                                    setOpenMenuId(null);
+                                                                                    setCancelOrder(order);
+                                                                                }}
+                                                                                className="w-full px-4 py-2.5 text-left text-sm font-medium text-red-600 hover:bg-red-50 transition-colors flex items-center gap-2"
+                                                                            >
+                                                                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                                                </svg>
+                                                                                Cancel Order
+                                                                            </button>
+                                                                        )}
+
+                                                                        {/* Return Order */}
+                                                                        {order.current_status === 'DELIVERED' && !order.replace_status && (
+                                                                            order.return_status ? (
+                                                                                // Already requested — show as disabled info item
+                                                                                <button
+                                                                                    onClick={(e) => {
+                                                                                        e.stopPropagation();
+                                                                                        setOpenMenuId(null);
+                                                                                        setInfoPopup({
+                                                                                            title: 'Return Already Requested',
+                                                                                            message: `You have already submitted a return request for this order. Current status: ${order.return_status!.replace(/_/g, ' ')}. Please wait for our team to process it.`,
+                                                                                        });
+                                                                                    }}
+                                                                                    className="w-full px-4 py-2.5 text-left text-sm font-medium text-gray-400 hover:bg-gray-50 transition-colors flex items-center gap-2"
+                                                                                >
+                                                                                    <svg className="w-4 h-4 text-blue-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+                                                                                    </svg>
+                                                                                    Return Requested
+                                                                                    <span className="ml-auto text-[10px] bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded-full font-semibold">Active</span>
+                                                                                </button>
+                                                                            ) : (
+                                                                                // Not yet requested — allow return
+                                                                                <button
+                                                                                    onClick={(e) => {
+                                                                                        e.stopPropagation();
+                                                                                        setOpenMenuId(null);
+                                                                                        navigate(`/my-orders/${order.order_id}/return`);
+                                                                                    }}
+                                                                                    className="w-full px-4 py-2.5 text-left text-sm font-medium text-[#2C2416] hover:bg-[#F5F3EE] transition-colors flex items-center gap-2"
+                                                                                >
+                                                                                    <svg className="w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+                                                                                    </svg>
+                                                                                    Return Order
+                                                                                </button>
+                                                                            )
+                                                                        )}
+
+                                                                        {/* Replace Item */}
+                                                                        {order.current_status === 'DELIVERED' && !order.return_status && (
+                                                                            order.replace_status ? (
+                                                                                // Already requested — show as disabled info item
+                                                                                <button
+                                                                                    onClick={(e) => {
+                                                                                        e.stopPropagation();
+                                                                                        setOpenMenuId(null);
+                                                                                        setInfoPopup({
+                                                                                            title: 'Replacement Already Requested',
+                                                                                            message: `You have already submitted a replacement request for this order. Current status: ${order.replace_status!.replace(/_/g, ' ')}. Please wait for our team to process it.`,
+                                                                                        });
+                                                                                    }}
+                                                                                    className="w-full px-4 py-2.5 text-left text-sm font-medium text-gray-400 hover:bg-gray-50 transition-colors flex items-center gap-2"
+                                                                                >
+                                                                                    <svg className="w-4 h-4 text-purple-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                                                                    </svg>
+                                                                                    Replace Requested
+                                                                                    <span className="ml-auto text-[10px] bg-purple-100 text-purple-600 px-1.5 py-0.5 rounded-full font-semibold">Active</span>
+                                                                                </button>
+                                                                            ) : (
+                                                                                // Not yet requested — allow replace
+                                                                                <button
+                                                                                    onClick={(e) => {
+                                                                                        e.stopPropagation();
+                                                                                        setOpenMenuId(null);
+                                                                                        navigate(`/my-orders/${order.order_id}/replace`);
+                                                                                    }}
+                                                                                    className="w-full px-4 py-2.5 text-left text-sm font-medium text-[#2C2416] hover:bg-[#F5F3EE] transition-colors flex items-center gap-2"
+                                                                                >
+                                                                                    <svg className="w-4 h-4 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                                                                    </svg>
+                                                                                    Replace Item
+                                                                                </button>
+                                                                            )
+                                                                        )}
+
+                                                                        {/* View Details — always available */}
+                                                                        <button
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                setOpenMenuId(null);
+                                                                                navigate(`/my-orders/${order.order_id}`);
+                                                                            }}
+                                                                            className="w-full px-4 py-2.5 text-left text-sm font-medium text-[#2C2416] hover:bg-[#F5F3EE] transition-colors flex items-center gap-2 border-t border-[#F0F0F0] mt-1"
+                                                                        >
+                                                                            <svg className="w-4 h-4 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                                                            </svg>
+                                                                            View Details
+                                                                        </button>
+                                                                    </div>
+                                                                </>
+                                                            )}
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
@@ -416,13 +604,6 @@ export const MyOrdersPage = () => {
                 </div>
             </div>
 
-            {/* Order Details Modal */}
-            <OrderDetailsModal
-                isOpen={!!detailsOrder}
-                onClose={() => setDetailsOrder(null)}
-                order={detailsOrder}
-            />
-
             {/* Order Cancellation Modal */}
             <OrderCancellationModal
                 isOpen={!!cancelOrder}
@@ -431,6 +612,35 @@ export const MyOrdersPage = () => {
                 orderNumber={cancelOrder?.order_number || ''}
                 isLoading={isCancelling}
             />
+
+            {/* Info Popup for already-requested actions */}
+            {infoPopup && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setInfoPopup(null)}>
+                    <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+                    <div
+                        className="relative bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 z-10"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="flex items-start gap-4">
+                            <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
+                                <svg className="w-5 h-5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                            </div>
+                            <div className="flex-1">
+                                <h3 className="text-base font-bold text-[#2C2416] mb-1">{infoPopup.title}</h3>
+                                <p className="text-sm text-[#6B6B6B] leading-relaxed">{infoPopup.message}</p>
+                            </div>
+                        </div>
+                        <button
+                            onClick={() => setInfoPopup(null)}
+                            className="mt-5 w-full py-2.5 bg-[#C9A55C] text-white text-sm font-semibold rounded-xl hover:bg-[#b08d4b] transition-colors"
+                        >
+                            Got it
+                        </button>
+                    </div>
+                </div>
+            )}
         </UserDashboardLayout>
     );
 };

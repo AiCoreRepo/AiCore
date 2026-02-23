@@ -19,7 +19,7 @@ import { ReplacementStatus } from '@prisma/client';
 @Controller('replacements')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class ReplacementController {
-  constructor(private readonly replacementService: ReplacementService) {}
+  constructor(private readonly replacementService: ReplacementService) { }
 
   /**
    * Request replacement for delivered order
@@ -33,7 +33,7 @@ export class ReplacementController {
   ) {
     return this.replacementService.requestReplacement(
       orderId,
-      req.user.userId,
+      req.user.user_id,
       dto,
     );
   }
@@ -69,7 +69,7 @@ export class ReplacementController {
   ) {
     return this.replacementService.approveReplacement(
       replacementId,
-      req.user.userId,
+      req.user.user_id,
     );
   }
 
@@ -86,7 +86,7 @@ export class ReplacementController {
   ) {
     return this.replacementService.rejectReplacement(
       replacementId,
-      req.user.userId,
+      req.user.user_id,
       reason,
     );
   }

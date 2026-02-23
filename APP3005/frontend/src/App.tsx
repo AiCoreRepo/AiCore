@@ -52,6 +52,9 @@ import TermsCondition from "./pages/TermsCondition";
 import RefundPolicy from "./pages/RefundPolicy";
 import { MyOrdersPage } from "./features/orders";
 import { OrderTrackingPage } from "./features/orders/OrderTrackingPage";
+import { OrderDetailPage } from "./features/orders/OrderDetailPage";
+import { ReturnOrderPage } from "./features/orders/ReturnOrderPage";
+import { ReplaceOrderPage } from "./features/orders/ReplaceOrderPage";
 import UserDashboard from "./pages/UserDashboard";
 import PaymentSuccessPage from "./pages/PaymentSuccessPage";
 
@@ -102,6 +105,9 @@ const App = () => (
                       {/* User Dashboard Routes */}
                       <Route path="/user-dashboard" element={<UserDashboard />} />
                       <Route path="/my-orders" element={<MyOrdersPage />} />
+                      <Route path="/my-orders/:orderId" element={<OrderDetailPage />} />
+                      <Route path="/my-orders/:orderId/return" element={<ReturnOrderPage />} />
+                      <Route path="/my-orders/:orderId/replace" element={<ReplaceOrderPage />} />
                       <Route path="/track-order/:orderId" element={<OrderTrackingPage />} />
 
                       {/* Protected Creator Routes */}

@@ -22,7 +22,7 @@ export class OrderController {
   constructor(
     private readonly orderService: OrderService,
     private readonly trackingService: TrackingService,
-  ) {}
+  ) { }
 
   /**
    * Create a new order
