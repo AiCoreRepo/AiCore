@@ -94,19 +94,19 @@ services:
     networks:
       - app-network
 
-  recommendation-api:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: recommendation-api
-    container_name: recommendation-api
-    ports:
-      - "127.0.0.1:8799:8799"
-    environment:
-      RECOMMENDATION_COLLECTION_PATH: /app/main_train_data.csv
-    restart: unless-stopped
-    networks:
-      - app-network
+  # recommendation-api:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile
+  #     target: recommendation-api
+  #   container_name: recommendation-api
+  #   ports:
+  #     - "127.0.0.1:8799:8799"
+  #   environment:
+  #     RECOMMENDATION_COLLECTION_PATH: /app/main_train_data.csv
+  #   restart: unless-stopped
+  #   networks:
+  #     - app-network
 
 networks:
   app-network:
