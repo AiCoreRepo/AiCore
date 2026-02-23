@@ -38,6 +38,7 @@ export default function AuraProfile() {
     const [isEditing, setIsEditing] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [userName, setUserName] = useState<string>('');
+    const [isRecreateDisabled, setIsRecreateDisabled] = useState(false);
     const navigate = useNavigate();
     const { toast } = useToast();
 
@@ -112,6 +113,9 @@ export default function AuraProfile() {
                 if (userResponse.ok) {
                     const userData = await userResponse.json();
                     setUserName(userData.email.split('@')[0].toUpperCase());
+                    const regenUsed = Number(userData.avatar_regenerations_used ?? 0);
+                    const regenMax = Number(userData.max_avatar_regenerations ?? 2);
+                    setIsRecreateDisabled(regenUsed >= regenMax);
                 }
 
                 const response = await fetch(`${import.meta.env.VITE_API_URL}/aura`, {
@@ -218,6 +222,11 @@ export default function AuraProfile() {
     const handleCancel = () => {
         setAttributes(originalAttributes);
         setIsEditing(false);
+    };
+
+    const handleCreateAgain = () => {
+        setIsRecreateDisabled(true);
+        navigate('/aura-dashboard');
     };
 
     if (loading) {
@@ -375,6 +384,13 @@ export default function AuraProfile() {
                         </div>
                     ) : (
                         <div className="action-buttons">
+                            <button
+                                onClick={handleCreateAgain}
+                                disabled={isRecreateDisabled}
+                                className="action-btn cancel-btn"
+                            >
+                                Recreate Avatar
+                            </button>
                             <button
                                 onClick={() => navigate('/')}
                                 className="action-btn continue-btn"

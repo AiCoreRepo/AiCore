@@ -78,7 +78,7 @@ export async function login(data: { email: string; password: string }) {
   return responseData;
 }
 
-export async function signup(data: { email: string; password: string; brandName: string; phoneNumber: string }) {
+export async function signup(data: { email: string; password: string; brandName: string; phoneNumber?: string }) {
   // Always send role: 'creator' for creator signups
   const res = await fetch(`${BASE_URL}/auth/register`, {
     method: "POST",
@@ -88,7 +88,7 @@ export async function signup(data: { email: string; password: string; brandName:
       password: data.password,
       role: "CREATOR",
       store_name: data.brandName,
-      phoneNumber: data.phoneNumber,
+      ...(data.phoneNumber ? { phoneNumber: data.phoneNumber } : {}),
     }),
     credentials: "include",
   });
@@ -109,7 +109,7 @@ export async function signup(data: { email: string; password: string; brandName:
 }
 
 // User signup for regular users (buyers)
-export async function userSignup(data: { email: string; password: string; name?: string; phoneNumber: string }) {
+export async function userSignup(data: { email: string; password: string; name?: string; phoneNumber?: string }) {
   const res = await fetch(`${BASE_URL}/auth/register`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -118,7 +118,7 @@ export async function userSignup(data: { email: string; password: string; name?:
       password: data.password,
       role: "BUYER",
       store_name: data.name,
-      phoneNumber: data.phoneNumber,
+      ...(data.phoneNumber ? { phoneNumber: data.phoneNumber } : {}),
     }),
     credentials: "include",
   });

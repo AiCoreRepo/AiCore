@@ -20,8 +20,11 @@ model User {
   last_login          DateTime?
   refresh_token_hash  String?
   role                UserRole          @default(BUYER)
-  max_try_ons         Int               @default(10)
+  max_try_ons         Int               @default(3)
   try_ons_used        Int               @default(0)
+  has_created_aura    Boolean           @default(false)
+  max_avatar_regenerations Int          @default(2)
+  avatar_regenerations_used Int         @default(0)
   aura                Aura?
   creatorProfile      Creator?
   approvals_actioned  ProductApproval[] @relation("ActionedBy")
@@ -393,4 +396,3 @@ model UserAddress {
   @@index([user_id])
   @@map("user_addresses")
 }
-

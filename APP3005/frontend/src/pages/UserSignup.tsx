@@ -5,14 +5,12 @@ import { Link, useNavigate } from "react-router-dom";
 import { Eye, EyeOff } from "lucide-react";
 import { AuthLayout } from "@/components/auth/AuthLayout";
 import { AuraPromptDialog } from "@/components/aura/AuraPromptDialog";
-import { PhoneInput } from "@/components/auth/PhoneInput";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { signupSchema, type SignupFormData } from "@/lib/validation";
 import { useToast } from "@/hooks/use-toast";
-import { useOTP } from "@/hooks/useOTP";
-import { userSignup, googleAuth, getAuraStatus } from "@/lib/api";
+import { userSignup, login as loginApi, googleAuth, getAuraStatus } from "@/lib/api";
 import { useGoogleLogin } from "@react-oauth/google";
 import { getErrorMessage } from "@/lib/error-utils";
 import heroImage from "@/assets/aivestire-auth-model.png"; // Refined Indian model with mirror concept
@@ -21,11 +19,8 @@ const UserSignup = () => {
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
-    const [phoneNumber, setPhoneNumber] = useState('');
-    const [phoneError, setPhoneError] = useState('');
     const navigate = useNavigate();
     const { toast } = useToast();
-    const { sendOTP } = useOTP();
 
     const {
         register,
@@ -35,60 +30,7 @@ const UserSignup = () => {
         resolver: zodResolver(signupSchema),
     });
 
-    const validatePhoneNumber = (phone: string): boolean => {
-        // Extract only the digits from the phone number
-        const digitsOnly = phone.replace(/\D/g, '');
-
-        console.log('Validating phone:', {
-            original: phone,
-            digitsOnly: digitsOnly,
-            length: digitsOnly.length
-        });
-
-        // For Indian numbers, we expect country code (91) + 10 digits = 12 total
-        // OR just 10 digits if no country code
-        const isValid = digitsOnly.length === 12 || digitsOnly.length === 10;
-
-        if (!isValid) {
-            setPhoneError('Phone number must be 10 digits');
-            return false;
-        }
-
-        setPhoneError('');
-        return true;
-    };
-
-    const handlePhoneChange = (value: string) => {
-        setPhoneNumber(value);
-
-        // Extract only digits to check length
-        const digitsOnly = value.replace(/\D/g, '');
-
-        console.log('Phone change:', { value, digitsOnly, length: digitsOnly.length });
-
-        if (digitsOnly.length === 0) {
-            // No input yet, clear error
-            setPhoneError('');
-        } else if (digitsOnly.length >= 10) {
-            // User has entered 10+ digits, validate
-            validatePhoneNumber(value);
-        } else {
-            // Still typing, don't show error yet
-            setPhoneError('');
-        }
-    };
-
     const onSubmit = async (data: SignupFormData) => {
-        // Validate phone number before proceeding
-        if (!validatePhoneNumber(phoneNumber)) {
-            toast({
-                title: "Invalid Phone Number",
-                description: "Please enter a valid 10-digit phone number.",
-                variant: "destructive",
-            });
-            return;
-        }
-
         setIsLoading(true);
         try {
             // First, check if email is already registered
@@ -111,24 +53,38 @@ const UserSignup = () => {
                 }
             }
 
-            // Email is available, proceed to send OTP
-            // phoneNumber already includes country code from PhoneInput (e.g., "+919622387285")
-            const otpSent = await sendOTP(phoneNumber);
+            await userSignup({
+                email: data.email,
+                password: data.password,
+                name: data.brandName,
+                phoneNumber: data.phoneNumber || undefined,
+            });
 
-            if (otpSent) {
-                // Navigate to OTP verification page with signup data
-                navigate('/verify-otp', {
-                    state: {
-                        phoneNumber: phoneNumber,
-                        signupType: 'user',
-                        signupData: {
-                            email: data.email!,
-                            password: data.password!,
-                            brandName: data.brandName!,
-                            phoneNumber: phoneNumber,
-                        },
-                    },
-                });
+            const loginResponse = await loginApi({
+                email: data.email,
+                password: data.password,
+            });
+
+            if (loginResponse.access_token) {
+                localStorage.setItem("access_token", loginResponse.access_token);
+            }
+
+            toast({
+                title: "Welcome to AiVestire!",
+                description: "Your account has been created successfully.",
+            });
+
+            // Trigger auth refresh
+            window.dispatchEvent(new Event('auth-refresh'));
+            window.dispatchEvent(new Event('aura-updated'));
+
+            // Check if user already has an Aura
+            const auraStatus = await getAuraStatus();
+
+            if (auraStatus.hasAura) {
+                navigate('/');
+            } else {
+                setShowAuraPrompt(true);
             }
         } catch (error: unknown) {
             let message = getErrorMessage(error, "Something went wrong. Please try again.");
@@ -277,14 +233,21 @@ const UserSignup = () => {
                                 )}
                             </div>
 
-                            {/* Phone Number Input */}
-                            <PhoneInput
-                                value={phoneNumber}
-                                onChange={handlePhoneChange}
-                                error={phoneError}
-                                label="Phone Number"
-                                placeholder="1234567890"
-                            />
+                            <div className="space-y-2">
+                                <Label htmlFor="phoneNumber" className="text-xs uppercase tracking-widest text-luxury-gold font-medium ml-1">
+                                    Phone Number
+                                </Label>
+                                <Input
+                                    id="phoneNumber"
+                                    type="tel"
+                                    placeholder="+919876543210"
+                                    {...register("phoneNumber")}
+                                    className="bg-luxury-cream border-neutral-200 text-luxury-black placeholder:text-neutral-500 h-9 text-sm rounded-xl shadow-sm focus:border-luxury-gold/50 focus:ring-2 focus:ring-luxury-gold/5 transition-all duration-300"
+                                />
+                                {errors.phoneNumber && (
+                                    <p className="text-xs text-red-500 mt-1 ml-1">{errors.phoneNumber.message}</p>
+                                )}
+                            </div>
 
                             <div className="space-y-2">
                                 <Label htmlFor="password" className="text-xs uppercase tracking-widest text-luxury-gold font-medium ml-1">
@@ -339,16 +302,16 @@ const UserSignup = () => {
 
                         <Button
                             type="submit"
-                            disabled={isLoading || !phoneNumber}
+                            disabled={isLoading}
                             className="w-full bg-luxury-gold hover:bg-luxury-gold/90 text-luxury-black font-bold h-10 text-sm rounded-full transition-all duration-500 hover:scale-[1.02] active:scale-[0.98]"
                         >
                             {isLoading ? (
                                 <div className="flex items-center gap-2">
                                     <span className="h-4 w-4 border-2 border-luxury-black/30 border-t-luxury-black animate-spin rounded-full" />
-                                    <span>Sending OTP...</span>
+                                    <span>Creating Account...</span>
                                 </div>
                             ) : (
-                                "Continue with OTP"
+                                "Create Account"
                             )}
                         </Button>
 

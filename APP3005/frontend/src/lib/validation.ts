@@ -36,6 +36,12 @@ export const signupSchema = z
       .min(1, { message: "Email is required" })
       .email({ message: "Please enter a valid email address" })
       .max(255, { message: "Email must be less than 255 characters" }),
+    phoneNumber: z
+      .string()
+      .trim()
+      .regex(/^\+\d{10,15}$/, { message: "Use international format, e.g. +919876543210" })
+      .optional()
+      .or(z.literal("")),
     password: z
       .string()
       .min(8, { message: "Password must be at least 8 characters" })
