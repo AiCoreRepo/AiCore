@@ -285,7 +285,6 @@ export class TryOnController {
    */
   @Post('3d/vertex')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(AuraGuard)
   @ApiOperation({
     summary: '3D Try-on with Vertex AI (no background)',
     description:
