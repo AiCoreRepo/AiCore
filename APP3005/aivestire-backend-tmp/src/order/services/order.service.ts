@@ -257,15 +257,20 @@ export class OrderService {
           throw new NotFoundException('Order not found');
         }
 
-        // Idempotency check
-        if (currentOrder.current_status === dto.status) {
-          this.logger.log(`Order already in ${dto.status} state`);
+        // Idempotency check for main status
+        const isStatusUnchanged = currentOrder.current_status === dto.status;
+
+        // If status is unchanged AND no other fields are provided, return early
+        if (isStatusUnchanged && !dto.trackingNumber && !dto.deliveryPartner && !dto.paymentStatus && dto.returnStatus === undefined && dto.replaceStatus === undefined && !dto.notes && !dto.customReason) {
+          this.logger.log(`Order already in ${dto.status} state with no metadata changes`);
           return currentOrder;
         }
 
-        // Validate transition (admins can skip steps forward)
-        const isAdmin = userRole === UserRole.ADMIN;
-        this.stateMachine.validateTransition(currentOrder, dto.status, isAdmin);
+        // Validate transition only if the main status is changing
+        if (!isStatusUnchanged) {
+          const isAdmin = userRole === UserRole.ADMIN;
+          this.stateMachine.validateTransition(currentOrder, dto.status, isAdmin);
+        }
 
         // Update order
         const updatedData: any = {

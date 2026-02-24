@@ -16,15 +16,11 @@ import { AdminService } from './admin.service';
 import { ReviewProductDto } from './dto/review-product.dto';
 import { ToggleFeatureDto } from './dto/toggle-feature.dto';
 import { UpdateStockDto } from './dto/update-stock.dto';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../common/guards/roles.guard';
-import { Roles } from '../auth/decorators/roles.decorator';
+import { AdminJwtGuard } from '../auth/admin/guards/admin-jwt.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { UserRole } from '@prisma/client';
 
 @Controller('admin')
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(UserRole.ADMIN)
+@UseGuards(AdminJwtGuard)
 export class AdminController {
   constructor(private readonly adminService: AdminService) { }
 

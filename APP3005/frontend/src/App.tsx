@@ -39,6 +39,7 @@ import ArtisansPage from "./app/admin-artisans/page";
 import ClientelePage from "./app/admin-clientele/page";
 import AdminSettingsPage from "./app/admin-settings/page";
 import AdminLogin from "./pages/AdminLogin";
+import AdminSecretConfirm from "./pages/AdminSecretConfirm";
 import AdminCSVUploadPage from "./pages/AdminCSVUploadPage";
 import { PopupProvider } from "./components/common/popups/PopupTime";
 import { SidebarProvider } from "./context/SidebarContext";
@@ -150,6 +151,7 @@ const App = () => (
 
                       {/* Admin Routes */}
                       <Route path="/admin-login" element={<AdminLogin />} />
+                      <Route path="/admin-secret-confirm" element={<AdminSecretConfirm />} />
                       <Route path="/admin-dashboard" element={<AdminDashboardPage />} />
                       <Route path="/admin-approvals" element={
                         <Suspense fallback={<div className="min-h-screen bg-neutral-950 flex items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-2 border-[#D4AF37] border-t-transparent"></div></div>}>

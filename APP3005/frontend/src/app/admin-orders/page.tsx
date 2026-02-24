@@ -352,10 +352,9 @@ const AdminOrdersPage = () => {
     const fetchOrders = useCallback(async () => {
         setIsLoading(true);
         try {
-            const token = localStorage.getItem('access_token');
             const res = await fetch(
                 `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/orders/all`,
-                { headers: { Authorization: `Bearer ${token}` } }
+                { credentials: 'include' }
             );
             if (res.ok) setAllOrders(await res.json());
         } catch (e) {
@@ -447,12 +446,12 @@ const AdminOrdersPage = () => {
         setIsUpdating(true);
         setUpdateMsg(null);
         try {
-            const token = localStorage.getItem('access_token');
             const res = await fetch(
                 `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/orders/${orderId}/status`,
                 {
                     method: 'POST',
-                    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
                     body: JSON.stringify({
                         status: newStatus,
                         trackingNumber: trackingNum || undefined,
@@ -580,8 +579,7 @@ const AdminOrdersPage = () => {
                                     type="date"
                                     value={startDate}
                                     onChange={e => setStartDate(e.target.value)}
-                                    className="px-4 py-2 bg-neutral-800 border border-amber-500/60 rounded-xl text-white text-sm focus:outline-none focus:border-amber-500 transition-colors cursor-pointer [&::-webkit-datetime-edit]:text-white [&::-webkit-calendar-picker-indicator]:invert"
-                                    style={{ color: '#ffffff', colorScheme: 'dark' }}
+                                    className="px-4 py-2 bg-neutral-200 border border-neutral-300 rounded-xl text-neutral-900 text-sm focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-colors cursor-pointer"
                                     title="Start Date"
                                 />
                                 <span className="text-neutral-500 text-sm font-medium px-1">to</span>
@@ -589,8 +587,7 @@ const AdminOrdersPage = () => {
                                     type="date"
                                     value={endDate}
                                     onChange={e => setEndDate(e.target.value)}
-                                    className="px-4 py-2 bg-neutral-800 border border-amber-500/60 rounded-xl text-white text-sm focus:outline-none focus:border-amber-500 transition-colors cursor-pointer [&::-webkit-datetime-edit]:text-white [&::-webkit-calendar-picker-indicator]:invert"
-                                    style={{ color: '#ffffff', colorScheme: 'dark' }}
+                                    className="px-4 py-2 bg-neutral-200 border border-neutral-300 rounded-xl text-neutral-900 text-sm focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-colors cursor-pointer"
                                     title="End Date"
                                 />
                                 {(startDate || endDate) && (
@@ -758,7 +755,7 @@ const AdminOrdersPage = () => {
                                                         )}
 
                                                         {/* UPDATE STATUS BUTTON */}
-                                                        {!isEditing && !isTerminal && (
+                                                        {!isEditing && (
                                                             <button
                                                                 onClick={() => startEditing(order)}
                                                                 className="ml-auto flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/40 text-amber-400 hover:bg-amber-500/20 transition-all text-xs font-semibold whitespace-nowrap"
@@ -767,9 +764,6 @@ const AdminOrdersPage = () => {
                                                                 <span className="hidden xs:inline">Update</span>
                                                                 <span className="xs:hidden">✎</span>
                                                             </button>
-                                                        )}
-                                                        {isTerminal && (
-                                                            <span className="ml-auto text-xs text-neutral-600 italic">Done</span>
                                                         )}
                                                     </div>
 

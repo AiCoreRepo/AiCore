@@ -81,207 +81,160 @@ export const ReturnOrderPage: React.FC = () => {
     };
 
     if (isLoading) return (
-        <div className="min-h-screen bg-[#FAFAF8] flex items-center justify-center">
-            <Loader2 className="w-8 h-8 animate-spin text-[#C9A55C]" />
+        <div className="min-h-screen bg-white flex items-center justify-center">
+            <Loader2 className="w-10 h-10 animate-spin text-[#2C2416]" />
         </div>
     );
 
     const firstItem = order?.items?.[0];
 
     return (
-        <div className="min-h-screen bg-[#F5F3EE]" style={{ fontFamily: "'Inter','Segoe UI',sans-serif" }}>
+        <div className="min-h-screen bg-[#F9F9F9]" style={{ fontFamily: "'Inter', sans-serif" }}>
 
-            {/* ── TOP NAV ────────────────────────────────────────────────── */}
-            <div className="sticky top-0 z-30 bg-white border-b border-[#E0E0D8] shadow-sm">
-                <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center gap-3">
+            {/* ── TOP NAV (Myntra style clean) ────────────────────────── */}
+            <div className="sticky top-0 z-30 bg-white border-b border-[#EEE] shadow-sm">
+                <div className="max-w-4xl mx-auto px-4 h-16 flex items-center justify-between">
                     <button
                         onClick={() => navigate(-1)}
-                        className="flex items-center gap-2 text-sm font-medium text-[#6B6B6B] hover:text-[#2C2416] transition-colors"
+                        className="flex items-center gap-1.5 text-sm font-bold text-[#2C2416] hover:text-[#C9A55C] transition-colors"
                     >
-                        <ArrowLeft className="w-4 h-4" />
-                        Back
+                        <ArrowLeft className="w-5 h-5" />
+                        <span className="uppercase tracking-wide">Back</span>
                     </button>
-                    <ChevronRight className="w-3.5 h-3.5 text-[#CCC]" />
-                    <span className="text-sm font-semibold text-[#2C2416]">Return Order</span>
-                    {order && (
-                        <>
-                            <ChevronRight className="w-3.5 h-3.5 text-[#CCC]" />
-                            <span className="text-sm text-[#999]">{order.order_number}</span>
-                        </>
-                    )}
+                    <h1 className="text-sm font-bold text-[#2C2416] uppercase tracking-widest">Return Item</h1>
+                    <div className="w-10" /> {/* Spacer */}
                 </div>
             </div>
 
-            <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 sm:py-8">
-                <div className="grid lg:grid-cols-[340px_1fr] gap-8">
+            <div className="max-w-4xl mx-auto px-4 py-6 sm:py-8 space-y-6">
 
-                    {/* ── LEFT PANEL ─────────────────────────────────────── */}
-                    <div className="space-y-6">
-                        <div className="bg-[#1A150D] rounded-2xl overflow-hidden shadow-xl">
-                            {/* Product preview */}
-                            {firstItem && (
-                                <div className="relative">
-                                    {firstItem.product_image ? (
-                                        <img src={firstItem.product_image} alt={firstItem.product_name}
-                                            className="w-full h-52 object-cover opacity-60" />
-                                    ) : (
-                                        <div className="w-full h-52 bg-[#2C2416] flex items-center justify-center">
-                                            <Package className="w-16 h-16 text-[#C9A55C]/30" />
-                                        </div>
-                                    )}
-                                    <div className="absolute inset-0 bg-gradient-to-t from-[#1A150D] via-[#1A150D]/60 to-transparent" />
-                                    <div className="absolute bottom-0 left-0 right-0 p-5">
-                                        <p className="text-white font-bold text-sm leading-snug line-clamp-2">
-                                            {firstItem.product_name}
-                                        </p>
-                                        {order && (
-                                            <p className="text-[#C9A55C] text-xs font-semibold mt-1">
-                                                {order.order_number}
-                                            </p>
-                                        )}
-                                    </div>
+                {/* ── PRODUCT CARD (Small & Clickable) ──────────────────── */}
+                {firstItem && (
+                    <button
+                        onClick={() => navigate(`/my-orders/${orderId}`)}
+                        className="w-full bg-white rounded-xl border border-[#EEE] p-4 flex items-center gap-4 text-left hover:border-[#C9A55C]/30 transition-all group"
+                    >
+                        <div className="w-20 h-24 bg-[#F5F5F5] rounded-lg overflow-hidden flex-shrink-0">
+                            {firstItem.product_image ? (
+                                <img src={firstItem.product_image} alt={firstItem.product_name} className="w-full h-full object-cover" />
+                            ) : (
+                                <div className="w-full h-full flex items-center justify-center">
+                                    <Package className="w-8 h-8 text-[#CCC]" />
                                 </div>
                             )}
-
-                            {/* Process steps */}
-                            <div className="p-6 space-y-6">
-                                <h3 className="text-white/50 text-[10px] font-bold uppercase tracking-widest">Return Process</h3>
-                                {STEPS.map((s) => (
-                                    <div key={s.n} className="flex gap-4 items-start">
-                                        <div className="w-8 h-8 rounded-full border border-[#C9A55C]/40 flex items-center justify-center flex-shrink-0 bg-[#C9A55C]/10">
-                                            <span className="text-[#C9A55C] font-bold text-sm">{s.n}</span>
-                                        </div>
-                                        <div>
-                                            <p className="text-white font-semibold text-sm">{s.title}</p>
-                                            <p className="text-white/50 text-xs mt-0.5 leading-relaxed">{s.desc}</p>
-                                        </div>
-                                    </div>
-                                ))}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <h2 className="text-sm font-bold text-[#2C2416] truncate mb-1">{firstItem.product_name}</h2>
+                            <p className="text-xs text-[#6B6B6B] mb-2 uppercase tracking-tighter">Order ID: {order?.order_number}</p>
+                            <div className="flex items-center gap-1.5 text-[11px] font-bold text-[#C9A55C] uppercase">
+                                View Order Details
+                                <ChevronRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
                             </div>
+                        </div>
+                    </button>
+                )}
+
+                {/* ── RETURN FORM ────────────────────────────────────────── */}
+                <div className="bg-white rounded-2xl border border-[#EEE] shadow-sm overflow-hidden">
+                    <div className="px-6 py-8 border-b border-[#F9F9F9]">
+                        <h2 className="text-lg font-bold text-[#2C2416]">Reason for Return</h2>
+                        <p className="text-xs text-[#6B6B6B] mt-1">Please select the most appropriate reason for returning this item.</p>
+                    </div>
+
+                    <div className="px-6 py-6 space-y-6">
+                        {/* Reason List */}
+                        <div className="divide-y divide-[#F9F9F9]">
+                            {RETURN_REASONS.map((reason) => {
+                                const isSelected = selectedReason === reason.value;
+                                return (
+                                    <label
+                                        key={reason.value}
+                                        className={`flex items-start gap-4 py-5 cursor-pointer group transition-colors ${isSelected ? 'bg-amber-50/30' : 'hover:bg-[#F9F9F9]'}`}
+                                    >
+                                        <div className="pt-0.5">
+                                            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${isSelected ? 'border-[#C9A55C] bg-[#C9A55C]' : 'border-[#DDD] group-hover:border-[#C9A55C]/50'}`}>
+                                                {isSelected && <div className="w-2 h-2 rounded-full bg-white shadow-sm" />}
+                                            </div>
+                                            <input
+                                                type="radio"
+                                                name="return_reason"
+                                                className="hidden"
+                                                checked={isSelected}
+                                                onChange={() => setSelectedReason(reason.value)}
+                                            />
+                                        </div>
+                                        <div className="flex-1">
+                                            <p className={`text-sm font-bold transition-colors ${isSelected ? 'text-[#2C2416]' : 'text-[#4A3D24]'}`}>
+                                                {reason.label.replace(reason.emoji, '').trim()}
+                                            </p>
+                                            <p className="text-[11px] text-[#999] mt-0.5 leading-relaxed">
+                                                {REASON_META[reason.value]?.desc || 'Standard return reason policy applies.'}
+                                            </p>
+                                        </div>
+                                    </label>
+                                );
+                            })}
+                        </div>
+
+                        {/* Custom Reason */}
+                        {selectedReason === 'OTHER' && (
+                            <div className="animate-in fade-in slide-in-from-top-2 duration-300">
+                                <label className="block text-[10px] font-bold text-[#2C2416] mb-2 uppercase tracking-widest opacity-60">Specify Reason</label>
+                                <textarea
+                                    value={customReason}
+                                    onChange={e => setCustomReason(e.target.value)}
+                                    placeholder="Please describe your reason here..."
+                                    className="w-full px-4 py-3 rounded-xl border border-[#EEE] bg-[#FAFAFA] text-sm text-[#2C2416] focus:outline-none focus:border-[#C9A55C] min-h-[80px]"
+                                />
+                            </div>
+                        )}
+
+                        {/* Additional Notes */}
+                        <div className="pt-4 border-t border-[#F9F9F9]">
+                            <div className="flex justify-between items-center mb-2">
+                                <label className="text-[10px] font-bold text-[#2C2416] uppercase tracking-widest opacity-60">Additional Comments (Optional)</label>
+                                <span className="text-[9px] text-[#BBB]">{feedback.length}/{MAX}</span>
+                            </div>
+                            <textarea
+                                value={feedback}
+                                onChange={e => setFeedback(e.target.value.slice(0, MAX))}
+                                rows={4}
+                                placeholder="Any extra details help our quality team..."
+                                className="w-full px-4 py-3 rounded-xl border border-[#EEE] bg-[#FAFAFA] text-sm text-[#2C2416] focus:outline-none focus:border-[#C9A55C] transition-all resize-none"
+                            />
                         </div>
                     </div>
 
-                    {/* ── RIGHT PANEL — Form ─────────────────────────────── */}
-                    <div className="bg-white rounded-2xl border border-[#E8E8E8] shadow-sm overflow-hidden flex flex-col">
-                        <div className="px-5 sm:px-8 py-6 border-b border-[#F0F0F0]">
-                            <h1 className="text-xl sm:text-2xl font-bold text-[#2C2416]">Return Item</h1>
-                            <p className="text-[#6B6B6B] text-sm mt-1">
-                                Tell us what went wrong and we'll take care of the rest.
-                            </p>
-                        </div>
-
-                        <div className="flex-1 overflow-y-auto px-5 sm:px-8 py-6 space-y-6 sm:space-y-8">
-
-                            {/* ── REASON SELECTION ─────────────────────── */}
-                            <div>
-                                <label className="block text-sm font-bold text-[#2C2416] mb-4">
-                                    What is the reason for return? <span className="text-red-500">*</span>
-                                </label>
-
-                                {/* List-style reasons — like Myntra */}
-                                <div className="space-y-2">
-                                    {RETURN_REASONS.map((reason) => {
-                                        const meta = REASON_META[reason.value] ?? REASON_META.OTHER;
-                                        const isSelected = selectedReason === reason.value;
-                                        return (
-                                            <button
-                                                key={reason.value}
-                                                type="button"
-                                                onClick={() => setSelectedReason(reason.value)}
-                                                className={`w-full flex items-center gap-3 sm:gap-4 px-4 sm:px-5 py-4 rounded-xl border-2 text-left transition-all duration-200 group ${isSelected
-                                                    ? 'border-[#C9A55C] bg-amber-50/70'
-                                                    : 'border-[#EBEBEB] bg-white hover:border-[#C9A55C]/50 hover:bg-[#FDFBF7]'
-                                                    }`}
-                                            >
-                                                {/* Icon */}
-                                                <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors ${isSelected ? 'bg-[#C9A55C] text-white' : 'bg-[#F5F3EE] text-[#6B6B6B] group-hover:bg-[#C9A55C]/10 group-hover:text-[#C9A55C]'
-                                                    }`}>
-                                                    {meta.icon}
-                                                </div>
-
-                                                {/* Text */}
-                                                <div className="flex-1">
-                                                    <p className={`font-semibold text-sm ${isSelected ? 'text-[#2C2416]' : 'text-[#4A3D24]'}`}>
-                                                        {reason.label.replace(reason.emoji, '').trim()}
-                                                    </p>
-                                                    <p className="text-xs text-[#999] mt-0.5">{meta.desc}</p>
-                                                </div>
-
-                                                {/* Radio */}
-                                                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${isSelected ? 'border-[#C9A55C] bg-[#C9A55C]' : 'border-[#CCC]'
-                                                    }`}>
-                                                    {isSelected && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
-                                                </div>
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-
-                            {/* ── CUSTOM REASON (if OTHER) ──────────────── */}
-                            {selectedReason === 'OTHER' && (
-                                <div>
-                                    <label className="block text-sm font-bold text-[#2C2416] mb-2">
-                                        Please specify <span className="text-red-500">*</span>
-                                    </label>
-                                    <input
-                                        type="text"
-                                        value={customReason}
-                                        onChange={e => setCustomReason(e.target.value)}
-                                        placeholder="e.g. The fabric feels different than described"
-                                        className="w-full px-4 py-3.5 rounded-xl border-2 border-[#EBEBEB] bg-white text-[#2C2416] placeholder-[#CCC] text-sm focus:outline-none focus:border-[#C9A55C] focus:ring-4 focus:ring-[#C9A55C]/10 transition-all"
-                                    />
-                                </div>
+                    {/* Footer Actions */}
+                    <div className="px-6 py-6 bg-white border-t border-[#F9F9F9] flex flex-col sm:flex-row gap-3">
+                        <button
+                            onClick={handleSubmit}
+                            disabled={isSubmitting || !selectedReason || (selectedReason === 'OTHER' && !customReason.trim())}
+                            className="w-full py-4 rounded-xl bg-[#2C2416] text-white font-bold text-sm hover:bg-[#1A150D] shadow-lg shadow-[#2C2416]/20 transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                        >
+                            {isSubmitting ? (
+                                <>
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                    Processing...
+                                </>
+                            ) : (
+                                <>
+                                    CONFIRM RETURN
+                                    <ArrowRight className="w-4 h-4" />
+                                </>
                             )}
+                        </button>
+                    </div>
+                </div>
 
-                            {/* ── ADDITIONAL NOTES ─────────────────────── */}
-                            <div>
-                                <div className="flex justify-between items-end mb-2">
-                                    <label className="text-sm font-bold text-[#2C2416]">
-                                        Additional Notes
-                                        <span className="text-[#999] font-normal text-xs ml-2">(Optional)</span>
-                                    </label>
-                                    <span className={`text-xs font-semibold ${feedback.length > MAX * 0.9 ? 'text-red-500' : 'text-[#CCC]'}`}>
-                                        {feedback.length}/{MAX}
-                                    </span>
-                                </div>
-                                <textarea
-                                    value={feedback}
-                                    onChange={e => setFeedback(e.target.value.slice(0, MAX))}
-                                    rows={4}
-                                    placeholder="Describe the issue in more detail so we can serve you better..."
-                                    className="w-full px-4 py-3.5 rounded-xl border-2 border-[#EBEBEB] bg-white text-[#2C2416] placeholder-[#CCC] text-sm focus:outline-none focus:border-[#C9A55C] focus:ring-4 focus:ring-[#C9A55C]/10 transition-all resize-none"
-                                />
-                            </div>
-                        </div>
-
-                        {/* ── FOOTER ACTIONS ─────────────────────────────── */}
-                        <div className="px-5 sm:px-8 py-5 border-t border-[#F0F0F0] bg-white flex flex-col-reverse sm:flex-row items-center justify-between gap-3 sm:gap-4">
-                            <button
-                                onClick={() => navigate(-1)}
-                                disabled={isSubmitting}
-                                className="w-full sm:w-auto px-8 py-3.5 rounded-xl text-[#6B6B6B] border border-transparent sm:border-[#EBEBEB] hover:border-[#CCC] font-semibold hover:bg-[#F5F3EE] transition-all text-sm disabled:opacity-50"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={handleSubmit}
-                                disabled={isSubmitting || !selectedReason || (selectedReason === 'OTHER' && !customReason.trim())}
-                                className="w-full sm:w-auto px-10 py-3.5 rounded-xl bg-[#2C2416] text-[#C9A55C] font-bold text-sm hover:bg-[#1A150D] shadow-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 group"
-                            >
-                                {isSubmitting ? (
-                                    <>
-                                        <Loader2 className="w-4 h-4 animate-spin" />
-                                        Submitting…
-                                    </>
-                                ) : (
-                                    <>
-                                        Confirm Return
-                                        <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                                    </>
-                                )}
-                            </button>
-                        </div>
+                {/* Return Policy Info */}
+                <div className="bg-[#FFFCEB] rounded-xl border border-[#FBEFBE] p-5 flex gap-4">
+                    <ShieldAlert className="w-5 h-5 text-[#B45309] flex-shrink-0" />
+                    <div className="space-y-1">
+                        <p className="text-[11px] font-bold text-[#B45309] uppercase tracking-wider">Secure Returns</p>
+                        <p className="text-[11px] text-[#92400E] leading-relaxed">
+                            Once your return is picked up, it usually takes 2-3 business days for our quality team to verify the product. After verification, your refund will be processed immediately.
+                        </p>
                     </div>
                 </div>
             </div>

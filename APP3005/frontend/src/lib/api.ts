@@ -404,6 +404,32 @@ export async function deleteProduct(productId: string) {
   return res.json();
 }
 
+// Get user's dashboard stats
+export async function getUserDashboardStats() {
+  const token = localStorage.getItem('access_token');
+  if (!token) {
+    throw new Error('Please login to view dashboard stats');
+  }
+
+  const res = await fetch(`${BASE_URL}/user-dashboard/stats`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+  });
+
+  if (!res.ok) {
+    const bodyText = await res.text();
+    try {
+      const err = JSON.parse(bodyText);
+      throw new Error(err.message || 'Failed to fetch dashboard stats');
+    } catch {
+      throw new Error(bodyText || 'Failed to fetch dashboard stats');
+    }
+  }
+  return res.json();
+}
+
 // Simple creator login API
 export async function creatorLogin(email: string) {
   const endpoint = BASE_URL + "/auth/creator-login";

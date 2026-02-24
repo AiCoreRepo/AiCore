@@ -38,15 +38,14 @@ export default function AdminCSVUploadPage() {
             const formData = new FormData();
             formData.append('file', file);
 
-            const token = localStorage.getItem('access_token');
             const response = await axios.post<ImportResult>(
                 `${API_URL}/admin/upload-csv`,
                 formData,
                 {
                     headers: {
                         'Content-Type': 'multipart/form-data',
-                        Authorization: `Bearer ${token}`,
                     },
+                    withCredentials: true,
                 }
             );
 
