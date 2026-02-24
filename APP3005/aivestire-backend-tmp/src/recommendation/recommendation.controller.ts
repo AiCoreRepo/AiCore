@@ -25,7 +25,7 @@ import { GetRecommendationsDto } from './dto/recommendation-request.dto';
 import { RecommendationsResponseDto } from './dto/recommendation-response.dto';
 
 @ApiTags('Recommendations')
-@Controller('api/recommendations')
+@Controller('recommendations')
 @UseGuards(JwtAuthGuard) // Temporarily removed AuraGuard to test
 @ApiBearerAuth()
 export class RecommendationController {

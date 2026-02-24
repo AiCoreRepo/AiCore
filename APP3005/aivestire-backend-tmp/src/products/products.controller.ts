@@ -19,12 +19,12 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 
-@Controller('api/products')
+@Controller('products')
 export class ProductsController {
   constructor(
     private readonly productsService: ProductsService,
     private readonly bulkUploadService: BulkUploadService,
-  ) {}
+  ) { }
 
   /**
    * GET /products/approved

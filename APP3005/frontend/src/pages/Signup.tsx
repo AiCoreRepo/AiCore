@@ -104,7 +104,7 @@ const Signup = () => {
         email: data.email!,
         password: data.password!,
         brandName: data.brandName!,
-        phoneNumber: phoneNumber,
+        phoneNumber: data.phoneNumber,
       });
 
       // Auto-login after successful registration
@@ -339,7 +339,6 @@ const Signup = () => {
             className="w-full mt-6"
             disabled={isLoading}
           >
-            {isLoading ? "Creating Account..." : "Create Account"}
             {isLoading ? "Creating Account..." : "Create Account"}
           </Button>
 

@@ -21,7 +21,7 @@ import {
  * Controller for angle generation endpoints
  */
 @ApiTags('Angle Generation')
-@Controller('api/angles')
+@Controller('angles')
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
 export class AngleGenerationController {
@@ -30,7 +30,7 @@ export class AngleGenerationController {
   constructor(
     private readonly angleGenerationService: AngleGenerationService,
     private readonly sessionManager: AngleSessionManagerService,
-  ) {}
+  ) { }
 
   /**
    * Generate next angle in sequence from try-on image

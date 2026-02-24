@@ -51,7 +51,7 @@ import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { TryOnPermissionGuard } from '../../auth/guards/tryon-permission.guard';
 
 @ApiTags('AI Try-On')
-@Controller('api/v1/tryon')
+@Controller('v1/tryon')
 export class TryOnController {
   private readonly logger = new Logger(TryOnController.name);
 

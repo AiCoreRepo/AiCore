@@ -106,7 +106,7 @@ const UserSignup = () => {
                 email: data.email!,
                 password: data.password!,
                 name: data.brandName!,
-                phoneNumber: phoneNumber,
+                phoneNumber: data.phoneNumber,
             });
 
             // Auto-login after successful registration
@@ -373,10 +373,8 @@ const UserSignup = () => {
                                 <div className="flex items-center gap-2">
                                     <span className="h-4 w-4 border-2 border-luxury-black/30 border-t-luxury-black animate-spin rounded-full" />
                                     <span>Creating Account...</span>
-                                    <span>Creating Account...</span>
                                 </div>
                             ) : (
-                                "Create Account"
                                 "Create Account"
                             )}
                         </Button>
