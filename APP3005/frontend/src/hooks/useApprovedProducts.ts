@@ -58,13 +58,10 @@ export function useApprovedProducts(
             if (search) params.append('search', search);
             if (creatorId) params.append('creator', creatorId);
 
-            const token = localStorage.getItem('access_token');
             const url = `${import.meta.env.VITE_API_URL}/admin/products/approved?${params}`;
 
             const response = await fetch(url, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                },
+                credentials: 'include',
             });
 
             if (!response.ok) {

@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { QueueModule } from './queue/queue.module';
@@ -25,10 +26,13 @@ import { ReturnModule } from './return/return.module';
 import { ReplacementModule } from './replace/replace.module';
 import { PaymentModule } from './payment/payment.module';
 import { EmailModule } from './email/email.module';
+import { AdminAuthModule } from './auth/admin/admin-auth.module';
+import { UserDashboardModule } from './user-dashboard/user-dashboard.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    ThrottlerModule.forRoot([{ ttl: 60000, limit: 10 }]),
     QueueModule,
     PrismaModule,
     AuthModule,
@@ -51,6 +55,8 @@ import { EmailModule } from './email/email.module';
     ReplacementModule,
     PaymentModule,
     EmailModule,
+    AdminAuthModule,
+    UserDashboardModule,
   ],
   controllers: [AppController],
   providers: [AppService, AdminSeederService],

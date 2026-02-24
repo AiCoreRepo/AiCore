@@ -28,17 +28,9 @@ const AdminDashboardPage: React.FC = () => {
         const fetchData = async () => {
             setIsLoading(true);
             try {
-                const token = localStorage.getItem('access_token');
-                if (!token) {
-                    window.location.href = '/login';
-                    return;
-                }
-
-                // Fetch stats
+                // Fetch stats (cookie-based auth)
                 const statsResponse = await fetch(`${import.meta.env.VITE_API_URL}/admin/stats`, {
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                    },
+                    credentials: 'include',
                 });
 
                 if (statsResponse.ok) {
@@ -53,9 +45,7 @@ const AdminDashboardPage: React.FC = () => {
 
                 // Fetch pending products
                 const productsResponse = await fetch(`${import.meta.env.VITE_API_URL}/admin/products/pending`, {
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                    },
+                    credentials: 'include',
                 });
 
                 if (productsResponse.ok) {
@@ -73,13 +63,12 @@ const AdminDashboardPage: React.FC = () => {
     }, []);
 
     const handleApprove = async (productId: string, comment?: string) => {
-        const token = localStorage.getItem('access_token');
         const response = await fetch(`${import.meta.env.VITE_API_URL}/admin/products/${productId}/review`, {
             method: 'PATCH',
             headers: {
-                'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json',
             },
+            credentials: 'include',
             body: JSON.stringify({
                 action: 'APPROVED',
                 comment: comment || 'Approved',
@@ -96,13 +85,12 @@ const AdminDashboardPage: React.FC = () => {
     };
 
     const handleReject = async (productId: string, comment: string) => {
-        const token = localStorage.getItem('access_token');
         const response = await fetch(`${import.meta.env.VITE_API_URL}/admin/products/${productId}/review`, {
             method: 'PATCH',
             headers: {
-                'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json',
             },
+            credentials: 'include',
             body: JSON.stringify({
                 action: 'REJECTED',
                 comment,

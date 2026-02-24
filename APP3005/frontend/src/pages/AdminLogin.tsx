@@ -10,56 +10,13 @@ const AdminLogin = () => {
     const { toast } = useToast();
 
     useEffect(() => {
-        const autoLogin = async () => {
-            const email = searchParams.get('email') || 'admin@aivestire.com';
-            const password = searchParams.get('password') || 'Admin@123456';
-
-            try {
-                const response = await fetch(`${import.meta.env.VITE_API_URL}/auth/login`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ email, password }),
-                });
-
-                if (!response.ok) {
-                    const error = new Error('Admin login failed') as ApiError;
-                    error.status = response.status;
-                    throw error;
-                }
-
-                const data = await response.json();
-
-                // Store token
-                localStorage.setItem('access_token', data.access_token);
-
-                // Success toast
-                toast({
-                    title: "Welcome Admin",
-                    description: "You've successfully signed in.",
-                });
-
-                // Redirect to admin dashboard
-                setTimeout(() => {
-                    navigate('/admin-dashboard');
-                }, 500);
-
-            } catch (error: unknown) {
-                console.error('Auto-login failed:', error);
-
-                toast({
-                    title: "Admin Login Failed",
-                    description: getErrorMessage(error, "Please check your admin credentials."),
-                    variant: "destructive",
-                });
-
-                navigate('/');
-            }
+        const initiateGoogleAuth = () => {
+            window.location.href = `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/auth/google/admin`;
         };
 
-        autoLogin();
-    }, [searchParams, navigate, toast]);
+        const timer = setTimeout(initiateGoogleAuth, 1000);
+        return () => clearTimeout(timer);
+    }, []);
 
     return (
         <div className="min-h-screen bg-luxury-black flex items-center justify-center p-6">

@@ -8,15 +8,14 @@ export function useFeatureToggle() {
 
     return useMutation({
         mutationFn: async ({ productId, isFeatured }: { productId: string; isFeatured: boolean }) => {
-            const token = localStorage.getItem('access_token');
             const response = await fetch(
                 `${import.meta.env.VITE_API_URL}/admin/products/${productId}/feature`,
                 {
                     method: 'PATCH',
                     headers: {
                         'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`,
                     },
+                    credentials: 'include',
                     body: JSON.stringify({ is_featured: isFeatured }),
                 }
             );
@@ -42,15 +41,14 @@ export function useStockUpdate() {
 
     return useMutation({
         mutationFn: async ({ productId, inventoryCount }: { productId: string; inventoryCount: number }) => {
-            const token = localStorage.getItem('access_token');
             const response = await fetch(
                 `${import.meta.env.VITE_API_URL}/admin/products/${productId}/stock`,
                 {
                     method: 'PATCH',
                     headers: {
                         'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`,
                     },
+                    credentials: 'include',
                     body: JSON.stringify({ inventory_count: inventoryCount }),
                 }
             );
@@ -76,14 +74,11 @@ export function useProductDelete() {
 
     return useMutation({
         mutationFn: async (productId: string) => {
-            const token = localStorage.getItem('access_token');
             const response = await fetch(
                 `${import.meta.env.VITE_API_URL}/admin/products/${productId}`,
                 {
                     method: 'DELETE',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                    },
+                    credentials: 'include',
                 }
             );
 

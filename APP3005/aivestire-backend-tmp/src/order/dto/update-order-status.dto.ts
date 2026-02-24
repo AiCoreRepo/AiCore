@@ -28,4 +28,8 @@ export class UpdateOrderStatusDto {
   @IsOptional()
   @IsString()
   replaceStatus?: string;
+
+  @IsOptional()
+  @IsString()
+  customReason?: string;
 }

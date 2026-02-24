@@ -13,11 +13,11 @@ import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 import { CollectCODDto } from './dto/collect-cod.dto';
 import { CancelOrderDto } from './dto/cancel-order.dto';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { CombinedAuthGuard } from '../auth/guards/combined-auth.guard';
 import { UserRole } from '@prisma/client';
 
 @Controller('orders')
-@UseGuards(JwtAuthGuard)
+@UseGuards(CombinedAuthGuard)
 export class OrderController {
   constructor(
     private readonly orderService: OrderService,
@@ -39,7 +39,8 @@ export class OrderController {
   @Get('all')
   async getAllOrders(@Request() req) {
     // Check if user is admin
-    if (req.user.role !== UserRole.ADMIN) {
+    const role = typeof req.user.role === 'string' ? req.user.role.toUpperCase() : req.user.role;
+    if (role !== UserRole.ADMIN) {
       throw new Error('Unauthorized - Admin access required');
     }
     return this.orderService.getAllOrders();
@@ -71,7 +72,8 @@ export class OrderController {
     @Body() updateStatusDto: UpdateOrderStatusDto,
   ) {
     // Check if user is admin or delivery partner
-    if (![UserRole.ADMIN, 'DELIVERY_PARTNER' as any].includes(req.user.role)) {
+    const role = typeof req.user.role === 'string' ? req.user.role.toUpperCase() : req.user.role;
+    if (![UserRole.ADMIN, 'DELIVERY_PARTNER' as any].includes(role)) {
       throw new Error('Unauthorized');
     }
 
@@ -79,7 +81,7 @@ export class OrderController {
       orderId,
       updateStatusDto,
       req.user.user_id,
-      req.user.role,
+      role,
     );
   }
 
