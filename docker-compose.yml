@@ -40,7 +40,7 @@ services:
       [
         "sh",
         "-c",
-        "set -e; until node -e \"const net=require('net');const s=net.createConnection({host:'db',port:5540},()=>process.exit(0));s.on('error',()=>process.exit(1));\"; do echo 'waiting for db...'; sleep 2; done; node ./node_modules/prisma/build/index.js migrate deploy || node ./node_modules/prisma/build/index.js migrate reset --force --skip-seed; node scripts/seed-products.js; node dist/src/main"
+        "set -e; until node -e \"const net=require('net');const s=net.createConnection({host:'db',port:5540},()=>process.exit(0));s.on('error',()=>process.exit(1));\"; do echo 'waiting for db...'; sleep 2; done; node ./node_modules/prisma/build/index.js migrate deploy; node scripts/seed-products.js; node dist/src/main"
       ]
     env_file:
       - ./APP3005/aivestire-backend-tmp/.env
