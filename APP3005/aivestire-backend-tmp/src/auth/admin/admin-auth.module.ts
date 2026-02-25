@@ -1,7 +1,6 @@
 import { Module } from '@nestjs/common';
 import { PassportModule } from '@nestjs/passport';
 import { JwtModule } from '@nestjs/jwt';
-import { AdminGoogleStrategy } from './admin-google.strategy';
 import { AdminJwtStrategy } from './admin-jwt.strategy';
 import { AdminAuthService } from './admin-auth.service';
 import { AdminAuthController } from './admin-auth.controller';
@@ -17,7 +16,6 @@ import { AdminJwtGuard } from './guards/admin-jwt.guard';
     ],
     controllers: [AdminAuthController],
     providers: [
-        AdminGoogleStrategy,
         AdminJwtStrategy,
         AdminAuthService,
         AdminJwtGuard,

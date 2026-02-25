@@ -20,41 +20,6 @@ export class AdminAuthController {
     constructor(private readonly adminAuthService: AdminAuthService) { }
 
     /**
-     * GET /auth/google/admin
-     * Initiates admin Google OAuth login
-     */
-    @Get()
-    @UseGuards(AuthGuard('google-admin'))
-    async googleAdminLogin() {
-        // Passport redirects to Google — this body never executes
-    }
-
-    /**
-     * GET /auth/google/admin/callback
-     * Google OAuth callback — validates admin email, redirects to secret confirm page
-     */
-    @Get('callback')
-    @UseGuards(AuthGuard('google-admin'))
-    async googleAdminCallback(
-        @Req() req: Request,
-        @Res() res: Response,
-    ) {
-        const user = req.user as { email: string } | undefined;
-
-        if (!user || !user.email) {
-            throw new UnauthorizedException('Authentication failed');
-        }
-
-        // Admin email was already validated in the strategy
-        // Redirect to frontend secret confirmation page
-        const isProd = process.env.NODE_ENV === 'production';
-        const frontendUrl = process.env.FRONTEND_URL || (isProd ? 'https://aivestire.com' : 'http://localhost:8080');
-        res.redirect(
-            `${frontendUrl}/admin-secret-confirm?email=${encodeURIComponent(user.email)}`,
-        );
-    }
-
-    /**
      * POST /auth/google/admin/verify-secret
      * Verifies admin secret and issues admin JWT cookie
      */

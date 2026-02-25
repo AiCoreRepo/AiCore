@@ -41,7 +41,7 @@ export class AuthService {
     private prisma: PrismaService,
     private jwtService: JwtService,
     private otpService: OtpService,
-  ) {}
+  ) { }
 
   private slugify(input: string): string {
     return input
@@ -238,22 +238,22 @@ export class AuthService {
   }
 
   async getProfile(user_id: string) {
-        const user = await this.prisma.user.findUnique({
-            where: { user_id },
-            select: {
-                user_id: true,
-                email: true,
-                role: true,
-                try_on_permission: true,
-                try_ons_used: true,
-                max_try_ons: true,
-                avatar_regenerations_used: true,
-                max_avatar_regenerations: true,
-                creatorProfile: {
-                    select: {
-                        store_name: true,
-                    },
-                },
+    const user = await this.prisma.user.findUnique({
+      where: { user_id },
+      select: {
+        user_id: true,
+        email: true,
+        role: true,
+        try_on_permission: true,
+        try_ons_used: true,
+        max_try_ons: true,
+        avatar_regenerations_used: true,
+        max_avatar_regenerations: true,
+        creatorProfile: {
+          select: {
+            store_name: true,
+          },
+        },
       },
     });
 
@@ -262,20 +262,20 @@ export class AuthService {
     }
 
     // If the user is a creator, return their creator profile details
-        if (user.role === UserRole.CREATOR && user.creatorProfile) {
-            return {
-                user_id: user.user_id,
-                email: user.email,
-                role: user.role,
-                try_on_permission: user.try_on_permission,
-                store_name: user.creatorProfile.store_name,
-                try_ons_used: user.try_ons_used,
-                max_try_ons: user.max_try_ons,
-                avatar_regenerations_used: user.avatar_regenerations_used,
-                max_avatar_regenerations: user.max_avatar_regenerations,
-                // Add other creator-specific fields you might need
-            };
-        }
+    if (user.role === UserRole.CREATOR && user.creatorProfile) {
+      return {
+        user_id: user.user_id,
+        email: user.email,
+        role: user.role,
+        try_on_permission: user.try_on_permission,
+        store_name: user.creatorProfile.store_name,
+        try_ons_used: user.try_ons_used,
+        max_try_ons: user.max_try_ons,
+        avatar_regenerations_used: user.avatar_regenerations_used,
+        max_avatar_regenerations: user.max_avatar_regenerations,
+        // Add other creator-specific fields you might need
+      };
+    }
 
     // For other roles or non-creator users, return basic user info
     return {
@@ -416,13 +416,56 @@ export class AuthService {
     const email = payload.email;
     const name = payload.name || email.split('@')[0];
 
+    if (dto.role === 'ADMIN') {
+      const adminEmail = process.env.ADMIN_EMAIL;
+      if (!adminEmail || email !== adminEmail) {
+        throw new UnauthorizedException('Access denied. Invalid admin email.');
+      }
+
+      // For admin, just find or create a user record — skip role mismatch checks
+      let user = await this.prisma.user.findUnique({ where: { email } });
+      if (!user) {
+        user = await this.prisma.user.create({
+          data: {
+            email,
+            role: UserRole.ADMIN,
+            status: 'active',
+          },
+        });
+      }
+
+      // Issue tokens for admin
+      const tokens = await this.issueTokens(user.user_id, 'ADMIN');
+      const bcryptMod = await getBcrypt();
+      if (!isBcryptModule(bcryptMod)) {
+        throw new Error('Failed to load bcrypt module');
+      }
+      const refresh_token_hash: string = await bcryptMod.hash(tokens.refresh_token, 10);
+      await this.prisma.user.update({
+        where: { user_id: user.user_id },
+        data: { refresh_token_hash, last_login: new Date() },
+      });
+
+      res.cookie('refresh_token', tokens.refresh_token, REFRESH_TOKEN_COOKIE_OPTIONS);
+
+      return {
+        access_token: tokens.access_token,
+        user: {
+          user_id: user.user_id,
+          email: user.email,
+          role: 'ADMIN',
+          try_on_permission: user.try_on_permission,
+        },
+      };
+    }
+
     // Check if user exists
     let user = await this.prisma.user.findUnique({ where: { email } });
 
     if (user) {
       // User exists - check if role matches
       if (user.role !== dto.role) {
-        throw new UnauthorizedException('Invalid credentials');
+        throw new UnauthorizedException('Invalid credentials - role mismatch');
       }
     } else {
       // Create new user with the specified role

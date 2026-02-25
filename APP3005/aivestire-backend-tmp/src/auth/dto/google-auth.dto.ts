@@ -5,8 +5,8 @@ export class GoogleAuthDto {
   token: string;
 
   @IsString()
-  @IsIn(['CREATOR', 'BUYER'])
-  role: 'CREATOR' | 'BUYER';
+  @IsIn(['CREATOR', 'BUYER', 'ADMIN'])
+  role: 'CREATOR' | 'BUYER' | 'ADMIN';
 
   @IsOptional()
   @IsString()

@@ -141,7 +141,7 @@ export async function userSignup(data: { email: string; password: string; name?:
 // Google OAuth authentication
 export async function googleAuth(data: {
   token: string;
-  role: 'CREATOR' | 'BUYER';
+  role: 'CREATOR' | 'BUYER' | 'ADMIN';
   store_name?: string;
   phoneNumber?: string;
 }) {
