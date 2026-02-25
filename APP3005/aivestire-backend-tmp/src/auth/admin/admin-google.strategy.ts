@@ -16,6 +16,12 @@ export class AdminGoogleStrategy extends PassportStrategy(
         const callbackUrl = process.env.ADMIN_GOOGLE_CALLBACK_URL ||
             (process.env.BACKEND_URL ? `${process.env.BACKEND_URL}/auth/google/admin/callback` : defaultCallback);
 
+        console.log('🛡️ Admin Google Strategy Info:', {
+            isProd,
+            NODE_ENV: process.env.NODE_ENV,
+            callbackUrl
+        });
+
         super({
             clientID: process.env.ADMIN_GOOGLE_CLIENT_ID || '',
             clientSecret: process.env.ADMIN_GOOGLE_CLIENT_SECRET || '',
