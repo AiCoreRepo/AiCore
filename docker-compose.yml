@@ -46,6 +46,8 @@ services:
       - ./APP3005/aivestire-backend-tmp/.env
     environment:
       DATABASE_URL: postgresql://postgres:postgres@db:5540/aivestire
+      NODE_ENV: production
+      FRONTEND_URL: https://aivestire.com
       REDIS_HOST: redis
       REDIS_PORT: 6380
       FASTAPI_BODY_ANALYZE_URL: http://body-analyzer:8898/body_analyze_json
