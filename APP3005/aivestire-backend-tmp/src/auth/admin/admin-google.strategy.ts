@@ -10,7 +10,7 @@ export class AdminGoogleStrategy extends PassportStrategy(
     constructor() {
         const isProd = process.env.NODE_ENV === 'production';
         const defaultCallback = isProd
-            ? 'https://api.aivestire.com/auth/google/admin/callback'
+            ? 'https://aivestire.com/auth/google/admin/callback'
             : 'http://localhost:3000/auth/google/admin/callback';
 
         const callbackUrl = process.env.ADMIN_GOOGLE_CALLBACK_URL ||
