@@ -8,10 +8,18 @@ export class AdminGoogleStrategy extends PassportStrategy(
     'google-admin',
 ) {
     constructor() {
+        const isProd = process.env.NODE_ENV === 'production';
+        const defaultCallback = isProd
+            ? 'https://api.aivestire.com/auth/google/admin/callback'
+            : 'http://localhost:3000/auth/google/admin/callback';
+
+        const callbackUrl = process.env.ADMIN_GOOGLE_CALLBACK_URL ||
+            (process.env.BACKEND_URL ? `${process.env.BACKEND_URL}/auth/google/admin/callback` : defaultCallback);
+
         super({
             clientID: process.env.ADMIN_GOOGLE_CLIENT_ID || '',
             clientSecret: process.env.ADMIN_GOOGLE_CLIENT_SECRET || '',
-            callbackURL: process.env.ADMIN_GOOGLE_CALLBACK_URL || 'http://localhost:3000/auth/google/admin/callback',
+            callbackURL: callbackUrl,
             scope: ['email', 'profile'],
         });
     }

@@ -47,7 +47,8 @@ export class AdminAuthController {
 
         // Admin email was already validated in the strategy
         // Redirect to frontend secret confirmation page
-        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+        const isProd = process.env.NODE_ENV === 'production';
+        const frontendUrl = process.env.FRONTEND_URL || (isProd ? 'https://aivestire.com' : 'http://localhost:8080');
         res.redirect(
             `${frontendUrl}/admin-secret-confirm?email=${encodeURIComponent(user.email)}`,
         );

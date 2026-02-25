@@ -1,12 +1,13 @@
 import { EmailTemplate } from '../enums/email.enums';
 
 function getEmailWrapper(title: string, content: string, context: any) {
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:8080';
-    const orderUrl = `${frontendUrl}/user/orders`; // Frontend URL route
+  const isProd = process.env.NODE_ENV === 'production';
+  const frontendUrl = process.env.FRONTEND_URL || (isProd ? 'https://aivestire.com' : 'http://localhost:8080');
+  const orderUrl = `${frontendUrl}/user/orders`; // Frontend URL route
 
-    let itemsHtml = '';
-    if (context.items && context.items.length > 0) {
-        itemsHtml = `
+  let itemsHtml = '';
+  if (context.items && context.items.length > 0) {
+    itemsHtml = `
       <div style="margin-top: 32px; border-top: 1px solid #eaebec; padding-top: 24px;">
         <h3 style="color: #111827; margin-bottom: 16px; font-size: 16px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Order Details</h3>
         <table style="width: 100%; border-collapse: collapse;">
@@ -35,12 +36,12 @@ function getEmailWrapper(title: string, content: string, context: any) {
         </table>
       </div>
     `;
-    }
+  }
 
-    let shippingHtml = '';
-    if (context.shippingAddress) {
-        const addr = context.shippingAddress;
-        shippingHtml = `
+  let shippingHtml = '';
+  if (context.shippingAddress) {
+    const addr = context.shippingAddress;
+    shippingHtml = `
       <div style="margin-top: 32px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 20px;">
         <h3 style="color: #111827; margin-top: 0; margin-bottom: 12px; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Delivery Address</h3>
         <p style="margin: 0; color: #475569; font-size: 14px; line-height: 1.6;">
@@ -51,9 +52,9 @@ function getEmailWrapper(title: string, content: string, context: any) {
         </p>
       </div>
     `;
-    }
+  }
 
-    return `
+  return `
 <!DOCTYPE html>
 <html>
 <head>
@@ -110,25 +111,25 @@ function getEmailWrapper(title: string, content: string, context: any) {
 }
 
 export const EmailUtils = {
-    getSubjectForTemplate(template: EmailTemplate, context: any): string {
-        switch (template) {
-            case EmailTemplate.ORDER_CONFIRMATION:
-                return 'Order Confirmation: Your AiVestire order #' + context.orderNumber + ' has been successfully placed';
-            case EmailTemplate.ORDER_CANCELLED:
-                return 'Order Cancelled: Update regarding your AiVestire order #' + context.orderNumber;
-            case EmailTemplate.ORDER_DELIVERED:
-                return 'Delivered: Your AiVestire order #' + context.orderNumber + ' has been delivered';
-            default:
-                return 'Notification from AiVestire';
-        }
-    },
+  getSubjectForTemplate(template: EmailTemplate, context: any): string {
+    switch (template) {
+      case EmailTemplate.ORDER_CONFIRMATION:
+        return 'Order Confirmation: Your AiVestire order #' + context.orderNumber + ' has been successfully placed';
+      case EmailTemplate.ORDER_CANCELLED:
+        return 'Order Cancelled: Update regarding your AiVestire order #' + context.orderNumber;
+      case EmailTemplate.ORDER_DELIVERED:
+        return 'Delivered: Your AiVestire order #' + context.orderNumber + ' has been delivered';
+      default:
+        return 'Notification from AiVestire';
+    }
+  },
 
-    getHtmlForTemplate(template: EmailTemplate, context: any): string {
-        const userName = context.userName || 'Customer';
+  getHtmlForTemplate(template: EmailTemplate, context: any): string {
+    const userName = context.userName || 'Customer';
 
-        switch (template) {
-            case EmailTemplate.ORDER_CONFIRMATION:
-                return getEmailWrapper('Order Confirmed', `
+    switch (template) {
+      case EmailTemplate.ORDER_CONFIRMATION:
+        return getEmailWrapper('Order Confirmed', `
           <h2 style="color: #0f172a; margin-top: 0; margin-bottom: 20px; font-size: 22px; font-weight: 600;">Order Confirmation</h2>
           <p style="color: #334155; font-size: 15px; line-height: 1.6; margin-bottom: 24px;">
             Dear <strong>${userName}</strong>,<br><br>
@@ -141,8 +142,8 @@ export const EmailUtils = {
           </div>
         `, context);
 
-            case EmailTemplate.ORDER_CANCELLED:
-                return getEmailWrapper('Order Cancelled', `
+      case EmailTemplate.ORDER_CANCELLED:
+        return getEmailWrapper('Order Cancelled', `
           <h2 style="color: #0f172a; margin-top: 0; margin-bottom: 20px; font-size: 22px; font-weight: 600;">Order Cancellation Request Processed</h2>
           <p style="color: #334155; font-size: 15px; line-height: 1.6; margin-bottom: 24px;">
             Dear <strong>${userName}</strong>,<br><br>
@@ -160,8 +161,8 @@ export const EmailUtils = {
           </p>
         `, context);
 
-            case EmailTemplate.ORDER_DELIVERED:
-                return getEmailWrapper('Order Delivered', `
+      case EmailTemplate.ORDER_DELIVERED:
+        return getEmailWrapper('Order Delivered', `
           <h2 style="color: #0f172a; margin-top: 0; margin-bottom: 20px; font-size: 22px; font-weight: 600;">Your Order Has Been Delivered</h2>
           <p style="color: #334155; font-size: 15px; line-height: 1.6; margin-bottom: 20px;">
             Dear <strong>${userName}</strong>,<br><br>
@@ -172,10 +173,10 @@ export const EmailUtils = {
           </p>
         `, context);
 
-            default:
-                return getEmailWrapper('Notification', `
+      default:
+        return getEmailWrapper('Notification', `
           <p style="color: #334155; font-size: 15px; line-height: 1.6;">Dear Customer, this is a notification regarding your recent activity on AiVestire.</p>
         `, context);
-        }
-    },
+    }
+  },
 };
