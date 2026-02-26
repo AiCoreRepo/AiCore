@@ -38,6 +38,8 @@ import AdminOrdersPage from "./app/admin-orders/page";
 import ArtisansPage from "./app/admin-artisans/page";
 import ClientelePage from "./app/admin-clientele/page";
 import AdminSettingsPage from "./app/admin-settings/page";
+const AdminCouponsPage = lazy(() => import("./app/admin-coupons/page"));
+const CreateCouponPage = lazy(() => import("./app/admin-coupons/create"));
 import AdminLogin from "./pages/AdminLogin";
 import AdminSecretConfirm from "./pages/AdminSecretConfirm";
 import AdminCSVUploadPage from "./pages/AdminCSVUploadPage";
@@ -165,6 +167,16 @@ const App = () => (
                       <Route path="/admin-clientele" element={<ClientelePage />} />
                       <Route path="/admin-settings" element={<AdminSettingsPage />} />
                       <Route path="/admin-csv-upload" element={<AdminCSVUploadPage />} />
+                      <Route path="/admin-coupons" element={
+                        <Suspense fallback={<div className="min-h-screen bg-neutral-950 flex items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-2 border-[#D4AF37] border-t-transparent"></div></div>}>
+                          <AdminCouponsPage />
+                        </Suspense>
+                      } />
+                      <Route path="/admin-coupons/create" element={
+                        <Suspense fallback={<div className="min-h-screen bg-neutral-950 flex items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-2 border-[#D4AF37] border-t-transparent"></div></div>}>
+                          <CreateCouponPage />
+                        </Suspense>
+                      } />
 
                       {/* Payment Routes */}
                       <Route path="/payment" element={

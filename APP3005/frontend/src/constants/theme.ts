@@ -1,5 +1,5 @@
 import { Variants } from 'framer-motion';
-import { LayoutDashboard, CheckSquare, ShoppingBag, Palette, Users, Settings, Sparkles, Upload, Package } from 'lucide-react';
+import { LayoutDashboard, CheckSquare, ShoppingBag, Palette, Users, Settings, Sparkles, Upload, Package, Ticket } from 'lucide-react';
 
 /**
  * Midnight Luxury Design Tokens
@@ -136,6 +136,13 @@ export const menuItems: MenuItem[] = [
         href: '/admin-clientele',
         isBeta: true,
         // Microservice 1 (Consumer): Buyer Management - User list, check Aura status, help stuck users
+    },
+    {
+        id: 'coupons',
+        label: 'Coupons & Referrals',
+        icon: Ticket,
+        href: '/admin-coupons',
+        isBeta: false,
     },
     {
         id: 'settings',

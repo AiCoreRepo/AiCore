@@ -154,11 +154,26 @@
         @apply font-serif;
     }
 
-    /* Force dark text in all inputs */
+    /* Force dark text in all inputs (for light-themed pages) */
     input,
     textarea,
     select {
         color: #1F2937 !important;
+    }
+
+    /* Override: white text for admin dark-themed forms */
+    .admin-dark-form input,
+    .admin-dark-form textarea,
+    .admin-dark-form select {
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+    }
+
+    .admin-dark-form input::placeholder,
+    .admin-dark-form textarea::placeholder {
+        color: #737373 !important;
+        -webkit-text-fill-color: #737373 !important;
+        opacity: 1 !important;
     }
 
     input::placeholder,
@@ -167,7 +182,7 @@
         opacity: 1 !important;
     }
 
-    /* Ensure autofill text is also dark */
+    /* Ensure autofill text is also dark (light pages) */
     input:-webkit-autofill,
     input:-webkit-autofill:hover,
     input:-webkit-autofill:focus,
@@ -176,6 +191,18 @@
     textarea:-webkit-autofill:focus {
         -webkit-text-fill-color: #1F2937 !important;
         -webkit-box-shadow: 0 0 0px 1000px hsl(var(--luxury-cream)) inset !important;
+        transition: background-color 5000s ease-in-out 0s;
+    }
+
+    /* Autofill override for admin dark forms */
+    .admin-dark-form input:-webkit-autofill,
+    .admin-dark-form input:-webkit-autofill:hover,
+    .admin-dark-form input:-webkit-autofill:focus,
+    .admin-dark-form textarea:-webkit-autofill,
+    .admin-dark-form textarea:-webkit-autofill:hover,
+    .admin-dark-form textarea:-webkit-autofill:focus {
+        -webkit-text-fill-color: #ffffff !important;
+        -webkit-box-shadow: 0 0 0px 1000px #262626 inset !important;
         transition: background-color 5000s ease-in-out 0s;
     }
 }
