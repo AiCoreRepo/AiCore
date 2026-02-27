@@ -40,6 +40,7 @@ import ClientelePage from "./app/admin-clientele/page";
 import AdminSettingsPage from "./app/admin-settings/page";
 const AdminCouponsPage = lazy(() => import("./app/admin-coupons/page"));
 const CreateCouponPage = lazy(() => import("./app/admin-coupons/create"));
+const EditCouponPage = lazy(() => import("./app/admin-coupons/edit"));
 import AdminLogin from "./pages/AdminLogin";
 import AdminSecretConfirm from "./pages/AdminSecretConfirm";
 import AdminCSVUploadPage from "./pages/AdminCSVUploadPage";
@@ -175,6 +176,11 @@ const App = () => (
                       <Route path="/admin-coupons/create" element={
                         <Suspense fallback={<div className="min-h-screen bg-neutral-950 flex items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-2 border-[#D4AF37] border-t-transparent"></div></div>}>
                           <CreateCouponPage />
+                        </Suspense>
+                      } />
+                      <Route path="/admin-coupons/edit/:id" element={
+                        <Suspense fallback={<div className="min-h-screen bg-neutral-950 flex items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-2 border-[#D4AF37] border-t-transparent"></div></div>}>
+                          <EditCouponPage />
                         </Suspense>
                       } />
 

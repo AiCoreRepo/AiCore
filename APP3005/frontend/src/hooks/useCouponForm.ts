@@ -13,6 +13,7 @@ const initialFormState: CouponFormState = {
     discountType: CouponTypeEnum.FLAT,
     discountValue: '',
     minOrderAmount: '',
+    isLocationRestricted: false,
     allowedPincodes: '',
     termsAndConditions: '',
     reason: '',
@@ -28,6 +29,7 @@ interface UseCouponFormReturn {
     handleChange: (field: keyof CouponFormState, value: string) => void;
     validate: () => boolean;
     resetForm: () => void;
+    setForm: (coupon: any) => void;
     getPayload: () => CreateCouponPayload;
 }
 
@@ -35,7 +37,7 @@ export const useCouponForm = (): UseCouponFormReturn => {
     const [formState, setFormState] = useState<CouponFormState>(initialFormState);
     const [errors, setErrors] = useState<CouponFormErrors>({});
 
-    const handleChange = useCallback((field: keyof CouponFormState, value: string) => {
+    const handleChange = useCallback((field: keyof CouponFormState, value: string | boolean) => {
         setFormState(prev => ({ ...prev, [field]: value }));
         // Clear error on change
         setErrors(prev => ({ ...prev, [field]: undefined }));
@@ -74,6 +76,26 @@ export const useCouponForm = (): UseCouponFormReturn => {
         setErrors({});
     }, []);
 
+    const setForm = useCallback((coupon: any) => {
+        setFormState({
+            title: coupon.title || '',
+            code: coupon.code || '',
+            description: coupon.description || '',
+            discountType: coupon.discountType || CouponTypeEnum.FLAT,
+            discountValue: coupon.discountValue?.toString() || '',
+            minOrderAmount: coupon.minOrderAmount?.toString() || '',
+            isLocationRestricted: coupon.isLocationRestricted || false,
+            allowedPincodes: coupon.allowedPincodes?.join(', ') || '',
+            termsAndConditions: coupon.termsAndConditions || '',
+            reason: coupon.reason || '',
+            startDate: coupon.startDate ? coupon.startDate.split('T')[0] : '',
+            endDate: coupon.endDate ? coupon.endDate.split('T')[0] : '',
+            maxUsage: coupon.maxUsage?.toString() || '',
+            status: coupon.status || CouponStatusEnum.ACTIVE,
+        });
+        setErrors({});
+    }, []);
+
     const getPayload = useCallback((): CreateCouponPayload => {
         return {
             title: formState.title.trim(),
@@ -82,7 +104,8 @@ export const useCouponForm = (): UseCouponFormReturn => {
             discountType: formState.discountType as CouponTypeEnum,
             discountValue: Number(formState.discountValue),
             minOrderAmount: Number(formState.minOrderAmount),
-            allowedPincodes: formState.allowedPincodes
+            isLocationRestricted: formState.isLocationRestricted,
+            allowedPincodes: formState.isLocationRestricted && formState.allowedPincodes
                 ? formState.allowedPincodes.split(',').map(p => p.trim()).filter(Boolean)
                 : [],
             termsAndConditions: formState.termsAndConditions.trim(),
@@ -100,6 +123,7 @@ export const useCouponForm = (): UseCouponFormReturn => {
         handleChange,
         validate,
         resetForm,
+        setForm,
         getPayload,
     };
 };

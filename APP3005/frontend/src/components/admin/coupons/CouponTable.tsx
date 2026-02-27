@@ -1,28 +1,51 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Ticket, AlertCircle } from 'lucide-react';
 import type { Coupon } from '@/types/coupon.types';
-import { CouponRow } from './CouponRow';
+import { CouponCard } from './CouponCard';
+import { CouponDetailModal } from './CouponDetailModal';
 
 interface CouponTableProps {
     coupons: Coupon[];
     isLoading: boolean;
     error: string | null;
+    onEdit?: (coupon: Coupon) => void;
+    onDelete?: (id: string) => void;
 }
 
-// Skeleton row for loading state
-const SkeletonRow: React.FC = () => (
-    <tr className="border-b border-neutral-800 animate-pulse">
-        {Array.from({ length: 6 }).map((_, i) => (
-            <td key={i} className="px-4 py-3.5">
-                <div className="h-5 bg-neutral-800 rounded w-20" />
-            </td>
-        ))}
-    </tr>
+// Skeleton card for loading state
+const SkeletonCard: React.FC = () => (
+    <div className="rounded-2xl border border-neutral-800/60 bg-neutral-900/70 p-5 animate-pulse">
+        <div className="h-1 w-full bg-neutral-800 rounded-full mb-5" />
+        <div className="flex items-start justify-between mb-4">
+            <div className="w-11 h-11 rounded-xl bg-neutral-800" />
+            <div className="w-16 h-6 rounded-full bg-neutral-800" />
+        </div>
+        <div className="h-8 bg-neutral-800 rounded w-32 mb-2" />
+        <div className="h-4 bg-neutral-800 rounded w-48 mb-4" />
+        <div className="h-10 bg-neutral-800/50 rounded-lg border-2 border-dashed border-neutral-800 mb-4" />
+        <div className="flex gap-2 mb-3">
+            <div className="h-6 bg-neutral-800 rounded-md w-24" />
+            <div className="h-6 bg-neutral-800 rounded-md w-20" />
+        </div>
+        <div className="h-4 bg-neutral-800 rounded w-40" />
+    </div>
 );
 
-const TABLE_HEADERS = ['Code', 'Type', 'Discount', 'Min Order', 'Status', 'Reason'];
+export const CouponTable: React.FC<CouponTableProps> = ({ coupons, isLoading, error, onEdit, onDelete }) => {
+    const [selectedCoupon, setSelectedCoupon] = useState<Coupon | null>(null);
+    const [isModalOpen, setIsModalOpen] = useState(false);
 
-export const CouponTable: React.FC<CouponTableProps> = ({ coupons, isLoading, error }) => {
+    const handleCardClick = (coupon: Coupon) => {
+        setSelectedCoupon(coupon);
+        setIsModalOpen(true);
+    };
+
+    const handleCloseModal = () => {
+        setIsModalOpen(false);
+        // Delay clearing the coupon to avoid flash while modal animates out
+        setTimeout(() => setSelectedCoupon(null), 200);
+    };
+
     // Error state
     if (error) {
         return (
@@ -52,31 +75,27 @@ export const CouponTable: React.FC<CouponTableProps> = ({ coupons, isLoading, er
     }
 
     return (
-        <div className="bg-neutral-900/50 border border-neutral-800 rounded-2xl overflow-hidden">
-            <div className="overflow-x-auto">
-                <table className="w-full min-w-[640px]">
-                    <thead>
-                        <tr className="border-b border-neutral-800 bg-neutral-900/80">
-                            {TABLE_HEADERS.map((header) => (
-                                <th
-                                    key={header}
-                                    className="px-4 py-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider"
-                                >
-                                    {header}
-                                </th>
-                            ))}
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {isLoading
-                            ? Array.from({ length: 5 }).map((_, i) => <SkeletonRow key={i} />)
-                            : coupons.map((coupon) => (
-                                <CouponRow key={coupon.id} coupon={coupon} />
-                            ))
-                        }
-                    </tbody>
-                </table>
+        <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-5">
+                {isLoading
+                    ? Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)
+                    : coupons.map((coupon) => (
+                        <CouponCard
+                            key={coupon.id}
+                            coupon={coupon}
+                            onClick={handleCardClick}
+                        />
+                    ))
+                }
             </div>
-        </div>
+
+            <CouponDetailModal
+                coupon={selectedCoupon}
+                isOpen={isModalOpen}
+                onClose={handleCloseModal}
+                onEdit={onEdit}
+                onDelete={onDelete}
+            />
+        </>
     );
 };

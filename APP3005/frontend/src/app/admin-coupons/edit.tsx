@@ -1,22 +1,65 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Menu } from 'lucide-react';
 import { Sidebar } from '@/components/admin/Sidebar';
 import { AdminPageHeader } from '@/components/admin/coupons/AdminPageHeader';
 import { CouponForm } from '@/components/admin/coupons/CouponForm';
 import { useCouponForm } from '@/hooks/useCouponForm';
-import { useCreateCoupon } from '@/hooks/useCreateCoupon';
+import { useAdminCoupons } from '@/hooks/useAdminCoupons';
 import { ADMIN_COUPON_ROUTES } from '@/constants/coupon.constants';
+import { useToast } from '@/hooks/use-toast';
+import { useParams, useNavigate } from 'react-router-dom';
 
-const CreateCouponPage: React.FC = () => {
+const EditCouponPage: React.FC = () => {
+    const { id } = useParams<{ id: string }>();
+    const navigate = useNavigate();
+    const { toast } = useToast();
     const [sidebarOpen, setSidebarOpen] = useState(false);
-    const { formState, errors, handleChange, validate, getPayload } = useCouponForm();
-    const { isSubmitting, submitCoupon } = useCreateCoupon();
+    const { allCoupons, isLoading: couponsLoading, updateCoupon } = useAdminCoupons();
+    const { formState, errors, handleChange, validate, getPayload, setForm } = useCouponForm();
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    useEffect(() => {
+        if (!couponsLoading) {
+            const coupon = allCoupons.find(c => c.id === id);
+            if (coupon) {
+                setForm(coupon);
+            } else {
+                // If not found, redirect back
+                navigate(ADMIN_COUPON_ROUTES.ADMIN_COUPONS);
+            }
+        }
+    }, [couponsLoading, allCoupons, id, setForm, navigate]);
 
     const handleSubmit = async () => {
-        if (!validate()) return;
-        const payload = getPayload();
-        await submitCoupon(payload);
+        if (!validate() || !id) return;
+        setIsSubmitting(true);
+        try {
+            const payload = getPayload();
+            await updateCoupon(id, payload);
+            toast({
+                title: "Coupon Updated",
+                description: "The coupon details have been successfully modified.",
+            });
+            navigate(ADMIN_COUPON_ROUTES.ADMIN_COUPONS);
+        } catch (error: any) {
+            console.error('Failed to update coupon', error);
+            toast({
+                title: "Update Failed",
+                description: error?.message || "There was an error updating the coupon.",
+                variant: "destructive",
+            });
+        } finally {
+            setIsSubmitting(false);
+        }
     };
+
+    if (couponsLoading) {
+        return (
+            <div className="min-h-screen bg-neutral-950 flex items-center justify-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-2 border-[#D4AF37] border-t-transparent"></div>
+            </div>
+        );
+    }
 
     return (
         <div className="flex min-h-screen bg-neutral-950 font-sans">
@@ -58,8 +101,8 @@ const CreateCouponPage: React.FC = () => {
                                 <Menu className="w-5 h-5" />
                             </button>
                             <AdminPageHeader
-                                title="Create Coupon"
-                                subtitle="Fill in the details to create a new coupon"
+                                title="Edit Coupon"
+                                subtitle="Modify the details of the existing coupon"
                                 showBack
                                 backHref={ADMIN_COUPON_ROUTES.ADMIN_COUPONS}
                             />
@@ -82,4 +125,4 @@ const CreateCouponPage: React.FC = () => {
     );
 };
 
-export default CreateCouponPage;
+export default EditCouponPage;

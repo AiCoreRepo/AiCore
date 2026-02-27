@@ -11,7 +11,7 @@ interface CouponFormProps {
     formState: CouponFormState;
     errors: CouponFormErrors;
     isSubmitting: boolean;
-    onChange: (field: keyof CouponFormState, value: string) => void;
+    onChange: (field: keyof CouponFormState, value: string | boolean) => void;
     onSubmit: () => void;
 }
 
@@ -96,34 +96,44 @@ export const CouponForm: React.FC<CouponFormProps> = ({
                             id="discountType"
                             label="Discount Type"
                             value={formState.discountType}
-                            onChange={(v) => onChange('discountType', v)}
+                            onChange={(v) => {
+                                onChange('discountType', v);
+                                if (v === CouponTypeEnum.DELIVERY) {
+                                    onChange('discountValue', '0');
+                                    onChange('minOrderAmount', '0');
+                                }
+                            }}
                             options={discountTypeOptions}
                             error={errors.discountType}
                             disabled={isSubmitting}
                             required
                         />
-                        <FormInput
-                            id="discountValue"
-                            label="Discount Value"
-                            type="number"
-                            value={formState.discountValue}
-                            onChange={(v) => onChange('discountValue', v)}
-                            placeholder={formState.discountType === CouponTypeEnum.PERCENTAGE ? '0-100' : '₹ Amount'}
-                            error={errors.discountValue}
-                            disabled={isSubmitting}
-                            required
-                        />
-                        <FormInput
-                            id="minOrderAmount"
-                            label="Min Order Amount (₹)"
-                            type="number"
-                            value={formState.minOrderAmount}
-                            onChange={(v) => onChange('minOrderAmount', v)}
-                            placeholder="e.g., 500"
-                            error={errors.minOrderAmount}
-                            disabled={isSubmitting}
-                            required
-                        />
+                        {formState.discountType !== CouponTypeEnum.DELIVERY && (
+                            <>
+                                <FormInput
+                                    id="discountValue"
+                                    label="Discount Value"
+                                    type="number"
+                                    value={formState.discountValue}
+                                    onChange={(v) => onChange('discountValue', v)}
+                                    placeholder={formState.discountType === CouponTypeEnum.PERCENTAGE ? '0-100' : '₹ Amount'}
+                                    error={errors.discountValue}
+                                    disabled={isSubmitting}
+                                    required
+                                />
+                                <FormInput
+                                    id="minOrderAmount"
+                                    label="Min Order Amount (₹)"
+                                    type="number"
+                                    value={formState.minOrderAmount}
+                                    onChange={(v) => onChange('minOrderAmount', v)}
+                                    placeholder="e.g., 500"
+                                    error={errors.minOrderAmount}
+                                    disabled={isSubmitting}
+                                    required
+                                />
+                            </>
+                        )}
                     </div>
                 </div>
 
@@ -189,15 +199,59 @@ export const CouponForm: React.FC<CouponFormProps> = ({
                             disabled={isSubmitting}
                             required
                         />
-                        <FormInput
-                            id="allowedPincodes"
-                            label="Allowed Pincodes"
-                            value={formState.allowedPincodes}
-                            onChange={(v) => onChange('allowedPincodes', v)}
-                            placeholder="e.g., 110001, 400001 (comma separated)"
-                            disabled={isSubmitting}
-                        />
+
+                        {/* Location Restriction Toggle */}
+                        <div className="flex flex-col gap-2 relative">
+                            <label className="text-xs font-medium text-neutral-400">
+                                Location Restriction
+                            </label>
+                            <div className="flex items-center gap-3 mt-1 pl-1">
+                                <button
+                                    type="button"
+                                    role="switch"
+                                    aria-checked={formState.isLocationRestricted}
+                                    disabled={isSubmitting}
+                                    onClick={() => onChange('isLocationRestricted', !formState.isLocationRestricted)}
+                                    className={`
+                                        relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent 
+                                        transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[#D4AF37] focus:ring-offset-2 focus:ring-offset-neutral-900
+                                        ${formState.isLocationRestricted ? 'bg-[#D4AF37]' : 'bg-neutral-700'}
+                                        ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}
+                                    `}
+                                >
+                                    <span
+                                        aria-hidden="true"
+                                        className={`
+                                            pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 
+                                            transition duration-200 ease-in-out
+                                            ${formState.isLocationRestricted ? 'translate-x-5' : 'translate-x-0'}
+                                        `}
+                                    />
+                                </button>
+                                <span className="text-sm text-neutral-300 select-none">
+                                    {formState.isLocationRestricted ? 'Restricted to Pincodes' : 'Pan India (All Pincodes)'}
+                                </span>
+                            </div>
+                        </div>
                     </div>
+
+                    {/* Allowed Pincodes Input (Only visible if restricted) */}
+                    {formState.isLocationRestricted && (
+                        <div className="mt-4 animate-[fadeIn_300ms_ease-out]">
+                            <FormInput
+                                id="allowedPincodes"
+                                label="Allowed Pincodes"
+                                value={formState.allowedPincodes}
+                                onChange={(v) => onChange('allowedPincodes', v)}
+                                placeholder="e.g., 110001, 400001 (comma separated)"
+                                disabled={isSubmitting}
+                                required
+                            />
+                            <p className="mt-1.5 text-xs text-neutral-500">
+                                Enter comma-separated pincodes where this coupon is valid.
+                            </p>
+                        </div>
+                    )}
                 </div>
 
                 {/* Divider */}

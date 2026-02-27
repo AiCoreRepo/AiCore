@@ -16,6 +16,8 @@ interface UseAdminCouponsReturn {
     totalPages: number;
     setCurrentPage: (page: number) => void;
     refetch: () => void;
+    updateCoupon: (id: string, payload: Partial<Coupon>) => Promise<Coupon>;
+    deleteCoupon: (id: string) => Promise<void>;
 }
 
 export const useAdminCoupons = (): UseAdminCouponsReturn => {
@@ -48,6 +50,17 @@ export const useAdminCoupons = (): UseAdminCouponsReturn => {
         currentPage * COUPONS_PER_PAGE
     );
 
+    const updateCoupon = async (id: string, payload: Partial<Coupon>) => {
+        const updated = await adminCouponsApi.updateCoupon(id, payload);
+        await fetchCoupons();
+        return updated;
+    };
+
+    const deleteCoupon = async (id: string) => {
+        await adminCouponsApi.deleteCoupon(id);
+        await fetchCoupons();
+    };
+
     return {
         coupons,
         allCoupons,
@@ -57,5 +70,7 @@ export const useAdminCoupons = (): UseAdminCouponsReturn => {
         totalPages,
         setCurrentPage,
         refetch: fetchCoupons,
+        updateCoupon,
+        deleteCoupon,
     };
 };

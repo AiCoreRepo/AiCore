@@ -12,6 +12,7 @@ export interface Coupon {
     discountType: CouponTypeEnum;
     discountValue: number;
     minOrderAmount: number;
+    isLocationRestricted: boolean;
     allowedPincodes: string[];
     termsAndConditions: string;
     reason: string;
@@ -31,6 +32,7 @@ export interface CreateCouponPayload {
     discountType: CouponTypeEnum;
     discountValue: number;
     minOrderAmount: number;
+    isLocationRestricted: boolean;
     allowedPincodes: string[];
     termsAndConditions: string;
     reason: string;
@@ -47,6 +49,7 @@ export interface CouponFormState {
     discountType: CouponTypeEnum;
     discountValue: string;
     minOrderAmount: string;
+    isLocationRestricted: boolean;
     allowedPincodes: string;
     termsAndConditions: string;
     reason: string;
