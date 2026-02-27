@@ -1,0 +1,13 @@
+{
+    "name": "aicore-root",
+    "version": "1.0.0",
+    "private": true,
+    "scripts": {
+        "frontend": "npm run frontend --prefix APP3005",
+        "backend": "npm run backend --prefix APP3005",
+        "dev": "npm run dev --prefix APP3005",
+        "start": "npm run start --prefix APP3005",
+        "db:generate": "npm run db:generate --prefix APP3005",
+        "db:migrate": "npm run db:migrate --prefix APP3005"
+    }
+}
