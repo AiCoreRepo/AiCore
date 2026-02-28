@@ -3,7 +3,7 @@
 // ============================================
 
 import { useState, useCallback } from 'react';
-import { CouponTypeEnum, CouponStatusEnum } from '@/constants/coupon.enums';
+import { CouponTypeEnum, CouponStatusEnum, CouponScopeTypeEnum } from '@/constants/coupon.enums';
 import type { CouponFormState, CouponFormErrors, CreateCouponPayload } from '@/types/coupon.types';
 
 const initialFormState: CouponFormState = {
@@ -21,6 +21,10 @@ const initialFormState: CouponFormState = {
     endDate: '',
     maxUsage: '',
     status: CouponStatusEnum.ACTIVE,
+    scopeType: CouponScopeTypeEnum.PRICE_LEVEL,
+    scopeMinPrice: '',
+    scopeMaxPrice: '',
+    scopeFestivalKey: '',
 };
 
 interface UseCouponFormReturn {
@@ -67,6 +71,25 @@ export const useCouponForm = (): UseCouponFormReturn => {
             newErrors.maxUsage = 'Max usage must be greater than 0';
         }
 
+        // Scope validation
+        if (formState.scopeType === CouponScopeTypeEnum.PRICE_LEVEL) {
+            if (!formState.scopeMinPrice || Number(formState.scopeMinPrice) < 0) {
+                newErrors.scopeMinPrice = 'Min price is required';
+            }
+            // Max price is optional — only validate if provided
+            if (formState.scopeMaxPrice && Number(formState.scopeMaxPrice) <= 0) {
+                newErrors.scopeMaxPrice = 'Max price must be greater than 0';
+            }
+            if (formState.scopeMinPrice && formState.scopeMaxPrice && Number(formState.scopeMinPrice) >= Number(formState.scopeMaxPrice)) {
+                newErrors.scopeMaxPrice = 'Max price must be greater than min price';
+            }
+        }
+        if (formState.scopeType === CouponScopeTypeEnum.FESTIVAL) {
+            if (!formState.scopeFestivalKey) {
+                newErrors.scopeFestivalKey = 'Please select a festival';
+            }
+        }
+
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
     }, [formState]);
@@ -92,6 +115,10 @@ export const useCouponForm = (): UseCouponFormReturn => {
             endDate: coupon.endDate ? coupon.endDate.split('T')[0] : '',
             maxUsage: coupon.maxUsage?.toString() || '',
             status: coupon.status || CouponStatusEnum.ACTIVE,
+            scopeType: coupon.scope?.scopeType || CouponScopeTypeEnum.PRICE_LEVEL,
+            scopeMinPrice: coupon.scope?.minPrice?.toString() || '',
+            scopeMaxPrice: coupon.scope?.maxPrice?.toString() || '',
+            scopeFestivalKey: coupon.scope?.festivalKey || '',
         });
         setErrors({});
     }, []);
@@ -114,6 +141,10 @@ export const useCouponForm = (): UseCouponFormReturn => {
             endDate: formState.endDate,
             maxUsage: Number(formState.maxUsage),
             status: formState.status as CouponStatusEnum,
+            scopeType: formState.scopeType as CouponScopeTypeEnum,
+            scopeMinPrice: formState.scopeType === CouponScopeTypeEnum.PRICE_LEVEL ? Number(formState.scopeMinPrice) : undefined,
+            scopeMaxPrice: formState.scopeType === CouponScopeTypeEnum.PRICE_LEVEL && formState.scopeMaxPrice ? Number(formState.scopeMaxPrice) : undefined,
+            scopeFestivalKey: formState.scopeType === CouponScopeTypeEnum.FESTIVAL ? formState.scopeFestivalKey : undefined,
         };
     }, [formState]);
 

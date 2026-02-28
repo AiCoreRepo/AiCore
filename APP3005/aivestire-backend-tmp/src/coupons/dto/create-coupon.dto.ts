@@ -15,6 +15,7 @@ import {
     IsInt,
 } from 'class-validator';
 import { CouponType, CouponStatus } from '@prisma/client';
+import { CouponScopeType } from '../../coupon-scopes/enums/scope-type.enum';
 
 export class CreateCouponDto {
     @IsString()
@@ -74,4 +75,24 @@ export class CreateCouponDto {
     @IsEnum(CouponStatus, { message: 'Status must be ACTIVE, DISABLED, or EXPIRED' })
     @IsOptional()
     status?: CouponStatus;
+
+    // ─── Scope Fields ──────────────────────────────
+
+    @IsEnum(CouponScopeType, { message: 'Scope type must be GLOBAL, PRICE_LEVEL, FESTIVAL, USER, COMPANY_SPECIAL, or COLLECTION' })
+    @IsOptional()
+    scopeType?: CouponScopeType;
+
+    @IsNumber({}, { message: 'Min price must be a number' })
+    @Min(0)
+    @IsOptional()
+    scopeMinPrice?: number;
+
+    @IsNumber({}, { message: 'Max price must be a number' })
+    @Min(0)
+    @IsOptional()
+    scopeMaxPrice?: number;
+
+    @IsString()
+    @IsOptional()
+    scopeFestivalKey?: string;
 }

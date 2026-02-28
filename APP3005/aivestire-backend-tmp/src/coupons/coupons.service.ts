@@ -14,25 +14,31 @@ import { UpdateCouponDto } from './dto/update-coupon.dto';
 import { DiscountType, CouponStatus, MAX_PERCENTAGE_DISCOUNT, MIN_ORDER_AMOUNT, MAX_USAGE, MIN_USAGE } from './enums/discount-constants';
 import getDynamicCouponStatus, { isCouponExpired } from './utils/discount-expiry-check';
 import { Prisma } from '@prisma/client';
-import { async } from 'rxjs';
+import { CouponScopeService } from '../coupon-scopes/coupon-scope.service';
+import { CouponScopeType } from '../coupon-scopes/enums/scope-type.enum';
 
 @Injectable()
 export class CouponsService {
     private readonly logger = new Logger(CouponsService.name);
 
-    constructor(private readonly prisma: PrismaService) { }
+    constructor(
+        private readonly prisma: PrismaService,
+        private readonly scopeService: CouponScopeService,
+    ) { }
 
     /**
      * GET all coupons (ordered by newest first)
      */
     async getAllCoupons() {
         const coupons = await this.prisma.coupon.findMany({
+            where: { is_deleted: false },
             include: {
                 allowed_pincodes: {
                     select: {
                         pincode: true,
                     },
                 },
+                scope: true,
             },
             orderBy: { created_at: 'desc' },
         });
@@ -56,6 +62,14 @@ export class CouponsService {
             currentUsage: coupon.current_usage,
             status: getDynamicCouponStatus(coupon.status, coupon.end_date),
             isExpired: isCouponExpired(coupon.end_date),
+            isOneTimePerUser: coupon.is_one_time_per_user,
+            isStackable: coupon.is_stackable,
+            scope: coupon.scope ? {
+                scopeType: coupon.scope.scope_type,
+                minPrice: coupon.scope.min_price ? Number(coupon.scope.min_price) : null,
+                maxPrice: coupon.scope.max_price ? Number(coupon.scope.max_price) : null,
+                festivalKey: coupon.scope.festival_key,
+            } : null,
             createdAt: coupon.created_at.toISOString(),
             updatedAt: coupon.updated_at.toISOString(),
         }));
@@ -146,6 +160,16 @@ export class CouponsService {
         }
 
         this.logger.log(`Coupon created: ${normalizedCode} (${coupon.coupon_id})`);
+
+        // Save scope if provided
+        if (dto.scopeType && dto.scopeType !== CouponScopeType.GLOBAL) {
+            await this.scopeService.upsertScope(coupon.coupon_id, {
+                scopeType: dto.scopeType as any,
+                minPrice: dto.scopeMinPrice,
+                maxPrice: dto.scopeMaxPrice,
+                festivalKey: dto.scopeFestivalKey,
+            });
+        }
 
         // Transform to frontend-friendly response
         return {
@@ -252,6 +276,23 @@ export class CouponsService {
 
         this.logger.log(`Coupon updated: (${coupon.coupon_id})`);
 
+        // Save/update scope if provided
+        if (dto.scopeType) {
+            if (dto.scopeType === CouponScopeType.GLOBAL) {
+                // If switching to GLOBAL, delete existing scope
+                try {
+                    await this.scopeService.deleteScope(id);
+                } catch { /* no scope to delete, ignore */ }
+            } else {
+                await this.scopeService.upsertScope(id, {
+                    scopeType: dto.scopeType as any,
+                    minPrice: dto.scopeMinPrice,
+                    maxPrice: dto.scopeMaxPrice,
+                    festivalKey: dto.scopeFestivalKey,
+                });
+            }
+        }
+
         return {
             id: coupon.coupon_id,
             title: coupon.title,
@@ -286,11 +327,13 @@ export class CouponsService {
             throw new BadRequestException('Coupon not found');
         }
 
-        await this.prisma.coupon.delete({
+        // Soft delete
+        await this.prisma.coupon.update({
             where: { coupon_id: id },
+            data: { is_deleted: true },
         });
 
-        this.logger.log(`Coupon deleted: (${id})`);
+        this.logger.log(`Coupon soft-deleted: (${id})`);
 
         return { message: 'Coupon deleted successfully' };
     }

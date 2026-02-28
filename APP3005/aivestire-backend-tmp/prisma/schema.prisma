@@ -882,6 +882,15 @@ enum CouponStatus {
   EXPIRED
 }
 
+enum CouponScopeType {
+  GLOBAL
+  PRICE_LEVEL
+  FESTIVAL
+  USER
+  COMPANY_SPECIAL
+  COLLECTION
+}
+
 model Coupon {
   coupon_id            String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   title                String
@@ -915,14 +924,21 @@ model Coupon {
   // Location restriction
   is_location_restricted Boolean               @default(false)
 
+  // Production-ready flags
+  is_one_time_per_user Boolean                 @default(false)
+  is_stackable         Boolean                 @default(false)
+  is_deleted           Boolean                 @default(false)
+
   // Relations
   allowed_pincodes     CouponAllowedPincode[]
+  scope                CouponScope?
 
   @@index([status])
   @@index([code])
   @@index([reason])
   @@index([start_date])
   @@index([end_date])
+  @@index([is_deleted])
   @@map("coupons")
 }
 
@@ -937,4 +953,27 @@ model CouponAllowedPincode {
   @@index([coupon_id])
   @@index([pincode])
   @@map("coupon_allowed_pincodes")
+}
+
+model CouponScope {
+  scope_id     String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  coupon_id    String          @unique @db.Uuid
+
+  scope_type   CouponScopeType @default(GLOBAL)
+
+  // PRICE_LEVEL fields
+  min_price    Decimal?        @db.Decimal(10, 2)
+  max_price    Decimal?        @db.Decimal(10, 2)
+
+  // FESTIVAL field
+  festival_key String?         // e.g. "DIWALI", "HOLI" — maps to hardcoded constants
+
+  created_at   DateTime        @default(now())
+  updated_at   DateTime        @updatedAt
+
+  coupon       Coupon          @relation(fields: [coupon_id], references: [coupon_id], onDelete: Cascade)
+
+  @@index([scope_type])
+  @@index([coupon_id])
+  @@map("coupon_scopes")
 }

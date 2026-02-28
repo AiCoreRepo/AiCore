@@ -1,20 +1,8 @@
 // ============================================
-// COUPON ENUMS
+// COUPON SCOPE TYPE ENUM
 // ============================================
 
-export enum CouponTypeEnum {
-    FLAT = 'FLAT',
-    PERCENTAGE = 'PERCENTAGE',
-    DELIVERY = 'DELIVERY',
-}
-
-export enum CouponStatusEnum {
-    ACTIVE = 'ACTIVE',
-    DISABLED = 'DISABLED',
-    EXPIRED = 'EXPIRED',
-}
-
-export enum CouponScopeTypeEnum {
+export enum CouponScopeType {
     GLOBAL = 'GLOBAL',
     PRICE_LEVEL = 'PRICE_LEVEL',
     FESTIVAL = 'FESTIVAL',

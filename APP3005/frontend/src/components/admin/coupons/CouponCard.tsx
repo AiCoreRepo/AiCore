@@ -1,8 +1,9 @@
 import React from 'react';
-import { Percent, Truck, IndianRupee, Calendar, Users, MapPin, Clock } from 'lucide-react';
+import { Percent, Truck, IndianRupee, Calendar, Users, MapPin, Clock, Layers, Sparkles } from 'lucide-react';
 import type { Coupon } from '@/types/coupon.types';
-import { CouponTypeEnum, CouponStatusEnum } from '@/constants/coupon.enums';
+import { CouponTypeEnum, CouponStatusEnum, CouponScopeTypeEnum } from '@/constants/coupon.enums';
 import { COUPON_TYPE_LABELS, COUPON_STATUS_LABELS, COUPON_STATUS_META } from '@/constants/coupon.constants';
+import { FESTIVALS } from '@/constants/festival.constants';
 
 interface CouponCardProps {
     coupon: Coupon;
@@ -54,6 +55,39 @@ const formatDate = (dateStr: string) => {
         month: 'short',
         year: 'numeric',
     });
+};
+
+// Get scope badge content
+const getScopeLabel = (coupon: Coupon): { icon: React.ReactNode; text: string; colorClass: string; bgClass: string; borderClass: string } | null => {
+    const scope = coupon.scope;
+    if (!scope) return null;
+
+    switch (scope.scopeType) {
+        case CouponScopeTypeEnum.PRICE_LEVEL: {
+            const min = scope.minPrice ? `₹${Number(scope.minPrice).toLocaleString('en-IN')}` : '';
+            const max = scope.maxPrice ? `₹${Number(scope.maxPrice).toLocaleString('en-IN')}` : '';
+            const range = max ? `${min}–${max}` : `${min}+`;
+            return {
+                icon: <Layers className="w-3 h-3" />,
+                text: `Price: ${range}`,
+                colorClass: 'text-cyan-400',
+                bgClass: 'bg-cyan-500/10',
+                borderClass: 'border-cyan-500/20',
+            };
+        }
+        case CouponScopeTypeEnum.FESTIVAL: {
+            const festival = FESTIVALS.find(f => f.key === scope.festivalKey);
+            return {
+                icon: <Sparkles className="w-3 h-3" />,
+                text: festival ? festival.label : (scope.festivalKey || 'Festival'),
+                colorClass: 'text-pink-400',
+                bgClass: 'bg-pink-500/10',
+                borderClass: 'border-pink-500/20',
+            };
+        }
+        default:
+            return null;
+    }
 };
 
 export const CouponCard: React.FC<CouponCardProps> = ({ coupon, onClick }) => {
@@ -127,6 +161,18 @@ export const CouponCard: React.FC<CouponCardProps> = ({ coupon, onClick }) => {
 
                 {/* Info badges row */}
                 <div className="flex flex-wrap gap-2 mb-3">
+                    {/* Scope badge */}
+                    {(() => {
+                        const scopeInfo = getScopeLabel(coupon);
+                        if (!scopeInfo) return null;
+                        return (
+                            <div className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md ${scopeInfo.bgClass} ${scopeInfo.colorClass} text-[11px] font-medium border ${scopeInfo.borderClass}`}>
+                                {scopeInfo.icon}
+                                <span>{scopeInfo.text}</span>
+                            </div>
+                        );
+                    })()}
+
                     {/* Min order */}
                     <div className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-neutral-800/60 text-neutral-400 text-[11px]">
                         <IndianRupee className="w-3 h-3" />

@@ -1,6 +1,7 @@
 import React from 'react';
-import { CouponTypeEnum, CouponStatusEnum } from '@/constants/coupon.enums';
+import { CouponTypeEnum, CouponStatusEnum, CouponScopeTypeEnum } from '@/constants/coupon.enums';
 import { COUPON_TYPE_LABELS, COUPON_STATUS_LABELS } from '@/constants/coupon.constants';
+import { FESTIVAL_OPTIONS } from '@/constants/festival.constants';
 import { FormInput } from './FormInput';
 import { FormSelect } from './FormSelect';
 import { FormTextarea } from './FormTextarea';
@@ -25,6 +26,20 @@ const statusOptions = Object.values(CouponStatusEnum).map((val) => ({
     value: val,
     label: COUPON_STATUS_LABELS[val],
 }));
+
+// Scope type options — currently only Price Level & Festival are active
+const scopeTypeOptions = [
+    // TODO: [Future Dev] Re-enable Global scope when all-products targeting is needed
+    // { value: CouponScopeTypeEnum.GLOBAL, label: 'Global (All Products)' },
+    { value: CouponScopeTypeEnum.PRICE_LEVEL, label: 'Price Level (Price Range)' },
+    { value: CouponScopeTypeEnum.FESTIVAL, label: 'Festival' },
+    // TODO: [Future Dev] Implement User Scope for user-specific coupons
+    // { value: CouponScopeTypeEnum.USER, label: 'User Scope' },
+    // TODO: [Future Dev] Implement Company Special for brand-specific coupons
+    // { value: CouponScopeTypeEnum.COMPANY_SPECIAL, label: 'Company Special' },
+    // TODO: [Future Dev] Implement Collection scope for collection-based coupons
+    // { value: CouponScopeTypeEnum.COLLECTION, label: 'Collection' },
+];
 
 export const CouponForm: React.FC<CouponFormProps> = ({
     formState,
@@ -135,6 +150,85 @@ export const CouponForm: React.FC<CouponFormProps> = ({
                             </>
                         )}
                     </div>
+                </div>
+
+                {/* Divider */}
+                <div className="border-t border-neutral-800" />
+
+                {/* Section: Coupon Scope */}
+                <div>
+                    <h3 className="text-sm font-semibold text-[#D4AF37] uppercase tracking-wider mb-4">
+                        Coupon Scope
+                    </h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <FormSelect
+                            id="scopeType"
+                            label="Scope Type"
+                            value={formState.scopeType}
+                            onChange={(v) => {
+                                onChange('scopeType', v);
+                                // Reset scope fields when switching type
+                                onChange('scopeMinPrice', '');
+                                onChange('scopeMaxPrice', '');
+                                onChange('scopeFestivalKey', '');
+                            }}
+                            options={scopeTypeOptions}
+                            error={errors.scopeType}
+                            disabled={isSubmitting}
+                            required
+                        />
+                    </div>
+
+                    {/* PRICE_LEVEL scope fields */}
+                    {formState.scopeType === CouponScopeTypeEnum.PRICE_LEVEL && (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4 animate-[fadeIn_300ms_ease-out]">
+                            <FormInput
+                                id="scopeMinPrice"
+                                label="Min Collection Price (₹)"
+                                type="number"
+                                value={formState.scopeMinPrice}
+                                onChange={(v) => onChange('scopeMinPrice', v)}
+                                placeholder="e.g., 500"
+                                error={errors.scopeMinPrice}
+                                disabled={isSubmitting}
+                                required
+                            />
+                            <FormInput
+                                id="scopeMaxPrice"
+                                label="Max Collection Price (₹) — Optional"
+                                type="number"
+                                value={formState.scopeMaxPrice}
+                                onChange={(v) => onChange('scopeMaxPrice', v)}
+                                placeholder="Leave empty for no upper limit"
+                                error={errors.scopeMaxPrice}
+                                disabled={isSubmitting}
+                            />
+                        </div>
+                    )}
+
+                    {/* FESTIVAL scope fields */}
+                    {formState.scopeType === CouponScopeTypeEnum.FESTIVAL && (
+                        <div className="mt-4 animate-[fadeIn_300ms_ease-out]">
+                            <FormSelect
+                                id="scopeFestivalKey"
+                                label="Select Festival"
+                                value={formState.scopeFestivalKey}
+                                onChange={(v) => onChange('scopeFestivalKey', v)}
+                                options={FESTIVAL_OPTIONS}
+                                error={errors.scopeFestivalKey}
+                                disabled={isSubmitting}
+                                required
+                            />
+                        </div>
+                    )}
+
+                    {/* TODO: [Future Dev] Re-enable Global scope info text when Global scope is re-added
+                    {formState.scopeType === CouponScopeTypeEnum.GLOBAL && (
+                        <p className="mt-3 text-xs text-neutral-500">
+                            This coupon applies to all products and collections.
+                        </p>
+                    )}
+                    */}
                 </div>
 
                 {/* Divider */}

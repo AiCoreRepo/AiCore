@@ -2,7 +2,7 @@
 // COUPON TYPES
 // ============================================
 
-import { CouponTypeEnum, CouponStatusEnum } from '@/constants/coupon.enums';
+import { CouponTypeEnum, CouponStatusEnum, CouponScopeTypeEnum } from '@/constants/coupon.enums';
 
 export interface Coupon {
     id: string;
@@ -21,6 +21,14 @@ export interface Coupon {
     maxUsage: number;
     currentUsage?: number;
     status: CouponStatusEnum;
+    isOneTimePerUser?: boolean;
+    isStackable?: boolean;
+    scope?: {
+        scopeType: CouponScopeTypeEnum;
+        minPrice: number | null;
+        maxPrice: number | null;
+        festivalKey: string | null;
+    } | null;
     createdAt?: string;
     updatedAt?: string;
 }
@@ -40,6 +48,10 @@ export interface CreateCouponPayload {
     endDate: string;
     maxUsage: number;
     status: CouponStatusEnum;
+    scopeType?: CouponScopeTypeEnum;
+    scopeMinPrice?: number;
+    scopeMaxPrice?: number;
+    scopeFestivalKey?: string;
 }
 
 export interface CouponFormState {
@@ -57,6 +69,10 @@ export interface CouponFormState {
     endDate: string;
     maxUsage: string;
     status: CouponStatusEnum;
+    scopeType: CouponScopeTypeEnum;
+    scopeMinPrice: string;
+    scopeMaxPrice: string;
+    scopeFestivalKey: string;
 }
 
 export interface CouponFormErrors {
@@ -72,4 +88,8 @@ export interface CouponFormErrors {
     endDate?: string;
     maxUsage?: string;
     status?: string;
+    scopeType?: string;
+    scopeMinPrice?: string;
+    scopeMaxPrice?: string;
+    scopeFestivalKey?: string;
 }

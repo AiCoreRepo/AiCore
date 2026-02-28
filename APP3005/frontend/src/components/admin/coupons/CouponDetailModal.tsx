@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import {
     X, Percent, Truck, IndianRupee, Calendar, Users, MapPin,
-    Clock, FileText, Tag, Hash, TrendingUp
+    Clock, FileText, Tag, Hash, TrendingUp, Layers, Sparkles
 } from 'lucide-react';
 import type { Coupon } from '@/types/coupon.types';
-import { CouponTypeEnum, CouponStatusEnum } from '@/constants/coupon.enums';
+import { CouponTypeEnum, CouponStatusEnum, CouponScopeTypeEnum } from '@/constants/coupon.enums';
 import { COUPON_TYPE_LABELS, COUPON_STATUS_LABELS, COUPON_STATUS_META } from '@/constants/coupon.constants';
+import { FESTIVALS } from '@/constants/festival.constants';
 import { ConfirmDeleteModal } from './ConfirmDeleteModal';
 
 interface CouponDetailModalProps {
@@ -145,20 +146,35 @@ export const CouponDetailModal: React.FC<CouponDetailModalProps> = ({ coupon, is
                                 </span>
                             </div>
                             <h2 className="text-base font-medium text-neutral-200 mb-2">{coupon.title}</h2>
-                            <span
-                                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border"
-                                style={{
-                                    color: statusMeta.color,
-                                    background: statusMeta.bg,
-                                    borderColor: statusMeta.border,
-                                }}
-                            >
+                            <div className="flex flex-wrap items-center gap-2">
                                 <span
-                                    className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-                                    style={{ background: statusMeta.dot }}
-                                />
-                                {COUPON_STATUS_LABELS[coupon.status]}
-                            </span>
+                                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border"
+                                    style={{
+                                        color: statusMeta.color,
+                                        background: statusMeta.bg,
+                                        borderColor: statusMeta.border,
+                                    }}
+                                >
+                                    <span
+                                        className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                                        style={{ background: statusMeta.dot }}
+                                    />
+                                    {COUPON_STATUS_LABELS[coupon.status]}
+                                </span>
+                                {/* Scope badge */}
+                                {coupon.scope?.scopeType === CouponScopeTypeEnum.PRICE_LEVEL && (
+                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border bg-cyan-500/10 text-cyan-400 border-cyan-500/20">
+                                        <Layers className="w-3 h-3" />
+                                        Price Level
+                                    </span>
+                                )}
+                                {coupon.scope?.scopeType === CouponScopeTypeEnum.FESTIVAL && (
+                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border bg-pink-500/10 text-pink-400 border-pink-500/20">
+                                        <Sparkles className="w-3 h-3" />
+                                        {FESTIVALS.find(f => f.key === coupon.scope?.festivalKey)?.label || 'Festival'}
+                                    </span>
+                                )}
+                            </div>
                         </div>
                     </div>
 
@@ -180,6 +196,44 @@ export const CouponDetailModal: React.FC<CouponDetailModalProps> = ({ coupon, is
                     />
 
                     <div className="border-t border-neutral-800/50" />
+
+                    {/* Scope detail row */}
+                    {coupon.scope && (
+                        <>
+                            <DetailRow
+                                icon={coupon.scope.scopeType === CouponScopeTypeEnum.FESTIVAL
+                                    ? <Sparkles className="w-4 h-4" />
+                                    : <Layers className="w-4 h-4" />
+                                }
+                                label="Coupon Scope"
+                                value={
+                                    coupon.scope.scopeType === CouponScopeTypeEnum.PRICE_LEVEL ? (
+                                        <div className="flex flex-col gap-1">
+                                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-cyan-500/10 text-cyan-400 text-xs font-medium border border-cyan-500/20 w-fit">
+                                                <Layers className="w-3 h-3" /> Price Level
+                                            </span>
+                                            <span className="text-xs text-neutral-400">
+                                                ₹{Number(coupon.scope.minPrice || 0).toLocaleString('en-IN')}
+                                                {coupon.scope.maxPrice
+                                                    ? ` – ₹${Number(coupon.scope.maxPrice).toLocaleString('en-IN')}`
+                                                    : '+'}
+                                            </span>
+                                        </div>
+                                    ) : coupon.scope.scopeType === CouponScopeTypeEnum.FESTIVAL ? (
+                                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-pink-500/10 text-pink-400 text-xs font-medium border border-pink-500/20 w-fit">
+                                            <Sparkles className="w-3 h-3" />
+                                            {FESTIVALS.find(f => f.key === coupon.scope?.festivalKey)?.label || coupon.scope.festivalKey || 'Festival'}
+                                        </span>
+                                    ) : (
+                                        <span className="text-xs text-neutral-400 capitalize">{coupon.scope.scopeType.replace('_', ' ').toLowerCase()}</span>
+                                    )
+                                }
+                            />
+                            <div className="border-t border-neutral-800/50" />
+                        </>
+                    )}
+
+                    <div className="border-t border-neutral-800/50" style={{ display: coupon.scope ? 'none' : undefined }} />
 
                     <DetailRow
                         icon={<IndianRupee className="w-4 h-4" />}
