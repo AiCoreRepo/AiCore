@@ -273,7 +273,7 @@ export class TryOn3DService {
     );
 
     // Save result to database
-    await this.saveTryOnResult(
+    const tryOn = await this.saveTryOnResult(
       aura.user_id,
       clothingItemId,
       aura.aura_id,
@@ -283,7 +283,10 @@ export class TryOn3DService {
 
     this.logger.log(`✅ 3D Vertex try-on completed for user ${aura.user_id}`);
 
-    return result;
+    return {
+      ...result,
+      tryOnId: tryOn.try_on_id,
+    };
   }
 
   /**

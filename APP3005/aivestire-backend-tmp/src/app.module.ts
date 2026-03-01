@@ -28,6 +28,7 @@ import { PaymentModule } from './payment/payment.module';
 import { EmailModule } from './email/email.module';
 import { AdminAuthModule } from './auth/admin/admin-auth.module';
 import { UserDashboardModule } from './user-dashboard/user-dashboard.module';
+import { FeedbackModule } from './feedback/feedback.module';
 
 @Module({
   imports: [
@@ -55,6 +56,7 @@ import { UserDashboardModule } from './user-dashboard/user-dashboard.module';
     ReplacementModule,
     PaymentModule,
     EmailModule,
+    FeedbackModule,
     AdminAuthModule,
     UserDashboardModule,
   ],

@@ -4,22 +4,52 @@ import { HttpService } from '@nestjs/axios';
 import { PrismaService } from '../prisma/prisma.service';
 import { firstValueFrom } from 'rxjs';
 import type { Aura } from '@prisma/client';
+import { Occasion } from './enums/recommendation.enum';
 import { GetRecommendationsDto } from './dto/recommendation-request.dto';
 import { RecommendationsResponseDto } from './dto/recommendation-response.dto';
+import { DummyRecommendationService } from './dummy-recommendation.service';
 
 @Injectable()
 export class RecommendationService {
   private readonly logger = new Logger(RecommendationService.name);
   private readonly fastApiUrl: string;
+  private readonly isMlEnabled: boolean;
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
+    private readonly dummyRecommendationService: DummyRecommendationService,
   ) {
+    const configuredUrl = this.configService.get<string>(
+      'FASTAPI_RECOMMENDATION_URL',
+      '',
+    )?.trim();
+
+    const isProductionEnv =
+      this.configService.get<string>('NODE_ENV', '') === 'production';
+
     this.fastApiUrl =
-      this.configService.get<string>('FASTAPI_RECOMMENDATION_URL') ||
-      'http://localhost:8000/recommendation/ai-decide';
+      configuredUrl ||
+      (isProductionEnv
+        ? 'http://recommendation-api:8799/recommendation/ai-decide'
+        : 'http://localhost:8799/recommendation/ai-decide');
+
+    if (!configuredUrl && isProductionEnv) {
+      this.logger.log(
+        `FASTAPI_RECOMMENDATION_URL not set, defaulting to production ML endpoint ${this.fastApiUrl}`,
+      );
+    }
+
+    if (!configuredUrl && !isProductionEnv) {
+      this.logger.log(
+        `FASTAPI_RECOMMENDATION_URL not set, defaulting to local ML endpoint ${this.fastApiUrl}`,
+      );
+    }
+
+    this.isMlEnabled =
+      this.configService.get<string>('RECOMMENDATION_ML_ENABLED', 'true') !==
+      'false';
   }
 
   /**
@@ -48,6 +78,17 @@ export class RecommendationService {
     dto: GetRecommendationsDto,
   ): Promise<RecommendationsResponseDto> {
     try {
+      if (!this.isMlEnabled) {
+        this.logger.warn(
+          '⚠️ ML recommendations disabled via RECOMMENDATION_ML_ENABLED=false',
+        );
+        return this.dummyRecommendationService.getDummyRecommendations(
+          dto.occasion as Occasion,
+          aura?.age_range || null,
+          aura?.skin_tone || null,
+        );
+      }
+
       this.logger.log(
         `Getting ML recommendations for user ${userId}, occasion: ${dto.occasion}`,
       );
@@ -117,11 +158,18 @@ export class RecommendationService {
         error.stack,
       );
 
-      // If FastAPI is not available, provide helpful error
+      // If FastAPI is not available, use fallback DB-based recommendations
       if (error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT') {
-        throw new HttpException(
-          'AI recommendation service is currently unavailable. Please try again later.',
-          HttpStatus.SERVICE_UNAVAILABLE,
+        this.logger.warn(
+          '⚠️ ML service unavailable, falling back to DB-based recommendations',
+        );
+
+        const ageRange = aura?.age_range || null;
+        const skinTone = aura?.skin_tone || null;
+        return this.dummyRecommendationService.getDummyRecommendations(
+          dto.occasion as Occasion,
+          ageRange,
+          skinTone,
         );
       }
 

@@ -9,9 +9,18 @@ import { TryOnResultModal } from '@/components/ai-tryon/TryOnResultModal';
 import { TryOnGalleryModal } from '@/components/ai-tryon/TryOnGalleryModal';
 import { AuthPopup } from '@/components/AuthPopup';
 import { usePublicProducts } from '@/hooks/usePublicProducts';
-import { getAura, tryOnWithGemini, tryOnWithVertex, generateMoreAngles, getTryOnHistory, requestTryOnAccess } from '@/lib/api';
+import {
+  getAura,
+  tryOnWithGemini,
+  tryOnWithVertex,
+  generateMoreAngles,
+  getTryOnHistory,
+  requestTryOnAccess,
+  FeedbackContextType,
+} from '@/lib/api';
 import { Sparkles, AlertCircle, Images, Lock, Clock } from 'lucide-react';
 import '@/components/ai-tryon/ai-tryon-styles.css';
+import { FeedbackBottomSheet } from '@/components/feedback/FeedbackBottomSheet';
 
 interface AuraData {
   aura_id: string;
@@ -50,12 +59,28 @@ const AiTryOn = () => {
   const [requestingAccess, setRequestingAccess] = useState(false);
   const [requestSuccess, setRequestSuccess] = useState(false);
   const [generatedImages, setGeneratedImages] = useState<string[]>([]);
+  const [showFeedbackSheet, setShowFeedbackSheet] = useState(false);
+  const [feedbackContext, setFeedbackContext] = useState<{
+    type: FeedbackContextType;
+    referenceId?: string;
+    label?: string;
+  } | null>(null);
   const [pendingAutoTryOnProductId, setPendingAutoTryOnProductId] = useState<string | null>(
     (location.state as { autoTryOnProductId?: string } | null)?.autoTryOnProductId || null
   );
 
   // Fetch products
   const { data: productsData, isLoading: productsLoading, error: productsError } = usePublicProducts(1);
+
+  const resolveProductLabel = (productId: string) => {
+    const product = productsData?.products?.find((item: any) => item.product_id === productId);
+    return product?.title || product?.name || productId;
+  };
+
+  const closeFeedbackSheet = () => {
+    setShowFeedbackSheet(false);
+    setFeedbackContext(null);
+  };
 
   // Check authentication and Aura status on mount
   useEffect(() => {
@@ -96,6 +121,7 @@ const AiTryOn = () => {
     }
 
     try {
+      const productLabel = resolveProductLabel(productId);
       setSelectedProduct(productId);
       setCurrentProductId(productId); // Store productId for angle generation
       setTryOnLoading(true);
@@ -117,6 +143,12 @@ const AiTryOn = () => {
         setResultImage(imageData);
         setOriginalTryOnImage(imageData); // Store original for face consistency in angle generation
         setGeneratedImages([imageData]);
+        setFeedbackContext({
+          type: "VIRTUAL_TRYON",
+          referenceId: result.tryOnId ? String(result.tryOnId) : undefined,
+          label: productLabel,
+        });
+        setShowFeedbackSheet(true);
         // Refresh user data to update try-on count
         fetchUser();
       } else {
@@ -454,6 +486,14 @@ const AiTryOn = () => {
         onClose={() => setShowGallery(false)}
         tryOns={tryOnHistory}
       />
+
+      {feedbackContext && (
+        <FeedbackBottomSheet
+          isOpen={showFeedbackSheet}
+          context={feedbackContext}
+          onClose={closeFeedbackSheet}
+        />
+      )}
     </div>
   );
 };

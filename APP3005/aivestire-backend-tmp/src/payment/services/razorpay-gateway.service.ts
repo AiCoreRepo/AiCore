@@ -16,7 +16,7 @@ import { RAZORPAY_CONSTANTS } from '../constants/payment.constants';
  */
 @Injectable()
 export class RazorpayGatewayService extends BasePaymentService {
-  private readonly razorpay: Razorpay;
+  private readonly razorpay?: Razorpay;
   private readonly keyId: string;
   private readonly keySecret: string;
 
@@ -30,12 +30,26 @@ export class RazorpayGatewayService extends BasePaymentService {
       this.logger.warn(
         'Razorpay credentials not configured. Payment features will be unavailable.',
       );
+      return;
     }
 
     this.razorpay = new Razorpay({
       key_id: this.keyId,
       key_secret: this.keySecret,
     });
+  }
+
+  private assertGatewayConfigured(operation: string): void {
+    if (!this.razorpay) {
+      throw new InternalServerErrorException(
+        `Razorpay gateway is not configured. Cannot perform ${operation}.`,
+      );
+    }
+  }
+
+  private getClient(): Razorpay {
+    this.assertGatewayConfigured('client access');
+    return this.razorpay as Razorpay;
   }
 
   /**
@@ -63,9 +77,11 @@ export class RazorpayGatewayService extends BasePaymentService {
     notes?: Record<string, string>,
   ): Promise<any> {
     try {
+      this.assertGatewayConfigured('createOrder');
+
       this.logPaymentEvent('CREATE_ORDER', { amount, currency, receipt });
 
-      const order = await this.razorpay.orders.create({
+      const order = await this.getClient().orders.create({
         amount,
         currency,
         receipt,
@@ -167,7 +183,9 @@ export class RazorpayGatewayService extends BasePaymentService {
    */
   async fetchPayment(paymentId: string): Promise<any> {
     try {
-      const payment = await this.razorpay.payments.fetch(paymentId);
+      this.assertGatewayConfigured('fetchPayment');
+
+      const payment = await this.getClient().payments.fetch(paymentId);
       return payment;
     } catch (error: any) {
       this.logger.error(
@@ -184,7 +202,9 @@ export class RazorpayGatewayService extends BasePaymentService {
    */
   async fetchOrder(razorpayOrderId: string): Promise<any> {
     try {
-      const order = await this.razorpay.orders.fetch(razorpayOrderId);
+      this.assertGatewayConfigured('fetchOrder');
+
+      const order = await this.getClient().orders.fetch(razorpayOrderId);
       return order;
     } catch (error: any) {
       this.logger.error(
@@ -212,6 +232,8 @@ export class RazorpayGatewayService extends BasePaymentService {
     notes?: Record<string, string>,
   ): Promise<any> {
     try {
+      this.assertGatewayConfigured('initiateRefund');
+
       this.logPaymentEvent('INITIATE_REFUND', { paymentId, amount });
 
       const refundData: any = {
@@ -223,11 +245,16 @@ export class RazorpayGatewayService extends BasePaymentService {
         refundData.amount = amount;
       }
 
-      const refund = await this.razorpay.payments.refund(paymentId, refundData);
-      this.logger.log(
-        `Refund initiated: ${refund.id} for payment ${paymentId}`,
+      this.logger.warn(
+        `Refund service disabled; skipping Razorpay refund call for payment ${paymentId}`,
       );
-      return refund;
+      return {
+        id: `disabled-refund-${paymentId}`,
+        payment_id: paymentId,
+        status: 'disabled',
+        notes: refundData.notes,
+        amount,
+      };
     } catch (error: any) {
       this.logger.error(
         `Failed to initiate refund for ${paymentId}: ${error.message}`,

@@ -4,6 +4,19 @@ export interface ApiError extends Error {
   status?: number;
 }
 
+export type FeedbackContextType =
+  | "AVATAR_CREATION"
+  | "AVATAR_RECREATION"
+  | "VIRTUAL_TRYON";
+
+export interface FeedbackPayload {
+  context_type: FeedbackContextType;
+  context_reference_id?: string;
+  context_label?: string;
+  rating: number;
+  comment?: string;
+}
+
 // Helper function to handle API errors and trigger logout on 401
 function handleApiError(res: Response, bodyText: string, defaultMessage: string): never {
   let message = defaultMessage;
@@ -639,7 +652,7 @@ export async function getAura() {
   return res.json();
 }
 
-// Try-on with Gemini AI
+// Try-on with Gemini AI (fallbacks to Vertex endpoint since Gemini 3D route is disabled)
 export async function tryOnWithGemini(data: {
   userId: string;
   clothingItemId: string;
@@ -650,7 +663,7 @@ export async function tryOnWithGemini(data: {
     throw new Error('Please login to use AI Try-On');
   }
 
-  const res = await fetch(`${BASE_URL}/v1/tryon/3d/gemini`, {
+  const res = await fetch(`${BASE_URL}/v1/tryon/3d/vertex`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -663,9 +676,9 @@ export async function tryOnWithGemini(data: {
     const bodyText = await res.text();
     try {
       const err = JSON.parse(bodyText);
-      throw new Error(err.message || 'Gemini try-on failed');
+      throw new Error(err.message || 'Try-on failed');
     } catch {
-      throw new Error(bodyText || 'Gemini try-on failed');
+      throw new Error(bodyText || 'Try-on failed');
     }
   }
   return res.json();
@@ -700,6 +713,68 @@ export async function tryOnWithVertex(data: {
       throw new Error(bodyText || 'Vertex try-on failed');
     }
   }
+  return res.json();
+}
+
+export async function submitFeedback(payload: FeedbackPayload) {
+  const token = localStorage.getItem("access_token");
+  if (!token) {
+    throw new Error("Please login to submit feedback");
+  }
+
+  const res = await fetch(`${BASE_URL}/feedback`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const bodyText = await res.text();
+    let message = "Failed to submit feedback";
+    try {
+      const err = JSON.parse(bodyText);
+      message = err.message || message;
+    } catch {
+      message = bodyText || message;
+    }
+    throw new Error(message);
+  }
+
+  return res.json();
+}
+
+export async function getAdminFeedback(params?: {
+  context?: FeedbackContextType;
+  minRating?: number;
+  maxRating?: number;
+  limit?: number;
+}) {
+  const search = new URLSearchParams();
+  if (params?.context) search.set("context", params.context);
+  if (params?.minRating !== undefined) search.set("minRating", String(params.minRating));
+  if (params?.maxRating !== undefined) search.set("maxRating", String(params.maxRating));
+  if (params?.limit !== undefined) search.set("limit", String(params.limit));
+
+  const res = await fetch(`${BASE_URL}/feedback/admin?${search.toString()}`, {
+    method: "GET",
+    credentials: "include",
+  });
+
+  if (!res.ok) {
+    const bodyText = await res.text();
+    let message = "Failed to load feedback";
+    try {
+      const err = JSON.parse(bodyText);
+      message = err.message || message;
+    } catch {
+      message = bodyText || message;
+    }
+    throw new Error(message);
+  }
+
   return res.json();
 }
 

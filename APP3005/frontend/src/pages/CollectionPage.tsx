@@ -11,8 +11,9 @@ import { ChevronDown, Heart, Search, X, SlidersHorizontal, ArrowUpDown } from "l
 import { TryOnInterstitialModal } from "@/components/TryOnInterstitialModal";
 import { TryOnResultModal } from '@/components/ai-tryon/TryOnResultModal';
 import { AuraPromptDialog } from '@/components/aura/AuraPromptDialog';
-import { tryOnWithVertex, generateMoreAngles, getAura } from '@/lib/api';
+import { tryOnWithVertex, generateMoreAngles, getAura, FeedbackContextType } from '@/lib/api';
 import collectionHeaderImage from "@/assets/collectionHeader.jpeg";
+import { FeedbackBottomSheet } from '@/components/feedback/FeedbackBottomSheet';
 
 const categories = ["All", "Dresses", "Outerwear", "Accessories", "Tops", "Bottoms"];
 const sizes = ["XS", "S", "M", "L", "XL", "XXL"];
@@ -48,6 +49,23 @@ const CollectionPage = () => {
     const [generatingAngles, setGeneratingAngles] = useState(false);
     const [originalTryOnImage, setOriginalTryOnImage] = useState<string | null>(null);
     const [generatedImages, setGeneratedImages] = useState<string[]>([]);
+    const [showFeedbackSheet, setShowFeedbackSheet] = useState(false);
+    const [feedbackContext, setFeedbackContext] = useState<{
+        type: FeedbackContextType;
+        referenceId?: string;
+        label?: string;
+    } | null>(null);
+    const [selectedTryOnLabel, setSelectedTryOnLabel] = useState<string>('');
+
+    const resolveProductLabel = (productId: string) => {
+        const product = filteredProducts.find((item: any) => item.product_id === productId);
+        return product?.title || product?.name || productId;
+    };
+
+    const closeFeedbackSheet = () => {
+        setShowFeedbackSheet(false);
+        setFeedbackContext(null);
+    };
 
     // Fetch Aura for user photo in modal
     useEffect(() => {
@@ -150,6 +168,7 @@ const CollectionPage = () => {
         // OPTIMIZATION: Check local aura state first for instant response
         if (aura) {
             setSelectedTryOnProduct(productId);
+            setSelectedTryOnLabel(resolveProductLabel(productId));
             setIsTryOnModalOpen(true);
             return;
         }
@@ -192,6 +211,12 @@ const CollectionPage = () => {
                 setResultImage(imageData);
                 setOriginalTryOnImage(imageData);
                 setGeneratedImages([imageData]);
+                setFeedbackContext({
+                    type: "VIRTUAL_TRYON",
+                    referenceId: result.tryOnId ? String(result.tryOnId) : undefined,
+                    label: selectedTryOnLabel || resolveProductLabel(productId),
+                });
+                setShowFeedbackSheet(true);
             } else {
                 throw new Error(result.message || 'Try-on failed');
             }
@@ -543,6 +568,14 @@ const CollectionPage = () => {
                 generatedImages={generatedImages}
                 onSelectImage={(img) => setResultImage(img)}
             />
+
+            {feedbackContext && (
+                <FeedbackBottomSheet
+                    isOpen={showFeedbackSheet}
+                    context={feedbackContext}
+                    onClose={closeFeedbackSheet}
+                />
+            )}
         </div>
     );
 };

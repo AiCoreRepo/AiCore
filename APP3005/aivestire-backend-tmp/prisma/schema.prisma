@@ -9,33 +9,34 @@ datasource db {
 }
 
 model User {
-  user_id             String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  email               String            @unique
-  password_hash       String?
-  phone               String?
-  phone_verified      Boolean           @default(false)
-  status              String            @default("active")
-  try_on_permission   TryOnPermissionStatus @default(NONE)
-  created_at          DateTime          @default(now())
-  last_login          DateTime?
-  refresh_token_hash  String?
-  role                UserRole          @default(BUYER)
-  max_try_ons         Int               @default(3)
-  try_ons_used        Int               @default(0)
-  has_created_aura    Boolean           @default(false)
-  max_avatar_regenerations Int          @default(2)
-  avatar_regenerations_used Int         @default(0)
-  aura                Aura?
-  creatorProfile      Creator?
-  approvals_actioned  ProductApproval[] @relation("ActionedBy")
-  approvals_submitted ProductApproval[] @relation("SubmittedBy")
-  product_comments    ProductComment[]
-  product_likes       ProductLike[]
-  try_on_history      TryOn[]
-  cart                Cart?
-  addresses           UserAddress[]
-  wishlist            Wishlist?
-  orders              Order[]
+  user_id                   String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email                     String                @unique
+  password_hash             String?
+  phone                     String?
+  phone_verified            Boolean               @default(false)
+  status                    String                @default("active")
+  try_on_permission         TryOnPermissionStatus @default(NONE)
+  created_at                DateTime              @default(now())
+  last_login                DateTime?
+  refresh_token_hash        String?
+  role                      UserRole              @default(BUYER)
+  max_try_ons               Int                   @default(3)
+  try_ons_used              Int                   @default(0)
+  has_created_aura          Boolean               @default(false)
+  max_avatar_regenerations  Int                   @default(2)
+  avatar_regenerations_used Int                   @default(0)
+  aura                      Aura?
+  creatorProfile            Creator?
+  approvals_actioned        ProductApproval[]     @relation("ActionedBy")
+  approvals_submitted       ProductApproval[]     @relation("SubmittedBy")
+  product_comments          ProductComment[]
+  product_likes             ProductLike[]
+  try_on_history            TryOn[]
+  feedbacks                 Feedback[]
+  cart                      Cart?
+  addresses                 UserAddress[]
+  wishlist                  Wishlist?
+  orders                    Order[]
 }
 
 model Creator {
@@ -64,29 +65,29 @@ model CreatorLimit {
 }
 
 model Product {
-  product_id      String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  creator_id      String            @db.Uuid
-  title           String
-  slug            String            @unique
-  description     String?
-  price_cents     Int
-  currency        String            @default("INR")
-  inventory_count Int               @default(0)
-  is_deleted      Boolean           @default(false)
-  max_images      Int               @default(20)
-  metadata        Json?             // Recommendation attributes
-  created_at      DateTime          @default(now())
-  updated_at      DateTime?
-  status          ProductStatus     @default(PENDING)
-  category        String?
-  is_featured     Boolean           @default(false)
-  creator         Creator           @relation(fields: [creator_id], references: [creator_id])
-  approvals       ProductApproval[]
-  images          ProductImage[]
-  stats           ProductStat?
-  comments        ProductComment[]
-  likes           ProductLike[]
-  try_ons         TryOn[]
+  product_id       String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  creator_id       String            @db.Uuid
+  title            String
+  slug             String            @unique
+  description      String?
+  price_cents      Int
+  currency         String            @default("INR")
+  inventory_count  Int               @default(0)
+  is_deleted       Boolean           @default(false)
+  max_images       Int               @default(20)
+  metadata         Json? // Recommendation attributes
+  created_at       DateTime          @default(now())
+  updated_at       DateTime?
+  status           ProductStatus     @default(PENDING)
+  category         String?
+  is_featured      Boolean           @default(false)
+  creator          Creator           @relation(fields: [creator_id], references: [creator_id])
+  approvals        ProductApproval[]
+  images           ProductImage[]
+  stats            ProductStat?
+  comments         ProductComment[]
+  likes            ProductLike[]
+  try_ons          TryOn[]
   cart_items       CartItem[]
   guest_cart_items GuestCartItem[]
   wishlist_items   WishlistItem[]
@@ -105,7 +106,7 @@ model GuestCart {
   channel       String          @default("WEB") // WEB, ANDROID, IOS
   created_at    DateTime        @default(now())
   updated_at    DateTime        @updatedAt
-  expires_at    DateTime        // Auto-expire inactive guest carts
+  expires_at    DateTime // Auto-expire inactive guest carts
   items         GuestCartItem[]
 
   @@index([session_id])
@@ -157,7 +158,7 @@ model CartItem {
   quantity             Int      @default(1)
   size                 String?
   color                String?
-  price_cents_snapshot Int      // Price at time of adding
+  price_cents_snapshot Int // Price at time of adding
   currency_snapshot    String   @default("INR")
   added_at             DateTime @default(now())
   updated_at           DateTime @updatedAt
@@ -293,6 +294,29 @@ model Aura {
   @@index([status])
 }
 
+enum FeedbackContextType {
+  AVATAR_CREATION
+  AVATAR_RECREATION
+  VIRTUAL_TRYON
+}
+
+model Feedback {
+  feedback_id          String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id              String              @db.Uuid
+  context_type         FeedbackContextType
+  context_reference_id String?
+  context_label        String?
+  rating               Int
+  comment              String?
+  metadata             Json?
+  created_at           DateTime            @default(now())
+  updated_at           DateTime            @updatedAt
+  user                 User                @relation(fields: [user_id], references: [user_id])
+
+  @@index([user_id, created_at])
+  @@index([context_type, rating, created_at])
+}
+
 model TryOn {
   try_on_id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   user_id          String   @db.Uuid
@@ -303,20 +327,20 @@ model TryOn {
   provider         String   @default("unknown")
   angle            String?
   base_tryon_id    String?  @db.Uuid
-  
+
   // Caching & Optimization fields
-  cloudinary_public_id String?  // Cloudinary public ID for transformations
-  thumbnail_url        String?  // Compressed thumbnail URL
-  compressed_url       String?  // Compressed version URL
-  metadata_cache       Json?    // Cached metadata (colors, dimensions, etc.)
-  processing_metrics   Json?    // Token usage, processing time, compression ratio
+  cloudinary_public_id String? // Cloudinary public ID for transformations
+  thumbnail_url        String? // Compressed thumbnail URL
+  compressed_url       String? // Compressed version URL
+  metadata_cache       Json? // Cached metadata (colors, dimensions, etc.)
+  processing_metrics   Json? // Token usage, processing time, compression ratio
   angles_generated     String[] @default([]) // Track which angles have been generated
-  
-  aura             Aura     @relation(fields: [aura_id], references: [aura_id])
-  try_ons          TryOn?   @relation("try_onsTotry_ons", fields: [base_tryon_id], references: [try_on_id])
-  other_try_ons    TryOn[]  @relation("try_onsTotry_ons")
-  product          Product  @relation(fields: [product_id], references: [product_id])
-  user             User     @relation(fields: [user_id], references: [user_id])
+
+  aura          Aura    @relation(fields: [aura_id], references: [aura_id])
+  try_ons       TryOn?  @relation("try_onsTotry_ons", fields: [base_tryon_id], references: [try_on_id])
+  other_try_ons TryOn[] @relation("try_onsTotry_ons")
+  product       Product @relation(fields: [product_id], references: [product_id])
+  user          User    @relation(fields: [user_id], references: [user_id])
 
   @@index([user_id])
   @@index([aura_id, product_id, angle])
@@ -327,7 +351,7 @@ model TryOn {
 model OtpVerification {
   otp_id       String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   phone_number String
-  otp_hash     String   // Hashed OTP for security
+  otp_hash     String // Hashed OTP for security
   expires_at   DateTime
   verified     Boolean  @default(false)
   attempts     Int      @default(0)
@@ -384,8 +408,8 @@ model UserAddress {
   full_name     String
   phone         String
   pincode       String
-  address_line1 String      // House No, Building, Street
-  address_line2 String?     // Locality, Area
+  address_line1 String // House No, Building, Street
+  address_line2 String? // Locality, Area
   city          String
   state         String
   landmark      String?
@@ -405,64 +429,64 @@ model UserAddress {
 // ============================================
 
 model Order {
-  order_id                String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  order_number            String              @unique
-  user_id                 String              @db.Uuid
-  
+  order_id     String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  order_number String @unique
+  user_id      String @db.Uuid
+
   // Order Details
-  total_amount            Decimal             @db.Decimal(10, 2)
-  payment_method          PaymentMethod
-  payment_status          PaymentStatus       @default(PENDING)
-  
+  total_amount   Decimal       @db.Decimal(10, 2)
+  payment_method PaymentMethod
+  payment_status PaymentStatus @default(PENDING)
+
   // Current State
-  current_status          OrderStatus         @default(PENDING)
-  
+  current_status OrderStatus @default(PENDING)
+
   // COD Specific
-  cod_collected           Boolean             @default(false)
-  cod_collected_at        DateTime?
-  cod_collected_by        String?             @db.Uuid
-  
+  cod_collected    Boolean   @default(false)
+  cod_collected_at DateTime?
+  cod_collected_by String?   @db.Uuid
+
   // Shipping Address
-  shipping_address_id     String              @db.Uuid
-  
+  shipping_address_id String @db.Uuid
+
   // Tracking
   tracking_number         String?
   delivery_partner        String?
   estimated_delivery_date DateTime?
-  
+
   // Cancellation
-  cancelled_at            DateTime?
-  cancelled_by            String?             @db.Uuid
-  cancellation_reason     String?
-  cancel_feedback         String?
-  
+  cancelled_at        DateTime?
+  cancelled_by        String?   @db.Uuid
+  cancellation_reason String?
+  cancel_feedback     String?
+
   // Refund Tracking
-  refund_status           RefundStatus?
-  refund_amount           Decimal?            @db.Decimal(10, 2)
-  
+  refund_status RefundStatus?
+  refund_amount Decimal?      @db.Decimal(10, 2)
+
   // Return Tracking
-  return_status           ReturnStatus?
-  return_requested_at     DateTime?
-  
+  return_status       ReturnStatus?
+  return_requested_at DateTime?
+
   // Replacement Tracking
-  replace_status          ReplacementStatus?
-  replace_requested_at    DateTime?
-  
+  replace_status       ReplacementStatus?
+  replace_requested_at DateTime?
+
   // Timestamps
-  created_at              DateTime            @default(now())
-  updated_at              DateTime            @updatedAt
-  
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
   // Relations
-  user                    User                @relation(fields: [user_id], references: [user_id])
-  shipping_address        UserAddress         @relation(fields: [shipping_address_id], references: [address_id])
-  items                   OrderItem[]
-  status_history          OrderStatusHistory[]
-  delivery_tracking       DeliveryTracking[]
-  refunds                 OrderRefund[]
-  returns                 OrderReturn[]
-  replacements            OrderReplacement[]
-  payment_transactions    PaymentTransaction[]
-  
+  user                 User                 @relation(fields: [user_id], references: [user_id])
+  shipping_address     UserAddress          @relation(fields: [shipping_address_id], references: [address_id])
+  items                OrderItem[]
+  status_history       OrderStatusHistory[]
+  delivery_tracking    DeliveryTracking[]
+  refunds              OrderRefund[]
+  returns              OrderReturn[]
+  replacements         OrderReplacement[]
+  payment_transactions PaymentTransaction[]
+
   @@index([user_id])
   @@index([current_status])
   @@index([order_number])
@@ -472,85 +496,85 @@ model Order {
 }
 
 model OrderItem {
-  order_item_id   String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  order_id        String   @db.Uuid
-  product_id      String   @db.Uuid
-  
+  order_item_id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  order_id      String @db.Uuid
+  product_id    String @db.Uuid
+
   // Item Details
-  quantity        Int
-  unit_price      Decimal  @db.Decimal(10, 2)
-  total_price     Decimal  @db.Decimal(10, 2)
-  
+  quantity    Int
+  unit_price  Decimal @db.Decimal(10, 2)
+  total_price Decimal @db.Decimal(10, 2)
+
   // Snapshot data (in case product deleted)
   product_name    String
   product_image   String?
   variant_details Json?
   size            String?
   color           String?
-  
-  created_at      DateTime @default(now())
-  
+
+  created_at DateTime @default(now())
+
   // Relations
-  order           Order    @relation(fields: [order_id], references: [order_id], onDelete: Cascade)
-  product         Product  @relation(fields: [product_id], references: [product_id])
-  
+  order   Order   @relation(fields: [order_id], references: [order_id], onDelete: Cascade)
+  product Product @relation(fields: [product_id], references: [product_id])
+
   @@index([order_id])
   @@index([product_id])
   @@map("order_items")
 }
 
 model OrderStatusHistory {
-  history_id      String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  order_id        String          @db.Uuid
-  
+  history_id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  order_id   String @db.Uuid
+
   // Status Change
-  from_status     String?
-  to_status       String
-  
+  from_status String?
+  to_status   String
+
   // Metadata
-  changed_by      String?         @db.Uuid
+  changed_by      String?        @db.Uuid
   changed_by_type ChangedByType?
-  
+
   // Additional Info
-  notes           String?
-  metadata        Json?
-  
+  notes    String?
+  metadata Json?
+
   // Timestamp (immutable)
-  created_at      DateTime        @default(now())
-  
+  created_at DateTime @default(now())
+
   // Relations
-  order           Order           @relation(fields: [order_id], references: [order_id], onDelete: Cascade)
-  
+  order Order @relation(fields: [order_id], references: [order_id], onDelete: Cascade)
+
   @@index([order_id])
   @@index([created_at(sort: Desc)])
   @@map("order_status_history")
 }
 
 model DeliveryTracking {
-  tracking_id             String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  order_id                String             @db.Uuid
-  
+  tracking_id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  order_id    String @db.Uuid
+
   // Location Data
-  location_name           String
-  location_type           LocationType
-  
+  location_name String
+  location_type LocationType
+
   // Coordinates
-  latitude                Decimal?           @db.Decimal(10, 8)
-  longitude               Decimal?           @db.Decimal(11, 8)
-  
+  latitude  Decimal? @db.Decimal(10, 8)
+  longitude Decimal? @db.Decimal(11, 8)
+
   // Details
-  status_description      String
-  delivery_partner_agent  String?
-  
+  status_description     String
+  delivery_partner_agent String?
+
   // Metadata
-  metadata                Json?
-  
+  metadata Json?
+
   // Timestamp (immutable)
-  created_at              DateTime           @default(now())
-  
+  created_at DateTime @default(now())
+
   // Relations
-  order                   Order              @relation(fields: [order_id], references: [order_id], onDelete: Cascade)
-  
+  order Order @relation(fields: [order_id], references: [order_id], onDelete: Cascade)
+
   @@index([order_id])
   @@index([created_at(sort: Desc)])
   @@map("delivery_tracking")
@@ -561,36 +585,36 @@ model DeliveryTracking {
 // ============================================
 
 model OrderRefund {
-  refund_id         String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  order_id          String        @db.Uuid
-  
+  refund_id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  order_id  String @db.Uuid
+
   // Refund Details
-  amount            Decimal       @db.Decimal(10, 2)
-  refund_status     RefundStatus  @default(INITIATED)
-  refund_reason     String?
-  
+  amount        Decimal      @db.Decimal(10, 2)
+  refund_status RefundStatus @default(INITIATED)
+  refund_reason String?
+
   // Approval
-  approved_by       String?       @db.Uuid
-  approved_at       DateTime?
-  rejection_reason  String?
-  
+  approved_by      String?   @db.Uuid
+  approved_at      DateTime?
+  rejection_reason String?
+
   // Processing
-  refund_method     String?       // Bank transfer, original payment method, etc.
-  transaction_id    String?       // Transaction ref from payment gateway
-  
+  refund_method  String? // Bank transfer, original payment method, etc.
+  transaction_id String? // Transaction ref from payment gateway
+
   // Timestamps
-  initiated_at      DateTime      @default(now())
-  processing_at     DateTime?
-  completed_at      DateTime?
-  failed_at         DateTime?
-  
+  initiated_at  DateTime  @default(now())
+  processing_at DateTime?
+  completed_at  DateTime?
+  failed_at     DateTime?
+
   // Notes
-  notes             String?
-  metadata          Json?
-  
+  notes    String?
+  metadata Json?
+
   // Relations
-  order             Order         @relation(fields: [order_id], references: [order_id], onDelete: Cascade)
-  
+  order Order @relation(fields: [order_id], references: [order_id], onDelete: Cascade)
+
   @@index([order_id])
   @@index([refund_status])
   @@index([initiated_at(sort: Desc)])
@@ -602,49 +626,49 @@ model OrderRefund {
 // ============================================
 
 model OrderReturn {
-  return_id         String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  order_id          String        @db.Uuid
-  
+  return_id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  order_id  String @db.Uuid
+
   // Return Request
-  return_reason     ReturnReason
-  custom_reason     String?
-  feedback          String?
-  
+  return_reason ReturnReason
+  custom_reason String?
+  feedback      String?
+
   // Status
-  return_status     ReturnStatus  @default(REQUESTED)
-  
+  return_status ReturnStatus @default(REQUESTED)
+
   // Approval/Rejection
-  approved_by       String?       @db.Uuid
-  approved_at       DateTime?
-  rejected_by       String?       @db.Uuid
-  rejected_at       DateTime?
-  rejection_reason  String?
-  
+  approved_by      String?   @db.Uuid
+  approved_at      DateTime?
+  rejected_by      String?   @db.Uuid
+  rejected_at      DateTime?
+  rejection_reason String?
+
   // Pickup Details
-  pickup_scheduled  DateTime?
-  pickup_partner    String?
-  pickup_tracking   String?
-  picked_up_at      DateTime?
-  
+  pickup_scheduled DateTime?
+  pickup_partner   String?
+  pickup_tracking  String?
+  picked_up_at     DateTime?
+
   // Quality Check
-  qc_passed         Boolean?
-  qc_notes          String?
-  qc_completed_at   DateTime?
-  
+  qc_passed       Boolean?
+  qc_notes        String?
+  qc_completed_at DateTime?
+
   // Refund (if applicable)
-  refund_id         String?       @db.Uuid
-  
+  refund_id String? @db.Uuid
+
   // Timestamps
-  requested_at      DateTime      @default(now())
-  completed_at      DateTime?
-  
+  requested_at DateTime  @default(now())
+  completed_at DateTime?
+
   // Notes
-  notes             String?
-  metadata          Json?
-  
+  notes    String?
+  metadata Json?
+
   // Relations
-  order             Order         @relation(fields: [order_id], references: [order_id], onDelete: Cascade)
-  
+  order Order @relation(fields: [order_id], references: [order_id], onDelete: Cascade)
+
   @@index([order_id])
   @@index([return_status])
   @@index([requested_at(sort: Desc)])
@@ -656,47 +680,47 @@ model OrderReturn {
 // ============================================
 
 model OrderReplacement {
-  replacement_id      String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  original_order_id   String              @db.Uuid
-  new_order_id        String?             @db.Uuid
-  
+  replacement_id    String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  original_order_id String  @db.Uuid
+  new_order_id      String? @db.Uuid
+
   // Replacement Request
-  replace_reason      ReplaceReason
-  custom_reason       String?
-  feedback            String?
-  
+  replace_reason ReplaceReason
+  custom_reason  String?
+  feedback       String?
+
   // Status
-  replacement_status  ReplacementStatus   @default(REQUESTED)
-  
+  replacement_status ReplacementStatus @default(REQUESTED)
+
   // Approval/Rejection
-  approved_by         String?             @db.Uuid
-  approved_at         DateTime?
-  rejected_by         String?             @db.Uuid
-  rejected_at         DateTime?
-  rejection_reason    String?
-  
+  approved_by      String?   @db.Uuid
+  approved_at      DateTime?
+  rejected_by      String?   @db.Uuid
+  rejected_at      DateTime?
+  rejection_reason String?
+
   // Pickup Details (for original item)
-  pickup_scheduled    DateTime?
-  pickup_partner      String?
-  pickup_tracking     String?
-  picked_up_at        DateTime?
-  
+  pickup_scheduled DateTime?
+  pickup_partner   String?
+  pickup_tracking  String?
+  picked_up_at     DateTime?
+
   // Delivery Details (for replacement)
-  dispatched_at       DateTime?
-  delivery_tracking   String?
-  delivered_at        DateTime?
-  
+  dispatched_at     DateTime?
+  delivery_tracking String?
+  delivered_at      DateTime?
+
   // Timestamps
-  requested_at        DateTime            @default(now())
-  completed_at        DateTime?
-  
+  requested_at DateTime  @default(now())
+  completed_at DateTime?
+
   // Notes
-  notes               String?
-  metadata            Json?
-  
+  notes    String?
+  metadata Json?
+
   // Relations
-  original_order      Order               @relation(fields: [original_order_id], references: [order_id], onDelete: Cascade)
-  
+  original_order Order @relation(fields: [original_order_id], references: [order_id], onDelete: Cascade)
+
   @@index([original_order_id])
   @@index([new_order_id])
   @@index([replacement_status])
@@ -810,37 +834,37 @@ enum ReplacementStatus {
  * One order can have multiple attempts (e.g., user retries after failure).
  */
 model PaymentTransaction {
-  transaction_id     String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  order_id           String                   @db.Uuid
+  transaction_id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  order_id       String @db.Uuid
 
   // Gateway Info
-  gateway            PaymentGateway           @default(RAZORPAY)
-  gateway_order_id   String?                  @unique // Razorpay order ID (order_XXXX)
-  gateway_payment_id String?                  // Razorpay payment ID (pay_XXXX)
+  gateway            PaymentGateway @default(RAZORPAY)
+  gateway_order_id   String?        @unique // Razorpay order ID (order_XXXX)
+  gateway_payment_id String? // Razorpay payment ID (pay_XXXX)
 
   // Amount
-  amount_paise       Int                      // Amount in paise (smallest unit)
-  currency           String                   @default("INR")
-  receipt            String?                  // Unique receipt sent to Razorpay
+  amount_paise Int // Amount in paise (smallest unit)
+  currency     String  @default("INR")
+  receipt      String? // Unique receipt sent to Razorpay
 
   // Status
-  status             PaymentTransactionStatus @default(CREATED)
-  payment_method     String?                  // card, upi, netbanking, wallet, etc.
+  status         PaymentTransactionStatus @default(CREATED)
+  payment_method String? // card, upi, netbanking, wallet, etc.
 
   // Refund
-  refund_id          String?                  // Razorpay refund ID
-  refunded_at        DateTime?
+  refund_id   String? // Razorpay refund ID
+  refunded_at DateTime?
 
   // Timestamps
-  created_at         DateTime                 @default(now())
-  captured_at        DateTime?
-  updated_at         DateTime                 @updatedAt
+  created_at  DateTime  @default(now())
+  captured_at DateTime?
+  updated_at  DateTime  @updatedAt
 
   // Metadata (raw Razorpay response)
-  metadata           Json?
+  metadata Json?
 
   // Relations
-  order              Order                    @relation(fields: [order_id], references: [order_id], onDelete: Cascade)
+  order Order @relation(fields: [order_id], references: [order_id], onDelete: Cascade)
 
   @@index([order_id])
   @@index([gateway_order_id])

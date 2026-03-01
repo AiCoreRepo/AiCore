@@ -43,6 +43,12 @@ export class TryOnResponseDto {
   })
   metadata?: Record<string, any>;
 
+  @ApiPropertyOptional({
+    description: 'Try-on record identifier for feedback and reporting',
+    example: 'a12b34c5-d678-90ab-cdef-1234567890ab',
+  })
+  tryOnId?: string;
+
   @ApiProperty({
     description: 'Timestamp of completion',
     example: '2025-12-29T16:10:00.000Z',

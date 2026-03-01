@@ -51,6 +51,13 @@ export class GenerateAnglesResponseDto {
     fullResolutionUsed?: boolean;
     imageSizeKB?: number;
   };
+
+  @ApiProperty({
+    description: 'Try-on record identifier for feedback and follow-up actions',
+    required: false,
+    example: 'a12b34c5-d678-90ab-cdef-1234567890ab',
+  })
+  tryOnId?: string;
 }
 
 /**

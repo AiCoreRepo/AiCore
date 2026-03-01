@@ -1,10 +1,15 @@
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { ChangeEvent, useCallback, useEffect, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast"; // Import toast hook
 import { EditableAttributeCard } from "@/components/aura/EditableAttributeCard";
 import { AvatarDisplay } from "@/components/aura/AvatarDisplay";
 import { BODY_SIZE_OPTIONS, SKIN_TONE_OPTIONS, BODY_SHAPE_OPTIONS, GENDER_OPTIONS } from "@/constants/aura.constants";
 import "@/components/aura/aura-styles.css";
+import { FeedbackBottomSheet } from "@/components/feedback/FeedbackBottomSheet";
+import { FeedbackContextType } from "@/lib/api";
+import { RefreshCw, Upload, Wand2, XCircle } from "lucide-react";
+
+const MAX_RECREATION_ATTEMPTS = 1;
 
 interface AuraData {
     aura_id: string;
@@ -27,10 +32,20 @@ interface AttributeValues {
     bodySize: string;
     skinTone: string;
     gender: string;
+    height: string;
+}
+
+type RecreateMode = "attributes-only" | "new-photo";
+
+interface FeedbackContext {
+  type: FeedbackContextType;
+  referenceId?: string;
+  label?: string;
 }
 
 export default function AuraProfile() {
     const [aura, setAura] = useState<AuraData | null>(null);
+    const [latestAuraId, setLatestAuraId] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
     const [isEditing, setIsEditing] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
@@ -38,7 +53,25 @@ export default function AuraProfile() {
     const [avatarUserName, setAvatarUserName] = useState<string>('');
     const [exactAge, setExactAge] = useState<number | null>(null);
     const [isRecreateDisabled, setIsRecreateDisabled] = useState(false);
+    const [recreateUsed, setRecreateUsed] = useState(0);
+    const [showRecreateModal, setShowRecreateModal] = useState(false);
+    const [recreateMode, setRecreateMode] = useState<RecreateMode>("attributes-only");
+    const [recreateAttributes, setRecreateAttributes] = useState<AttributeValues>({
+        bodyShape: '',
+        bodySize: '',
+        skinTone: '',
+        gender: '',
+        height: '',
+    });
+    const [recreatePhoto, setRecreatePhoto] = useState<File | null>(null);
+    const [recreatePhotoPreview, setRecreatePhotoPreview] = useState<string | null>(null);
+    const [recreateDraftError, setRecreateDraftError] = useState("");
+    const [recreateJobId, setRecreateJobId] = useState<string | null>(null);
+    const [recreateProgress, setRecreateProgress] = useState(0);
     const navigate = useNavigate();
+    const location = useLocation();
+    const [showFeedbackSheet, setShowFeedbackSheet] = useState(false);
+    const [feedbackContext, setFeedbackContext] = useState<FeedbackContext | null>(null);
     const { toast } = useToast();
 
     // Editable attributes state
@@ -47,6 +80,7 @@ export default function AuraProfile() {
         bodySize: '',
         skinTone: '',
         gender: '',
+        height: '',
     });
 
     // Store original values for cancel functionality
@@ -55,6 +89,7 @@ export default function AuraProfile() {
         bodySize: '',
         skinTone: '',
         gender: '',
+        height: '',
     });
 
     const calculateExactAge = (dobString?: string): number | null => {
@@ -73,12 +108,13 @@ export default function AuraProfile() {
         return age >= 0 ? age : null;
     };
 
-    const toTitleCase = (value: string) =>
+    const toTitleCase = useCallback((value: string) =>
         value
             .split(/\s+/)
             .filter(Boolean)
             .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
-            .join(' ');
+            .join(' ')
+    , []);
 
     // Check for pending login from signup
     useEffect(() => {
@@ -111,68 +147,90 @@ export default function AuraProfile() {
         }
     }, []);
 
-    useEffect(() => {
-        const fetchAura = async () => {
-            try {
-                const token = localStorage.getItem('access_token');
-                if (!token) {
-                    navigate('/user-login');
-                    return;
-                }
-
-                // Fetch user profile for name
-                const userResponse = await fetch(`${import.meta.env.VITE_API_URL}/auth/me`, {
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                    },
-                });
-                if (userResponse.ok) {
-                    const userData = await userResponse.json();
-                    setUserName(userData.email.split('@')[0].toUpperCase());
-                    const rawName = String(userData.name || userData.store_name || userData.email.split('@')[0] || '');
-                    const cleanedName = toTitleCase(rawName.replace(/[._-]+/g, ' '));
-                    setAvatarUserName(cleanedName);
-                    const regenUsed = Number(userData.avatar_regenerations_used ?? 0);
-                    const regenMax = Number(userData.max_avatar_regenerations ?? 2);
-                    setIsRecreateDisabled(regenUsed >= regenMax);
-
-                    const localDobKey = `aivestire:dob:${(userData.email || '').toLowerCase()}`;
-                    const storedDob = userData?.dob || localStorage.getItem(localDobKey) || undefined;
-                    setExactAge(calculateExactAge(storedDob));
-                }
-
-                const response = await fetch(`${import.meta.env.VITE_API_URL}/aura`, {
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                    },
-                });
-
-                if (!response.ok) {
-                    throw new Error('Failed to fetch Aura');
-                }
-
-                const data = await response.json();
-                setAura(data);
-
-                // Initialize attribute values
-                const initialAttributes = {
-                    bodyShape: data.body_shape || '',
-                    bodySize: data.body_size || '',
-                    skinTone: data.skin_tone || '',
-                    gender: data.gender || '',
-                };
-                setAttributes(initialAttributes);
-                setOriginalAttributes(initialAttributes);
-            } catch (error) {
-                console.error('Error fetching Aura:', error);
-                navigate('/aura-dashboard');
-            } finally {
-                setLoading(false);
+    const fetchAura = useCallback(async () => {
+        try {
+            const token = localStorage.getItem('access_token');
+            if (!token) {
+                navigate('/user-login');
+                return;
             }
-        };
 
+            // Fetch user profile for name
+            const userResponse = await fetch(`${import.meta.env.VITE_API_URL}/auth/me`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                },
+            });
+            if (userResponse.ok) {
+                const userData = await userResponse.json();
+                setUserName(userData.email.split('@')[0].toUpperCase());
+                const rawName = String(userData.name || userData.store_name || userData.email.split('@')[0] || '');
+                const cleanedName = toTitleCase(rawName.replace(/[._-]+/g, ' '));
+                setAvatarUserName(cleanedName);
+                const regenUsed = Number(userData.avatar_regenerations_used ?? 0);
+                const normalizedMax = Math.min(MAX_RECREATION_ATTEMPTS, Number(userData.max_avatar_regenerations ?? MAX_RECREATION_ATTEMPTS));
+                setRecreateUsed(regenUsed);
+                setIsRecreateDisabled(regenUsed >= normalizedMax);
+
+                const localDobKey = `aivestire:dob:${(userData.email || '').toLowerCase()}`;
+                const storedDob = userData?.dob || localStorage.getItem(localDobKey) || undefined;
+                setExactAge(calculateExactAge(storedDob));
+            }
+
+            const response = await fetch(`${import.meta.env.VITE_API_URL}/aura`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                },
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to fetch Aura');
+            }
+
+            const data = await response.json();
+            setAura(data);
+            setLatestAuraId(data.aura_id || null);
+
+            // Initialize attribute values
+            const initialAttributes = {
+                bodyShape: data.body_shape || '',
+                bodySize: data.body_size || '',
+                skinTone: data.skin_tone || '',
+                gender: data.gender || '',
+                height: data.height_cm ? String(data.height_cm) : '',
+            };
+            setAttributes(initialAttributes);
+            setOriginalAttributes(initialAttributes);
+            setRecreateAttributes(initialAttributes);
+        } catch (error) {
+            console.error('Error fetching Aura:', error);
+            navigate('/aura-dashboard');
+        } finally {
+            setLoading(false);
+        }
+    }, [navigate, toTitleCase]);
+
+    useEffect(() => {
         fetchAura();
-    }, [navigate]);
+    }, [fetchAura]);
+
+    useEffect(() => {
+        const state = location.state as { feedbackContext?: FeedbackContext } | null;
+        const incomingContext = state?.feedbackContext;
+
+        if (!incomingContext?.type) {
+            return;
+        }
+
+        setFeedbackContext(incomingContext);
+        setShowFeedbackSheet(true);
+        navigate(location.pathname, { replace: true, state: null });
+    }, [location.state, location.pathname, navigate]);
+
+    const closeFeedbackSheet = () => {
+        setShowFeedbackSheet(false);
+        setFeedbackContext(null);
+    };
 
     const handleAttributeChange = (key: keyof AttributeValues, value: string) => {
         setAttributes(prev => ({
@@ -191,6 +249,7 @@ export default function AuraProfile() {
                 bodySize: attributes.bodySize,
                 skinTone: attributes.skinTone,
                 gender: attributes.gender,
+                ...(attributes.height ? { height: Number(attributes.height) } : {}),
             };
 
             const response = await fetch(`${import.meta.env.VITE_API_URL}/aura`, {
@@ -208,9 +267,6 @@ export default function AuraProfile() {
 
             const updatedAura = await response.json();
             setAura(updatedAura);
-            setOriginalAttributes(attributes);
-            setIsEditing(false);
-
             setOriginalAttributes(attributes);
             setIsEditing(false);
 
@@ -241,10 +297,207 @@ export default function AuraProfile() {
         setIsEditing(false);
     };
 
-    const handleCreateAgain = () => {
-        setIsRecreateDisabled(true);
-        navigate('/aura-dashboard');
+    const handleRecreateAttributeChange = (key: keyof AttributeValues, value: string) => {
+        setRecreateAttributes(prev => ({
+            ...prev,
+            [key]: value,
+        }));
     };
+
+    const openRecreateFlow = () => {
+        if (isRecreateDisabled) return;
+        setRecreateAttributes(attributes);
+        setRecreateMode("attributes-only");
+        setRecreatePhoto(null);
+        setRecreatePhotoPreview(null);
+        setRecreateDraftError("");
+        setShowRecreateModal(true);
+    };
+
+    const closeRecreateFlow = () => {
+        setShowRecreateModal(false);
+        setRecreatePhoto(null);
+        setRecreatePhotoPreview(null);
+        setRecreateDraftError("");
+    };
+
+    const handleRecreatePhotoChange = (event: ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) {
+            setRecreatePhoto(null);
+            return;
+        }
+
+        if (!file.type.startsWith("image/")) {
+            setRecreateDraftError("Please upload a valid image.");
+            setRecreatePhoto(null);
+            return;
+        }
+
+        if (file.size > 10 * 1024 * 1024) {
+            setRecreateDraftError("Photo must be smaller than 10MB.");
+            setRecreatePhoto(null);
+            return;
+        }
+
+        setRecreateDraftError("");
+        setRecreatePhoto(file);
+    };
+
+    const handleRecreateAvatar = async () => {
+        if (isRecreateDisabled) return;
+        if (recreateMode === "new-photo" && !recreatePhoto) {
+            setRecreateDraftError("Upload a new photo to use this recreation option.");
+            return;
+        }
+
+        const token = localStorage.getItem('access_token');
+        if (!token) {
+            toast({
+                variant: "destructive",
+                title: "Authentication Required",
+                description: "Please login to recreate your Aura.",
+                duration: 3000,
+            });
+            navigate('/user-login');
+            return;
+        }
+
+        try {
+            setRecreateDraftError("");
+            const formData = new FormData();
+            if (recreateMode === "new-photo" && recreatePhoto) {
+                formData.append('photo', recreatePhoto);
+            }
+
+            if (recreateAttributes.bodyShape) formData.append('bodyShape', recreateAttributes.bodyShape);
+            if (recreateAttributes.bodySize) formData.append('bodySize', recreateAttributes.bodySize);
+            if (recreateAttributes.skinTone) formData.append('skinTone', recreateAttributes.skinTone);
+            if (recreateAttributes.gender) formData.append('gender', recreateAttributes.gender);
+            if (recreateAttributes.height) formData.append('height', recreateAttributes.height);
+
+            const response = await fetch(`${import.meta.env.VITE_API_URL}/aura/recreate`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                },
+                body: formData,
+            });
+
+            let payload: { [key: string]: unknown } = {};
+            try {
+                payload = await response.json();
+            } catch (error) {
+                // no-op: response may not always include JSON in rare edge cases
+            }
+            const payloadMessage =
+                typeof payload.message === 'string' ? payload.message : 'Failed to recreate Aura';
+
+            if (!response.ok) {
+                if (response.status === 409) {
+                    setRecreateUsed(MAX_RECREATION_ATTEMPTS);
+                    setIsRecreateDisabled(true);
+                }
+                throw new Error(payloadMessage);
+            }
+
+            const nextJobId = payload.job_id ? String(payload.job_id) : null;
+            if (nextJobId) {
+                setRecreateJobId(nextJobId);
+                setRecreateProgress(0);
+            }
+
+            setShowRecreateModal(false);
+            setIsRecreateDisabled(true);
+
+            toast({
+                title: "Recreate Started",
+                description: recreateMode === "new-photo"
+                    ? "Using your new photo, we are creating a fresh Aura now."
+                    : "Using your existing photo, we are recreating your Aura now.",
+                duration: 3000,
+                className: "bg-[#F5F0E6] border-[#D4B76E] text-[#1A1A1A]",
+            });
+        } catch (error) {
+            setRecreateDraftError(error instanceof Error ? error.message : 'Failed to recreate Aura.');
+        }
+    };
+
+    useEffect(() => {
+        if (!recreatePhoto) {
+            if (recreatePhotoPreview) {
+                URL.revokeObjectURL(recreatePhotoPreview);
+            }
+            setRecreatePhotoPreview(null);
+            return;
+        }
+
+        const nextPreview = URL.createObjectURL(recreatePhoto);
+        setRecreatePhotoPreview(nextPreview);
+        return () => URL.revokeObjectURL(nextPreview);
+    }, [recreatePhoto, recreatePhotoPreview]);
+
+    useEffect(() => {
+        if (!recreateJobId) {
+            return;
+        }
+
+        const interval = setInterval(async () => {
+            try {
+                const token = localStorage.getItem('access_token');
+                const response = await fetch(`${import.meta.env.VITE_API_URL}/aura/job/${recreateJobId}`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                    },
+                });
+
+                if (!response.ok) return;
+                const payload = await response.json();
+                if (typeof payload.progress === 'number') {
+                    setRecreateProgress(payload.progress);
+                }
+
+                if (payload.status === 'completed') {
+                    clearInterval(interval);
+                    setRecreateJobId(null);
+                    setRecreateProgress(100);
+                    const completedAuraId = payload?.data?.auraId
+                        ? String(payload.data.auraId)
+                        : payload?.result?.auraId
+                            ? String(payload.result.auraId)
+                            : latestAuraId;
+                    fetchAura();
+                    setRecreateUsed((prev) => Math.min(prev + 1, MAX_RECREATION_ATTEMPTS));
+                    setIsRecreateDisabled(true);
+                    setFeedbackContext({
+                        type: "AVATAR_RECREATION",
+                        referenceId: completedAuraId,
+                        label: "Avatar Recreation",
+                    });
+                    setShowFeedbackSheet(true);
+                    toast({
+                        title: "Recreation Complete",
+                        description: "Your Aura has been recreated successfully.",
+                        duration: 3000,
+                        className: "bg-[#F5F0E6] border-[#D4B76E] text-[#1A1A1A]",
+                    });
+                } else if (payload.status === 'failed') {
+                    clearInterval(interval);
+                    setRecreateJobId(null);
+                    toast({
+                        variant: "destructive",
+                        title: "Recreation Failed",
+                        description: payload.error || "Something went wrong during recreation. Please try again.",
+                        duration: 4000,
+                    });
+                }
+            } catch (error) {
+                console.error('Error polling recreation status:', error);
+            }
+        }, 2000);
+
+        return () => clearInterval(interval);
+    }, [recreateJobId, toast, fetchAura, latestAuraId]);
 
     if (loading) {
         return (
@@ -255,6 +508,8 @@ export default function AuraProfile() {
             </div>
         );
     }
+
+    const remainingRecreations = Math.max(0, MAX_RECREATION_ATTEMPTS - recreateUsed);
 
     if (!aura) {
         return (
@@ -340,6 +595,15 @@ export default function AuraProfile() {
                             options={BODY_SIZE_OPTIONS}
                         />
 
+                        <EditableAttributeCard
+                            label="HEIGHT"
+                            value={attributes.height}
+                            isEditing={isEditing}
+                            onChange={(value) => handleAttributeChange('height', value)}
+                            type="number"
+                            unit="cm"
+                        />
+
                         {/* Gender */}
                         <EditableAttributeCard
                             label="GENDER"
@@ -380,9 +644,9 @@ export default function AuraProfile() {
                     ) : (
                         <div className="action-buttons">
                             <button
-                                onClick={handleCreateAgain}
+                                onClick={openRecreateFlow}
                                 disabled={isRecreateDisabled}
-                                className="action-btn cancel-btn"
+                                className={`action-btn cancel-btn ${isRecreateDisabled ? "disabled-btn" : ""}`}
                             >
                                 Recreate Avatar
                             </button>
@@ -394,13 +658,188 @@ export default function AuraProfile() {
                             </button>
                         </div>
                     )}
+
+                    <div className="recreate-note">
+                        {isRecreateDisabled
+                            ? 'Recreation used. This avatar cannot be recreated again.'
+                            : `Recreation credits: ${remainingRecreations} of ${MAX_RECREATION_ATTEMPTS} remaining`}
+                    </div>
                 </div>
 
                 {/* Right Panel - Avatar Display */}
                 <div className="avatar-panel">
                     <AvatarDisplay imageUrl={aura.model_url || aura.image_url} userName={avatarUserName} />
+                    {recreateJobId && (
+                        <div className="recreate-inline-progress">
+                            <p>Recreating your avatar</p>
+                            <div className="recreate-progress-track">
+                                <div
+                                    className="recreate-progress-fill"
+                                    style={{ width: `${Math.min(recreateProgress, 100)}%` }}
+                                />
+                            </div>
+                            <p>{Math.min(recreateProgress, 100)}%</p>
+                        </div>
+                    )}
                 </div>
             </div>
+
+            {showRecreateModal && (
+                <div className="recreate-backdrop" onClick={closeRecreateFlow}>
+                    <div className="recreate-modal-panel" onClick={(e) => e.stopPropagation()}>
+                        <div className="recreate-modal-header">
+                            <div>
+                                <h3 className="recreate-modal-title">Recreate Your Avatar</h3>
+                                <p className="recreate-modal-subtitle">
+                                    Pick one option. No need to fill the entire form again.
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                className="recreate-close-btn"
+                                onClick={closeRecreateFlow}
+                            >
+                                <XCircle size={20} />
+                            </button>
+                        </div>
+
+                        <div className="recreate-mode-switch">
+                            <button
+                                type="button"
+                                className={`recreate-mode-pill ${recreateMode === "attributes-only" ? "active" : ""}`}
+                                onClick={() => setRecreateMode("attributes-only")}
+                            >
+                                <Wand2 size={16} />
+                                <span>Change attributes</span>
+                            </button>
+                            <button
+                                type="button"
+                                className={`recreate-mode-pill ${recreateMode === "new-photo" ? "active" : ""}`}
+                                onClick={() => {
+                                    setRecreateMode("new-photo");
+                                    setRecreateDraftError("");
+                                }}
+                            >
+                                <Upload size={16} />
+                                <span>Use new photo</span>
+                            </button>
+                        </div>
+
+                        <p className="recreate-photo-placeholder" style={{ marginTop: 0, marginBottom: "0.85rem" }}>
+                            {recreateMode === "attributes-only"
+                                ? "Keep old source photo + refresh only selected attributes."
+                                : "Upload a brand-new source photo and keep old values if you want."}
+                        </p>
+
+                        {recreateMode === "new-photo" ? (
+                            <div className="recreate-upload-area">
+                                <label htmlFor="recreate-photo" className="recreate-upload-label">
+                                    Upload the new source photo for this recreation
+                                </label>
+                                <input
+                                    id="recreate-photo"
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={handleRecreatePhotoChange}
+                                    className="recreate-upload-input"
+                                />
+                                {recreatePhotoPreview ? (
+                                    <img
+                                        src={recreatePhotoPreview}
+                                        alt="Selected photo preview"
+                                        className="recreate-photo-preview"
+                                    />
+                                ) : (
+                                    <div className="recreate-photo-placeholder">Drop image here or click to upload</div>
+                                )}
+                            </div>
+                        ) : (
+                            <div className="recreate-photo-source">
+                                <p>Current source photo will be kept.</p>
+                                <img
+                                    src={aura.image_url}
+                                    alt="Current source photo"
+                                    className="recreate-photo-preview"
+                                />
+                            </div>
+                        )}
+
+                        <div className="recreate-attributes-wrap">
+                            <EditableAttributeCard
+                                label="HEIGHT"
+                                value={recreateAttributes.height}
+                                isEditing
+                                onChange={(value) => handleRecreateAttributeChange("height", value)}
+                                type="number"
+                                unit="cm"
+                            />
+                            <EditableAttributeCard
+                                label="BODY SHAPE"
+                                value={recreateAttributes.bodyShape}
+                                isEditing
+                                onChange={(value) => handleRecreateAttributeChange("bodyShape", value)}
+                                type="select"
+                                options={BODY_SHAPE_OPTIONS}
+                            />
+                            <EditableAttributeCard
+                                label="BODY SIZE"
+                                value={recreateAttributes.bodySize}
+                                isEditing
+                                onChange={(value) => handleRecreateAttributeChange("bodySize", value)}
+                                type="select"
+                                options={BODY_SIZE_OPTIONS}
+                            />
+                            <EditableAttributeCard
+                                label="SKIN TONE"
+                                value={recreateAttributes.skinTone}
+                                isEditing
+                                onChange={(value) => handleRecreateAttributeChange("skinTone", value)}
+                                type="select"
+                                options={SKIN_TONE_OPTIONS}
+                            />
+                            <EditableAttributeCard
+                                label="GENDER"
+                                value={recreateAttributes.gender}
+                                isEditing
+                                onChange={(value) => handleRecreateAttributeChange("gender", value)}
+                                type="select"
+                                options={GENDER_OPTIONS}
+                            />
+                        </div>
+
+                        {recreateDraftError && (
+                            <p className="recreate-error">{recreateDraftError}</p>
+                        )}
+
+                        <div className="recreate-actions">
+                            <button
+                                type="button"
+                                onClick={handleRecreateAvatar}
+                                className="recreate-submit-btn"
+                                disabled={recreateMode === "new-photo" && !recreatePhoto}
+                            >
+                                <RefreshCw size={16} />
+                                <span>Start Recreation</span>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={closeRecreateFlow}
+                                className="recreate-keep-btn"
+                            >
+                                Keep old avatar only
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {feedbackContext && (
+                <FeedbackBottomSheet
+                    isOpen={showFeedbackSheet}
+                    context={feedbackContext}
+                    onClose={closeFeedbackSheet}
+                />
+            )}
         </div>
     );
 }

@@ -14,6 +14,8 @@ import { auraGate } from '@/utils/auraGate';
 import { TryOnInterstitialModal } from "@/components/TryOnInterstitialModal";
 import { TryOnResultModal } from '@/components/ai-tryon/TryOnResultModal';
 import { tryOnWithVertex, generateMoreAngles } from '@/lib/api';
+import { FeedbackContextType } from '@/lib/api';
+import { FeedbackBottomSheet } from '@/components/feedback/FeedbackBottomSheet';
 
 interface AuraData {
     aura_id: string;
@@ -70,6 +72,18 @@ const LetAIDecidePage = () => {
     const [generatingAngles, setGeneratingAngles] = useState(false);
     const [originalTryOnImage, setOriginalTryOnImage] = useState<string | null>(null);
     const [generatedImages, setGeneratedImages] = useState<string[]>([]);
+    const [showFeedbackSheet, setShowFeedbackSheet] = useState(false);
+    const [feedbackContext, setFeedbackContext] = useState<{
+        type: FeedbackContextType;
+        referenceId?: string;
+        label?: string;
+    } | null>(null);
+    const [selectedTryOnLabel, setSelectedTryOnLabel] = useState<string>('');
+
+    const closeFeedbackSheet = () => {
+        setShowFeedbackSheet(false);
+        setFeedbackContext(null);
+    };
 
     useEffect(() => {
         // Wait for auth to load
@@ -170,6 +184,11 @@ const LetAIDecidePage = () => {
         }
     };
 
+    const handleTryOnWithLabel = (productId: string, label: string) => {
+        setSelectedTryOnLabel(label);
+        handleTryOn(productId);
+    };
+
     const handleConfirmTryOn = () => {
         if (selectedTryOnProduct) {
             setIsTryOnModalOpen(false);
@@ -197,6 +216,12 @@ const LetAIDecidePage = () => {
                 setResultImage(imageData);
                 setOriginalTryOnImage(imageData);
                 setGeneratedImages([imageData]);
+                setFeedbackContext({
+                    type: "VIRTUAL_TRYON",
+                    referenceId: result.tryOnId ? String(result.tryOnId) : undefined,
+                    label: selectedTryOnLabel,
+                });
+                setShowFeedbackSheet(true);
             } else {
                 throw new Error(result.message || 'Try-on failed');
             }
@@ -437,7 +462,11 @@ const LetAIDecidePage = () => {
                                                             <ProductCard
                                                                 key={item.id}
                                                                 product={mapToProduct(item)}
-                                                                onTryOn={() => handleTryOn(item.product_id || item.id)}
+                                                                onTryOn={() => {
+                                                                    const itemId = item.product_id || item.id;
+                                                                    const mapped = mapToProduct(item);
+                                                                    handleTryOnWithLabel(itemId, mapped.title);
+                                                                }}
                                                             />
                                                         ))}
                                                     </div>
@@ -457,14 +486,18 @@ const LetAIDecidePage = () => {
                                                             <ProductCard
                                                                 key={item.id}
                                                                 product={mapToProduct(item)}
-                                                                onTryOn={() => handleTryOn(item.product_id || item.id)}
+                                                                onTryOn={() => {
+                                                                    const itemId = item.product_id || item.id;
+                                                                    const mapped = mapToProduct(item);
+                                                                    handleTryOnWithLabel(itemId, mapped.title);
+                                                                }}
                                                             />
                                                         ))}
                                                     </div>
                                                 </div>
                                             )}
 
-                                            {recommendations.you_can_also_try.length > 0 && (
+                                                        {recommendations.you_can_also_try.length > 0 && (
                                                 <div>
                                                     <div className="flex items-center gap-3 mb-4">
                                                         <Sparkles className="w-6 h-6 text-purple-500" />
@@ -477,7 +510,11 @@ const LetAIDecidePage = () => {
                                                             <ProductCard
                                                                 key={item.id}
                                                                 product={mapToProduct(item)}
-                                                                onTryOn={() => handleTryOn(item.product_id || item.id)}
+                                                                onTryOn={() => {
+                                                                    const itemId = item.product_id || item.id;
+                                                                    const mapped = mapToProduct(item);
+                                                                    handleTryOnWithLabel(itemId, mapped.title);
+                                                                }}
                                                             />
                                                         ))}
                                                     </div>
@@ -532,6 +569,14 @@ const LetAIDecidePage = () => {
                 generatedImages={generatedImages}
                 onSelectImage={(img) => setResultImage(img)}
             />
+
+            {feedbackContext && (
+                <FeedbackBottomSheet
+                    isOpen={showFeedbackSheet}
+                    context={feedbackContext}
+                    onClose={closeFeedbackSheet}
+                />
+            )}
         </div>
     );
 };

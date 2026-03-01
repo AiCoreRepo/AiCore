@@ -2,6 +2,8 @@ import {
   Injectable,
   ConflictException,
   InternalServerErrorException,
+  BadRequestException,
+  HttpException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CloudinaryService } from '../common/cloudinary.service';
@@ -16,6 +18,26 @@ export class AuraService {
     private readonly cloudinary: CloudinaryService,
     private readonly auraQueue: AuraQueueService,
   ) { }
+
+  private readonly MAX_RECREATION_ATTEMPTS = 1;
+
+  private getAuraAttributeValue(
+    valueFromPayload: string | undefined | null,
+    valueFromAura: string | null | undefined,
+    fallback: string,
+  ): string {
+    return (valueFromPayload || valueFromAura || '').trim() || fallback;
+  }
+
+  private getAuraAttributeNumber(
+    valueFromPayload: number | undefined | null,
+    valueFromAura: number | null | undefined,
+    fallback: number,
+  ): number {
+    return typeof valueFromPayload === 'number'
+      ? valueFromPayload
+      : valueFromAura ?? fallback;
+  }
 
   async createAura(userId: string, file: Express.Multer.File, attributes: CreateAuraDto) {
     // Check if user already has an Aura
@@ -90,6 +112,141 @@ export class AuraService {
 
   async getJobStatus(jobId: string) {
     return this.auraQueue.getJobStatus(jobId);
+  }
+
+  async recreateAura(userId: string, file: Express.Multer.File | undefined, attributes: CreateAuraDto) {
+    const existingAura = await this.prisma.aura.findUnique({
+      where: { user_id: userId },
+    });
+
+    if (!existingAura) {
+      throw new ConflictException('No Aura found for this user. Please create one first.');
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { user_id: userId },
+      select: {
+        avatar_regenerations_used: true,
+      },
+    });
+
+    if (!user) {
+      throw new ConflictException('User not found.');
+    }
+
+    if (user.avatar_regenerations_used >= this.MAX_RECREATION_ATTEMPTS) {
+      throw new ConflictException('You can recreate your Aura only once.');
+    }
+
+    let sourceImageUrl = existingAura.image_url || '';
+    if (file) {
+      const base64Image = `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
+      sourceImageUrl = await this.cloudinary.uploadImage(base64Image);
+    }
+
+    if (!sourceImageUrl) {
+      throw new BadRequestException('No source image available for regeneration.');
+    }
+
+    const updatePayload = {
+      status: AuraStatus.PENDING as AuraStatus,
+      ...(file ? { image_url: sourceImageUrl } : {}),
+      ...(attributes.height ? { height_cm: attributes.height } : {}),
+      ...(attributes.weight ? { weight_kg: attributes.weight } : {}),
+      ...(attributes.skinTone ? { skin_tone: attributes.skinTone } : {}),
+      ...(attributes.gender ? { gender: attributes.gender } : {}),
+      ...(attributes.bodyShape ? { body_shape: attributes.bodyShape } : {}),
+      ...(attributes.bodyType ? { body_type: attributes.bodyType } : {}),
+      ...(attributes.bodySize ? { body_size: attributes.bodySize } : {}),
+      ...(attributes.ageRange ? { age_range: attributes.ageRange } : {}),
+      ...(attributes.hairStyle ? { hair_style: attributes.hairStyle } : {}),
+    };
+
+    try {
+      await this.prisma.$transaction(async (tx) => {
+        const updatedUser = await tx.user.updateMany({
+          where: {
+            user_id: userId,
+            avatar_regenerations_used: {
+              lt: this.MAX_RECREATION_ATTEMPTS,
+            },
+          },
+          data: {
+            avatar_regenerations_used: {
+              increment: 1,
+            },
+          },
+        });
+
+        if (updatedUser.count === 0) {
+          throw new ConflictException(
+            'You can recreate your Aura only once.',
+          );
+        }
+
+        await tx.aura.update({
+          where: { user_id: userId },
+          data: updatePayload,
+        });
+      });
+
+      const job = await this.auraQueue.addAuraGenerationJob({
+        auraId: existingAura.aura_id,
+        userId,
+        imageUrl: sourceImageUrl,
+        attributes: {
+          height: this.getAuraAttributeNumber(
+            attributes.height,
+            existingAura.height_cm,
+            170,
+          ),
+          weight: this.getAuraAttributeNumber(
+            attributes.weight,
+            existingAura.weight_kg,
+            70,
+          ),
+          skinTone: this.getAuraAttributeValue(
+            attributes.skinTone,
+            existingAura.skin_tone,
+            'medium',
+          ),
+          gender: this.getAuraAttributeValue(
+            attributes.gender,
+            existingAura.gender,
+            'unspecified',
+          ),
+          bodyShape: this.getAuraAttributeValue(
+            attributes.bodyShape,
+            existingAura.body_shape,
+            'average',
+          ),
+          ageRange: this.getAuraAttributeValue(
+            attributes.ageRange,
+            existingAura.age_range,
+            '25-35',
+          ),
+          hairStyle: this.getAuraAttributeValue(
+            attributes.hairStyle,
+            existingAura.hair_style,
+            'short',
+          ),
+        },
+      });
+
+      return {
+        aura_id: existingAura.aura_id,
+        status: AuraStatus.PENDING,
+        job_id: job.id.toString(),
+      };
+    } catch (error) {
+      console.error('Error recreating Aura:', error);
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new InternalServerErrorException(
+        'Failed to recreate Aura. Please try again.',
+      );
+    }
   }
 
   async getAuraByUserId(userId: string) {

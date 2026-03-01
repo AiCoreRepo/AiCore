@@ -62,6 +62,36 @@ export class AuraController {
     return this.auraService.createAura(userId, file, createAuraDto);
   }
 
+  @Post('recreate')
+  @UseGuards(JwtAuthGuard)
+  @UseInterceptors(FileInterceptor('photo'))
+  async recreateAura(
+    @CurrentUser('user_id') userId: string,
+    @UploadedFile() file: Express.Multer.File | undefined,
+    @Body() recreateAuraDto: CreateAuraDto,
+  ) {
+    if (file) {
+      const allowedMimeTypes = [
+        'image/jpeg',
+        'image/jpg',
+        'image/png',
+        'image/webp',
+      ];
+      if (!allowedMimeTypes.includes(file.mimetype)) {
+        throw new BadRequestException(
+          'Only JPEG, PNG, and WebP images are allowed',
+        );
+      }
+
+      const maxSize = 10 * 1024 * 1024; // 10MB
+      if (file.size > maxSize) {
+        throw new BadRequestException('File size must be less than 10MB');
+      }
+    }
+
+    return this.auraService.recreateAura(userId, file, recreateAuraDto);
+  }
+
   @Get('status')
   @UseGuards(JwtAuthGuard)
   async getAuraStatus(@CurrentUser('user_id') userId: string) {

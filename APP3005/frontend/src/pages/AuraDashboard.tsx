@@ -1,9 +1,11 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { HeroImageSection } from "@/components/aura/HeroImageSection";
 import { AuraFormCard } from "@/components/aura/AuraFormCard";
 import { ProcessingModal } from "@/components/aura/ProcessingModal";
 import { AuraSuccessState } from "@/components/aura/AuraSuccessState";
 import { useAuraJobPolling } from "@/hooks/useAuraJobPolling";
+import { FeedbackContextType } from "@/lib/api";
 
 interface BodyAttributes {
   height?: number;
@@ -16,11 +18,19 @@ interface BodyAttributes {
   hairStyle?: string;
 }
 
+interface AuraCreationFeedbackContext {
+  type: FeedbackContextType;
+  referenceId?: string;
+  label?: string;
+}
+
 const AuraDashboard = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | undefined>(undefined);
   const [jobId, setJobId] = useState<string | null>(null);
+  const [creationContext, setCreationContext] = useState<AuraCreationFeedbackContext | null>(null);
+  const navigate = useNavigate();
 
   // Use real job polling hook
   const { jobStatus, isPolling } = useAuraJobPolling(jobId, !!jobId);
@@ -42,6 +52,7 @@ const AuraDashboard = () => {
 
     setIsProcessing(true);
     setJobId(null); // Reset job ID
+    setCreationContext(null);
 
     try {
       // Create FormData with photo and attributes
@@ -84,6 +95,11 @@ const AuraDashboard = () => {
       const data = await response.json();
       console.log('📦 Full API response:', data);
       console.log('🔑 job_id from response:', data.job_id);
+      setCreationContext({
+        type: "AVATAR_CREATION",
+        referenceId: data.aura_id,
+        label: "Avatar Creation",
+      });
 
       // Start polling with the job_id from response
       if (data.job_id) {
@@ -115,7 +131,14 @@ const AuraDashboard = () => {
     setTimeout(() => {
       setIsProcessing(false);
       setJobId(null);
-      window.location.href = '/aura-profile';
+      const feedbackContext = {
+        ...creationContext,
+        referenceId: jobStatus?.result?.auraId || creationContext?.referenceId,
+      };
+
+      navigate("/aura-profile", {
+        state: feedbackContext ? { feedbackContext } : undefined,
+      });
     }, 1000);
   }
 

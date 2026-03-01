@@ -41,6 +41,7 @@ import AdminSettingsPage from "./app/admin-settings/page";
 import AdminLogin from "./pages/AdminLogin";
 import AdminSecretConfirm from "./pages/AdminSecretConfirm";
 import AdminCSVUploadPage from "./pages/AdminCSVUploadPage";
+import AdminFeedbackPage from "./app/admin-feedback/page";
 import { PopupProvider } from "./components/common/popups/PopupTime";
 import { SidebarProvider } from "./context/SidebarContext";
 import { ProfileSidebarProvider } from "./context/ProfileSidebarContext";
@@ -164,6 +165,7 @@ const App = () => (
                       <Route path="/admin-artisans" element={<ArtisansPage />} />
                       <Route path="/admin-clientele" element={<ClientelePage />} />
                       <Route path="/admin-settings" element={<AdminSettingsPage />} />
+                      <Route path="/admin-feedback" element={<AdminFeedbackPage />} />
                       <Route path="/admin-csv-upload" element={<AdminCSVUploadPage />} />
 
                       {/* Payment Routes */}

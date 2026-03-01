@@ -1,5 +1,16 @@
 import { Variants } from 'framer-motion';
-import { LayoutDashboard, CheckSquare, ShoppingBag, Palette, Users, Settings, Sparkles, Upload, Package } from 'lucide-react';
+import {
+    LayoutDashboard,
+    CheckSquare,
+    ShoppingBag,
+    Palette,
+    Users,
+    Settings,
+    Sparkles,
+    Upload,
+    Package,
+    MessageSquare,
+} from 'lucide-react';
 
 /**
  * Midnight Luxury Design Tokens
@@ -144,6 +155,13 @@ export const menuItems: MenuItem[] = [
         href: '/admin-settings',
         isBeta: false,
         // Global configuration: Admin accounts, system settings
+    },
+    {
+        id: 'feedback',
+        label: 'Feedback',
+        icon: MessageSquare,
+        href: '/admin-feedback',
+        isBeta: false,
     },
 ];
 

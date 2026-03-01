@@ -112,7 +112,7 @@ export class AngleGenerationService {
       const resultImageBase64 = await this.callGeminiAI(imageBase64, prompt);
 
       // Upload to Cloudinary and save to database
-      const uploadedUrl = await this.uploadAndSave(
+      const uploaded = await this.uploadAndSave(
         resultImageBase64,
         aura.user_id,
         request.productId,
@@ -132,6 +132,7 @@ export class AngleGenerationService {
         angle: targetAngle,
         processingTimeMs: processingTime,
         timestamp: new Date().toISOString(),
+        tryOnId: uploaded.tryOnId,
         metadata: {
           cachingUsed: !!cachedMetadata,
           sessionKey,
@@ -294,7 +295,7 @@ export class AngleGenerationService {
     productId: string,
     auraId: string,
     angle: AngleType,
-  ): Promise<string> {
+  ): Promise<{ imageUrl: string; tryOnId?: string }> {
     try {
       // Add data URI prefix if not present
       const imageData = imageBase64.startsWith('data:')
@@ -336,7 +337,7 @@ export class AngleGenerationService {
       );
 
       // Save to database
-      await this.prisma.tryOn.create({
+      const saved = await this.prisma.tryOn.create({
         data: {
           user_id: userId,
           product_id: productId,
@@ -359,11 +360,16 @@ export class AngleGenerationService {
 
       this.logger.log(`✅ Uploaded to Cloudinary: ${uploadResult.secureUrl}`);
 
-      return uploadResult.secureUrl;
+      return {
+        imageUrl: uploadResult.secureUrl,
+        tryOnId: saved.try_on_id,
+      };
     } catch (error) {
       this.logger.error(`Failed to upload and save: ${error.message}`);
       // Don't fail the request if upload fails
-      return '';
+      return {
+        imageUrl: '',
+      };
     }
   }
 }

@@ -10,6 +10,7 @@ import { BodyShapeGuideModal } from "./BodyShapeGuideModal";
 import { SkinToneGuideModal } from "./SkinToneGuideModal";
 
 interface BodyAttributes {
+    height?: number;
     skinTone?: string;
     gender?: string;
     bodyShape?: string;
@@ -55,6 +56,36 @@ export const BodyAttributesForm = ({ attributes, onChange }: BodyAttributesFormP
                 </h3>
                 <div className="flex-1 h-px bg-gradient-to-r from-gold/30 to-transparent" />
             </div>
+
+            {/* Height */}
+            <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.05 }}
+                className="relative"
+            >
+                <label className={labelClass}>Height (cm)</label>
+                <div className="relative">
+                    <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gold/70 pointer-events-none">
+                        <Ruler className="w-5 h-5" />
+                    </div>
+                    <input
+                        type="number"
+                        min={100}
+                        max={250}
+                        step={1}
+                        placeholder="Optional, e.g. 170"
+                        value={attributes.height ?? ""}
+                        onChange={(e) =>
+                            onChange({
+                                ...attributes,
+                                height: e.target.value ? Number(e.target.value) : undefined,
+                            })
+                        }
+                        className={inputClass}
+                    />
+                </div>
+            </motion.div>
 
             {/* Body Shape */}
             <motion.div

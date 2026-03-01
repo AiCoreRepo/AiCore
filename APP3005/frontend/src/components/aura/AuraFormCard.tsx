@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import "./aura-styles.css";
 
 interface BodyAttributes {
+    height?: number;
     skinTone?: string;
     gender?: string;
     bodyShape?: string;

@@ -12,6 +12,17 @@ async function bootstrap() {
   app.use(express.json({ limit: '100mb' }));
   app.use(express.urlencoded({ limit: '100mb', extended: true }));
 
+  // Backward compatibility: support legacy "/api"-prefixed URLs (even repeated).
+  // Internal controllers are mounted without this prefix (for example: /v1/tryon/...).
+  app.use((req, _res, next) => {
+    if (req.url === '/api') {
+      req.url = '/';
+    } else {
+      req.url = req.url.replace(/^(\/api)+\//, '/');
+    }
+    next();
+  });
+
   const cookieMw: RequestHandler = cookieParser();
   app.use(cookieMw);
 
