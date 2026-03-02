@@ -14,6 +14,8 @@ export class RecommendationService {
   private readonly logger = new Logger(RecommendationService.name);
   private readonly fastApiUrl: string;
   private readonly isMlEnabled: boolean;
+  private readonly isDummyOnlyMode: boolean;
+  private readonly recommendationCollectionPath: string;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -50,6 +52,14 @@ export class RecommendationService {
     this.isMlEnabled =
       this.configService.get<string>('RECOMMENDATION_ML_ENABLED', 'true') !==
       'false';
+    this.isDummyOnlyMode =
+      this.configService.get<string>('RECOMMENDATION_DUMMY_ONLY', 'false') ===
+      'true';
+    this.recommendationCollectionPath =
+      this.configService.get<string>(
+        'RECOMMENDATION_COLLECTION_PATH',
+        '/app/main_train_data.csv',
+      ) ?? '/app/main_train_data.csv';
   }
 
   /**
@@ -78,6 +88,17 @@ export class RecommendationService {
     dto: GetRecommendationsDto,
   ): Promise<RecommendationsResponseDto> {
     try {
+      if (this.isDummyOnlyMode) {
+        this.logger.warn(
+          '⚠️ Dummy-only recommendation mode enabled via RECOMMENDATION_DUMMY_ONLY=true',
+        );
+        return this.dummyRecommendationService.getDummyRecommendations(
+          dto.occasion as Occasion,
+          aura?.age_range || null,
+          aura?.skin_tone || null,
+        );
+      }
+
       if (!this.isMlEnabled) {
         this.logger.warn(
           '⚠️ ML recommendations disabled via RECOMMENDATION_ML_ENABLED=false',
@@ -109,19 +130,26 @@ export class RecommendationService {
       const age = this.extractAgeFromAura(aura);
 
       // Extract size from Aura (default to M if not available)
-      const size = this.extractSizeFromAura(aura) || 'M';
+      const size = this.normalizeSize(this.extractSizeFromAura(aura)) || 'M';
+      const requestedTopK = dto.top_k || 12;
+      const topK = Math.min(requestedTopK, 25);
+
+      if (requestedTopK > 25) {
+        this.logger.warn(
+          `top_k ${requestedTopK} capped to ${topK} for ML service max limit 25`,
+        );
+      }
 
       // Prepare request for FastAPI ML model
       const mlRequest = {
         image_base64: imageBase64,
         age: age,
         size: size,
-        body_shape: aura.body_shape || 'Rectangle',
-        skin_tone: aura.skin_tone || 'Medium',
-        occasion: dto.occasion,
-        top_k: dto.top_k || 12,
-        apply_priority_filter: true,
-        apply_priority_weight: true,
+        body_shape: this.normalizeBodyShape(aura.body_shape),
+        skin_tone: this.normalizeSkinTone(aura.skin_tone),
+        occasion: this.normalizeOccasion(dto.occasion),
+        top_k: topK,
+        collection_path: this.recommendationCollectionPath,
       };
 
       this.logger.log(
@@ -164,6 +192,19 @@ export class RecommendationService {
           '⚠️ ML service unavailable, falling back to DB-based recommendations',
         );
 
+        const ageRange = aura?.age_range || null;
+        const skinTone = aura?.skin_tone || null;
+        return this.dummyRecommendationService.getDummyRecommendations(
+          dto.occasion as Occasion,
+          ageRange,
+          skinTone,
+        );
+      }
+
+      if (error.response?.status === 422) {
+        this.logger.warn(
+          `⚠️ ML service rejected payload with 422: ${JSON.stringify(error.response?.data)}`,
+        );
         const ageRange = aura?.age_range || null;
         const skinTone = aura?.skin_tone || null;
         return this.dummyRecommendationService.getDummyRecommendations(
@@ -325,5 +366,87 @@ export class RecommendationService {
     // If Aura has size information, extract it
     // For now, return null to use default
     return null;
+  }
+
+  private normalizeBodyShape(value?: string | null): string {
+    if (!value) {
+      return 'Rectangle';
+    }
+
+    const normalized = value.trim().toLowerCase().replace(/_/g, ' ');
+    const map: Record<string, string> = {
+      'pear shape': 'Pear Shape',
+      'apple shape': 'Apple Shape',
+      'hourglass': 'Hourglass',
+      'rectangle': 'Rectangle',
+      'inverted triangle': 'Inverted Triangle',
+      'inverted_triangle': 'Inverted Triangle',
+    };
+
+    return map[normalized] || this.toTitleCase(value);
+  }
+
+  private normalizeSkinTone(value?: string | null): string {
+    if (!value) {
+      return 'Medium';
+    }
+
+    const normalized = value.trim().toLowerCase();
+    const map: Record<string, string> = {
+      light: 'Light',
+      medium: 'Medium',
+      dusky: 'Dusky',
+      deep: 'Deep',
+    };
+
+    return map[normalized] || this.toTitleCase(value);
+  }
+
+  private normalizeSize(value?: string | null): string | null {
+    if (!value) {
+      return null;
+    }
+
+    const normalized = value.trim().toLowerCase();
+    const map: Record<string, string> = {
+      xs: 'XS',
+      s: 'S',
+      m: 'M',
+      l: 'L',
+      xl: 'XL',
+      xxl: 'XXL',
+    };
+
+    return map[normalized] || value.toUpperCase();
+  }
+
+  private normalizeOccasion(value?: string | null): string {
+    if (!value) {
+      return 'Party';
+    }
+
+    const normalized = value
+      .trim()
+      .toLowerCase()
+      .replace(/_/g, ' ')
+      .replace(/\s+/g, ' ');
+
+    const map: Record<string, string> = {
+      'casual luxury': 'Casual luxury',
+      'formal': 'Formal',
+      'party': 'Party',
+      'wedding': 'Wedding',
+      'resort': 'Resort',
+    };
+
+    return map[normalized] || this.toTitleCase(value);
+  }
+
+  private toTitleCase(value: string): string {
+    return value
+      .split(' ')
+      .filter(Boolean)
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+      .join(' ');
   }
 }
