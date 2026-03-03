@@ -43,6 +43,7 @@ jobs:
         with:
           node-version: '18'
           cache: npm
+          cache-dependency-path: APP3005/aivestire-backend-tmp/package-lock.json
 
       - name: Install Dependencies (Backend)
         run: npm ci
