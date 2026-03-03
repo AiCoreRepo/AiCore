@@ -63,4 +63,4 @@ import { FeedbackModule } from './feedback/feedback.module';
   controllers: [AppController],
   providers: [AppService, AdminSeederService],
 })
-export class AppModule { }
+export class AppModule {}

@@ -20,7 +20,7 @@ import { ReturnStatus } from '@prisma/client';
 @Controller('returns')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class ReturnController {
-  constructor(private readonly returnService: ReturnService) { }
+  constructor(private readonly returnService: ReturnService) {}
 
   /**
    * Request return for delivered order

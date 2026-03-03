@@ -23,10 +23,9 @@ export class RecommendationService {
     private readonly configService: ConfigService,
     private readonly dummyRecommendationService: DummyRecommendationService,
   ) {
-    const configuredUrl = this.configService.get<string>(
-      'FASTAPI_RECOMMENDATION_URL',
-      '',
-    )?.trim();
+    const configuredUrl = this.configService
+      .get<string>('FASTAPI_RECOMMENDATION_URL', '')
+      ?.trim();
 
     const isProductionEnv =
       this.configService.get<string>('NODE_ENV', '') === 'production';
@@ -93,7 +92,7 @@ export class RecommendationService {
           '⚠️ Dummy-only recommendation mode enabled via RECOMMENDATION_DUMMY_ONLY=true',
         );
         return this.dummyRecommendationService.getDummyRecommendations(
-          dto.occasion as Occasion,
+          dto.occasion,
           aura?.age_range || null,
           aura?.skin_tone || null,
         );
@@ -104,7 +103,7 @@ export class RecommendationService {
           '⚠️ ML recommendations disabled via RECOMMENDATION_ML_ENABLED=false',
         );
         return this.dummyRecommendationService.getDummyRecommendations(
-          dto.occasion as Occasion,
+          dto.occasion,
           aura?.age_range || null,
           aura?.skin_tone || null,
         );
@@ -195,7 +194,7 @@ export class RecommendationService {
         const ageRange = aura?.age_range || null;
         const skinTone = aura?.skin_tone || null;
         return this.dummyRecommendationService.getDummyRecommendations(
-          dto.occasion as Occasion,
+          dto.occasion,
           ageRange,
           skinTone,
         );
@@ -208,7 +207,7 @@ export class RecommendationService {
         const ageRange = aura?.age_range || null;
         const skinTone = aura?.skin_tone || null;
         return this.dummyRecommendationService.getDummyRecommendations(
-          dto.occasion as Occasion,
+          dto.occasion,
           ageRange,
           skinTone,
         );
@@ -377,10 +376,10 @@ export class RecommendationService {
     const map: Record<string, string> = {
       'pear shape': 'Pear Shape',
       'apple shape': 'Apple Shape',
-      'hourglass': 'Hourglass',
-      'rectangle': 'Rectangle',
+      hourglass: 'Hourglass',
+      rectangle: 'Rectangle',
       'inverted triangle': 'Inverted Triangle',
-      'inverted_triangle': 'Inverted Triangle',
+      inverted_triangle: 'Inverted Triangle',
     };
 
     return map[normalized] || this.toTitleCase(value);
@@ -433,10 +432,10 @@ export class RecommendationService {
 
     const map: Record<string, string> = {
       'casual luxury': 'Casual luxury',
-      'formal': 'Formal',
-      'party': 'Party',
-      'wedding': 'Wedding',
-      'resort': 'Resort',
+      formal: 'Formal',
+      party: 'Party',
+      wedding: 'Wedding',
+      resort: 'Resort',
     };
 
     return map[normalized] || this.toTitleCase(value);

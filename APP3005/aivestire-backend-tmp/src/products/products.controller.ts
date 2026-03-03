@@ -24,7 +24,7 @@ export class ProductsController {
   constructor(
     private readonly productsService: ProductsService,
     private readonly bulkUploadService: BulkUploadService,
-  ) { }
+  ) {}
 
   /**
    * GET /products/approved

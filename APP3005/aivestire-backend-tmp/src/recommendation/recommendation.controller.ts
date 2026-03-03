@@ -34,7 +34,7 @@ export class RecommendationController {
   constructor(
     private readonly recommendationService: RecommendationService,
     private readonly dummyRecommendationService: DummyRecommendationService,
-  ) { }
+  ) {}
 
   @Post('ai-decide')
   @HttpCode(HttpStatus.OK)

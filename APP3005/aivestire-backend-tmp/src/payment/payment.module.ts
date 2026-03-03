@@ -16,4 +16,4 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
   providers: [PaymentService, RazorpayGatewayService],
   exports: [PaymentService, RazorpayGatewayService],
 })
-export class PaymentModule { }
+export class PaymentModule {}

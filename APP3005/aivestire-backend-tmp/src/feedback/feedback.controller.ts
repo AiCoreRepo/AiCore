@@ -1,11 +1,4 @@
-import {
-  Body,
-  Controller,
-  Get,
-  Post,
-  Query,
-  UseGuards,
-} from '@nestjs/common';
+import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
 import { FeedbackContextType } from '@prisma/client';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -35,8 +28,12 @@ export class FeedbackController {
     @Query('limit') limit?: string,
   ) {
     const parsedLimit = limit ? Number.parseInt(limit, 10) : 50;
-    const parsedMinRating = minRating ? Number.parseInt(minRating, 10) : undefined;
-    const parsedMaxRating = maxRating ? Number.parseInt(maxRating, 10) : undefined;
+    const parsedMinRating = minRating
+      ? Number.parseInt(minRating, 10)
+      : undefined;
+    const parsedMaxRating = maxRating
+      ? Number.parseInt(maxRating, 10)
+      : undefined;
 
     return this.feedbackService.getAdminFeedback(
       contextType,

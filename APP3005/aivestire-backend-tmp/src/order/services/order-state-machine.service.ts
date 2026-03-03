@@ -44,7 +44,11 @@ export class OrderStateMachineService {
    * Validate COD collection before marking as delivered
    * We skip this validation if the admin is overriding
    */
-  validateCOD(order: Order, newStatus: OrderStatus, isAdminOverride: boolean = false): void {
+  validateCOD(
+    order: Order,
+    newStatus: OrderStatus,
+    isAdminOverride: boolean = false,
+  ): void {
     if (isAdminOverride) {
       return;
     }

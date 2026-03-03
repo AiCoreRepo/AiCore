@@ -22,7 +22,7 @@ export class OrderController {
   constructor(
     private readonly orderService: OrderService,
     private readonly trackingService: TrackingService,
-  ) { }
+  ) {}
 
   /**
    * Create a new order
@@ -39,7 +39,10 @@ export class OrderController {
   @Get('all')
   async getAllOrders(@Request() req) {
     // Check if user is admin
-    const role = typeof req.user.role === 'string' ? req.user.role.toUpperCase() : req.user.role;
+    const role =
+      typeof req.user.role === 'string'
+        ? req.user.role.toUpperCase()
+        : req.user.role;
     if (role !== UserRole.ADMIN) {
       throw new Error('Unauthorized - Admin access required');
     }
@@ -72,7 +75,10 @@ export class OrderController {
     @Body() updateStatusDto: UpdateOrderStatusDto,
   ) {
     // Check if user is admin or delivery partner
-    const role = typeof req.user.role === 'string' ? req.user.role.toUpperCase() : req.user.role;
+    const role =
+      typeof req.user.role === 'string'
+        ? req.user.role.toUpperCase()
+        : req.user.role;
     if (![UserRole.ADMIN, 'DELIVERY_PARTNER' as any].includes(role)) {
       throw new Error('Unauthorized');
     }

@@ -17,7 +17,7 @@ export class FeedbackService {
     const feedback = await this.prisma.feedback.create({
       data: {
         user_id: userId,
-        context_type: dto.context_type as FeedbackContextType,
+        context_type: dto.context_type,
         context_reference_id: dto.context_reference_id,
         context_label: dto.context_label,
         rating: dto.rating,

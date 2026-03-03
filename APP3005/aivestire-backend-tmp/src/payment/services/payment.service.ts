@@ -40,7 +40,7 @@ export class PaymentService {
     private readonly prisma: PrismaService,
     private readonly razorpayGateway: RazorpayGatewayService,
     private readonly eventEmitter: EventEmitter2,
-  ) { }
+  ) {}
 
   // ============================================
   // INITIATE PAYMENT (Create Razorpay Order)
@@ -97,9 +97,9 @@ export class PaymentService {
     const amountInPaise =
       RAZORPAY_CONSTANTS.MIN_AMOUNT_PAISE > 0
         ? Math.max(
-          this.decimalToPaise(Number(order.total_amount)),
-          RAZORPAY_CONSTANTS.MIN_AMOUNT_PAISE,
-        )
+            this.decimalToPaise(Number(order.total_amount)),
+            RAZORPAY_CONSTANTS.MIN_AMOUNT_PAISE,
+          )
         : this.decimalToPaise(Number(order.total_amount));
 
     // 6. Generate receipt

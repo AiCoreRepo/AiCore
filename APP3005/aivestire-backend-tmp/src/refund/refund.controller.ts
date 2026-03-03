@@ -18,7 +18,7 @@ import { RefundStatus } from '@prisma/client';
 @Controller('refunds')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class RefundController {
-  constructor(private readonly refundService: RefundService) { }
+  constructor(private readonly refundService: RefundService) {}
 
   /**
    * Request refund for cancelled order

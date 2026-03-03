@@ -19,7 +19,7 @@ import { ReplacementStatus } from '@prisma/client';
 @Controller('replacements')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class ReplacementController {
-  constructor(private readonly replacementService: ReplacementService) { }
+  constructor(private readonly replacementService: ReplacementService) {}
 
   /**
    * Request replacement for delivered order

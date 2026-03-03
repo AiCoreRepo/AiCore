@@ -30,7 +30,7 @@ export class AngleGenerationController {
   constructor(
     private readonly angleGenerationService: AngleGenerationService,
     private readonly sessionManager: AngleSessionManagerService,
-  ) { }
+  ) {}
 
   /**
    * Generate next angle in sequence from try-on image

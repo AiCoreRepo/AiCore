@@ -41,7 +41,7 @@ export class AuthService {
     private prisma: PrismaService,
     private jwtService: JwtService,
     private otpService: OtpService,
-  ) { }
+  ) {}
 
   private slugify(input: string): string {
     return input
@@ -440,13 +440,20 @@ export class AuthService {
       if (!isBcryptModule(bcryptMod)) {
         throw new Error('Failed to load bcrypt module');
       }
-      const refresh_token_hash: string = await bcryptMod.hash(tokens.refresh_token, 10);
+      const refresh_token_hash: string = await bcryptMod.hash(
+        tokens.refresh_token,
+        10,
+      );
       await this.prisma.user.update({
         where: { user_id: user.user_id },
         data: { refresh_token_hash, last_login: new Date() },
       });
 
-      res.cookie('refresh_token', tokens.refresh_token, REFRESH_TOKEN_COOKIE_OPTIONS);
+      res.cookie(
+        'refresh_token',
+        tokens.refresh_token,
+        REFRESH_TOKEN_COOKIE_OPTIONS,
+      );
 
       return {
         access_token: tokens.access_token,

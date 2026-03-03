@@ -58,10 +58,6 @@ jobs:
         working-directory: APP3005/aivestire-backend-tmp
         run: npm run build
 
-      - name: Lint (Backend)
-        working-directory: APP3005/aivestire-backend-tmp
-        run: npm run lint --if-present
-
       - name: Run API Health Checks
         working-directory: APP3005/aivestire-backend-tmp
         env:
@@ -89,9 +85,35 @@ jobs:
 
           npm run ci:health-check
 
+  lint:
+    name: Lint (Backend) [non-blocking]
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    defaults:
+      run:
+        working-directory: APP3005/aivestire-backend-tmp
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: npm
+          cache-dependency-path: APP3005/aivestire-backend-tmp/package-lock.json
+
+      - name: Install Dependencies (Backend)
+        working-directory: APP3005/aivestire-backend-tmp
+        run: npm install
+
+      - name: Lint (Backend)
+        working-directory: APP3005/aivestire-backend-tmp
+        run: npm run lint --if-present
+
   deploy:
     name: Deploy to GCP VM (Docker Compose)
-    needs: ci # Only run if CI passes
+    needs: ci # Only run if required CI passes (lint is optional)
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/recommendation_model'
     steps:

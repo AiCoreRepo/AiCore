@@ -17,7 +17,7 @@ export class AuraService {
     private readonly prisma: PrismaService,
     private readonly cloudinary: CloudinaryService,
     private readonly auraQueue: AuraQueueService,
-  ) { }
+  ) {}
 
   private readonly MAX_RECREATION_ATTEMPTS = 1;
 
@@ -36,17 +36,23 @@ export class AuraService {
   ): number {
     return typeof valueFromPayload === 'number'
       ? valueFromPayload
-      : valueFromAura ?? fallback;
+      : (valueFromAura ?? fallback);
   }
 
-  async createAura(userId: string, file: Express.Multer.File, attributes: CreateAuraDto) {
+  async createAura(
+    userId: string,
+    file: Express.Multer.File,
+    attributes: CreateAuraDto,
+  ) {
     // Check if user already has an Aura
     const existingAura = await this.prisma.aura.findUnique({
       where: { user_id: userId },
     });
 
     if (existingAura) {
-      throw new ConflictException('User already has an Aura. Only one Aura per user is allowed.');
+      throw new ConflictException(
+        'User already has an Aura. Only one Aura per user is allowed.',
+      );
     }
 
     try {
@@ -106,7 +112,9 @@ export class AuraService {
       };
     } catch (error) {
       console.error('Error creating Aura:', error);
-      throw new InternalServerErrorException('Failed to create Aura. Please try again.');
+      throw new InternalServerErrorException(
+        'Failed to create Aura. Please try again.',
+      );
     }
   }
 
@@ -114,13 +122,19 @@ export class AuraService {
     return this.auraQueue.getJobStatus(jobId);
   }
 
-  async recreateAura(userId: string, file: Express.Multer.File | undefined, attributes: CreateAuraDto) {
+  async recreateAura(
+    userId: string,
+    file: Express.Multer.File | undefined,
+    attributes: CreateAuraDto,
+  ) {
     const existingAura = await this.prisma.aura.findUnique({
       where: { user_id: userId },
     });
 
     if (!existingAura) {
-      throw new ConflictException('No Aura found for this user. Please create one first.');
+      throw new ConflictException(
+        'No Aura found for this user. Please create one first.',
+      );
     }
 
     const user = await this.prisma.user.findUnique({
@@ -145,7 +159,9 @@ export class AuraService {
     }
 
     if (!sourceImageUrl) {
-      throw new BadRequestException('No source image available for regeneration.');
+      throw new BadRequestException(
+        'No source image available for regeneration.',
+      );
     }
 
     const updatePayload = {
@@ -179,9 +195,7 @@ export class AuraService {
         });
 
         if (updatedUser.count === 0) {
-          throw new ConflictException(
-            'You can recreate your Aura only once.',
-          );
+          throw new ConflictException('You can recreate your Aura only once.');
         }
 
         await tx.aura.update({
@@ -337,7 +351,10 @@ export class AuraService {
       }
 
       // Add any generated avatar URLs
-      if (existingAura.generated_avatar_urls && existingAura.generated_avatar_urls.length > 0) {
+      if (
+        existingAura.generated_avatar_urls &&
+        existingAura.generated_avatar_urls.length > 0
+      ) {
         imagesToDelete.push(...existingAura.generated_avatar_urls);
       }
 
@@ -348,7 +365,11 @@ export class AuraService {
           await this.cloudinary.deleteImage(imageUrl);
           console.log('✅ Deleted:', imageUrl);
         } catch (error) {
-          console.error('⚠️ Failed to delete image from Cloudinary:', imageUrl, error);
+          console.error(
+            '⚠️ Failed to delete image from Cloudinary:',
+            imageUrl,
+            error,
+          );
           // Continue even if Cloudinary deletion fails
         }
       }
@@ -366,7 +387,9 @@ export class AuraService {
       };
     } catch (error) {
       console.error('Error deleting Aura:', error);
-      throw new InternalServerErrorException('Failed to delete Aura. Please try again.');
+      throw new InternalServerErrorException(
+        'Failed to delete Aura. Please try again.',
+      );
     }
   }
 }

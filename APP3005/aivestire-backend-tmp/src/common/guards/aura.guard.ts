@@ -13,22 +13,24 @@ import { AuraStatus } from '@prisma/client';
  */
 @Injectable()
 export class AuraGuard implements CanActivate {
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(private readonly prisma: PrismaService) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
     const authenticatedUserId = request.user?.user_id;
-    const requestedUserId = request.body?.userId || request.params?.userId || request.query?.userId;
+    const requestedUserId =
+      request.body?.userId || request.params?.userId || request.query?.userId;
     const userId = authenticatedUserId || requestedUserId;
 
     if (!userId) {
-      throw new HttpException(
-        'User ID is required',
-        HttpStatus.BAD_REQUEST,
-      );
+      throw new HttpException('User ID is required', HttpStatus.BAD_REQUEST);
     }
 
-    if (authenticatedUserId && requestedUserId && requestedUserId.toString() !== authenticatedUserId.toString()) {
+    if (
+      authenticatedUserId &&
+      requestedUserId &&
+      requestedUserId.toString() !== authenticatedUserId.toString()
+    ) {
       throw new HttpException(
         'User ID does not match authenticated user.',
         HttpStatus.FORBIDDEN,

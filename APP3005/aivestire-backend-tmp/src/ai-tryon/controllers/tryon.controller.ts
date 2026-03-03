@@ -60,7 +60,7 @@ export class TryOnController {
     private readonly directVertexService: DirectVertexTryOnService,
     private readonly bodyAnalyzerService: BodyAnalyzerService,
     private readonly tryOn3DService: TryOn3DService,
-  ) { }
+  ) {}
 
   /**
    * Virtual try-on using Vertex AI

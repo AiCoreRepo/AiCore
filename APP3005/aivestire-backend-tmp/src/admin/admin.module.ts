@@ -10,4 +10,4 @@ import { AdminAuthModule } from '../auth/admin/admin-auth.module';
   providers: [AdminService],
   exports: [AdminService],
 })
-export class AdminModule { }
+export class AdminModule {}

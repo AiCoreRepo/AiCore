@@ -33,7 +33,7 @@ export class OrderService {
     private readonly prisma: PrismaService,
     private readonly stateMachine: OrderStateMachineService,
     private readonly eventEmitter: EventEmitter2,
-  ) { }
+  ) {}
 
   /**
    * Generate unique order number
@@ -133,7 +133,10 @@ export class OrderService {
     console.log('Total Amount:', totalAmount);
 
     // COD orders are instantly confirmed/booked. Prepaid wait for payment.
-    const initialStatus = dto.paymentMethod === PaymentMethod.COD ? OrderStatus.BOOKED : OrderStatus.PENDING;
+    const initialStatus =
+      dto.paymentMethod === PaymentMethod.COD
+        ? OrderStatus.BOOKED
+        : OrderStatus.PENDING;
 
     // Create order in transaction
     const order = await this.prisma.$transaction(
@@ -261,31 +264,49 @@ export class OrderService {
         const isStatusUnchanged = currentOrder.current_status === dto.status;
 
         // If status is unchanged AND no other fields are provided, return early
-        if (isStatusUnchanged && !dto.trackingNumber && !dto.deliveryPartner && !dto.paymentStatus && dto.returnStatus === undefined && dto.replaceStatus === undefined && !dto.notes && !dto.customReason) {
-          this.logger.log(`Order already in ${dto.status} state with no metadata changes`);
+        if (
+          isStatusUnchanged &&
+          !dto.trackingNumber &&
+          !dto.deliveryPartner &&
+          !dto.paymentStatus &&
+          dto.returnStatus === undefined &&
+          dto.replaceStatus === undefined &&
+          !dto.notes &&
+          !dto.customReason
+        ) {
+          this.logger.log(
+            `Order already in ${dto.status} state with no metadata changes`,
+          );
           return currentOrder;
         }
 
         // Validate transition only if the main status is changing
         if (!isStatusUnchanged) {
           const isAdmin = userRole === UserRole.ADMIN;
-          this.stateMachine.validateTransition(currentOrder, dto.status, isAdmin);
+          this.stateMachine.validateTransition(
+            currentOrder,
+            dto.status,
+            isAdmin,
+          );
         }
 
         // Update order
         const updatedData: any = {
           current_status: dto.status,
           tracking_number: dto.trackingNumber || currentOrder.tracking_number,
-          delivery_partner: dto.deliveryPartner || currentOrder.delivery_partner,
+          delivery_partner:
+            dto.deliveryPartner || currentOrder.delivery_partner,
         };
         if (dto.paymentStatus) {
           updatedData.payment_status = dto.paymentStatus;
         }
         if (dto.returnStatus !== undefined) {
-          updatedData.return_status = dto.returnStatus === '' ? null : dto.returnStatus;
+          updatedData.return_status =
+            dto.returnStatus === '' ? null : dto.returnStatus;
         }
         if (dto.replaceStatus !== undefined) {
-          updatedData.replace_status = dto.replaceStatus === '' ? null : dto.replaceStatus;
+          updatedData.replace_status =
+            dto.replaceStatus === '' ? null : dto.replaceStatus;
         }
 
         const updatedOrder = await tx.order.update({

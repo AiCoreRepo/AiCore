@@ -2,7 +2,9 @@ import { EmailTemplate } from '../enums/email.enums';
 
 function getEmailWrapper(title: string, content: string, context: any) {
   const isProd = process.env.NODE_ENV === 'production';
-  const frontendUrl = process.env.FRONTEND_URL || (isProd ? 'https://aivestire.com' : 'http://localhost:8080');
+  const frontendUrl =
+    process.env.FRONTEND_URL ||
+    (isProd ? 'https://aivestire.com' : 'http://localhost:8080');
   const orderUrl = `${frontendUrl}/user/orders`; // Frontend URL route
 
   let itemsHtml = '';
@@ -19,13 +21,17 @@ function getEmailWrapper(title: string, content: string, context: any) {
             </tr>
           </thead>
           <tbody>
-            ${context.items.map((item: any) => `
+            ${context.items
+              .map(
+                (item: any) => `
               <tr style="border-bottom: 1px solid #f3f4f6;">
                 <td style="padding: 16px 0; color: #374151; font-weight: 500; font-size: 14px; width: 60%;">${item.name}</td>
                 <td style="padding: 16px 0; color: #6b7280; text-align: center; font-size: 14px;">${item.quantity}</td>
                 <td style="padding: 16px 0; color: #111827; text-align: right; font-weight: 600; font-size: 14px;">₹${item.price}</td>
               </tr>
-            `).join('')}
+            `,
+              )
+              .join('')}
           </tbody>
           <tfoot>
             <tr>
@@ -114,11 +120,22 @@ export const EmailUtils = {
   getSubjectForTemplate(template: EmailTemplate, context: any): string {
     switch (template) {
       case EmailTemplate.ORDER_CONFIRMATION:
-        return 'Order Confirmation: Your AiVestire order #' + context.orderNumber + ' has been successfully placed';
+        return (
+          'Order Confirmation: Your AiVestire order #' +
+          context.orderNumber +
+          ' has been successfully placed'
+        );
       case EmailTemplate.ORDER_CANCELLED:
-        return 'Order Cancelled: Update regarding your AiVestire order #' + context.orderNumber;
+        return (
+          'Order Cancelled: Update regarding your AiVestire order #' +
+          context.orderNumber
+        );
       case EmailTemplate.ORDER_DELIVERED:
-        return 'Delivered: Your AiVestire order #' + context.orderNumber + ' has been delivered';
+        return (
+          'Delivered: Your AiVestire order #' +
+          context.orderNumber +
+          ' has been delivered'
+        );
       default:
         return 'Notification from AiVestire';
     }
@@ -129,7 +146,9 @@ export const EmailUtils = {
 
     switch (template) {
       case EmailTemplate.ORDER_CONFIRMATION:
-        return getEmailWrapper('Order Confirmed', `
+        return getEmailWrapper(
+          'Order Confirmed',
+          `
           <h2 style="color: #0f172a; margin-top: 0; margin-bottom: 20px; font-size: 22px; font-weight: 600;">Order Confirmation</h2>
           <p style="color: #334155; font-size: 15px; line-height: 1.6; margin-bottom: 24px;">
             Dear <strong>${userName}</strong>,<br><br>
@@ -140,29 +159,41 @@ export const EmailUtils = {
               You can track the status of your order at any time by clicking the button below.
             </p>
           </div>
-        `, context);
+        `,
+          context,
+        );
 
       case EmailTemplate.ORDER_CANCELLED:
-        return getEmailWrapper('Order Cancelled', `
+        return getEmailWrapper(
+          'Order Cancelled',
+          `
           <h2 style="color: #0f172a; margin-top: 0; margin-bottom: 20px; font-size: 22px; font-weight: 600;">Order Cancellation Request Processed</h2>
           <p style="color: #334155; font-size: 15px; line-height: 1.6; margin-bottom: 24px;">
             Dear <strong>${userName}</strong>,<br><br>
             This email is to confirm that your order <strong>#${context.orderNumber}</strong> has been cancelled successfully as requested.
           </p>
-          ${context.reason ? `
+          ${
+            context.reason
+              ? `
           <div style="background-color: #fef2f2; border: 1px solid #fee2e2; border-left: 4px solid #ef4444; padding: 16px; margin-bottom: 24px; border-radius: 4px;">
             <p style="margin: 0; color: #991b1b; font-size: 14px; line-height: 1.5;">
               <strong>Reason for cancellation:</strong> ${context.reason}
             </p>
           </div>
-          ` : ''}
+          `
+              : ''
+          }
           <p style="color: #475569; font-size: 14px; line-height: 1.6;">
             If you have already paid for this order, the full amount will be refunded to your original payment method automatically within 5-7 business days. We hope to serve you again soon.
           </p>
-        `, context);
+        `,
+          context,
+        );
 
       case EmailTemplate.ORDER_DELIVERED:
-        return getEmailWrapper('Order Delivered', `
+        return getEmailWrapper(
+          'Order Delivered',
+          `
           <h2 style="color: #0f172a; margin-top: 0; margin-bottom: 20px; font-size: 22px; font-weight: 600;">Your Order Has Been Delivered</h2>
           <p style="color: #334155; font-size: 15px; line-height: 1.6; margin-bottom: 20px;">
             Dear <strong>${userName}</strong>,<br><br>
@@ -171,12 +202,18 @@ export const EmailUtils = {
           <p style="color: #334155; font-size: 15px; line-height: 1.6; margin-bottom: 24px;">
             Thank you for choosing AiVestire. We hope you enjoy your new purchase and look forward to seeing you again.
           </p>
-        `, context);
+        `,
+          context,
+        );
 
       default:
-        return getEmailWrapper('Notification', `
+        return getEmailWrapper(
+          'Notification',
+          `
           <p style="color: #334155; font-size: 15px; line-height: 1.6;">Dear Customer, this is a notification regarding your recent activity on AiVestire.</p>
-        `, context);
+        `,
+          context,
+        );
     }
   },
 };

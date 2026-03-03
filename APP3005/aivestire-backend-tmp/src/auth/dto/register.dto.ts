@@ -20,7 +20,10 @@ export class RegisterDto {
 
   @IsOptional()
   @IsString()
-  @Matches(/^\+\d{10,15}$/, { message: 'phoneNumber must be a valid international phone number with country code' })
+  @Matches(/^\+\d{10,15}$/, {
+    message:
+      'phoneNumber must be a valid international phone number with country code',
+  })
   phoneNumber!: string;
 
   @Transform(({ value }) => value as UserRole)

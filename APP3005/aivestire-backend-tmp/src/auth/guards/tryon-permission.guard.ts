@@ -8,7 +8,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
 export class TryOnPermissionGuard implements CanActivate {
-  constructor(private prisma: PrismaService) { }
+  constructor(private prisma: PrismaService) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
@@ -28,13 +28,15 @@ export class TryOnPermissionGuard implements CanActivate {
     });
 
     if (!dbUser || dbUser.try_on_permission !== 'APPROVED') {
-      throw new ForbiddenException('You do not have permission to use Virtual Try-On. Please request access.');
+      throw new ForbiddenException(
+        'You do not have permission to use Virtual Try-On. Please request access.',
+      );
     }
 
     const effectiveTryOnLimit = Math.min(dbUser.max_try_ons, 3);
     if (dbUser.try_ons_used >= effectiveTryOnLimit) {
       throw new ForbiddenException(
-        `Virtual Try-On limit reached. You can use it up to ${effectiveTryOnLimit} times.`
+        `Virtual Try-On limit reached. You can use it up to ${effectiveTryOnLimit} times.`,
       );
     }
 
