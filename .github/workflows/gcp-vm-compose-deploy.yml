@@ -48,13 +48,7 @@ jobs:
       - name: Install Dependencies (Backend)
         working-directory: APP3005/aivestire-backend-tmp
         run: |
-          if [ -f package-lock.json ] || [ -f npm-shrinkwrap.json ]; then
-            echo "Using npm ci with lockfile."
-            npm ci
-          else
-            echo "No lockfile found in APP3005/aivestire-backend-tmp, using npm install."
-            npm install
-          fi
+          npm install
 
       - name: Run Tests (Backend)
         working-directory: APP3005/aivestire-backend-tmp
