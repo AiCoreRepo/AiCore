@@ -46,18 +46,28 @@ jobs:
           cache-dependency-path: APP3005/aivestire-backend-tmp/package-lock.json
 
       - name: Install Dependencies (Backend)
-        run: npm ci
+        working-directory: APP3005/aivestire-backend-tmp
+        run: |
+          if [ ! -f package-lock.json ] && [ ! -f npm-shrinkwrap.json ]; then
+            echo "Missing lockfile. Add package-lock.json at APP3005/aivestire-backend-tmp or switch this step to npm install."
+            exit 1
+          fi
+          npm ci
 
       - name: Run Tests (Backend)
+        working-directory: APP3005/aivestire-backend-tmp
         run: npm run test --if-present
 
       - name: Build (Backend)
+        working-directory: APP3005/aivestire-backend-tmp
         run: npm run build
 
       - name: Lint (Backend)
+        working-directory: APP3005/aivestire-backend-tmp
         run: npm run lint --if-present
 
       - name: Run API Health Checks
+        working-directory: APP3005/aivestire-backend-tmp
         env:
           PORT: 3000
           DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/postgres
