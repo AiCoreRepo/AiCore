@@ -1,37 +1,43 @@
-# 🚀 Deployment Guide: Render + GitHub
+# 🚀 Deployment Guide: GitHub Actions + GCP VM + Docker Compose
 
-You have two options to deploy. **Option 1 is the easiest** and recommended if you just want it to work automatically.
+This repo now uses:
 
-## Option 1: Simple Auto-Deploy (Recommended)
-**No GitHub Actions needed.** Render simply watches your `main` branch.
+- CI checks on `pull_request` to `recommendation_model`.
+- Deploy to a GCP VM via SSH on `push` to `recommendation_model` only after CI passes.
+- Server deployment is done using your existing `docker-compose.yml`.
 
-### How it works:
-1.  You work on `dev`.
-2.  When you merge `dev` -> `main`, Render sees the change and automatically deploys.
+## Required GitHub secrets/variables
 
-### Setup Steps:
-1.  **Push Code**: Ensure `render.yaml` is in your `main` branch.
-2.  **Go to Render**: Log in to [Render.com](https://render.com).
-3.  **Create Blueprint**: Click **New +** -> **Blueprint**.
-4.  **Connect Repo**: Select your GitHub repository.
-5.  **Select Branch**: Make sure to select `main`.
-6.  **Apply**: Click **Apply**. Render reads `render.yaml` and deploys everything.
+- `GCP_INSTANCE_HOST` (secret): Public IP or DNS of the VM.
+- `GCP_INSTANCE_USER` (secret): SSH username on the VM.
+- `GCP_INSTANCE_SSH_KEY` (secret): Private SSH key content (`-----BEGIN...` to `-----END...`).
+- `GCP_DEPLOY_PATH` (variable): Absolute path on VM containing the checked-out repository.
+- `GCP_SERVER_BASE_URL` (variable): Public URL for post-deploy API checks (for example `https://api.yourdomain.com`).
+- `GCP_COMPOSE_FILE` (optional variable): Compose filename under deploy path. Defaults to `docker-compose.yml` if omitted.
+- `GCP_COMPOSE_SERVICES` (optional variable): Space-separated services to deploy. Default is `backend frontend body-analyzer recommendation-api` (so recommendation model service is kept).
 
-**That's it!** Now, every time you update `main`, Render deploys automatically.
+## CI checks included
 
----
+- Backend install/test/build/lint.
+- Local API smoke checks (`/`, `/health`, `/api/v1/tryon/health`).
 
-## Option 2: Advanced Control (GitHub Actions)
-Use this ONLY if you want to run tests *before* deploying, or want manual control.
+## Server-side requirements
 
-### How it works:
-1.  GitHub Actions runs tests when you push to `main`.
-2.  If tests pass, it tells Render to deploy.
+- VM has Docker and Docker Compose installed.
+- VM has this repository checked out at `GCP_DEPLOY_PATH`.
+- VM can authenticate pull/fetch for the repo when `git fetch/reset` runs.
 
-### Setup Steps:
-1.  **Disable Auto-Deploy**: In Render Dashboard -> Settings -> **Auto-Deploy: No**.
-2.  **Get Deploy Hook**: In Render Settings, copy the **Deploy Hook URL**.
-3.  **Add Secret**: Go to GitHub Repo -> Settings -> Secrets -> New Secret.
-    -   Name: `RENDER_DEPLOY_HOOK`
-    -   Value: (Paste the URL)
-4.  **Workflow**: The `.github/workflows/render-deploy.yml` file I created handles the rest.
+## Deployment behavior
+
+`deploy` job runs:
+
+1. SSH into VM using provided host/user/key.
+2. `git fetch` + `git reset --hard origin/recommendation_model` in `GCP_DEPLOY_PATH`.
+3. `docker compose -f <compose file> pull`.
+4. `docker compose -f <compose file> up -d --build <services>` (default includes `backend frontend body-analyzer recommendation-api`).
+5. Post-deploy health checks against `GCP_SERVER_BASE_URL`.
+
+## Notes
+
+- If you want zero-bootstrapping on new VM, keep `GCP_DEPLOY_PATH` on a persistent volume and pre-clone the repository.
+- If your VM is behind a reverse proxy and API base is not directly reachable, set `GCP_SERVER_BASE_URL` accordingly.

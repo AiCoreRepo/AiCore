@@ -1,0 +1,191 @@
+name: CI/CD Pipeline (GCP VM Compose)
+
+on:
+  pull_request:
+    branches:
+      - recommendation_model
+  push:
+    branches:
+      - recommendation_model
+
+jobs:
+  ci:
+    name: Backend CI
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    defaults:
+      run:
+        working-directory: APP3005/aivestire-backend-tmp
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: npm
+
+      - name: Install Dependencies (Backend)
+        run: npm ci
+
+      - name: Run Tests (Backend)
+        run: npm run test --if-present
+
+      - name: Build (Backend)
+        run: npm run build
+
+      - name: Lint (Backend)
+        run: npm run lint --if-present
+
+      - name: Run API Health Checks
+        env:
+          PORT: 3000
+          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/postgres
+          REDIS_HOST: 127.0.0.1
+          REDIS_PORT: 6379
+          JWT_SECRET: ci-jwt-secret
+          JWT_EXPIRATION_TIME: 1h
+          JWT_REFRESH_EXPIRATION_TIME: 7d
+          ADMIN_JWT_SECRET: ci-admin-jwt-secret
+          ADMIN_SECRET: ci-admin-secret
+          NODE_ENV: test
+        run: |
+          npm run start:prod > backend-server.log 2>&1 &
+          BACKEND_PID=$!
+
+          cleanup() {
+            if kill -0 "$BACKEND_PID" >/dev/null 2>&1; then
+              kill "$BACKEND_PID" >/dev/null 2>&1 || true
+              wait "$BACKEND_PID" 2>/dev/null || true
+            fi
+          }
+          trap cleanup EXIT
+
+          npm run ci:health-check
+
+  deploy:
+    name: Deploy to GCP VM (Docker Compose)
+    needs: ci # Only run if CI passes
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/recommendation_model'
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Deploy with Docker Compose on VM
+        run: |
+          if [ -z "${{ secrets.GCP_INSTANCE_HOST }}" ] || [ -z "${{ secrets.GCP_INSTANCE_USER }}" ] || [ -z "${{ secrets.GCP_INSTANCE_SSH_KEY }}" ] || [ -z "${{ vars.GCP_DEPLOY_PATH }}" ]; then
+            echo "Missing required deployment config: GCP_INSTANCE_HOST, GCP_INSTANCE_USER, GCP_INSTANCE_SSH_KEY, or GCP_DEPLOY_PATH."
+            exit 1
+          fi
+
+          COMPOSE_FILE="${{ vars.GCP_COMPOSE_FILE }}"
+          if [ -z "$COMPOSE_FILE" ]; then
+            COMPOSE_FILE="docker-compose.yml"
+          fi
+          COMPOSE_SERVICES="${{ vars.GCP_COMPOSE_SERVICES }}"
+          if [ -z "$COMPOSE_SERVICES" ]; then
+            COMPOSE_SERVICES="backend frontend body-analyzer recommendation-api"
+          fi
+
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.GCP_INSTANCE_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa \
+            "${{ secrets.GCP_INSTANCE_USER }}@${{ secrets.GCP_INSTANCE_HOST }}" <<EOF
+          set -e
+          COMPOSE_FILE="${COMPOSE_FILE}"
+          COMPOSE_SERVICES="${COMPOSE_SERVICES}"
+          case " $COMPOSE_SERVICES " in
+            *" recommendation-api "*) ;;
+            *)
+              echo "GCP_COMPOSE_SERVICES must include 'recommendation-api'."
+              exit 1
+              ;;
+          esac
+          if command -v docker-compose >/dev/null 2>&1; then
+            COMPOSE_CMD="docker-compose"
+          else
+            COMPOSE_CMD="docker compose"
+          fi
+          DEPLOY_PATH="${{ vars.GCP_DEPLOY_PATH }}"
+          if [ -z "$DEPLOY_PATH" ] || [ "$DEPLOY_PATH" = "/" ]; then
+            echo "Invalid deploy path: $DEPLOY_PATH"
+            exit 1
+          fi
+
+          if [ ! -d "$DEPLOY_PATH" ]; then
+            echo "Deploy path does not exist: $DEPLOY_PATH"
+            exit 1
+          fi
+
+          cd "$DEPLOY_PATH"
+
+          if [ -d .git ]; then
+            git fetch origin
+            git checkout recommendation_model
+            git reset --hard "origin/recommendation_model"
+          else
+            echo "No git repository found at $DEPLOY_PATH. Expected checked-out repo on VM."
+            exit 1
+          fi
+
+          $COMPOSE_CMD -f "$COMPOSE_FILE" pull $COMPOSE_SERVICES
+          $COMPOSE_CMD -f "$COMPOSE_FILE" up -d --build $COMPOSE_SERVICES
+          $COMPOSE_CMD -f "$COMPOSE_FILE" ps $COMPOSE_SERVICES
+
+          check_url() {
+            local url="$1"
+            local timeout="${2:-60}"
+            local elapsed=0
+            while [ "$elapsed" -lt "$timeout" ]; do
+              if curl -fsS "$url" > /tmp/health_response.txt; then
+                echo "Health check passed for $url"
+                return 0
+              fi
+              sleep 2
+              elapsed=$((elapsed + 2))
+            done
+            echo "Health check failed for $url"
+            cat /tmp/health_response.txt
+            return 1
+          }
+
+          check_url "http://127.0.0.1:3005/api/health" 120
+          check_url "http://127.0.0.1:3005/api/v1/tryon/health" 120
+          check_url "http://127.0.0.1:8799/health" 120
+          $COMPOSE_CMD -f "$COMPOSE_FILE" ps recommendation-api | grep -q "Up" || {
+            echo "recommendation-api container is not running"
+            exit 1
+          }
+          EOF
+
+      - name: Verify deployed API (health checks)
+        working-directory: APP3005/aivestire-backend-tmp
+        run: |
+          if [ -z "${{ vars.GCP_SERVER_BASE_URL }}" ]; then
+            echo "Missing GCP_SERVER_BASE_URL (expected in GitHub Variables)."
+            exit 1
+          fi
+          curl -fsS "${{ vars.GCP_SERVER_BASE_URL }}/api/health"
+          curl -fsS "${{ vars.GCP_SERVER_BASE_URL }}/api/v1/tryon/health"

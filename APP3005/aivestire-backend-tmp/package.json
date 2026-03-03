@@ -24,7 +24,8 @@
     "script:migrate-draft": "ts-node scripts/migrate-products-to-draft.ts",
     "script:cleanup-users": "ts-node scripts/cleanup-users.ts",
     "script:delete-auras": "ts-node scripts/delete-auras.ts",
-    "prisma:generate": "npx prisma generate"
+    "prisma:generate": "npx prisma generate",
+    "ci:health-check": "node ./scripts/ci-smoke-check.mjs"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

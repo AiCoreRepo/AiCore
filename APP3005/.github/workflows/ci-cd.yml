@@ -1,0 +1,90 @@
+name: CI - Build and API Gate
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - master
+
+jobs:
+  ci_cd:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: AiCore/APP3005
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: aivestire
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+        ports:
+          - 5432:5432
+      redis:
+        image: redis:7
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install backend dependencies
+        run: npm ci --prefix aivestire-backend-tmp
+
+      - name: Install frontend dependencies
+        run: npm ci --prefix frontend
+
+      - name: Build backend
+        run: npm run build --prefix aivestire-backend-tmp
+
+      - name: Build frontend
+        run: npm run build --prefix frontend
+
+      - name: Start API and run health checks
+        env:
+          NODE_ENV: test
+          PORT: 3000
+          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/aivestire
+          REDIS_HOST: 127.0.0.1
+          REDIS_PORT: 6379
+          CORS_ORIGIN: http://localhost:5173
+          # Add these in repository secrets if your app requires them for startup.
+          JWT_ACCESS_TOKEN_SECRET: ci-jwt-access-secret
+          JWT_REFRESH_TOKEN_SECRET: ci-jwt-refresh-secret
+          API_BASE_URL: http://127.0.0.1:3000
+          API_HEALTH_ENDPOINTS: /,/api/v1/tryon/health
+          REQUIRE_HEALTH_FIELD: true
+          REQUIRE_HEALTH_TRUE: false
+        run: |
+          set -e
+          npm run start:prod --prefix aivestire-backend-tmp > backend.log 2>&1 &
+          BACKEND_PID=$!
+          ./scripts/ci-health-check.sh
+          kill "$BACKEND_PID"
+
+      - name: Print backend logs on failure
+        if: failure()
+        run: |
+          echo "--- Backend logs ---"
+          if [ -f backend.log ]; then
+            cat backend.log
+          fi
