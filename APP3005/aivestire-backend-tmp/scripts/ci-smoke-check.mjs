@@ -1,5 +1,7 @@
 const baseUrl = process.env.HEALTH_CHECK_BASE_URL?.trim() || 'http://127.0.0.1:3000';
-const startupTimeoutMs = Number(process.env.HEALTH_CHECK_STARTUP_TIMEOUT_MS || 120000);
+const startupTimeoutMs = Number(
+  process.env.HEALTH_CHECK_STARTUP_TIMEOUT_MS || process.env.CI_STARTUP_TIMEOUT_MS || 240000,
+);
 const requestTimeoutMs = Number(process.env.HEALTH_CHECK_REQUEST_TIMEOUT_MS || 5000);
 
 const checks = [

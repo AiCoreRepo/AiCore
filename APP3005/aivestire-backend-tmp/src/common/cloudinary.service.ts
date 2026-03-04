@@ -58,6 +58,7 @@ export interface CloudinaryTransformation {
 export class CloudinaryService {
   private readonly logger = new Logger(CloudinaryService.name);
   private readonly cloudName: string;
+  private isAvailable = false;
 
   constructor(private readonly configService: ConfigService) {
     this.cloudName =
@@ -66,8 +67,17 @@ export class CloudinaryService {
     const apiSecret = this.configService.get<string>('CLOUDINARY_API_SECRET');
 
     if (!this.cloudName || !apiKey || !apiSecret) {
+      if (process.env.NODE_ENV === 'test') {
+        this.logger.warn(
+          'Cloudinary credentials are missing; image upload/processing is disabled in test environment.',
+        );
+        this.isAvailable = false;
+        return;
+      }
       throw new Error('Cloudinary configuration is missing in .env file');
     }
+
+    this.isAvailable = true;
 
     cloudinary.config({
       cloud_name: this.cloudName,
@@ -90,6 +100,10 @@ export class CloudinaryService {
     metadata: CloudinaryMetadata = {},
     folder: string = 'try-ons',
   ): Promise<CloudinaryUploadResult> {
+    if (!this.isAvailable) {
+      throw new Error('Cloudinary is not configured');
+    }
+
     return new Promise((resolve, reject) => {
       this.logger.log(`☁️ Uploading to Cloudinary folder: ${folder}`);
 
@@ -159,6 +173,10 @@ export class CloudinaryService {
     publicId: string,
     transformations: CloudinaryTransformation = {},
   ): string {
+    if (!this.isAvailable) {
+      return '';
+    }
+
     const {
       width,
       height,
@@ -248,6 +266,10 @@ export class CloudinaryService {
    */
   async getImageMetadata(publicId: string): Promise<CloudinaryMetadata | null> {
     try {
+      if (!this.isAvailable) {
+        return null;
+      }
+
       const result = await cloudinary.api.resource(publicId, {
         context: true,
       });
@@ -279,6 +301,10 @@ export class CloudinaryService {
    */
   async deleteImage(imageUrl: string): Promise<void> {
     try {
+      if (!this.isAvailable) {
+        throw new Error('Cloudinary is not configured');
+      }
+
       const publicId = this.extractPublicId(imageUrl);
 
       if (!publicId) {
@@ -300,6 +326,10 @@ export class CloudinaryService {
    */
   async deleteByPublicId(publicId: string): Promise<void> {
     try {
+      if (!this.isAvailable) {
+        throw new Error('Cloudinary is not configured');
+      }
+
       this.logger.log(`🗑️ Deleting image by public ID: ${publicId}`);
       await cloudinary.uploader.destroy(publicId);
       this.logger.log('✅ Image deleted successfully');
