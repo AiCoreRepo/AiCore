@@ -1416,6 +1416,7 @@ export interface CartSummaryAPI {
 export interface CartAPIResponse {
   cart_id: string;
   user_id: string;
+  applied_coupon_code?: string | null;
   items: CartItemAPI[];
   summary: CartSummaryAPI;
   created_at: string;
@@ -1425,6 +1426,7 @@ export interface CartAPIResponse {
 export interface GuestCartAPIResponse {
   guest_cart_id: string;
   session_id: string;
+  applied_coupon_code?: string | null;
   expires_at: string;
   items: Array<CartItemAPI & { guest_cart_item_id: string }>;
   summary: CartSummaryAPI;

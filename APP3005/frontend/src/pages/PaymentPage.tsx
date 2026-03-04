@@ -37,6 +37,7 @@ interface LocationState {
     discount?: number;
     total?: number;
     itemCount?: number;
+    couponCode?: string;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -120,6 +121,7 @@ const PaymentPage = () => {
                     order_id: orderId,
                 });
                 sessionStorage.removeItem('pending_order_id');
+                sessionStorage.removeItem('aivestire_applied_coupon'); // Clear coupon after payment
                 await clearCart();
                 toast({
                     title: '🎉 Payment Successful!',
@@ -177,6 +179,7 @@ const PaymentPage = () => {
                 })),
                 shippingAddressId: selectedAddress.address_id,
                 paymentMethod,
+                couponCode: state?.couponCode || undefined,
             };
 
             const order = await ordersApi.createOrder(payload);
@@ -184,6 +187,7 @@ const PaymentPage = () => {
 
             // ── COD: done immediately ─────────────────────────────────────────
             if (isCOD) {
+                sessionStorage.removeItem('aivestire_applied_coupon'); // Clear coupon after COD order
                 await clearCart();
                 toast({
                     title: '✅ Order Placed!',

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
     X, Percent, Truck, IndianRupee, Calendar, Users, MapPin,
-    Clock, FileText, Tag, Hash, TrendingUp, Layers, Sparkles
+    Clock, FileText, Tag, Hash, TrendingUp, Layers, Sparkles, Copy, Check
 } from 'lucide-react';
 import type { Coupon } from '@/types/coupon.types';
 import { CouponTypeEnum, CouponStatusEnum, CouponScopeTypeEnum } from '@/constants/coupon.enums';
@@ -81,6 +81,15 @@ const DetailRow: React.FC<DetailRowProps> = ({ icon, label, value }) => (
 
 export const CouponDetailModal: React.FC<CouponDetailModalProps> = ({ coupon, isOpen, onClose, onEdit, onDelete }) => {
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [isCopied, setIsCopied] = useState(false);
+
+    const handleCopy = (e: React.MouseEvent) => {
+        if (!coupon) return;
+        e.stopPropagation();
+        navigator.clipboard.writeText(coupon.code);
+        setIsCopied(true);
+        setTimeout(() => setIsCopied(false), 2000);
+    };
 
     // Lock body scroll when modal is open
     useEffect(() => {
@@ -179,8 +188,19 @@ export const CouponDetailModal: React.FC<CouponDetailModalProps> = ({ coupon, is
                     </div>
 
                     {/* Coupon code */}
-                    <div className="mt-5 flex items-center justify-center py-3 px-4 rounded-xl border-2 border-dashed border-[#D4AF37]/40 bg-[#D4AF37]/5">
+                    <div className="mt-5 relative flex items-center justify-center py-3 px-4 rounded-xl border-2 border-dashed border-[#D4AF37]/40 bg-[#D4AF37]/5">
                         <span className="text-lg font-bold tracking-[0.25em] text-[#D4AF37]">{coupon.code}</span>
+                        <button
+                            onClick={handleCopy}
+                            className="absolute right-3 p-2 rounded-lg hover:bg-[#D4AF37]/10 transition-colors"
+                            title="Copy code"
+                        >
+                            {isCopied ? (
+                                <Check className="w-5 h-5 text-green-500" />
+                            ) : (
+                                <Copy className="w-5 h-5 text-[#D4AF37]/70 hover:text-[#D4AF37]" />
+                            )}
+                        </button>
                     </div>
                 </div>
 

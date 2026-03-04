@@ -1,5 +1,5 @@
-import React from 'react';
-import { Percent, Truck, IndianRupee, Calendar, Users, MapPin, Clock, Layers, Sparkles } from 'lucide-react';
+import React, { useState } from 'react';
+import { Percent, Truck, IndianRupee, Calendar, Users, MapPin, Clock, Layers, Sparkles, Copy, Check } from 'lucide-react';
 import type { Coupon } from '@/types/coupon.types';
 import { CouponTypeEnum, CouponStatusEnum, CouponScopeTypeEnum } from '@/constants/coupon.enums';
 import { COUPON_TYPE_LABELS, COUPON_STATUS_LABELS, COUPON_STATUS_META } from '@/constants/coupon.constants';
@@ -90,12 +90,21 @@ const getScopeLabel = (coupon: Coupon): { icon: React.ReactNode; text: string; c
     }
 };
 
-export const CouponCard: React.FC<CouponCardProps> = ({ coupon, onClick }) => {
+export const CouponCard = ({ coupon, onClick }: CouponCardProps) => {
+    const [isCopied, setIsCopied] = useState(false);
+
     const statusMeta = COUPON_STATUS_META[coupon.status];
     const discountGradient = getDiscountGradient(coupon.discountType);
     const accentColor = getDiscountAccent(coupon.discountType);
     const isExpired = coupon.status === CouponStatusEnum.EXPIRED;
     const isDisabled = coupon.status === CouponStatusEnum.DISABLED;
+
+    const handleCopy = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        navigator.clipboard.writeText(coupon.code);
+        setIsCopied(true);
+        setTimeout(() => setIsCopied(false), 2000);
+    };
 
     return (
         <div
@@ -152,10 +161,21 @@ export const CouponCard: React.FC<CouponCardProps> = ({ coupon, onClick }) => {
 
                 {/* Coupon code pill - dashed border style like real coupons */}
                 <div className="flex items-center gap-2 mb-4">
-                    <div className="flex-1 flex items-center justify-center py-2 px-3 rounded-lg border-2 border-dashed border-[#D4AF37]/40 bg-[#D4AF37]/5">
+                    <div className="flex-1 relative flex items-center justify-center py-2 px-3 rounded-lg border-2 border-dashed border-[#D4AF37]/40 bg-[#D4AF37]/5">
                         <span className="text-sm font-bold tracking-[0.2em] text-[#D4AF37]">
                             {coupon.code}
                         </span>
+                        <button
+                            onClick={handleCopy}
+                            className="absolute right-2 p-1.5 rounded-md hover:bg-[#D4AF37]/10 transition-colors"
+                            title="Copy code"
+                        >
+                            {isCopied ? (
+                                <Check className="w-4 h-4 text-green-500" />
+                            ) : (
+                                <Copy className="w-4 h-4 text-[#D4AF37]/70 hover:text-[#D4AF37]" />
+                            )}
+                        </button>
                     </div>
                 </div>
 

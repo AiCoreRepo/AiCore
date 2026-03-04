@@ -30,6 +30,7 @@ import { AdminAuthModule } from './auth/admin/admin-auth.module';
 import { UserDashboardModule } from './user-dashboard/user-dashboard.module';
 import { CouponsModule } from './coupons/coupons.module';
 import { CouponScopeModule } from './coupon-scopes/coupon-scope.module';
+import { CouponApplyModule } from './coupon-apply/coupon-apply.module';
 
 @Module({
   imports: [
@@ -61,6 +62,7 @@ import { CouponScopeModule } from './coupon-scopes/coupon-scope.module';
     UserDashboardModule,
     CouponsModule,
     CouponScopeModule,
+    CouponApplyModule,
   ],
   controllers: [AppController],
   providers: [AppService, AdminSeederService],

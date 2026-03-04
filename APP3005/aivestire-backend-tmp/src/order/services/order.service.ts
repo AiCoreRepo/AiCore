@@ -123,14 +123,53 @@ export class OrderService {
       };
     });
     // Calculate total amount using utility
-    const totalAmount = OrderCalculations.calculateOrderTotal(
+    const grossTotal = OrderCalculations.calculateOrderTotal(
       orderItems.map((item) => ({
         quantity: item.quantity,
         unitPrice: item.unit_price,
       })),
     );
 
-    console.log('Total Amount:', totalAmount);
+    // ── Apply coupon discount (if provided) ─────────────────────────────
+    let couponDiscount = 0;
+    let appliedCouponId: string | null = null;
+
+    if (dto.couponCode) {
+      const coupon = await this.prisma.coupon.findFirst({
+        where: {
+          code: dto.couponCode.toUpperCase(),
+          status: 'ACTIVE',
+          is_deleted: false,
+          start_date: { lte: new Date() },
+          end_date: { gte: new Date() },
+        },
+      });
+
+      if (coupon) {
+        // Check usage limit
+        const withinLimit = coupon.max_usage === 0 || coupon.current_usage < coupon.max_usage;
+        // Check min order (gross in rupees)
+        const grossRupees = grossTotal;
+        const minOrder = Number(coupon.min_order_amount ?? 0);
+        const meetsMin = grossRupees >= minOrder;
+
+        if (withinLimit && meetsMin) {
+          const discountVal = Number(coupon.discount_value);
+          if (coupon.discount_type === 'PERCENTAGE') {
+            couponDiscount = (grossTotal * discountVal) / 100;
+          } else {
+            // FLAT discount in rupees
+            couponDiscount = discountVal;
+          }
+          couponDiscount = Math.min(couponDiscount, grossTotal); // never exceed order value
+          appliedCouponId = coupon.coupon_id;
+        }
+      }
+    }
+
+    const totalAmount = Math.max(0, grossTotal - couponDiscount);
+
+    console.log('Total Amount:', totalAmount, couponDiscount ? `(coupon −₹${couponDiscount})` : '');
 
     // COD orders are instantly confirmed/booked. Prepaid wait for payment.
     const initialStatus = dto.paymentMethod === PaymentMethod.COD ? OrderStatus.BOOKED : OrderStatus.PENDING;
@@ -194,6 +233,14 @@ export class OrderService {
                 decrement: item.quantity,
               },
             },
+          });
+        }
+
+        // Increment coupon usage if one was applied
+        if (appliedCouponId) {
+          await tx.coupon.update({
+            where: { coupon_id: appliedCouponId },
+            data: { current_usage: { increment: 1 } },
           });
         }
 

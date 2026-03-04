@@ -106,6 +106,7 @@ model GuestCart {
   created_at    DateTime        @default(now())
   updated_at    DateTime        @updatedAt
   expires_at    DateTime        // Auto-expire inactive guest carts
+  applied_coupon_code String?
   items         GuestCartItem[]
 
   @@index([session_id])
@@ -141,6 +142,7 @@ model Cart {
   merged_from_guest Boolean    @default(false) // Idempotency guard for merge
   region            String     @default("IN")
   channel           String     @default("WEB")
+  applied_coupon_code String?
   created_at        DateTime   @default(now())
   updated_at        DateTime   @updatedAt
   user              User       @relation(fields: [user_id], references: [user_id], onDelete: Cascade)

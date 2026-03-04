@@ -26,6 +26,7 @@ export interface CreateOrderPayload {
     items: CreateOrderItem[];
     shippingAddressId: string;
     paymentMethod: 'COD' | 'PREPAID' | 'RAZORPAY';
+    couponCode?: string;
 }
 
 export type PaymentMethod = 'PREPAID' | 'COD' | 'RAZORPAY';

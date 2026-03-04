@@ -51,6 +51,7 @@ export interface CartItem {
 export interface CartState {
     items: CartItem[];
     summary: CartSummaryAPI;
+    appliedCouponCode: string | null;
     isLoading: boolean;
     error: string | null;
     lastUpdated: string | null;
@@ -128,6 +129,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [cart, setCart] = useState<CartState>({
         items: [],
         summary: DEFAULT_SUMMARY,
+        appliedCouponCode: null,
         isLoading: true,
         error: null,
         lastUpdated: null,
@@ -151,6 +153,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 setCart({
                     items: response.items.map(transformCartItem),
                     summary: response.summary,
+                    appliedCouponCode: response.applied_coupon_code || null,
                     isLoading: false,
                     error: null,
                     lastUpdated: new Date().toISOString(),
@@ -163,6 +166,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     setCart({
                         items: response.items.map(transformCartItem),
                         summary: response.summary,
+                        appliedCouponCode: response.applied_coupon_code || null,
                         isLoading: false,
                         error: null,
                         lastUpdated: new Date().toISOString(),
@@ -173,6 +177,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     setCart({
                         items: [],
                         summary: DEFAULT_SUMMARY,
+                        appliedCouponCode: null,
                         isLoading: false,
                         error: null,
                         lastUpdated: new Date().toISOString(),
@@ -233,6 +238,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setCart({
                 items: [],
                 summary: DEFAULT_SUMMARY,
+                appliedCouponCode: null,
                 isLoading: false,
                 error: null,
                 lastUpdated: new Date().toISOString(),
@@ -268,6 +274,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 setCart({
                     items: response.items.map(transformCartItem),
                     summary: response.summary,
+                    appliedCouponCode: response.applied_coupon_code || null,
                     isLoading: false,
                     error: null,
                     lastUpdated: new Date().toISOString(),
@@ -278,6 +285,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 setCart({
                     items: response.items.map(transformCartItem),
                     summary: response.summary,
+                    appliedCouponCode: response.applied_coupon_code || null,
                     isLoading: false,
                     error: null,
                     lastUpdated: new Date().toISOString(),
@@ -319,6 +327,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 setCart({
                     items: response.items.map(transformCartItem),
                     summary: response.summary,
+                    appliedCouponCode: response.applied_coupon_code || null,
                     isLoading: false,
                     error: null,
                     lastUpdated: new Date().toISOString(),
@@ -329,6 +338,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 setCart({
                     items: response.items.map(transformCartItem),
                     summary: response.summary,
+                    appliedCouponCode: response.applied_coupon_code || null,
                     isLoading: false,
                     error: null,
                     lastUpdated: new Date().toISOString(),
@@ -368,6 +378,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 setCart({
                     items: response.items.map(transformCartItem),
                     summary: response.summary,
+                    appliedCouponCode: response.applied_coupon_code || null,
                     isLoading: false,
                     error: null,
                     lastUpdated: new Date().toISOString(),
@@ -378,6 +389,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 setCart({
                     items: response.items.map(transformCartItem),
                     summary: response.summary,
+                    appliedCouponCode: response.applied_coupon_code || null,
                     isLoading: false,
                     error: null,
                     lastUpdated: new Date().toISOString(),
@@ -417,6 +429,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setCart({
                 items: [],
                 summary: DEFAULT_SUMMARY,
+                appliedCouponCode: null,
                 isLoading: false,
                 error: null,
                 lastUpdated: new Date().toISOString(),
