@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { X, ChevronDown, ChevronUp, Tag, Gift, Percent, Heart, ChevronLeft, ChevronRight } from 'lucide-react';
+import { QuantityStepper } from '@/components/cart/QuantityStepper';
 import { useCart } from '@/context/CartContext';
 import { useAuth } from '@/context/AuthContext';
 import { EmptyCart } from '@/components/cart/EmptyCart';
@@ -250,8 +251,8 @@ const CartPage = () => {
                                     </div>
                                 </div>
 
-                                {/* Available Offers Section - Mobile Responsive */}
-                                <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+                                {/* Available Offers Section - Hidden for now, will be used in future */}
+                                {/* <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
                                     <button
                                         onClick={() => setShowOffers(!showOffers)}
                                         className="w-full p-3 sm:p-4 flex items-center justify-between text-left"
@@ -295,7 +296,7 @@ const CartPage = () => {
                                             </motion.div>
                                         )}
                                     </AnimatePresence>
-                                </div>
+                                </div> */}
 
                                 {/* Cart Items - Mobile Responsive */}
                                 <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
@@ -396,18 +397,12 @@ const CartPage = () => {
                                                                 <span className="font-medium">{item.size}</span>
                                                             </div>
                                                         )}
-                                                        <div className="flex items-center gap-1 px-2 py-1 bg-gray-100 rounded text-xs">
-                                                            <span className="text-gray-600">Qty:</span>
-                                                            <select
-                                                                value={item.quantity}
-                                                                onChange={(e) => updateQuantity(item.id, parseInt(e.target.value))}
-                                                                className="font-medium bg-transparent outline-none cursor-pointer"
-                                                            >
-                                                                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => (
-                                                                    <option key={n} value={n}>{n}</option>
-                                                                ))}
-                                                            </select>
-                                                        </div>
+                                                        <QuantityStepper
+                                                            quantity={item.quantity}
+                                                            maxQuantity={item.max_quantity || 10}
+                                                            onIncrement={() => updateQuantity(item.id, item.quantity + 1)}
+                                                            onDecrement={() => updateQuantity(item.id, item.quantity - 1)}
+                                                        />
                                                     </div>
 
                                                     {/* Price - More prominent on mobile */}
@@ -529,7 +524,7 @@ const CartPage = () => {
 
                                 {/* Price Details - Mobile Responsive */}
                                 <div className="bg-white border border-gray-200 rounded-lg p-3 sm:p-4">
-                                    <h3 className="font-semibold text-xs sm:text-sm uppercase tracking-wide text-gray-600 mb-3 sm:mb-4">
+                                    <h3 className="font-sans font-semibold text-xs sm:text-sm uppercase tracking-wide text-gray-600 mb-3 sm:mb-4">
                                         Price Details ({selectedItemsData.itemCount} {selectedItemsData.itemCount === 1 ? 'Item' : 'Items'})
                                     </h3>
 
@@ -538,14 +533,14 @@ const CartPage = () => {
                                     ) : (
                                         <>
                                             <div className="space-y-2 sm:space-y-3">
-                                                <div className="flex justify-between text-xs sm:text-sm">
+                                                <div className="flex justify-between text-xs sm:text-sm font-sans">
                                                     <span>Total Product Price</span>
-                                                    <span>₹{(selectedItemsData.subtotal / 100).toLocaleString('en-IN')}</span>
+                                                    <span className="font-medium">₹{(selectedItemsData.subtotal / 100).toLocaleString('en-IN')}</span>
                                                 </div>
                                                 {appliedCoupon && (
-                                                    <div className="flex justify-between text-xs sm:text-sm">
+                                                    <div className="flex justify-between text-xs sm:text-sm font-sans">
                                                         <span>Coupon Discount</span>
-                                                        <span className="text-green-600">
+                                                        <span className="text-green-600 font-medium">
                                                             -₹{(discountCents / 100).toLocaleString('en-IN')}
                                                         </span>
                                                     </div>
@@ -553,7 +548,7 @@ const CartPage = () => {
                                             </div>
 
                                             <div className="border-t border-dashed border-gray-300 mt-3 sm:mt-4 pt-3 sm:pt-4">
-                                                <div className="flex justify-between font-semibold text-sm sm:text-base">
+                                                <div className="flex justify-between font-sans font-semibold text-sm sm:text-base">
                                                     <span>Total Amount</span>
                                                     <span>₹{(finalTotal / 100).toLocaleString('en-IN')}</span>
                                                 </div>
