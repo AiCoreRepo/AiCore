@@ -74,11 +74,23 @@ jobs:
           API_HEALTH_ENDPOINTS: /,/api/v1/tryon/health
           REQUIRE_HEALTH_FIELD: true
           REQUIRE_HEALTH_TRUE: false
+          HEALTH_CHECK_STARTUP_TIMEOUT_MS: 240000
+          CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME || 'ci-cloud-name' }}
+          CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY || 'ci-cloud-key' }}
+          CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET || 'ci-cloud-secret' }}
         run: |
           set -e
           npm run start:prod --prefix aivestire-backend-tmp > backend.log 2>&1 &
           BACKEND_PID=$!
-          ./scripts/ci-health-check.sh
+          if ! npm run ci:health-check --prefix aivestire-backend-tmp; then
+            echo "--- Backend logs ---"
+            if [ -f backend.log ]; then
+              tail -n 200 backend.log
+            fi
+            kill "$BACKEND_PID" || true
+            wait "$BACKEND_PID" || true
+            exit 1
+          fi
           kill "$BACKEND_PID"
 
       - name: Print backend logs on failure
