@@ -13,6 +13,9 @@ jobs:
     defaults:
       run:
         working-directory: AiCore/APP3005
+    env:
+      SKIP_TWILIO: true
+      SKIP_SMS_IN_DEV: true
 
     services:
       postgres:
@@ -71,13 +74,8 @@ jobs:
           echo "--- Backend package + lockfile check ---"
           cat aivestire-backend-tmp/package.json | sed -n '1,140p'
           [ -f aivestire-backend-tmp/package-lock.json ] && sed -n '1,120p' aivestire-backend-tmp/package-lock.json | cat
-          echo "--- Installed backend deps check (twilio) ---"
-          (cd aivestire-backend-tmp && npm ls --depth=0 twilio || true)
-          if [ -f aivestire-backend-tmp/node_modules/twilio/package.json ]; then
-            echo "✅ twilio module exists"
-          else
-            echo "⚠️ twilio module is missing"
-          fi
+          echo "--- Installed backend deps check ---"
+          (cd aivestire-backend-tmp && npm ls --depth=0 | sed -n '1,120p')
           echo "--- Build output check ---"
           ls -la aivestire-backend-tmp/dist || true
           ls -la aivestire-backend-tmp/dist/src | sed -n '1,200p' || true
@@ -106,6 +104,8 @@ jobs:
           REQUIRE_HEALTH_FIELD: true
           REQUIRE_HEALTH_TRUE: false
           HEALTH_CHECK_STARTUP_TIMEOUT_MS: 240000
+          SKIP_TWILIO: 'true'
+          SKIP_SMS_IN_DEV: 'true'
           CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME || 'ci-cloud-name' }}
           CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY || 'ci-cloud-key' }}
           CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET || 'ci-cloud-secret' }}
@@ -115,27 +115,31 @@ jobs:
           echo "PORT=$PORT"
           echo "DATABASE_URL=$DATABASE_URL"
           echo "HEALTH_TIMEOUT_MS=$HEALTH_CHECK_STARTUP_TIMEOUT_MS"
-          npm run start:prod --prefix aivestire-backend-tmp > backend.log 2>&1 &
+          BACKEND_LOG=backend-server.log
+          npm run start:prod:ci --prefix aivestire-backend-tmp > "$BACKEND_LOG" 2>&1 &
           BACKEND_PID=$!
           sleep 2
           echo "Backend PID: $BACKEND_PID"
+          if [ -f backend.log ] && [ ! -f "$BACKEND_LOG" ]; then
+            ln -sf backend.log "$BACKEND_LOG"
+          fi
           if ! ps -p "$BACKEND_PID" > /dev/null 2>&1; then
             echo "Backend process exited immediately."
-            if [ -f backend.log ]; then
-              sed -n '1,200p' backend.log
+            if [ -f "$BACKEND_LOG" ]; then
+              sed -n '1,200p' "$BACKEND_LOG"
             else
-              echo "No backend.log created"
+              echo "No backend log file created"
             fi
             exit 1
           fi
           ps -p "$BACKEND_PID" -f || true
           if ! npm run ci:health-check --prefix aivestire-backend-tmp; then
             echo "--- Backend logs ---"
-            if [ -f backend.log ]; then
+            if [ -f "$BACKEND_LOG" ]; then
               echo "--- Backend log (head) ---"
-              sed -n '1,120p' backend.log
+              sed -n '1,200p' "$BACKEND_LOG"
               echo "--- Backend log (tail) ---"
-              tail -n 200 backend.log
+              tail -n 240 "$BACKEND_LOG"
             fi
             kill "$BACKEND_PID" || true
             wait "$BACKEND_PID" || true
@@ -146,7 +150,12 @@ jobs:
       - name: Print backend logs on failure
         if: failure()
         run: |
+          BACKEND_LOG=backend-server.log
           echo "--- Backend logs ---"
-          if [ -f backend.log ]; then
+          if [ -f "$BACKEND_LOG" ]; then
+            cat "$BACKEND_LOG"
+          elif [ -f backend.log ]; then
             cat backend.log
+          else
+            echo "No backend log file found"
           fi

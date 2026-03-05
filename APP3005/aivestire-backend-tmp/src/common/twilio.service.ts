@@ -1,12 +1,21 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import * as twilio from 'twilio';
 import { OTP_MESSAGE_TEMPLATE } from './constants/otp.constants';
+
+type TwilioClient = {
+  messages: {
+    create: (params: {
+      body: string;
+      from: string;
+      to: string;
+    }) => Promise<{ sid: string }>;
+  };
+};
 
 @Injectable()
 export class TwilioService {
   private readonly logger = new Logger(TwilioService.name);
-  private twilioClient: twilio.Twilio;
+  private twilioClient: TwilioClient | null = null;
   private twilioPhoneNumber: string;
 
   constructor(private configService: ConfigService) {
@@ -15,14 +24,35 @@ export class TwilioService {
     this.twilioPhoneNumber =
       this.configService.get<string>('TWILIO_PHONE_NUMBER') || '';
 
+    const skipTwilioRuntime = process.env.NODE_ENV === 'test' || process.env.SKIP_TWILIO === 'true';
+
+    if (skipTwilioRuntime) {
+      this.logger.warn('Twilio runtime disabled for test/CI mode.');
+      return;
+    }
+
+    let twilioFactory: any = null;
+    try {
+      twilioFactory = require('twilio');
+    } catch (error) {
+      this.logger.warn(
+        `Twilio dependency not found. SMS sending will be disabled.${process.env.NODE_ENV === 'test' ? ' (test environment)' : ''}`,
+      );
+      return;
+    }
+
     if (!accountSid || !authToken || !this.twilioPhoneNumber) {
       this.logger.warn(
         'Twilio credentials not configured. SMS sending will be disabled.',
       );
       // Create a dummy client to prevent errors
-      this.twilioClient = null as any;
+      this.twilioClient = null;
     } else {
-      this.twilioClient = twilio.default(accountSid, authToken);
+      const createClient =
+        typeof twilioFactory === 'function'
+          ? twilioFactory
+          : twilioFactory.default;
+      this.twilioClient = createClient(accountSid, authToken);
       this.logger.log('Twilio service initialized successfully');
     }
   }

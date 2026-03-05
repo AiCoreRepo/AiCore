@@ -38,6 +38,7 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function waitForServer() {
   const start = Date.now();
+  let lastError = '';
   while (Date.now() - start < startupTimeoutMs) {
     try {
       const response = await fetch(`${baseUrl}/health`, {
@@ -47,13 +48,18 @@ async function waitForServer() {
       if (response.ok) {
         return;
       }
+      lastError = `GET ${baseUrl}/health returned ${response.status}`;
     } catch (_) {
-      // keep trying until timeout
+      if (_.message) {
+        lastError = `${_.name}: ${_.message}`;
+      }
     }
     await sleep(2000);
   }
 
-  throw new Error(`Server did not become ready at ${baseUrl} within ${startupTimeoutMs}ms`);
+  throw new Error(
+    `Server did not become ready at ${baseUrl} within ${startupTimeoutMs}ms. Last error: ${lastError || 'no response'}`,
+  );
 }
 
 function validateBoolean(value) {
