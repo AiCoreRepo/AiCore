@@ -305,7 +305,11 @@ jobs:
           fi
 
           ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa \
-            "$GCP_INSTANCE_USER@$GCP_INSTANCE_HOST" <<'EOF'
+            "$GCP_INSTANCE_USER@$GCP_INSTANCE_HOST" \
+            COMPOSE_FILE="$COMPOSE_FILE" \
+            COMPOSE_SERVICES="$COMPOSE_SERVICES" \
+            SSH_DEPLOY_PATH="$SSH_DEPLOY_PATH" \
+            bash -s <<'EOF'
           set -e
           COMPOSE_FILE="${COMPOSE_FILE}"
           COMPOSE_SERVICES="${COMPOSE_SERVICES}"
