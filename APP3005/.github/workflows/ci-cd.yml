@@ -59,6 +59,37 @@ jobs:
       - name: Build frontend
         run: npm run build --prefix frontend
 
+      - name: Print CI startup diagnostics
+        run: |
+          set -x
+          echo "--- Tooling ---"
+          node -v
+          npm -v
+          echo "--- Working directory ---"
+          pwd
+          ls -la
+          echo "--- Backend package + lockfile check ---"
+          cat aivestire-backend-tmp/package.json | sed -n '1,140p'
+          [ -f aivestire-backend-tmp/package-lock.json ] && sed -n '1,120p' aivestire-backend-tmp/package-lock.json | cat
+          echo "--- Installed backend deps check (twilio) ---"
+          (cd aivestire-backend-tmp && npm ls --depth=0 twilio || true)
+          if [ -f aivestire-backend-tmp/node_modules/twilio/package.json ]; then
+            echo "✅ twilio module exists"
+          else
+            echo "⚠️ twilio module is missing"
+          fi
+          echo "--- Build output check ---"
+          ls -la aivestire-backend-tmp/dist || true
+          ls -la aivestire-backend-tmp/dist/src | sed -n '1,200p' || true
+          if [ -f aivestire-backend-tmp/dist/src/main.js ]; then
+            echo "✅ dist/src/main.js exists"
+          else
+            echo "❌ dist/src/main.js is missing"
+            exit 1
+          fi
+          echo "--- Start command ---"
+          node -e "const pkg=require('./aivestire-backend-tmp/package.json'); console.log('start:prod =', pkg.scripts['start:prod'])"
+
       - name: Start API and run health checks
         env:
           NODE_ENV: test
@@ -80,11 +111,21 @@ jobs:
           CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET || 'ci-cloud-secret' }}
         run: |
           set -e
+          echo "--- Starting backend ---"
+          echo "PORT=$PORT"
+          echo "DATABASE_URL=$DATABASE_URL"
+          echo "HEALTH_TIMEOUT_MS=$HEALTH_CHECK_STARTUP_TIMEOUT_MS"
           npm run start:prod --prefix aivestire-backend-tmp > backend.log 2>&1 &
           BACKEND_PID=$!
+          sleep 2
+          echo "Backend PID: $BACKEND_PID"
+          ps -p "$BACKEND_PID" -f || true
           if ! npm run ci:health-check --prefix aivestire-backend-tmp; then
             echo "--- Backend logs ---"
             if [ -f backend.log ]; then
+              echo "--- Backend log (head) ---"
+              sed -n '1,120p' backend.log
+              echo "--- Backend log (tail) ---"
               tail -n 200 backend.log
             fi
             kill "$BACKEND_PID" || true
