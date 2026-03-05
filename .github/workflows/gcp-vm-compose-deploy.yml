@@ -4,9 +4,17 @@ on:
   pull_request:
     branches:
       - recommendation_model
+      - uat
+      - dev
+      - main
+      - master
   push:
     branches:
       - recommendation_model
+      - uat
+      - dev
+      - main
+      - master
 
 jobs:
   ci:
@@ -230,42 +238,111 @@ jobs:
     name: Deploy to GCP VM (Docker Compose)
     needs: ci # Only run if required CI passes (lint is optional)
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/recommendation_model'
+    if: github.ref == 'refs/heads/recommendation_model' || github.ref == 'refs/heads/uat' || github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
       - name: Deploy with Docker Compose on VM
         run: |
-          GCP_INSTANCE_HOST="${{ secrets.GCP_INSTANCE_HOST }}"
-          GCP_INSTANCE_USER="${{ secrets.GCP_INSTANCE_USER }}"
-          GCP_INSTANCE_SSH_KEY="${{ secrets.GCP_INSTANCE_SSH_KEY }}"
-          GCP_DEPLOY_PATH="${{ vars.GCP_DEPLOY_PATH }}"
-          GCP_COMPOSE_FILE="${{ vars.GCP_COMPOSE_FILE }}"
-          GCP_COMPOSE_SERVICES="${{ vars.GCP_COMPOSE_SERVICES }}"
-          GCP_BACKEND_ENV_B64="${{ secrets.GCP_BACKEND_ENV_B64 }}"
-          GCP_USE_LOCAL_INFRA="${{ vars.GCP_USE_LOCAL_INFRA }}"
+          TARGET_BRANCH="${GITHUB_REF_NAME}"
+          if [ "$TARGET_BRANCH" = "uat" ]; then
+            TARGET_ENV="prod"
+            GCP_INSTANCE_HOST="${{ secrets.GCP_PROD_INSTANCE_HOST }}"
+            GCP_INSTANCE_USER="${{ secrets.GCP_PROD_INSTANCE_USER }}"
+            GCP_INSTANCE_SSH_KEY="${{ secrets.GCP_PROD_INSTANCE_SSH_KEY }}"
+            GCP_DEPLOY_PATH="${{ vars.GCP_PROD_DEPLOY_PATH }}"
+            GCP_COMPOSE_FILE="${{ vars.GCP_PROD_COMPOSE_FILE }}"
+            GCP_COMPOSE_SERVICES="${{ vars.GCP_PROD_COMPOSE_SERVICES }}"
+            GCP_BACKEND_ENV_B64="${{ secrets.GCP_PROD_BACKEND_ENV_B64 }}"
+            GCP_USE_LOCAL_INFRA="${{ vars.GCP_PROD_USE_LOCAL_INFRA }}"
+            GCP_SERVER_BASE_URL="${{ vars.GCP_PROD_SERVER_BASE_URL }}"
+          elif [ "$TARGET_BRANCH" = "recommendation_model" ] || [ "$TARGET_BRANCH" = "dev" ] || [ "$TARGET_BRANCH" = "main" ] || [ "$TARGET_BRANCH" = "master" ]; then
+            TARGET_ENV="dev"
+            GCP_INSTANCE_HOST="${{ secrets.GCP_DEV_INSTANCE_HOST }}"
+            GCP_INSTANCE_USER="${{ secrets.GCP_DEV_INSTANCE_USER }}"
+            GCP_INSTANCE_SSH_KEY="${{ secrets.GCP_DEV_INSTANCE_SSH_KEY }}"
+            GCP_DEPLOY_PATH="${{ vars.GCP_DEV_DEPLOY_PATH }}"
+            GCP_COMPOSE_FILE="${{ vars.GCP_DEV_COMPOSE_FILE }}"
+            GCP_COMPOSE_SERVICES="${{ vars.GCP_DEV_COMPOSE_SERVICES }}"
+            GCP_BACKEND_ENV_B64="${{ secrets.GCP_DEV_BACKEND_ENV_B64 }}"
+            GCP_USE_LOCAL_INFRA="${{ vars.GCP_DEV_USE_LOCAL_INFRA }}"
+            GCP_SERVER_BASE_URL="${{ vars.GCP_DEV_SERVER_BASE_URL }}"
+          else
+            TARGET_ENV="prod"
+            GCP_INSTANCE_HOST="${{ secrets.GCP_PROD_INSTANCE_HOST }}"
+            GCP_INSTANCE_USER="${{ secrets.GCP_PROD_INSTANCE_USER }}"
+            GCP_INSTANCE_SSH_KEY="${{ secrets.GCP_PROD_INSTANCE_SSH_KEY }}"
+            GCP_DEPLOY_PATH="${{ vars.GCP_PROD_DEPLOY_PATH }}"
+            GCP_COMPOSE_FILE="${{ vars.GCP_PROD_COMPOSE_FILE }}"
+            GCP_COMPOSE_SERVICES="${{ vars.GCP_PROD_COMPOSE_SERVICES }}"
+            GCP_BACKEND_ENV_B64="${{ secrets.GCP_PROD_BACKEND_ENV_B64 }}"
+            GCP_USE_LOCAL_INFRA="${{ vars.GCP_PROD_USE_LOCAL_INFRA }}"
+            GCP_SERVER_BASE_URL="${{ vars.GCP_PROD_SERVER_BASE_URL }}"
+          fi
 
           if [ -z "$GCP_INSTANCE_HOST" ]; then
-            GCP_INSTANCE_HOST="${{ vars.GCP_INSTANCE_HOST }}"
+            if [ "$TARGET_ENV" = "prod" ]; then
+              GCP_INSTANCE_HOST="${{ vars.GCP_PROD_INSTANCE_HOST || vars.GCP_INSTANCE_HOST || secrets.GCP_PROD_INSTANCE_HOST || secrets.GCP_INSTANCE_HOST }}"
+            else
+              GCP_INSTANCE_HOST="${{ vars.GCP_DEV_INSTANCE_HOST || vars.GCP_INSTANCE_HOST || secrets.GCP_DEV_INSTANCE_HOST || secrets.GCP_INSTANCE_HOST }}"
+            fi
           fi
           if [ -z "$GCP_INSTANCE_USER" ]; then
-            GCP_INSTANCE_USER="${{ vars.GCP_INSTANCE_USER }}"
+            if [ "$TARGET_ENV" = "prod" ]; then
+              GCP_INSTANCE_USER="${{ vars.GCP_PROD_INSTANCE_USER || vars.GCP_INSTANCE_USER || secrets.GCP_PROD_INSTANCE_USER || secrets.GCP_INSTANCE_USER }}"
+            else
+              GCP_INSTANCE_USER="${{ vars.GCP_DEV_INSTANCE_USER || vars.GCP_INSTANCE_USER || secrets.GCP_DEV_INSTANCE_USER || secrets.GCP_INSTANCE_USER }}"
+            fi
+          fi
+          if [ -z "$GCP_INSTANCE_SSH_KEY" ]; then
+            if [ "$TARGET_ENV" = "prod" ]; then
+              GCP_INSTANCE_SSH_KEY="${{ secrets.GCP_PROD_INSTANCE_SSH_KEY || secrets.GCP_INSTANCE_SSH_KEY }}"
+            else
+              GCP_INSTANCE_SSH_KEY="${{ secrets.GCP_DEV_INSTANCE_SSH_KEY || secrets.GCP_INSTANCE_SSH_KEY }}"
+            fi
           fi
           if [ -z "$GCP_DEPLOY_PATH" ]; then
-            GCP_DEPLOY_PATH="${{ secrets.GCP_DEPLOY_PATH }}"
+            if [ "$TARGET_ENV" = "prod" ]; then
+              GCP_DEPLOY_PATH="${{ vars.GCP_PROD_DEPLOY_PATH || vars.GCP_DEPLOY_PATH || secrets.GCP_PROD_DEPLOY_PATH || secrets.GCP_DEPLOY_PATH }}"
+            else
+              GCP_DEPLOY_PATH="${{ vars.GCP_DEV_DEPLOY_PATH || vars.GCP_DEPLOY_PATH || secrets.GCP_DEV_DEPLOY_PATH || secrets.GCP_DEPLOY_PATH }}"
+            fi
           fi
           if [ -z "$GCP_COMPOSE_FILE" ]; then
-            GCP_COMPOSE_FILE="${{ secrets.GCP_COMPOSE_FILE }}"
+            if [ "$TARGET_ENV" = "prod" ]; then
+              GCP_COMPOSE_FILE="${{ vars.GCP_PROD_COMPOSE_FILE || vars.GCP_COMPOSE_FILE || secrets.GCP_PROD_COMPOSE_FILE || secrets.GCP_COMPOSE_FILE }}"
+            else
+              GCP_COMPOSE_FILE="${{ vars.GCP_DEV_COMPOSE_FILE || vars.GCP_COMPOSE_FILE || secrets.GCP_DEV_COMPOSE_FILE || secrets.GCP_COMPOSE_FILE }}"
+            fi
           fi
           if [ -z "$GCP_COMPOSE_SERVICES" ]; then
-            GCP_COMPOSE_SERVICES="${{ secrets.GCP_COMPOSE_SERVICES }}"
+            if [ "$TARGET_ENV" = "prod" ]; then
+              GCP_COMPOSE_SERVICES="${{ vars.GCP_PROD_COMPOSE_SERVICES || vars.GCP_COMPOSE_SERVICES || secrets.GCP_PROD_COMPOSE_SERVICES || secrets.GCP_COMPOSE_SERVICES }}"
+            else
+              GCP_COMPOSE_SERVICES="${{ vars.GCP_DEV_COMPOSE_SERVICES || vars.GCP_COMPOSE_SERVICES || secrets.GCP_DEV_COMPOSE_SERVICES || secrets.GCP_COMPOSE_SERVICES }}"
+            fi
           fi
           if [ -z "$GCP_BACKEND_ENV_B64" ]; then
-            GCP_BACKEND_ENV_B64="${{ vars.GCP_BACKEND_ENV_B64 }}"
+            if [ "$TARGET_ENV" = "prod" ]; then
+              GCP_BACKEND_ENV_B64="${{ vars.GCP_PROD_BACKEND_ENV_B64 || vars.GCP_BACKEND_ENV_B64 || secrets.GCP_PROD_BACKEND_ENV_B64 || secrets.GCP_BACKEND_ENV_B64 }}"
+            else
+              GCP_BACKEND_ENV_B64="${{ vars.GCP_DEV_BACKEND_ENV_B64 || vars.GCP_BACKEND_ENV_B64 || secrets.GCP_DEV_BACKEND_ENV_B64 || secrets.GCP_BACKEND_ENV_B64 }}"
+            fi
           fi
           if [ -z "$GCP_USE_LOCAL_INFRA" ]; then
-            GCP_USE_LOCAL_INFRA="${{ secrets.GCP_USE_LOCAL_INFRA }}"
+            if [ "$TARGET_ENV" = "prod" ]; then
+              GCP_USE_LOCAL_INFRA="${{ vars.GCP_PROD_USE_LOCAL_INFRA || vars.GCP_USE_LOCAL_INFRA || secrets.GCP_PROD_USE_LOCAL_INFRA || secrets.GCP_USE_LOCAL_INFRA }}"
+            else
+              GCP_USE_LOCAL_INFRA="${{ vars.GCP_DEV_USE_LOCAL_INFRA || vars.GCP_USE_LOCAL_INFRA || secrets.GCP_DEV_USE_LOCAL_INFRA || secrets.GCP_USE_LOCAL_INFRA }}"
+            fi
+          fi
+          if [ -z "$GCP_SERVER_BASE_URL" ]; then
+            if [ "$TARGET_ENV" = "prod" ]; then
+              GCP_SERVER_BASE_URL="${{ vars.GCP_PROD_SERVER_BASE_URL || vars.GCP_SERVER_BASE_URL || secrets.GCP_PROD_SERVER_BASE_URL || secrets.GCP_SERVER_BASE_URL }}"
+            else
+              GCP_SERVER_BASE_URL="${{ vars.GCP_DEV_SERVER_BASE_URL || vars.GCP_SERVER_BASE_URL || secrets.GCP_DEV_SERVER_BASE_URL || secrets.GCP_SERVER_BASE_URL }}"
+            fi
           fi
           if [ -z "$GCP_USE_LOCAL_INFRA" ]; then
             GCP_USE_LOCAL_INFRA="true"
@@ -278,6 +355,8 @@ jobs:
           fi
 
           echo "Resolved deployment settings:" 
+          echo "  Target environment: ${TARGET_ENV}"
+          echo "  Target branch: ${TARGET_BRANCH}"
           echo "  Host: ${GCP_INSTANCE_HOST}"
           echo "  User: ${GCP_INSTANCE_USER}"
           echo "  Deploy Path: ${GCP_DEPLOY_PATH}"
@@ -311,6 +390,7 @@ jobs:
           DEPLOY_PATH_B64="$(printf '%s' "$SSH_DEPLOY_PATH" | base64 -w0)"
           BACKEND_ENV_B64="$(printf '%s' "$GCP_BACKEND_ENV_B64" | base64 -w0)"
           LOCAL_INFRA_B64="$(printf '%s' "$GCP_USE_LOCAL_INFRA" | base64 -w0)"
+          TARGET_BRANCH_B64="$(printf '%s' "$TARGET_BRANCH" | base64 -w0)"
           echo "Encoded payload lengths: file=$(( ${#COMPOSE_FILE_B64} )) services=$(( ${#COMPOSE_SERVICES_B64} )) deploy=$(( ${#DEPLOY_PATH_B64} ))"
           echo "Encoded deploy path prefix: $(printf '%.20s' "$DEPLOY_PATH_B64")..."
 
@@ -337,13 +417,14 @@ jobs:
 
           ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa \
             "$GCP_INSTANCE_USER@$GCP_INSTANCE_HOST" \
-            "COMPOSE_FILE_B64='${COMPOSE_FILE_B64}' COMPOSE_SERVICES_B64='${COMPOSE_SERVICES_B64}' DEPLOY_PATH_B64='${DEPLOY_PATH_B64}' BACKEND_ENV_B64='${BACKEND_ENV_B64}' LOCAL_INFRA_B64='${LOCAL_INFRA_B64}' bash -s" <<'EOF'
+            "COMPOSE_FILE_B64='${COMPOSE_FILE_B64}' COMPOSE_SERVICES_B64='${COMPOSE_SERVICES_B64}' DEPLOY_PATH_B64='${DEPLOY_PATH_B64}' BACKEND_ENV_B64='${BACKEND_ENV_B64}' LOCAL_INFRA_B64='${LOCAL_INFRA_B64}' TARGET_BRANCH_B64='${TARGET_BRANCH_B64}' bash -s" <<'EOF'
           set -e
           COMPOSE_FILE="$(printf '%s' "$COMPOSE_FILE_B64" | base64 -d)"
           COMPOSE_SERVICES="$(printf '%s' "$COMPOSE_SERVICES_B64" | base64 -d)"
           DEPLOY_PATH="$(printf '%s' "$DEPLOY_PATH_B64" | base64 -d)"
           BACKEND_ENV_B64="$(printf '%s' "$BACKEND_ENV_B64" | base64 -d)"
           GCP_USE_LOCAL_INFRA="$(printf '%s' "$LOCAL_INFRA_B64" | base64 -d)"
+          TARGET_BRANCH="$(printf '%s' "$TARGET_BRANCH_B64" | base64 -d)"
           echo "Remote received deploy path: ${DEPLOY_PATH}"
           if [ -z "$DEPLOY_PATH" ]; then
             echo "Remote did not receive deploy path (empty)"
@@ -412,8 +493,8 @@ jobs:
 
           if [ -d .git ]; then
             git fetch origin
-            git checkout recommendation_model
-            git reset --hard "origin/recommendation_model"
+            git checkout "$TARGET_BRANCH"
+            git reset --hard "origin/$TARGET_BRANCH"
           else
             echo "No git repository found at $DEPLOY_PATH. Expected checked-out repo on VM."
             exit 1
@@ -503,9 +584,13 @@ jobs:
       - name: Verify deployed API (health checks)
         working-directory: APP3005/aivestire-backend-tmp
         run: |
-          GCP_SERVER_BASE_URL="${{ vars.GCP_SERVER_BASE_URL }}"
+          if [ "${{ github.ref }}" = "refs/heads/main" ] || [ "${{ github.ref }}" = "refs/heads/master" ] || [ "${{ github.ref }}" = "refs/heads/uat" ]; then
+            GCP_SERVER_BASE_URL="${{ vars.GCP_PROD_SERVER_BASE_URL || secrets.GCP_PROD_SERVER_BASE_URL }}"
+          else
+            GCP_SERVER_BASE_URL="${{ vars.GCP_DEV_SERVER_BASE_URL || secrets.GCP_DEV_SERVER_BASE_URL }}"
+          fi
           if [ -z "$GCP_SERVER_BASE_URL" ]; then
-            GCP_SERVER_BASE_URL="${{ secrets.GCP_SERVER_BASE_URL }}"
+            GCP_SERVER_BASE_URL="${{ vars.GCP_SERVER_BASE_URL || secrets.GCP_SERVER_BASE_URL }}"
           fi
           if [ -z "$GCP_SERVER_BASE_URL" ]; then
             echo "Missing GCP_SERVER_BASE_URL (set in GitHub Variables or Secrets)."
