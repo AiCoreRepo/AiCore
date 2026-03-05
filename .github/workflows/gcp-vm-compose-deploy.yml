@@ -293,6 +293,9 @@ jobs:
             GCP_DEPLOY_PATH="${{ vars.GCP_UAT_DEPLOY_PATH }}"
           fi
           if [ -z "$GCP_DEPLOY_PATH" ]; then
+            GCP_DEPLOY_PATH="${{ vars.GCP_DEPLOY_PATH }}"
+          fi
+          if [ -z "$GCP_DEPLOY_PATH" ]; then
             GCP_DEPLOY_PATH="${{ secrets.GCP_DEPLOY_PATH }}"
           fi
           if [ -z "$GCP_COMPOSE_FILE" ]; then
