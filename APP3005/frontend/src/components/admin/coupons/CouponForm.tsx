@@ -33,6 +33,8 @@ const scopeTypeOptions = [
     // { value: CouponScopeTypeEnum.GLOBAL, label: 'Global (All Products)' },
     { value: CouponScopeTypeEnum.PRICE_LEVEL, label: 'Price Level (Price Range)' },
     { value: CouponScopeTypeEnum.FESTIVAL, label: 'Festival' },
+    { value: CouponScopeTypeEnum.USER_BIRTHDAY, label: 'User Birthday' },
+    { value: CouponScopeTypeEnum.COMPANY_ANNIVERSARY, label: 'Company Anniversary' },
     // TODO: [Future Dev] Implement User Scope for user-specific coupons
     // { value: CouponScopeTypeEnum.USER, label: 'User Scope' },
     // TODO: [Future Dev] Implement Company Special for brand-specific coupons
@@ -171,6 +173,7 @@ export const CouponForm: React.FC<CouponFormProps> = ({
                                 onChange('scopeMinPrice', '');
                                 onChange('scopeMaxPrice', '');
                                 onChange('scopeFestivalKey', '');
+                                onChange('scopeCompanyAnniversaryDate', '');
                             }}
                             options={scopeTypeOptions}
                             error={errors.scopeType}

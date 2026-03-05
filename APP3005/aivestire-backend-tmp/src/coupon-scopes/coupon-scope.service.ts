@@ -49,6 +49,7 @@ export class CouponScopeService {
             minPrice: dto.scopeType === CouponScopeType.PRICE_LEVEL ? dto.minPrice : undefined,
             maxPrice: dto.scopeType === CouponScopeType.PRICE_LEVEL ? dto.maxPrice : undefined,
             festivalKey: dto.scopeType === CouponScopeType.FESTIVAL ? dto.festivalKey : undefined,
+            companyAnniversaryDate: dto.scopeType === CouponScopeType.COMPANY_ANNIVERSARY ? dto.companyAnniversaryDate : undefined,
         });
 
         this.logger.log(`Scope upserted for coupon ${couponId}: ${dto.scopeType}`);
@@ -81,14 +82,25 @@ export class CouponScopeService {
                 this.validateFestivalScope(dto.festivalKey);
                 break;
 
+            case CouponScopeType.COMPANY_ANNIVERSARY:
+                if (!dto.companyAnniversaryDate) {
+                    throw new BadRequestException('Company anniversary date is required for Company Anniversary scope');
+                }
+                const dateNum = Date.parse(dto.companyAnniversaryDate);
+                if (isNaN(dateNum)) {
+                    throw new BadRequestException('Invalid company anniversary date format');
+                }
+                break;
+
             case CouponScopeType.USER:
-            case CouponScopeType.COMPANY_SPECIAL:
             case CouponScopeType.COLLECTION:
+            case CouponScopeType.COMPANY_SPECIAL:
                 throw new BadRequestException(
-                    `Scope type "${dto.scopeType}" is not implemented yet. Please use GLOBAL, PRICE_LEVEL, or FESTIVAL.`,
+                    `Scope type "${dto.scopeType}" is not implemented yet. Please use GLOBAL, PRICE_LEVEL, FESTIVAL, USER_BIRTHDAY, or COMPANY_ANNIVERSARY.`,
                 );
 
             case CouponScopeType.GLOBAL:
+            case CouponScopeType.USER_BIRTHDAY:
                 // No additional validation needed
                 break;
 
@@ -136,6 +148,7 @@ export class CouponScopeService {
             minPrice: scope.min_price ? Number(scope.min_price) : null,
             maxPrice: scope.max_price ? Number(scope.max_price) : null,
             festivalKey: scope.festival_key,
+            companyAnniversaryDate: scope.company_anniversary_date ? scope.company_anniversary_date.toISOString() : null,
             createdAt: scope.created_at?.toISOString(),
             updatedAt: scope.updated_at?.toISOString(),
         };

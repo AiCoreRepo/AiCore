@@ -10,7 +10,7 @@ interface EditableAttributeCardProps {
     value: string;
     isEditing: boolean;
     onChange: (value: string) => void;
-    type?: 'text' | 'number' | 'select';
+    type?: 'text' | 'number' | 'select' | 'date';
     options?: string[] | Option[];
     unit?: string;
 }
@@ -68,7 +68,8 @@ export const EditableAttributeCard: React.FC<EditableAttributeCardProps> = ({
                             value={value}
                             onChange={(e) => onChange(e.target.value)}
                             className="attribute-input"
-                            placeholder={`Enter ${label.toLowerCase()}`}
+                            placeholder={type === 'date' ? '' : `Enter ${label.toLowerCase()}`}
+                            style={type === 'date' ? { paddingRight: '12px' } : undefined}
                         />
                         {unit && <span className="attribute-unit">{unit}</span>}
                     </div>

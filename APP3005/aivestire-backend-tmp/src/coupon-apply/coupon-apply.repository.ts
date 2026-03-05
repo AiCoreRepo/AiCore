@@ -58,4 +58,15 @@ export class CouponApplyRepository {
             orderBy: { created_at: 'desc' },
         });
     }
+
+    /**
+     * Finds a user's date of birth for birthday coupon validation.
+     */
+    async findUserDob(userId: string): Promise<Date | null> {
+        const user = await this.prisma.user.findUnique({
+            where: { user_id: userId },
+            select: { date_of_birth: true }
+        });
+        return user?.date_of_birth || null;
+    }
 }

@@ -25,6 +25,7 @@ const initialFormState: CouponFormState = {
     scopeMinPrice: '',
     scopeMaxPrice: '',
     scopeFestivalKey: '',
+    scopeCompanyAnniversaryDate: '',
 };
 
 interface UseCouponFormReturn {
@@ -89,6 +90,11 @@ export const useCouponForm = (): UseCouponFormReturn => {
                 newErrors.scopeFestivalKey = 'Please select a festival';
             }
         }
+        if (formState.scopeType === CouponScopeTypeEnum.COMPANY_ANNIVERSARY) {
+            if (!formState.scopeCompanyAnniversaryDate) {
+                newErrors.scopeCompanyAnniversaryDate = 'Anniversary date is required';
+            }
+        }
 
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
@@ -119,6 +125,7 @@ export const useCouponForm = (): UseCouponFormReturn => {
             scopeMinPrice: coupon.scope?.minPrice?.toString() || '',
             scopeMaxPrice: coupon.scope?.maxPrice?.toString() || '',
             scopeFestivalKey: coupon.scope?.festivalKey || '',
+            scopeCompanyAnniversaryDate: coupon.scope?.companyAnniversaryDate?.split('T')[0] || '',
         });
         setErrors({});
     }, []);
@@ -145,6 +152,9 @@ export const useCouponForm = (): UseCouponFormReturn => {
             scopeMinPrice: formState.scopeType === CouponScopeTypeEnum.PRICE_LEVEL ? Number(formState.scopeMinPrice) : undefined,
             scopeMaxPrice: formState.scopeType === CouponScopeTypeEnum.PRICE_LEVEL && formState.scopeMaxPrice ? Number(formState.scopeMaxPrice) : undefined,
             scopeFestivalKey: formState.scopeType === CouponScopeTypeEnum.FESTIVAL ? formState.scopeFestivalKey : undefined,
+            scopeCompanyAnniversaryDate: formState.scopeType === CouponScopeTypeEnum.COMPANY_ANNIVERSARY && formState.scopeCompanyAnniversaryDate
+                ? new Date(formState.scopeCompanyAnniversaryDate).toISOString()
+                : undefined,
         };
     }, [formState]);
 

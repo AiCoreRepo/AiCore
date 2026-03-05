@@ -28,6 +28,7 @@ export interface Coupon {
         minPrice: number | null;
         maxPrice: number | null;
         festivalKey: string | null;
+        companyAnniversaryDate?: string | null;
     } | null;
     createdAt?: string;
     updatedAt?: string;
@@ -52,6 +53,7 @@ export interface CreateCouponPayload {
     scopeMinPrice?: number;
     scopeMaxPrice?: number;
     scopeFestivalKey?: string;
+    scopeCompanyAnniversaryDate?: string;
 }
 
 export interface CouponFormState {
@@ -73,6 +75,7 @@ export interface CouponFormState {
     scopeMinPrice: string;
     scopeMaxPrice: string;
     scopeFestivalKey: string;
+    scopeCompanyAnniversaryDate: string;
 }
 
 export interface CouponFormErrors {
@@ -92,4 +95,5 @@ export interface CouponFormErrors {
     scopeMinPrice?: string;
     scopeMaxPrice?: string;
     scopeFestivalKey?: string;
+    scopeCompanyAnniversaryDate?: string;
 }

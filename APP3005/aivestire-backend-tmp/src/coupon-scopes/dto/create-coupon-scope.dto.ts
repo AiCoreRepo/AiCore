@@ -30,4 +30,9 @@ export class CreateCouponScopeDto {
     @IsString({ message: 'Festival key must be a string' })
     @IsOptional()
     festivalKey?: string;
+
+    // Required when scopeType === COMPANY_ANNIVERSARY
+    @IsString({ message: 'Company anniversary date must be a string' })
+    @IsOptional()
+    companyAnniversaryDate?: string;
 }

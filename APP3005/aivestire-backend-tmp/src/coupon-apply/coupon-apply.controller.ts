@@ -61,6 +61,7 @@ export class CouponApplyController {
         }));
 
         const result = await this.couponApplyService.applyCoupon(
+            userId,
             dto.code,
             cart.summary.subtotal_cents,
             cart.summary.shipping_cents,
@@ -117,6 +118,6 @@ export class CouponApplyController {
     async getAvailableCoupons(@Request() req) {
         const userId = req.user.user_id;
         const cart = await this.cartService.getCart(userId);
-        return this.couponApplyService.getAvailableCoupons(cart.summary.subtotal_cents);
+        return this.couponApplyService.getAvailableCoupons(userId, cart.summary.subtotal_cents);
     }
 }

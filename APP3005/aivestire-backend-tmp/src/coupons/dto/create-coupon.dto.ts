@@ -95,4 +95,8 @@ export class CreateCouponDto {
     @IsString()
     @IsOptional()
     scopeFestivalKey?: string;
+
+    @IsString()
+    @IsOptional()
+    scopeCompanyAnniversaryDate?: string;
 }

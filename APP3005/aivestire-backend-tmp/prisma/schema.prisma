@@ -25,6 +25,7 @@ model User {
   has_created_aura    Boolean           @default(false)
   max_avatar_regenerations Int          @default(2)
   avatar_regenerations_used Int         @default(0)
+  date_of_birth       DateTime?
   aura                Aura?
   creatorProfile      Creator?
   approvals_actioned  ProductApproval[] @relation("ActionedBy")
@@ -891,6 +892,8 @@ enum CouponScopeType {
   USER
   COMPANY_SPECIAL
   COLLECTION
+  USER_BIRTHDAY
+  COMPANY_ANNIVERSARY
 }
 
 model Coupon {
@@ -969,6 +972,9 @@ model CouponScope {
 
   // FESTIVAL field
   festival_key String?         // e.g. "DIWALI", "HOLI" — maps to hardcoded constants
+
+  // COMPANY_ANNIVERSARY field
+  company_anniversary_date DateTime?  // The company anniversary date
 
   created_at   DateTime        @default(now())
   updated_at   DateTime        @updatedAt

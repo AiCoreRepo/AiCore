@@ -153,3 +153,77 @@ export async function getAvailableCouponsApi(): Promise<AvailableCoupon[]> {
 
     return res.json();
 }
+
+// ============================================
+// SPECIAL COUPONS (Birthday / Anniversary)
+// ============================================
+
+export interface SpecialCoupon {
+    code: string;
+    title: string;
+    description: string;
+    discountType: string;
+    discountValue: number;
+    discountLabel: string;
+    minOrderAmount: number;
+    expiresAt: string;
+}
+
+export interface SpecialCouponsResponse {
+    hasBirthday: boolean;
+    isBirthdayToday: boolean;
+    birthdayCoupons: SpecialCoupon[];
+    anniversaryCoupons: SpecialCoupon[];
+}
+
+/**
+ * Fetch special coupons (birthday and company anniversary) for the user to display in the banner.
+ */
+export async function getSpecialCouponsApi(): Promise<SpecialCouponsResponse> {
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+        throw new Error('Please login to view special coupons');
+    }
+
+    const res = await fetch(`${BASE_URL}/special-coupons`, {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+        },
+    });
+
+    if (!res.ok) {
+        throw new Error('Failed to fetch special coupons');
+    }
+
+    return res.json();
+}
+
+/**
+ * Update the user's date of birth string.
+ * @param dateOfBirth ISO Date String
+ */
+export async function updateBirthdayApi(dateOfBirth: string) {
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+        throw new Error('Please login to update birthday');
+    }
+
+    const res = await fetch(`${BASE_URL}/special-coupons/birthday`, {
+        method: 'PATCH',
+        headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ dateOfBirth }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+        throw new Error(data.message || 'Failed to update birthday');
+    }
+
+    return data;
+}

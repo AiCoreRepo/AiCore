@@ -19,6 +19,7 @@ export class CouponScopeRepository {
         minPrice?: number;
         maxPrice?: number;
         festivalKey?: string;
+        companyAnniversaryDate?: string | Date | null;
     }) {
         return this.prisma.couponScope.create({
             data: {
@@ -27,6 +28,7 @@ export class CouponScopeRepository {
                 min_price: data.minPrice !== undefined ? new Prisma.Decimal(data.minPrice) : null,
                 max_price: data.maxPrice !== undefined ? new Prisma.Decimal(data.maxPrice) : null,
                 festival_key: data.festivalKey || null,
+                company_anniversary_date: data.companyAnniversaryDate ? new Date(data.companyAnniversaryDate) : null,
             },
         });
     }
@@ -48,6 +50,7 @@ export class CouponScopeRepository {
         minPrice?: number | null;
         maxPrice?: number | null;
         festivalKey?: string | null;
+        companyAnniversaryDate?: string | null;
     }) {
         return this.prisma.couponScope.update({
             where: { coupon_id: couponId },
@@ -60,6 +63,9 @@ export class CouponScopeRepository {
                     ? (data.maxPrice !== null ? new Prisma.Decimal(data.maxPrice) : null)
                     : undefined,
                 festival_key: data.festivalKey !== undefined ? data.festivalKey : undefined,
+                company_anniversary_date: data.companyAnniversaryDate !== undefined
+                    ? (data.companyAnniversaryDate !== null ? new Date(data.companyAnniversaryDate) : null)
+                    : undefined,
             },
         });
     }
@@ -72,6 +78,7 @@ export class CouponScopeRepository {
         minPrice?: number;
         maxPrice?: number;
         festivalKey?: string;
+        companyAnniversaryDate?: string | Date | null;
     }) {
         return this.prisma.couponScope.upsert({
             where: { coupon_id: couponId },
@@ -87,6 +94,7 @@ export class CouponScopeRepository {
                 min_price: data.minPrice !== undefined ? new Prisma.Decimal(data.minPrice) : null,
                 max_price: data.maxPrice !== undefined ? new Prisma.Decimal(data.maxPrice) : null,
                 festival_key: data.festivalKey || null,
+                company_anniversary_date: data.companyAnniversaryDate ? new Date(data.companyAnniversaryDate) : null,
             },
         });
     }

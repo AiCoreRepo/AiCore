@@ -16,6 +16,7 @@ import {
     DiscountType,
     formatCentsToRupees,
 } from './utils/discount-calculator.util';
+import { checkSpecialCouponEligibility } from './utils/birthday.util';
 
 /**
  * Represents a product item from the cart for eligibility checks.
@@ -50,6 +51,7 @@ export class CouponApplyService {
      * Returns the calculated discount.
      */
     async applyCoupon(
+        userId: string,
         code: string,
         subtotalCents: number,
         shippingCents: number,
@@ -96,9 +98,13 @@ export class CouponApplyService {
             );
         }
 
-        // 6. Validate scope (cart-level)
+        // 6. Validate scope (cart-level and special scoping)
         if (coupon.scope) {
-            this.validateScope(coupon.scope, subtotalCents);
+            let userDob: Date | null = null;
+            if (coupon.scope.scope_type === 'USER_BIRTHDAY') {
+                userDob = await this.couponRepo.findUserDob(userId);
+            }
+            this.validateScope(coupon.scope, subtotalCents, userDob);
         }
 
         // 7. Check product-level eligibility (price range + stock)
@@ -273,12 +279,19 @@ export class CouponApplyService {
 
     /**
      * Get all available coupons for the coupon drawer.
-     * Annotates each coupon with eligibility based on the user's cart subtotal.
+     * Annotates each coupon with eligibility based on the user's cart subtotal and birthday.
      */
-    async getAvailableCoupons(subtotalCents: number) {
-        const coupons = await this.couponRepo.findAvailableCoupons();
+    async getAvailableCoupons(userId: string, subtotalCents: number) {
+        // Fetch coupons and user DOB in parallel for speed
+        const [coupons, userDob] = await Promise.all([
+            this.couponRepo.findAvailableCoupons(),
+            this.couponRepo.findUserDob(userId),
+        ]);
 
-        const result = coupons.map(coupon => {
+        // Filter out birthday/anniversary coupons that don't apply today
+        const activeCoupons = coupons.filter(c => checkSpecialCouponEligibility(c.scope?.scope_type, (c.scope as any)?.company_anniversary_date, userDob));
+
+        const result = activeCoupons.map(coupon => {
             const minOrderCents = Number(coupon.min_order_amount) * 100;
             let isEligible = true;
             let ineligibleReason: string | undefined;
@@ -319,6 +332,12 @@ export class CouponApplyService {
                         scopeLabel = coupon.scope.festival_key
                             ? `🎉 ${coupon.scope.festival_key.charAt(0) + coupon.scope.festival_key.slice(1).toLowerCase()} Special`
                             : 'Festival Offer';
+                        break;
+                    case 'USER_BIRTHDAY':
+                        scopeLabel = '🎂 Birthday Special';
+                        break;
+                    case 'COMPANY_ANNIVERSARY':
+                        scopeLabel = '🎉 Anniversary Special';
                         break;
                     case 'PRICE_LEVEL': {
                         const min = coupon.scope.min_price ? `₹${Number(coupon.scope.min_price)}` : '';
@@ -373,9 +392,9 @@ export class CouponApplyService {
     // ─── Private Validators ───────────────────────────
 
     /**
-     * Validate coupon scope at cart level (overall subtotal check).
+     * Validate coupon scope at cart level (overall subtotal check and special eligibility).
      */
-    private validateScope(scope: any, subtotalCents: number): void {
+    private validateScope(scope: any, subtotalCents: number, userDob: Date | null | undefined = null): void {
         switch (scope.scope_type) {
             case 'PRICE_LEVEL': {
                 const minPriceCents = scope.min_price ? Number(scope.min_price) * 100 : 0;
@@ -395,8 +414,20 @@ export class CouponApplyService {
             }
 
             case 'FESTIVAL':
-                // Festival scopes don't restrict by price — they're informational
                 break;
+
+            case 'USER_BIRTHDAY':
+            case 'COMPANY_ANNIVERSARY': {
+                const isEligible = checkSpecialCouponEligibility(
+                    scope.scope_type as any,
+                    scope.company_anniversary_date,
+                    userDob
+                );
+                if (!isEligible) {
+                    throw new BadRequestException('This coupon is not valid for today.');
+                }
+                break;
+            }
 
             case 'GLOBAL':
                 // No restrictions

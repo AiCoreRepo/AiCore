@@ -168,6 +168,7 @@ export class CouponsService {
                 minPrice: dto.scopeMinPrice,
                 maxPrice: dto.scopeMaxPrice,
                 festivalKey: dto.scopeFestivalKey,
+                companyAnniversaryDate: dto.scopeCompanyAnniversaryDate,
             });
         }
 
@@ -289,6 +290,7 @@ export class CouponsService {
                     minPrice: dto.scopeMinPrice,
                     maxPrice: dto.scopeMaxPrice,
                     festivalKey: dto.scopeFestivalKey,
+                    companyAnniversaryDate: dto.scopeCompanyAnniversaryDate,
                 });
             }
         }

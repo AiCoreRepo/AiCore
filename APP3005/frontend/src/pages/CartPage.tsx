@@ -6,6 +6,7 @@ import { useAuth } from '@/context/AuthContext';
 import { EmptyCart } from '@/components/cart/EmptyCart';
 import { AddressSelector } from '@/components/cart/AddressSelector';
 import { CouponDrawer } from '@/components/cart/CouponDrawer';
+import { BirthdayBanner } from '@/components/cart/BirthdayBanner';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -209,6 +210,12 @@ const CartPage = () => {
                     </div>
                 ) : (
                     <div className="w-full px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto py-4 sm:py-6">
+                        {user && (
+                            <BirthdayBanner
+                                onApplyCode={applyCoupon}
+                                appliedCode={appliedCoupon?.code}
+                            />
+                        )}
                         <div className="flex flex-col lg:flex-row gap-4 sm:gap-6">
                             {/* Left Column - Address & Items */}
                             <div className="flex-1 space-y-3 sm:space-y-4 min-w-0">

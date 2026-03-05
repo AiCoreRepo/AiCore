@@ -27,6 +27,7 @@ interface AttributeValues {
     bodySize: string;
     skinTone: string;
     gender: string;
+    dateOfBirth: string;
 }
 
 export default function AuraProfile() {
@@ -47,6 +48,7 @@ export default function AuraProfile() {
         bodySize: '',
         skinTone: '',
         gender: '',
+        dateOfBirth: '',
     });
 
     // Store original values for cancel functionality
@@ -55,6 +57,7 @@ export default function AuraProfile() {
         bodySize: '',
         skinTone: '',
         gender: '',
+        dateOfBirth: '',
     });
 
     const calculateExactAge = (dobString?: string): number | null => {
@@ -136,9 +139,13 @@ export default function AuraProfile() {
                     const regenMax = Number(userData.max_avatar_regenerations ?? 2);
                     setIsRecreateDisabled(regenUsed >= regenMax);
 
-                    const localDobKey = `aivestire:dob:${(userData.email || '').toLowerCase()}`;
-                    const storedDob = userData?.dob || localStorage.getItem(localDobKey) || undefined;
-                    setExactAge(calculateExactAge(storedDob));
+                    // Grab DOB
+                    const storedDob = userData?.date_of_birth || userData?.dob || '';
+                    const initialDob = storedDob ? new Date(storedDob).toISOString().split('T')[0] : '';
+
+                    setAttributes(prev => ({ ...prev, dateOfBirth: initialDob }));
+                    setOriginalAttributes(prev => ({ ...prev, dateOfBirth: initialDob }));
+                    setExactAge(calculateExactAge(initialDob));
                 }
 
                 const response = await fetch(`${import.meta.env.VITE_API_URL}/aura`, {
@@ -154,15 +161,21 @@ export default function AuraProfile() {
                 const data = await response.json();
                 setAura(data);
 
-                // Initialize attribute values
-                const initialAttributes = {
+                // Initialize attribute values (keeping DOB from auth/me)
+                setAttributes(prev => ({
+                    ...prev,
                     bodyShape: data.body_shape || '',
                     bodySize: data.body_size || '',
                     skinTone: data.skin_tone || '',
                     gender: data.gender || '',
-                };
-                setAttributes(initialAttributes);
-                setOriginalAttributes(initialAttributes);
+                }));
+                setOriginalAttributes(prev => ({
+                    ...prev,
+                    bodyShape: data.body_shape || '',
+                    bodySize: data.body_size || '',
+                    skinTone: data.skin_tone || '',
+                    gender: data.gender || '',
+                }));
             } catch (error) {
                 console.error('Error fetching Aura:', error);
                 navigate('/aura-dashboard');
@@ -208,8 +221,24 @@ export default function AuraProfile() {
 
             const updatedAura = await response.json();
             setAura(updatedAura);
-            setOriginalAttributes(attributes);
-            setIsEditing(false);
+
+            // Also update DOB if changed
+            if (attributes.dateOfBirth !== originalAttributes.dateOfBirth) {
+                const dobIso = attributes.dateOfBirth ? new Date(attributes.dateOfBirth).toISOString() : null;
+                if (dobIso) {
+                    const dobResponse = await fetch(`${import.meta.env.VITE_API_URL}/special-coupons/birthday`, {
+                        method: 'PATCH',
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ dateOfBirth: dobIso }),
+                    });
+                    if (dobResponse.ok) {
+                        setExactAge(calculateExactAge(dobIso));
+                    }
+                }
+            }
 
             setOriginalAttributes(attributes);
             setIsEditing(false);
@@ -350,13 +379,24 @@ export default function AuraProfile() {
                             options={GENDER_OPTIONS}
                         />
 
+                        {/* Date of Birth */}
+                        <EditableAttributeCard
+                            label="DATE OF BIRTH"
+                            value={attributes.dateOfBirth}
+                            isEditing={isEditing}
+                            onChange={(value) => handleAttributeChange('dateOfBirth', value)}
+                            type="date"
+                        />
+
                         {/* Exact Age (Read-only) */}
-                        <div className="editable-attribute-card">
-                            <div className="attribute-label">AGE</div>
-                            <div className="attribute-value">
-                                {exactAge !== null ? `${exactAge} years` : 'Not specified'}
+                        {!isEditing && (
+                            <div className="editable-attribute-card">
+                                <div className="attribute-label">AGE</div>
+                                <div className="attribute-value">
+                                    {exactAge !== null ? `${exactAge} years` : 'Not specified'}
+                                </div>
                             </div>
-                        </div>
+                        )}
                     </div>
 
                     {/* Action Buttons */}
