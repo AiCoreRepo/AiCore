@@ -260,6 +260,13 @@ jobs:
             GCP_COMPOSE_SERVICES="${{ secrets.GCP_COMPOSE_SERVICES }}"
           fi
 
+          echo "Resolved deployment settings:"
+          echo "  Host: ${GCP_INSTANCE_HOST}"
+          echo "  User: ${GCP_INSTANCE_USER}"
+          echo "  Deploy Path: ${GCP_DEPLOY_PATH}"
+          echo "  Compose File: ${GCP_COMPOSE_FILE:-docker-compose.yml}"
+          echo "  Compose Services: ${GCP_COMPOSE_SERVICES:-backend frontend body-analyzer recommendation-api}"
+
           if [ -z "$GCP_INSTANCE_HOST" ] || [ -z "$GCP_INSTANCE_USER" ] || [ -z "$GCP_INSTANCE_SSH_KEY" ] || [ -z "$GCP_DEPLOY_PATH" ]; then
             echo "Missing required deployment config: GCP_INSTANCE_HOST, GCP_INSTANCE_USER, GCP_INSTANCE_SSH_KEY, or GCP_DEPLOY_PATH."
             exit 1
@@ -274,6 +281,7 @@ jobs:
           if [ -z "$COMPOSE_SERVICES" ]; then
             COMPOSE_SERVICES="backend frontend body-analyzer recommendation-api"
           fi
+          SSH_DEPLOY_PATH="$GCP_DEPLOY_PATH"
 
           mkdir -p ~/.ssh
           printf '%b\n' "$GCP_INSTANCE_SSH_KEY" > ~/.ssh/id_rsa
@@ -301,6 +309,13 @@ jobs:
           set -e
           COMPOSE_FILE="${COMPOSE_FILE}"
           COMPOSE_SERVICES="${COMPOSE_SERVICES}"
+          DEPLOY_PATH="${SSH_DEPLOY_PATH}"
+          echo "Remote received deploy path: ${DEPLOY_PATH}"
+          if [ -z "$DEPLOY_PATH" ]; then
+            echo "Remote did not receive deploy path (empty)"
+          fi
+          echo "Remote compose file: ${COMPOSE_FILE}"
+          echo "Remote compose services: ${COMPOSE_SERVICES}"
           case " $COMPOSE_SERVICES " in
             *" recommendation-api "*) ;;
             *)
@@ -313,7 +328,6 @@ jobs:
           else
             COMPOSE_CMD="docker compose"
           fi
-          DEPLOY_PATH="$GCP_DEPLOY_PATH"
           if [ -z "$DEPLOY_PATH" ] || [ "$DEPLOY_PATH" = "/" ]; then
             echo "Invalid deploy path: $DEPLOY_PATH"
             exit 1
