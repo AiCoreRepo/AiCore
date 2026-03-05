@@ -237,33 +237,57 @@ jobs:
 
       - name: Deploy with Docker Compose on VM
         run: |
-          if [ -z "${{ secrets.GCP_INSTANCE_HOST }}" ] || [ -z "${{ secrets.GCP_INSTANCE_USER }}" ] || [ -z "${{ secrets.GCP_INSTANCE_SSH_KEY }}" ] || [ -z "${{ vars.GCP_DEPLOY_PATH }}" ]; then
+          GCP_INSTANCE_HOST="${{ secrets.GCP_INSTANCE_HOST }}"
+          GCP_INSTANCE_USER="${{ secrets.GCP_INSTANCE_USER }}"
+          GCP_INSTANCE_SSH_KEY="${{ secrets.GCP_INSTANCE_SSH_KEY }}"
+          GCP_DEPLOY_PATH="${{ vars.GCP_DEPLOY_PATH }}"
+          GCP_COMPOSE_FILE="${{ vars.GCP_COMPOSE_FILE }}"
+          GCP_COMPOSE_SERVICES="${{ vars.GCP_COMPOSE_SERVICES }}"
+
+          if [ -z "$GCP_INSTANCE_HOST" ]; then
+            GCP_INSTANCE_HOST="${{ vars.GCP_INSTANCE_HOST }}"
+          fi
+          if [ -z "$GCP_INSTANCE_USER" ]; then
+            GCP_INSTANCE_USER="${{ vars.GCP_INSTANCE_USER }}"
+          fi
+          if [ -z "$GCP_DEPLOY_PATH" ]; then
+            GCP_DEPLOY_PATH="${{ secrets.GCP_DEPLOY_PATH }}"
+          fi
+          if [ -z "$GCP_COMPOSE_FILE" ]; then
+            GCP_COMPOSE_FILE="${{ secrets.GCP_COMPOSE_FILE }}"
+          fi
+          if [ -z "$GCP_COMPOSE_SERVICES" ]; then
+            GCP_COMPOSE_SERVICES="${{ secrets.GCP_COMPOSE_SERVICES }}"
+          fi
+
+          if [ -z "$GCP_INSTANCE_HOST" ] || [ -z "$GCP_INSTANCE_USER" ] || [ -z "$GCP_INSTANCE_SSH_KEY" ] || [ -z "$GCP_DEPLOY_PATH" ]; then
             echo "Missing required deployment config: GCP_INSTANCE_HOST, GCP_INSTANCE_USER, GCP_INSTANCE_SSH_KEY, or GCP_DEPLOY_PATH."
             exit 1
           fi
 
-          COMPOSE_FILE="${{ vars.GCP_COMPOSE_FILE }}"
+          COMPOSE_FILE="$GCP_COMPOSE_FILE"
           if [ -z "$COMPOSE_FILE" ]; then
             COMPOSE_FILE="docker-compose.yml"
           fi
-          COMPOSE_SERVICES="${{ vars.GCP_COMPOSE_SERVICES }}"
+
+          COMPOSE_SERVICES="$GCP_COMPOSE_SERVICES"
           if [ -z "$COMPOSE_SERVICES" ]; then
             COMPOSE_SERVICES="backend frontend body-analyzer recommendation-api"
           fi
 
           mkdir -p ~/.ssh
-          printf '%b\n' "${{ secrets.GCP_INSTANCE_SSH_KEY }}" > ~/.ssh/id_rsa
+          printf '%b\n' "$GCP_INSTANCE_SSH_KEY" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           if ! ssh-keygen -y -f ~/.ssh/id_rsa >/dev/null 2>&1; then
             echo "Invalid SSH private key format in GCP_INSTANCE_SSH_KEY."
             exit 1
           fi
 
-          echo "Testing SSH connectivity to ${{ secrets.GCP_INSTANCE_USER }}@${{ secrets.GCP_INSTANCE_HOST }}..."
+          echo "Testing SSH connectivity to $GCP_INSTANCE_USER@$GCP_INSTANCE_HOST..."
           if ! ssh -o BatchMode=yes -o StrictHostKeyChecking=no -o PasswordAuthentication=no \
             -o ConnectTimeout=15 \
             -i ~/.ssh/id_rsa \
-            "${{ secrets.GCP_INSTANCE_USER }}@${{ secrets.GCP_INSTANCE_HOST }}" \
+            "$GCP_INSTANCE_USER@$GCP_INSTANCE_HOST" \
             "echo SSH_OK"; then
             echo "SSH auth test failed. Verify:"
             echo "1) Secret GCP_INSTANCE_USER matches OS user on VM"
@@ -273,7 +297,7 @@ jobs:
           fi
 
           ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa \
-            "${{ secrets.GCP_INSTANCE_USER }}@${{ secrets.GCP_INSTANCE_HOST }}" <<EOF
+            "$GCP_INSTANCE_USER@$GCP_INSTANCE_HOST" <<EOF
           set -e
           COMPOSE_FILE="${COMPOSE_FILE}"
           COMPOSE_SERVICES="${COMPOSE_SERVICES}"
@@ -289,7 +313,7 @@ jobs:
           else
             COMPOSE_CMD="docker compose"
           fi
-          DEPLOY_PATH="${{ vars.GCP_DEPLOY_PATH }}"
+          DEPLOY_PATH="$GCP_DEPLOY_PATH"
           if [ -z "$DEPLOY_PATH" ] || [ "$DEPLOY_PATH" = "/" ]; then
             echo "Invalid deploy path: $DEPLOY_PATH"
             exit 1
@@ -344,9 +368,13 @@ jobs:
       - name: Verify deployed API (health checks)
         working-directory: APP3005/aivestire-backend-tmp
         run: |
-          if [ -z "${{ vars.GCP_SERVER_BASE_URL }}" ]; then
-            echo "Missing GCP_SERVER_BASE_URL (expected in GitHub Variables)."
+          GCP_SERVER_BASE_URL="${{ vars.GCP_SERVER_BASE_URL }}"
+          if [ -z "$GCP_SERVER_BASE_URL" ]; then
+            GCP_SERVER_BASE_URL="${{ secrets.GCP_SERVER_BASE_URL }}"
+          fi
+          if [ -z "$GCP_SERVER_BASE_URL" ]; then
+            echo "Missing GCP_SERVER_BASE_URL (set in GitHub Variables or Secrets)."
             exit 1
           fi
-          curl -fsS "${{ vars.GCP_SERVER_BASE_URL }}/api/health"
-          curl -fsS "${{ vars.GCP_SERVER_BASE_URL }}/api/v1/tryon/health"
+          curl -fsS "$GCP_SERVER_BASE_URL/api/health"
+          curl -fsS "$GCP_SERVER_BASE_URL/api/v1/tryon/health"
