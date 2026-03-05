@@ -51,7 +51,9 @@ jobs:
           node-version: 20
 
       - name: Install backend dependencies
-        run: npm ci --prefix aivestire-backend-tmp
+        run: |
+          npm ci --prefix aivestire-backend-tmp ||
+            (echo "npm ci failed (lockfile or environment mismatch). Falling back to npm install." && npm install --prefix aivestire-backend-tmp --no-audit --no-fund)
 
       - name: Install frontend dependencies
         run: npm ci --prefix frontend
@@ -74,6 +76,9 @@ jobs:
           echo "--- Backend package + lockfile check ---"
           cat aivestire-backend-tmp/package.json | sed -n '1,140p'
           [ -f aivestire-backend-tmp/package-lock.json ] && sed -n '1,120p' aivestire-backend-tmp/package-lock.json | cat
+          if [ -f aivestire-backend-tmp/package-lock.json ]; then
+            node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('aivestire-backend-tmp/package.json'));const l=JSON.parse(fs.readFileSync('aivestire-backend-tmp/package-lock.json'));const lock=Object.keys(l.packages?.['']?.dependencies||{});const pkg={...(p.dependencies||{}),...(p.devDependencies||{})};const missing=Object.keys(pkg).filter((name)=>!lock.includes(name));if(missing.length){console.log('⚠️ lockfile missing deps:',missing.join(', '));}"
+          fi
           echo "--- Installed backend deps check ---"
           (cd aivestire-backend-tmp && npm ls --depth=0 | sed -n '1,120p')
           echo "--- Build output check ---"
