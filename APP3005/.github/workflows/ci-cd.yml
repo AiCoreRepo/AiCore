@@ -119,6 +119,15 @@ jobs:
           BACKEND_PID=$!
           sleep 2
           echo "Backend PID: $BACKEND_PID"
+          if ! ps -p "$BACKEND_PID" > /dev/null 2>&1; then
+            echo "Backend process exited immediately."
+            if [ -f backend.log ]; then
+              sed -n '1,200p' backend.log
+            else
+              echo "No backend.log created"
+            fi
+            exit 1
+          fi
           ps -p "$BACKEND_PID" -f || true
           if ! npm run ci:health-check --prefix aivestire-backend-tmp; then
             echo "--- Backend logs ---"
