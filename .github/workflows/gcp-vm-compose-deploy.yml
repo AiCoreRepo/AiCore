@@ -98,13 +98,13 @@ jobs:
 
           echo "--- Waiting for Redis ---"
           for i in {1..30}; do
-            if redis-cli -h 127.0.0.1 -p 6379 ping | grep -q PONG >/tmp/redis_check.log 2>&1; then
+            if (exec 3<>/dev/tcp/127.0.0.1/6379) >/dev/null 2>&1; then
               echo "Redis is ready"
               break
             fi
             if [ "$i" -eq 30 ]; then
               echo "Redis did not become ready in time"
-              cat /tmp/redis_check.log
+              (echo > /dev/tcp/127.0.0.1/6379) >/dev/null 2>&1 || true
               exit 1
             fi
             echo "Redis not ready yet, retrying ($i/30)"
