@@ -85,7 +85,33 @@ async function bootstrap() {
     preflightContinue: false,
     optionsSuccessStatus: 204,
   });
-  app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+  let validatorPackage: any = null;
+  let transformerPackage: any = null;
+
+  try {
+    validatorPackage = require('class-validator');
+    transformerPackage = require('class-transformer');
+  } catch (error) {
+    console.warn(
+      '[Bootstrap] Validation dependencies unavailable; skipping ValidationPipe initialization:',
+      error instanceof Error ? error.message : error,
+    );
+  }
+
+  if (validatorPackage && transformerPackage) {
+    app.useGlobalPipes(
+      new ValidationPipe({
+        whitelist: true,
+        transform: true,
+        validatorPackage,
+        transformerPackage,
+      }),
+    );
+  } else {
+    console.warn(
+      '[Bootstrap] ValidationPipe was not registered due to missing validation packages.',
+    );
+  }
   await app.listen(process.env.PORT ?? 3000);
 }
 void bootstrap();
