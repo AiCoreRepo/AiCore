@@ -88,6 +88,38 @@ jobs:
           echo "--- Start command ---"
           node -e "const pkg=require('./aivestire-backend-tmp/package.json'); console.log('start:prod =', pkg.scripts['start:prod'])"
 
+      - name: Wait for DB and Redis to be reachable
+        run: |
+          echo "--- Waiting for PostgreSQL ---"
+          for i in {1..30}; do
+            if pg_isready -h 127.0.0.1 -p 5432 -U postgres >/tmp/pg_check.log 2>&1; then
+              echo "PostgreSQL is ready"
+              break
+            fi
+            if [ "$i" -eq 30 ]; then
+              echo "PostgreSQL did not become ready in time"
+              cat /tmp/pg_check.log
+              exit 1
+            fi
+            echo "PostgreSQL not ready yet, retrying ($i/30)"
+            sleep 2
+          done
+
+          echo "--- Waiting for Redis ---"
+          for i in {1..30}; do
+            if redis-cli -h 127.0.0.1 -p 6379 ping | grep -q PONG >/tmp/redis_check.log 2>&1; then
+              echo "Redis is ready"
+              break
+            fi
+            if [ "$i" -eq 30 ]; then
+              echo "Redis did not become ready in time"
+              cat /tmp/redis_check.log
+              exit 1
+            fi
+            echo "Redis not ready yet, retrying ($i/30)"
+            sleep 2
+          done
+
       - name: Start API and run health checks
         env:
           NODE_ENV: test
