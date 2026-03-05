@@ -375,13 +375,12 @@ jobs:
             printf '%s' "$BACKEND_ENV_B64" > "$BACKEND_ENV_FILE"
           elif [ ! -f "$BACKEND_ENV_FILE" ]; then
             echo "No backend env file found; creating managed fallback file"
-            cat <<'ENV_FALLBACK' > "$BACKEND_ENV_FILE"
-            NODE_ENV=production
-            JWT_SECRET=ci-jwt-secret
-            ADMIN_JWT_SECRET=ci-admin-secret
-            ADMIN_SECRET=ci-admin-secret
-            ENV_FALLBACK
-            sed -i 's/^[[:space:]]*//' "$BACKEND_ENV_FILE"
+            printf '%s\n' \
+              "NODE_ENV=production" \
+              "JWT_SECRET=ci-jwt-secret" \
+              "ADMIN_JWT_SECRET=ci-admin-secret" \
+              "ADMIN_SECRET=ci-admin-secret" \
+              > "$BACKEND_ENV_FILE"
           fi
 
           if [ "$GCP_USE_LOCAL_INFRA" = "true" ]; then
@@ -389,15 +388,14 @@ jobs:
             sed -i \
               '/^DATABASE_URL=/d;/^DB_WAIT_HOST=/d;/^DB_WAIT_PORT=/d;/^REDIS_HOST=/d;/^REDIS_PORT=/d;/^REDIS_URL=/d;/^FORCE_LOCAL_REDIS=/d' \
               "$BACKEND_ENV_FILE"
-            cat <<'ENV_APPEND' >> "$BACKEND_ENV_FILE"
-            DATABASE_URL=postgresql://postgres:postgres@db:5540/aivestire
-            DB_WAIT_HOST=db
-            DB_WAIT_PORT=5540
-            REDIS_HOST=redis
-            REDIS_PORT=6380
-            FORCE_LOCAL_REDIS=true
-            ENV_APPEND
-            sed -i 's/^[[:space:]]*//' "$BACKEND_ENV_FILE"
+            printf '%s\n' \
+              "DATABASE_URL=postgresql://postgres:postgres@db:5540/aivestire" \
+              "DB_WAIT_HOST=db" \
+              "DB_WAIT_PORT=5540" \
+              "REDIS_HOST=redis" \
+              "REDIS_PORT=6380" \
+              "FORCE_LOCAL_REDIS=true" \
+              >> "$BACKEND_ENV_FILE"
           else
             echo "External infra mode enabled: using DATABASE_URL/REDIS_* from backend env file"
           fi
