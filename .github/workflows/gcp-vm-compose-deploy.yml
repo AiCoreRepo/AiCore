@@ -281,6 +281,7 @@ jobs:
           if [ -z "$COMPOSE_SERVICES" ]; then
             COMPOSE_SERVICES="backend frontend body-analyzer recommendation-api"
           fi
+          COMPOSE_SERVICES="$(printf '%s' "$COMPOSE_SERVICES" | tr -s '[:space:]' ' ' | sed 's/^ //;s/ $//')"
           SSH_DEPLOY_PATH="$GCP_DEPLOY_PATH"
 
           mkdir -p ~/.ssh
@@ -309,7 +310,7 @@ jobs:
             COMPOSE_FILE="$COMPOSE_FILE" \
             COMPOSE_SERVICES="$COMPOSE_SERVICES" \
             SSH_DEPLOY_PATH="$SSH_DEPLOY_PATH" \
-            'bash -s' <<'EOF'
+            bash -s <<'EOF'
           set -e
           COMPOSE_FILE="${COMPOSE_FILE}"
           COMPOSE_SERVICES="${COMPOSE_SERVICES}"
