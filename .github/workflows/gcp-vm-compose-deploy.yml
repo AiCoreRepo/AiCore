@@ -4,9 +4,11 @@ on:
   pull_request:
     branches:
       - recommendation_model
+      - uat-server
   push:
     branches:
       - recommendation_model
+      - uat-server
 
 jobs:
   ci:
@@ -230,39 +232,89 @@ jobs:
     name: Deploy to GCP VM (Docker Compose)
     needs: ci # Only run if required CI passes (lint is optional)
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/recommendation_model'
+    if: github.event_name == 'push' && (github.ref_name == 'recommendation_model' || github.ref_name == 'uat-server')
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
       - name: Deploy with Docker Compose on VM
         run: |
-          GCP_INSTANCE_HOST="${{ secrets.GCP_INSTANCE_HOST }}"
-          GCP_INSTANCE_USER="${{ secrets.GCP_INSTANCE_USER }}"
-          GCP_INSTANCE_SSH_KEY="${{ secrets.GCP_INSTANCE_SSH_KEY }}"
-          GCP_DEPLOY_PATH="${{ vars.GCP_DEPLOY_PATH }}"
-          GCP_COMPOSE_FILE="${{ vars.GCP_COMPOSE_FILE }}"
-          GCP_COMPOSE_SERVICES="${{ vars.GCP_COMPOSE_SERVICES }}"
-          GCP_BACKEND_ENV_B64="${{ secrets.GCP_BACKEND_ENV_B64 }}"
-          GCP_USE_LOCAL_INFRA="${{ vars.GCP_USE_LOCAL_INFRA }}"
+          GCP_TARGET_BRANCH="${{ github.ref_name }}"
+          if [ "$GCP_TARGET_BRANCH" = "uat-server" ]; then
+            echo "Deploy target: uat-server branch -> UAT VM"
+            GCP_INSTANCE_HOST="${{ secrets.GCP_UAT_INSTANCE_HOST }}"
+            GCP_INSTANCE_USER="${{ secrets.GCP_UAT_INSTANCE_USER }}"
+            GCP_INSTANCE_SSH_KEY="${{ secrets.GCP_UAT_INSTANCE_SSH_KEY }}"
+            GCP_DEPLOY_PATH="${{ vars.GCP_UAT_DEPLOY_PATH }}"
+            GCP_COMPOSE_FILE="${{ vars.GCP_UAT_COMPOSE_FILE }}"
+            GCP_COMPOSE_SERVICES="${{ vars.GCP_UAT_COMPOSE_SERVICES }}"
+            GCP_BACKEND_ENV_B64="${{ secrets.GCP_UAT_BACKEND_ENV_B64 }}"
+            GCP_USE_LOCAL_INFRA="${{ vars.GCP_UAT_USE_LOCAL_INFRA }}"
+            GCP_SERVER_BASE_URL="${{ vars.GCP_UAT_SERVER_BASE_URL }}"
+          elif [ "$GCP_TARGET_BRANCH" = "recommendation_model" ]; then
+            echo "Deploy target: recommendation_model branch -> DEV VM"
+            GCP_INSTANCE_HOST="${{ secrets.GCP_INSTANCE_HOST }}"
+            GCP_INSTANCE_USER="${{ secrets.GCP_INSTANCE_USER }}"
+            GCP_INSTANCE_SSH_KEY="${{ secrets.GCP_INSTANCE_SSH_KEY }}"
+            GCP_DEPLOY_PATH="${{ vars.GCP_DEPLOY_PATH }}"
+            GCP_COMPOSE_FILE="${{ vars.GCP_COMPOSE_FILE }}"
+            GCP_COMPOSE_SERVICES="${{ vars.GCP_COMPOSE_SERVICES }}"
+            GCP_BACKEND_ENV_B64="${{ secrets.GCP_BACKEND_ENV_B64 }}"
+            GCP_USE_LOCAL_INFRA="${{ vars.GCP_USE_LOCAL_INFRA }}"
+            GCP_SERVER_BASE_URL="${{ vars.GCP_SERVER_BASE_URL }}"
+          else
+            echo "Unsupported deployment branch: $GCP_TARGET_BRANCH"
+            exit 1
+          fi
 
+          if [ -z "$GCP_SERVER_BASE_URL" ]; then
+            GCP_SERVER_BASE_URL="${{ secrets.GCP_UAT_SERVER_BASE_URL }}"
+          fi
+          if [ -z "$GCP_SERVER_BASE_URL" ] && [ "$GCP_TARGET_BRANCH" = "recommendation_model" ]; then
+            GCP_SERVER_BASE_URL="${{ secrets.GCP_SERVER_BASE_URL }}"
+          fi
+
+          if [ -z "$GCP_INSTANCE_HOST" ]; then
+            GCP_INSTANCE_HOST="${{ vars.GCP_UAT_INSTANCE_HOST }}"
+          fi
           if [ -z "$GCP_INSTANCE_HOST" ]; then
             GCP_INSTANCE_HOST="${{ vars.GCP_INSTANCE_HOST }}"
           fi
           if [ -z "$GCP_INSTANCE_USER" ]; then
+            GCP_INSTANCE_USER="${{ vars.GCP_UAT_INSTANCE_USER }}"
+          fi
+          if [ -z "$GCP_INSTANCE_USER" ]; then
             GCP_INSTANCE_USER="${{ vars.GCP_INSTANCE_USER }}"
+          fi
+          if [ -z "$GCP_INSTANCE_SSH_KEY" ]; then
+            GCP_INSTANCE_SSH_KEY="${{ secrets.GCP_INSTANCE_SSH_KEY }}"
+          fi
+          if [ -z "$GCP_DEPLOY_PATH" ]; then
+            GCP_DEPLOY_PATH="${{ vars.GCP_UAT_DEPLOY_PATH }}"
           fi
           if [ -z "$GCP_DEPLOY_PATH" ]; then
             GCP_DEPLOY_PATH="${{ secrets.GCP_DEPLOY_PATH }}"
           fi
           if [ -z "$GCP_COMPOSE_FILE" ]; then
+            GCP_COMPOSE_FILE="${{ vars.GCP_UAT_COMPOSE_FILE }}"
+          fi
+          if [ -z "$GCP_COMPOSE_FILE" ]; then
             GCP_COMPOSE_FILE="${{ secrets.GCP_COMPOSE_FILE }}"
+          fi
+          if [ -z "$GCP_COMPOSE_SERVICES" ]; then
+            GCP_COMPOSE_SERVICES="${{ vars.GCP_UAT_COMPOSE_SERVICES }}"
           fi
           if [ -z "$GCP_COMPOSE_SERVICES" ]; then
             GCP_COMPOSE_SERVICES="${{ secrets.GCP_COMPOSE_SERVICES }}"
           fi
           if [ -z "$GCP_BACKEND_ENV_B64" ]; then
+            GCP_BACKEND_ENV_B64="${{ vars.GCP_UAT_BACKEND_ENV_B64 }}"
+          fi
+          if [ -z "$GCP_BACKEND_ENV_B64" ]; then
             GCP_BACKEND_ENV_B64="${{ vars.GCP_BACKEND_ENV_B64 }}"
+          fi
+          if [ -z "$GCP_USE_LOCAL_INFRA" ]; then
+            GCP_USE_LOCAL_INFRA="${{ vars.GCP_UAT_USE_LOCAL_INFRA }}"
           fi
           if [ -z "$GCP_USE_LOCAL_INFRA" ]; then
             GCP_USE_LOCAL_INFRA="${{ secrets.GCP_USE_LOCAL_INFRA }}"
@@ -311,6 +363,7 @@ jobs:
           DEPLOY_PATH_B64="$(printf '%s' "$SSH_DEPLOY_PATH" | base64 -w0)"
           BACKEND_ENV_B64="$(printf '%s' "$GCP_BACKEND_ENV_B64" | base64 -w0)"
           LOCAL_INFRA_B64="$(printf '%s' "$GCP_USE_LOCAL_INFRA" | base64 -w0)"
+          TARGET_BRANCH_B64="$(printf '%s' "$GCP_TARGET_BRANCH" | base64 -w0)"
           echo "Encoded payload lengths: file=$(( ${#COMPOSE_FILE_B64} )) services=$(( ${#COMPOSE_SERVICES_B64} )) deploy=$(( ${#DEPLOY_PATH_B64} ))"
           echo "Encoded deploy path prefix: $(printf '%.20s' "$DEPLOY_PATH_B64")..."
 
@@ -337,13 +390,18 @@ jobs:
 
           ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa \
             "$GCP_INSTANCE_USER@$GCP_INSTANCE_HOST" \
-            "COMPOSE_FILE_B64='${COMPOSE_FILE_B64}' COMPOSE_SERVICES_B64='${COMPOSE_SERVICES_B64}' DEPLOY_PATH_B64='${DEPLOY_PATH_B64}' BACKEND_ENV_B64='${BACKEND_ENV_B64}' LOCAL_INFRA_B64='${LOCAL_INFRA_B64}' bash -s" <<'EOF'
+            "COMPOSE_FILE_B64='${COMPOSE_FILE_B64}' COMPOSE_SERVICES_B64='${COMPOSE_SERVICES_B64}' DEPLOY_PATH_B64='${DEPLOY_PATH_B64}' BACKEND_ENV_B64='${BACKEND_ENV_B64}' LOCAL_INFRA_B64='${LOCAL_INFRA_B64}' TARGET_BRANCH_B64='${TARGET_BRANCH_B64}' bash -s" <<'EOF'
           set -e
           COMPOSE_FILE="$(printf '%s' "$COMPOSE_FILE_B64" | base64 -d)"
           COMPOSE_SERVICES="$(printf '%s' "$COMPOSE_SERVICES_B64" | base64 -d)"
           DEPLOY_PATH="$(printf '%s' "$DEPLOY_PATH_B64" | base64 -d)"
           BACKEND_ENV_B64="$(printf '%s' "$BACKEND_ENV_B64" | base64 -d)"
           GCP_USE_LOCAL_INFRA="$(printf '%s' "$LOCAL_INFRA_B64" | base64 -d)"
+          GCP_TARGET_BRANCH="$(printf '%s' "$TARGET_BRANCH_B64" | base64 -d)"
+          if [ -z "$GCP_TARGET_BRANCH" ]; then
+            echo "Remote did not receive target branch"
+            exit 1
+          fi
           echo "Remote received deploy path: ${DEPLOY_PATH}"
           if [ -z "$DEPLOY_PATH" ]; then
             echo "Remote did not receive deploy path (empty)"
@@ -412,8 +470,8 @@ jobs:
 
           if [ -d .git ]; then
             git fetch origin
-            git checkout recommendation_model
-            git reset --hard "origin/recommendation_model"
+            git checkout "$GCP_TARGET_BRANCH"
+            git reset --hard "origin/$GCP_TARGET_BRANCH"
           else
             echo "No git repository found at $DEPLOY_PATH. Expected checked-out repo on VM."
             exit 1
@@ -504,6 +562,18 @@ jobs:
         working-directory: APP3005/aivestire-backend-tmp
         run: |
           GCP_SERVER_BASE_URL="${{ vars.GCP_SERVER_BASE_URL }}"
+          if [ "${{ github.ref_name }}" = "uat-server" ]; then
+            GCP_SERVER_BASE_URL="${{ vars.GCP_UAT_SERVER_BASE_URL }}"
+          fi
+          if [ -z "$GCP_SERVER_BASE_URL" ]; then
+            GCP_SERVER_BASE_URL="${{ vars.GCP_UAT_SERVER_BASE_URL }}"
+          fi
+          if [ -z "$GCP_SERVER_BASE_URL" ] && [ "${{ github.ref_name }}" = "recommendation_model" ]; then
+            GCP_SERVER_BASE_URL="${{ vars.GCP_SERVER_BASE_URL }}"
+          fi
+          if [ -z "$GCP_SERVER_BASE_URL" ] && [ "${{ github.ref_name }}" = "uat-server" ]; then
+            GCP_SERVER_BASE_URL="${{ secrets.GCP_UAT_SERVER_BASE_URL }}"
+          fi
           if [ -z "$GCP_SERVER_BASE_URL" ]; then
             GCP_SERVER_BASE_URL="${{ secrets.GCP_SERVER_BASE_URL }}"
           fi
