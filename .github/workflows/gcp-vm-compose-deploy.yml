@@ -45,7 +45,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: "18"
           cache: npm
           cache-dependency-path: APP3005/aivestire-backend-tmp/package-lock.json
 
@@ -214,7 +214,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: "18"
           cache: npm
           cache-dependency-path: APP3005/aivestire-backend-tmp/package-lock.json
 
@@ -305,7 +305,7 @@ jobs:
           fi
 
           ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa \
-            "$GCP_INSTANCE_USER@$GCP_INSTANCE_HOST" <<EOF
+            "$GCP_INSTANCE_USER@$GCP_INSTANCE_HOST" <<'EOF'
           set -e
           COMPOSE_FILE="${COMPOSE_FILE}"
           COMPOSE_SERVICES="${COMPOSE_SERVICES}"
