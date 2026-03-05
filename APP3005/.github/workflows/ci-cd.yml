@@ -165,7 +165,17 @@ jobs:
           CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET || 'ci-placeholder-secret-xxxxxxxx' }}
 
         run: |
-          set -e
+          set -euo pipefail
+          BACKEND_LOG="$PWD/backend-server.log"
+          echo "--- Backend log file path: $BACKEND_LOG ---"
+          echo "--- Backend log initial state ---"
+          if [ -f "$BACKEND_LOG" ]; then
+            ls -lh "$BACKEND_LOG" || true
+            tail -n 40 "$BACKEND_LOG" || true
+          else
+            echo "Backend log file does not exist yet"
+          fi
+
           echo "--- Checking start script exists ---"
           # ── FIX 3: Fall back to start:prod if start:prod:ci doesn't exist ──
           START_SCRIPT="start:prod:ci"
@@ -175,11 +185,11 @@ jobs:
           fi
           echo "Using start script: $START_SCRIPT"
 
-          BACKEND_LOG=backend-server.log
-
           echo "--- Starting backend (script: $START_SCRIPT) ---"
           npm run "$START_SCRIPT" --prefix aivestire-backend-tmp > "$BACKEND_LOG" 2>&1 &
           BACKEND_PID=$!
+
+          echo "Backend PID: $BACKEND_PID"
 
           # Wait and check process didn't die immediately
           sleep 5
@@ -198,6 +208,8 @@ jobs:
             sed -n '1,200p' "$BACKEND_LOG" || true
             echo "--- Backend log (tail) ---"
             tail -n 100 "$BACKEND_LOG" || true
+            echo "--- Backend log file size ---"
+            ls -lh "$BACKEND_LOG" || true
             echo "--- Port 3000 status ---"
             ss -tlnp | grep 3000 || echo "Nothing listening on port 3000"
             kill "$BACKEND_PID" || true
