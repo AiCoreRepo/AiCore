@@ -125,6 +125,12 @@ jobs:
             sleep 2
           done
 
+      - name: Preflight database connectivity
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/aivestire
+          NODE_ENV: test
+        run: npm run script:check-db --prefix aivestire-backend-tmp
+
       - name: Start API and run health checks
         env:
           NODE_ENV: test
@@ -143,6 +149,8 @@ jobs:
           HEALTH_CHECK_STARTUP_TIMEOUT_MS: 240000
           SKIP_TWILIO: 'true'
           SKIP_SMS_IN_DEV: 'true'
+          PRISMA_CONNECT_RETRIES: 120
+          PRISMA_CONNECT_RETRY_DELAY_MS: 1000
           CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME || 'ci-cloud-name' }}
           CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY || 'ci-cloud-key' }}
           CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET || 'ci-cloud-secret' }}
