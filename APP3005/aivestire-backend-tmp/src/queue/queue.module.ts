@@ -8,9 +8,12 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => {
         const redisUrl = configService.get('REDIS_URL');
+        const forceLocalRedis =
+          String(configService.get('FORCE_LOCAL_REDIS') || '').toLowerCase() ===
+          'true';
 
         // Parse Redis URL for Upstash/production
-        if (redisUrl) {
+        if (redisUrl && !forceLocalRedis) {
           console.log('🔧 Redis Configuration: Using REDIS_URL');
 
           try {

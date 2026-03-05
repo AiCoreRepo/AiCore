@@ -38,16 +38,13 @@ services:
       [
         "sh",
         "-c",
-        "set -e; until node -e \"const net=require('net');const s=net.createConnection({host:'db',port:5540},()=>process.exit(0));s.on('error',()=>process.exit(1));\"; do echo 'waiting for db...'; sleep 2; done; if ! node ./node_modules/prisma/build/index.js migrate deploy; then echo 'migrate deploy failed; attempting to mark known pre-applied migration as applied'; node ./node_modules/prisma/build/index.js migrate resolve --applied 20260215_add_refund_return_replacement; node ./node_modules/prisma/build/index.js migrate deploy; fi; node scripts/seed-products.js; node dist/src/main"
+        "set -e; DB_WAIT_HOST=${DB_WAIT_HOST:-db}; DB_WAIT_PORT=${DB_WAIT_PORT:-5540}; until node -e \"const net=require('net'); const host=process.env.DB_WAIT_HOST || 'db'; const port=Number(process.env.DB_WAIT_PORT || 5540); const s=net.createConnection({host, port},()=>process.exit(0)); s.on('error',()=>process.exit(1));\"; do echo \"waiting for db at ${DB_WAIT_HOST}:${DB_WAIT_PORT}...\"; sleep 2; done; if ! node ./node_modules/prisma/build/index.js migrate deploy; then echo 'migrate deploy failed; attempting to mark known pre-applied migration as applied'; node ./node_modules/prisma/build/index.js migrate resolve --applied 20260215_add_refund_return_replacement; node ./node_modules/prisma/build/index.js migrate deploy; fi; node scripts/seed-products.js; node dist/src/main"
       ]
     env_file:
       - ./APP3005/aivestire-backend-tmp/.env
     environment:
-      DATABASE_URL: postgresql://postgres:postgres@db:5540/aivestire
       NODE_ENV: production
       FRONTEND_URL: https://aivestire.com
-      REDIS_HOST: redis
-      REDIS_PORT: 6380
       FASTAPI_BODY_ANALYZE_URL: http://body-analyzer:8898/body_analyze_json
       FASTAPI_RECOMMENDATION_URL: ${FASTAPI_RECOMMENDATION_URL:-http://recommendation-api:8799/recommendation/ai-decide}
       RECOMMENDATION_DUMMY_ONLY: ${RECOMMENDATION_DUMMY_ONLY:-true}

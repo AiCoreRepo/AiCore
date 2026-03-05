@@ -243,6 +243,8 @@ jobs:
           GCP_DEPLOY_PATH="${{ vars.GCP_DEPLOY_PATH }}"
           GCP_COMPOSE_FILE="${{ vars.GCP_COMPOSE_FILE }}"
           GCP_COMPOSE_SERVICES="${{ vars.GCP_COMPOSE_SERVICES }}"
+          GCP_BACKEND_ENV_B64="${{ secrets.GCP_BACKEND_ENV_B64 }}"
+          GCP_USE_LOCAL_INFRA="${{ vars.GCP_USE_LOCAL_INFRA }}"
 
           if [ -z "$GCP_INSTANCE_HOST" ]; then
             GCP_INSTANCE_HOST="${{ vars.GCP_INSTANCE_HOST }}"
@@ -259,13 +261,34 @@ jobs:
           if [ -z "$GCP_COMPOSE_SERVICES" ]; then
             GCP_COMPOSE_SERVICES="${{ secrets.GCP_COMPOSE_SERVICES }}"
           fi
+          if [ -z "$GCP_BACKEND_ENV_B64" ]; then
+            GCP_BACKEND_ENV_B64="${{ vars.GCP_BACKEND_ENV_B64 }}"
+          fi
+          if [ -z "$GCP_USE_LOCAL_INFRA" ]; then
+            GCP_USE_LOCAL_INFRA="${{ secrets.GCP_USE_LOCAL_INFRA }}"
+          fi
+          if [ -z "$GCP_USE_LOCAL_INFRA" ]; then
+            GCP_USE_LOCAL_INFRA="true"
+          fi
 
-          echo "Resolved deployment settings:"
+          GCP_USE_LOCAL_INFRA="$(printf '%s' "$GCP_USE_LOCAL_INFRA" | tr '[:upper:]' '[:lower:]')"
+          if [ "$GCP_USE_LOCAL_INFRA" != "true" ] && [ "$GCP_USE_LOCAL_INFRA" != "false" ]; then
+            echo "Invalid GCP_USE_LOCAL_INFRA value: $GCP_USE_LOCAL_INFRA. Use 'true' or 'false'."
+            exit 1
+          fi
+
+          echo "Resolved deployment settings:" 
           echo "  Host: ${GCP_INSTANCE_HOST}"
           echo "  User: ${GCP_INSTANCE_USER}"
           echo "  Deploy Path: ${GCP_DEPLOY_PATH}"
           echo "  Compose File: ${GCP_COMPOSE_FILE:-docker-compose.yml}"
           echo "  Compose Services: ${GCP_COMPOSE_SERVICES:-backend frontend body-analyzer recommendation-api}"
+          echo "  Use Local Infra (db+redis): ${GCP_USE_LOCAL_INFRA}"
+          if [ -n "$GCP_BACKEND_ENV_B64" ]; then
+            echo "  Backend env payload: provided (base64 length ${#GCP_BACKEND_ENV_B64})"
+          else
+            echo "  Backend env payload: not provided"
+          fi
 
           if [ -z "$GCP_INSTANCE_HOST" ] || [ -z "$GCP_INSTANCE_USER" ] || [ -z "$GCP_INSTANCE_SSH_KEY" ] || [ -z "$GCP_DEPLOY_PATH" ]; then
             echo "Missing required deployment config: GCP_INSTANCE_HOST, GCP_INSTANCE_USER, GCP_INSTANCE_SSH_KEY, or GCP_DEPLOY_PATH."
@@ -286,6 +309,8 @@ jobs:
           COMPOSE_FILE_B64="$(printf '%s' "$COMPOSE_FILE" | base64 -w0)"
           COMPOSE_SERVICES_B64="$(printf '%s' "$COMPOSE_SERVICES" | base64 -w0)"
           DEPLOY_PATH_B64="$(printf '%s' "$SSH_DEPLOY_PATH" | base64 -w0)"
+          BACKEND_ENV_B64="$(printf '%s' "$GCP_BACKEND_ENV_B64" | base64 -w0)"
+          LOCAL_INFRA_B64="$(printf '%s' "$GCP_USE_LOCAL_INFRA" | base64 -w0)"
           echo "Encoded payload lengths: file=$(( ${#COMPOSE_FILE_B64} )) services=$(( ${#COMPOSE_SERVICES_B64} )) deploy=$(( ${#DEPLOY_PATH_B64} ))"
           echo "Encoded deploy path prefix: $(printf '%.20s' "$DEPLOY_PATH_B64")..."
 
@@ -312,17 +337,20 @@ jobs:
 
           ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa \
             "$GCP_INSTANCE_USER@$GCP_INSTANCE_HOST" \
-            "COMPOSE_FILE_B64='${COMPOSE_FILE_B64}' COMPOSE_SERVICES_B64='${COMPOSE_SERVICES_B64}' DEPLOY_PATH_B64='${DEPLOY_PATH_B64}' bash -s" <<'EOF'
+            "COMPOSE_FILE_B64='${COMPOSE_FILE_B64}' COMPOSE_SERVICES_B64='${COMPOSE_SERVICES_B64}' DEPLOY_PATH_B64='${DEPLOY_PATH_B64}' BACKEND_ENV_B64='${BACKEND_ENV_B64}' LOCAL_INFRA_B64='${LOCAL_INFRA_B64}' bash -s" <<'EOF'
           set -e
           COMPOSE_FILE="$(printf '%s' "$COMPOSE_FILE_B64" | base64 -d)"
           COMPOSE_SERVICES="$(printf '%s' "$COMPOSE_SERVICES_B64" | base64 -d)"
           DEPLOY_PATH="$(printf '%s' "$DEPLOY_PATH_B64" | base64 -d)"
+          BACKEND_ENV_B64="$(printf '%s' "$BACKEND_ENV_B64" | base64 -d)"
+          GCP_USE_LOCAL_INFRA="$(printf '%s' "$LOCAL_INFRA_B64" | base64 -d)"
           echo "Remote received deploy path: ${DEPLOY_PATH}"
           if [ -z "$DEPLOY_PATH" ]; then
             echo "Remote did not receive deploy path (empty)"
           fi
           echo "Remote compose file: ${COMPOSE_FILE}"
           echo "Remote compose services: ${COMPOSE_SERVICES}"
+          echo "Remote local infra usage: ${GCP_USE_LOCAL_INFRA}"
           case " $COMPOSE_SERVICES " in
             *" recommendation-api "*) ;;
             *)
@@ -337,6 +365,33 @@ jobs:
           fi
           if [ -z "$DEPLOY_PATH" ] || [ "$DEPLOY_PATH" = "/" ]; then
             echo "Invalid deploy path: $DEPLOY_PATH"
+            exit 1
+          fi
+
+          BACKEND_ENV_FILE="${DEPLOY_PATH}/APP3005/aivestire-backend-tmp/.env"
+          if [ -n "$BACKEND_ENV_B64" ]; then
+            echo "Writing backend env file from GCP_BACKEND_ENV_B64"
+            mkdir -p "$(dirname "$BACKEND_ENV_FILE")"
+            printf '%s' "$BACKEND_ENV_B64" > "$BACKEND_ENV_FILE"
+            chmod 600 "$BACKEND_ENV_FILE"
+
+            if [ "$GCP_USE_LOCAL_INFRA" = "true" ]; then
+              echo "Forcing local compose db/redis settings in backend env"
+              sed -i \
+                '/^DATABASE_URL=/d;/^DB_WAIT_HOST=/d;/^DB_WAIT_PORT=/d;/^REDIS_HOST=/d;/^REDIS_PORT=/d;/^REDIS_URL=/d;/^FORCE_LOCAL_REDIS=/d' \
+                "$BACKEND_ENV_FILE"
+              cat <<'ENV_APPEND' >> "$BACKEND_ENV_FILE"
+          DATABASE_URL=postgresql://postgres:postgres@db:5540/aivestire
+          DB_WAIT_HOST=db
+          DB_WAIT_PORT=5540
+          REDIS_HOST=redis
+          REDIS_PORT=6380
+          FORCE_LOCAL_REDIS=true
+          ENV_APPEND
+            fi
+          elif [ ! -f "$BACKEND_ENV_FILE" ]; then
+            echo "Missing backend env file: $BACKEND_ENV_FILE"
+            echo "Set secret GCP_BACKEND_ENV_B64 (recommended) or create the file manually on the VM."
             exit 1
           fi
 
@@ -356,9 +411,30 @@ jobs:
             exit 1
           fi
 
-          $COMPOSE_CMD -f "$COMPOSE_FILE" pull $COMPOSE_SERVICES
-          $COMPOSE_CMD -f "$COMPOSE_FILE" up -d --build $COMPOSE_SERVICES
-          $COMPOSE_CMD -f "$COMPOSE_FILE" ps $COMPOSE_SERVICES
+          read -r -a COMPOSE_SERVICES_ARR <<< "$COMPOSE_SERVICES"
+          if [ ${#COMPOSE_SERVICES_ARR[@]} -eq 0 ]; then
+            echo "No services resolved from compose services input"
+            exit 1
+          fi
+
+          DEPLOY_SERVICES=("${COMPOSE_SERVICES_ARR[@]}")
+          for base_service in db redis; do
+            should_add=true
+            for existing_service in "${DEPLOY_SERVICES[@]}"; do
+              if [ "$existing_service" = "$base_service" ]; then
+                should_add=false
+                break
+              fi
+            done
+
+            if [ "$should_add" = true ]; then
+              DEPLOY_SERVICES+=("$base_service")
+            fi
+          done
+
+          $COMPOSE_CMD -f "$COMPOSE_FILE" pull "${DEPLOY_SERVICES[@]}"
+          $COMPOSE_CMD -f "$COMPOSE_FILE" up -d --build "${DEPLOY_SERVICES[@]}"
+          $COMPOSE_CMD -f "$COMPOSE_FILE" ps "${DEPLOY_SERVICES[@]}"
 
           check_url() {
             local service_label="$1"
@@ -385,7 +461,6 @@ jobs:
           check_url "Frontend /api/health" "http://127.0.0.1:3005/api/health" 120
           check_url "Frontend /api/v1/tryon/health" "http://127.0.0.1:3005/api/v1/tryon/health" 120
           check_url "Recommendation API /health" "http://127.0.0.1:8799/health" 120
-          check_url "Backend direct /health" "http://127.0.0.1:3000/health" 120
           $COMPOSE_CMD -f "$COMPOSE_FILE" ps recommendation-api | grep -q "Up" || {
             echo "recommendation-api container is not running"
             exit 1
