@@ -58,6 +58,23 @@ jobs:
         working-directory: APP3005/aivestire-backend-tmp
         run: npm run build
 
+      - name: Print CI startup diagnostics
+        working-directory: APP3005/aivestire-backend-tmp
+        run: |
+          echo "GCP_PIPELINE_MARKER=v1-health-log"
+          echo "GITHUB_WORKFLOW_FILE_REV=$(sha1sum ../.github/workflows/gcp-vm-compose-deploy.yml | awk '{print $1}')"
+          node -v
+          npm -v
+          echo "--- Start scripts ---"
+          node -e "const pkg=require('./package.json'); const scripts=Object.keys(pkg.scripts||{}).filter(s=>s.includes('start') || s.includes('ci')); console.log(scripts.map(s=>s+' = '+pkg.scripts[s]).join('\n'))"
+          echo "--- dist check ---"
+          if [ -f dist/src/main.js ]; then
+            echo "✅ dist/src/main.js exists"
+          else
+            echo "❌ dist/src/main.js missing"
+            exit 1
+          fi
+
       - name: Run API Health Checks
         working-directory: APP3005/aivestire-backend-tmp
         env:
@@ -71,8 +88,31 @@ jobs:
           ADMIN_JWT_SECRET: ci-admin-jwt-secret
           ADMIN_SECRET: ci-admin-secret
           NODE_ENV: test
+          SKIP_TWILIO: "true"
+          SKIP_SMS_IN_DEV: "true"
+          HEALTH_CHECK_STARTUP_TIMEOUT_MS: 120000
+          PRISMA_CONNECT_RETRIES: 120
+          PRISMA_CONNECT_RETRY_DELAY_MS: 1000
         run: |
-          npm run start:prod > backend-server.log 2>&1 &
+          set -euo pipefail
+          echo "GCP_PIPELINE_MARKER=v1-health-log"
+          BACKEND_LOG="$PWD/backend-server.log"
+          echo "--- Backend log file path: $BACKEND_LOG ---"
+          if [ -f "$BACKEND_LOG" ]; then
+            ls -lh "$BACKEND_LOG" || true
+            tail -n 40 "$BACKEND_LOG" || true
+          else
+            echo "Backend log file does not exist yet"
+          fi
+
+          START_SCRIPT="start:prod:ci"
+          if ! node -e "const p=require('./package.json'); if(!p.scripts['$START_SCRIPT']) process.exit(1)" 2>/dev/null; then
+            echo "⚠️  '$START_SCRIPT' not found in package.json, falling back to 'start:prod'"
+            START_SCRIPT="start:prod"
+          fi
+          echo "Using start script: $START_SCRIPT"
+
+          npm run "$START_SCRIPT" > backend-server.log 2>&1 &
           BACKEND_PID=$!
 
           cleanup() {
@@ -83,7 +123,46 @@ jobs:
           }
           trap cleanup EXIT
 
-          npm run ci:health-check
+          echo "Backend PID: $BACKEND_PID"
+          echo "Running health check..."
+          if ! npm run ci:health-check; then
+            echo "❌ Health check failed"
+            echo "--- Backend log (head) ---"
+            sed -n '1,200p' "$BACKEND_LOG" || true
+            echo "--- Backend log (tail) ---"
+            tail -n 100 "$BACKEND_LOG" || true
+            echo "--- Port 3000 status ---"
+            ss -tlnp | grep 3000 || echo "Nothing listening on port 3000"
+            exit 1
+          fi
+          echo "✅ Health check passed"
+
+      - name: Dump backend logs on failure
+        if: failure()
+        working-directory: APP3005/aivestire-backend-tmp
+        run: |
+          echo "--- Full backend log ---"
+          if [ -f backend-server.log ]; then
+            cat backend-server.log
+          else
+            echo "No backend-server.log found"
+          fi
+          echo "--- Node processes ---"
+          ps aux | grep node || true
+
+      - name: Dump backend log and status (always)
+        if: always()
+        working-directory: APP3005/aivestire-backend-tmp
+        run: |
+          echo "--- Guaranteed backend log dump ---"
+          echo "Log path: $PWD/backend-server.log"
+          if [ -f backend-server.log ]; then
+            ls -lh backend-server.log || true
+            tail -n 200 backend-server.log || true
+          else
+            echo "No backend-server.log exists"
+          fi
+          ss -tlnp | grep 3000 || echo "Nothing listening on port 3000"
 
   lint:
     name: Lint (Backend) [non-blocking]

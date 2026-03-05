@@ -66,6 +66,9 @@ jobs:
 
       - name: Print CI startup diagnostics
         run: |
+          echo "CI_STEP_BANNER=backend-health-logging-v3"
+          echo "GITHUB_WORKFLOW_FILE_REV=$(sha1sum .github/workflows/ci-cd.yml | awk '{print $1}')"
+          echo "GITHUB_SHA=${GITHUB_SHA}"
           set -x
           echo "--- Tooling ---"
           node -v
@@ -221,8 +224,9 @@ jobs:
           echo "✅ Health check passed"
           kill "$BACKEND_PID" || true
           wait "$BACKEND_PID" 2>/dev/null || true
+          echo "CI_LOG_PATCH_MARKER=v1-logging-frontend-success"
 
-      - name: Print backend logs on failure
+      - name: Dump backend logs (failure)
         if: failure()
         run: |
           echo "--- Full backend log ---"
@@ -237,3 +241,17 @@ jobs:
           echo ""
           echo "--- Node processes ---"
           ps aux | grep node || true
+
+      - name: Dump backend log path and status
+        if: always()
+        run: |
+          BACKEND_LOG="$PWD/backend-server.log"
+          echo "--- Guaranteed backend log dump ---"
+          echo "Log path: $BACKEND_LOG"
+          if [ -f "$BACKEND_LOG" ]; then
+            ls -lh "$BACKEND_LOG" || true
+            tail -n 200 "$BACKEND_LOG" || true
+          else
+            echo "No backend log file exists"
+          fi
+          ss -tlnp | grep 3000 || echo "Nothing listening on port 3000"
