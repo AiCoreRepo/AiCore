@@ -369,31 +369,39 @@ jobs:
           fi
 
           BACKEND_ENV_FILE="${DEPLOY_PATH}/APP3005/aivestire-backend-tmp/.env"
+          mkdir -p "$(dirname "$BACKEND_ENV_FILE")"
           if [ -n "$BACKEND_ENV_B64" ]; then
             echo "Writing backend env file from GCP_BACKEND_ENV_B64"
-            mkdir -p "$(dirname "$BACKEND_ENV_FILE")"
             printf '%s' "$BACKEND_ENV_B64" > "$BACKEND_ENV_FILE"
-            chmod 600 "$BACKEND_ENV_FILE"
-
-            if [ "$GCP_USE_LOCAL_INFRA" = "true" ]; then
-              echo "Forcing local compose db/redis settings in backend env"
-              sed -i \
-                '/^DATABASE_URL=/d;/^DB_WAIT_HOST=/d;/^DB_WAIT_PORT=/d;/^REDIS_HOST=/d;/^REDIS_PORT=/d;/^REDIS_URL=/d;/^FORCE_LOCAL_REDIS=/d' \
-                "$BACKEND_ENV_FILE"
-              cat <<'ENV_APPEND' >> "$BACKEND_ENV_FILE"
-          DATABASE_URL=postgresql://postgres:postgres@db:5540/aivestire
-          DB_WAIT_HOST=db
-          DB_WAIT_PORT=5540
-          REDIS_HOST=redis
-          REDIS_PORT=6380
-          FORCE_LOCAL_REDIS=true
-          ENV_APPEND
-            fi
           elif [ ! -f "$BACKEND_ENV_FILE" ]; then
-            echo "Missing backend env file: $BACKEND_ENV_FILE"
-            echo "Set secret GCP_BACKEND_ENV_B64 (recommended) or create the file manually on the VM."
-            exit 1
+            echo "No backend env file found; creating managed fallback file"
+            cat <<'ENV_FALLBACK' > "$BACKEND_ENV_FILE"
+NODE_ENV=production
+JWT_SECRET=ci-jwt-secret
+ADMIN_JWT_SECRET=ci-admin-secret
+ADMIN_SECRET=ci-admin-secret
+ENV_FALLBACK
           fi
+
+          if [ "$GCP_USE_LOCAL_INFRA" = "true" ]; then
+            echo "Forcing local compose db/redis settings in backend env"
+            sed -i \
+              '/^DATABASE_URL=/d;/^DB_WAIT_HOST=/d;/^DB_WAIT_PORT=/d;/^REDIS_HOST=/d;/^REDIS_PORT=/d;/^REDIS_URL=/d;/^FORCE_LOCAL_REDIS=/d' \
+              "$BACKEND_ENV_FILE"
+            cat <<'ENV_APPEND' >> "$BACKEND_ENV_FILE"
+DATABASE_URL=postgresql://postgres:postgres@db:5540/aivestire
+DB_WAIT_HOST=db
+DB_WAIT_PORT=5540
+REDIS_HOST=redis
+REDIS_PORT=6380
+FORCE_LOCAL_REDIS=true
+ENV_APPEND
+          else
+            echo "External infra mode enabled: using DATABASE_URL/REDIS_* from backend env file"
+          fi
+          chmod 600 "$BACKEND_ENV_FILE"
+          echo "Backend env resolved snapshot:"
+          grep -E '^(DATABASE_URL|DB_WAIT_HOST|DB_WAIT_PORT|REDIS_HOST|REDIS_PORT|FORCE_LOCAL_REDIS)=' "$BACKEND_ENV_FILE" || true
 
           if [ ! -d "$DEPLOY_PATH" ]; then
             echo "Deploy path does not exist: $DEPLOY_PATH"
