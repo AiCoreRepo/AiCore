@@ -457,16 +457,20 @@ jobs:
             local elapsed=0
             local status
             local curl_err
+            local response_file
+            curl_err="$(mktemp)"
+            response_file="$(mktemp)"
             while [ "$elapsed" -lt "$timeout" ]; do
-              curl_err="/tmp/health_error.txt"
               : > "$curl_err"
-              status="$(curl -sS -o /tmp/health_response.txt -w '%{http_code}' \"$url\" 2>\"$curl_err\" || true)"
+              : > "$response_file"
+              status="$(curl -sS -o "$response_file" -w '%{http_code}' "$url" 2>"$curl_err" || true)"
 
               echo "Checking $service_label"
               echo "  URL: $url"
               echo "  HTTP status: ${status:-N/A}"
               if [[ "$status" =~ ^[0-9]+$ ]] && [ "$status" -ge 200 ] && [ "$status" -lt 400 ]; then
                 echo "Health check passed for $service_label"
+                rm -f "$curl_err" "$response_file"
                 return 0
               fi
               sleep 2
@@ -474,15 +478,16 @@ jobs:
             done
             echo "Health check failed for $service_label ($url)"
             echo "  Last status: ${status:-N/A}"
-            if [ -s /tmp/health_error.txt ]; then
+            if [ -s "$curl_err" ]; then
               echo "  curl error:"
-              cat /tmp/health_error.txt
+              cat "$curl_err"
             fi
-            cat /tmp/health_response.txt
+            cat "$response_file"
             echo "--- Tail backend logs ---"
             $COMPOSE_CMD -f "$COMPOSE_FILE" logs --tail 120 backend || true
             echo "--- Tail recommendation logs ---"
             $COMPOSE_CMD -f "$COMPOSE_FILE" logs --tail 120 recommendation-api || true
+            rm -f "$curl_err" "$response_file"
             return 1
           }
 
