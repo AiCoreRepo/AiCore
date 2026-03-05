@@ -310,11 +310,11 @@ jobs:
 
           ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa \
             "$GCP_INSTANCE_USER@$GCP_INSTANCE_HOST" \
-            COMPOSE_FILE_B64="$COMPOSE_FILE_B64" \
-            COMPOSE_SERVICES_B64="$COMPOSE_SERVICES_B64" \
-            DEPLOY_PATH_B64="$DEPLOY_PATH_B64" \
-            bash -s <<'EOF'
+            bash -s <<EOF
           set -e
+          COMPOSE_FILE_B64="${COMPOSE_FILE_B64}"
+          COMPOSE_SERVICES_B64="${COMPOSE_SERVICES_B64}"
+          DEPLOY_PATH_B64="${DEPLOY_PATH_B64}"
           COMPOSE_FILE="$(printf '%s' "$COMPOSE_FILE_B64" | base64 -d)"
           COMPOSE_SERVICES="$(printf '%s' "$COMPOSE_SERVICES_B64" | base64 -d)"
           DEPLOY_PATH="$(printf '%s' "$DEPLOY_PATH_B64" | base64 -d)"
@@ -362,25 +362,31 @@ jobs:
           $COMPOSE_CMD -f "$COMPOSE_FILE" ps $COMPOSE_SERVICES
 
           check_url() {
-            local url="$1"
-            local timeout="${2:-60}"
+            local service_label="$1"
+            local url="$2"
+            local timeout="${3:-60}"
             local elapsed=0
             while [ "$elapsed" -lt "$timeout" ]; do
               if curl -fsS "$url" > /tmp/health_response.txt; then
-                echo "Health check passed for $url"
+                echo "Health check passed for $service_label"
                 return 0
               fi
               sleep 2
               elapsed=$((elapsed + 2))
             done
-            echo "Health check failed for $url"
+            echo "Health check failed for $service_label ($url)"
             cat /tmp/health_response.txt
+            echo "--- Tail backend logs ---"
+            $COMPOSE_CMD -f "$COMPOSE_FILE" logs --tail 120 backend || true
+            echo "--- Tail recommendation logs ---"
+            $COMPOSE_CMD -f "$COMPOSE_FILE" logs --tail 120 recommendation-api || true
             return 1
           }
 
-          check_url "http://127.0.0.1:3005/api/health" 120
-          check_url "http://127.0.0.1:3005/api/v1/tryon/health" 120
-          check_url "http://127.0.0.1:8799/health" 120
+          check_url "Frontend /api/health" "http://127.0.0.1:3005/api/health" 120
+          check_url "Frontend /api/v1/tryon/health" "http://127.0.0.1:3005/api/v1/tryon/health" 120
+          check_url "Recommendation API /health" "http://127.0.0.1:8799/health" 120
+          check_url "Backend direct /health" "http://127.0.0.1:3000/health" 120
           $COMPOSE_CMD -f "$COMPOSE_FILE" ps recommendation-api | grep -q "Up" || {
             echo "recommendation-api container is not running"
             exit 1
