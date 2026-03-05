@@ -112,6 +112,12 @@ async function bootstrap() {
       '[Bootstrap] ValidationPipe was not registered due to missing validation packages.',
     );
   }
-  await app.listen(process.env.PORT ?? 3000);
+  const port = Number(process.env.PORT ?? 3000);
+  await app.listen(port);
+  const url = await app.getUrl();
+  console.log(`[bootstrap] Nest application listening on ${url}`);
 }
-void bootstrap();
+void bootstrap().catch((error) => {
+  console.error('[bootstrap] fatal startup error:', error);
+  process.exit(1);
+});

@@ -53,7 +53,7 @@ jobs:
       - name: Install backend dependencies
         run: |
           npm ci --prefix aivestire-backend-tmp ||
-            (echo "npm ci failed (lockfile or environment mismatch). Falling back to npm install." && npm install --prefix aivestire-backend-tmp --no-audit --no-fund)
+            (echo "npm ci failed. Falling back to npm install." && npm install --prefix aivestire-backend-tmp --no-audit --no-fund)
 
       - name: Install frontend dependencies
         run: npm ci --prefix frontend
@@ -73,14 +73,6 @@ jobs:
           echo "--- Working directory ---"
           pwd
           ls -la
-          echo "--- Backend package + lockfile check ---"
-          cat aivestire-backend-tmp/package.json | sed -n '1,140p'
-          [ -f aivestire-backend-tmp/package-lock.json ] && sed -n '1,120p' aivestire-backend-tmp/package-lock.json | cat
-          if [ -f aivestire-backend-tmp/package-lock.json ]; then
-            node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('aivestire-backend-tmp/package.json'));const l=JSON.parse(fs.readFileSync('aivestire-backend-tmp/package-lock.json'));const lock=Object.keys(l.packages?.['']?.dependencies||{});const pkg={...(p.dependencies||{}),...(p.devDependencies||{})};const missing=Object.keys(pkg).filter((name)=>!lock.includes(name));if(missing.length){console.log('⚠️ lockfile missing deps:',missing.join(', '));}"
-          fi
-          echo "--- Installed backend deps check ---"
-          (cd aivestire-backend-tmp && npm ls --depth=0 | sed -n '1,120p')
           echo "--- Build output check ---"
           ls -la aivestire-backend-tmp/dist || true
           ls -la aivestire-backend-tmp/dist/src | sed -n '1,200p' || true
@@ -90,8 +82,8 @@ jobs:
             echo "❌ dist/src/main.js is missing"
             exit 1
           fi
-          echo "--- Start command ---"
-          node -e "const pkg=require('./aivestire-backend-tmp/package.json'); console.log('start:prod =', pkg.scripts['start:prod'])"
+          echo "--- Start scripts available ---"
+          node -e "const pkg=require('./aivestire-backend-tmp/package.json'); const scripts=Object.keys(pkg.scripts||{}).filter(s=>s.includes('start')); console.log(scripts.map(s=>s+' = '+pkg.scripts[s]).join('\n'))"
 
       - name: Wait for DB and Redis to be reachable
         run: |
@@ -131,6 +123,21 @@ jobs:
           NODE_ENV: test
         run: npm run script:check-db --prefix aivestire-backend-tmp
 
+      # ── FIX 1: Run Prisma migrations so tables exist before server starts ──
+      - name: Run Prisma migrations
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/aivestire
+          NODE_ENV: test
+        run: |
+          cd aivestire-backend-tmp
+          if [ -f prisma/schema.prisma ]; then
+            echo "Running Prisma migrations..."
+            npx prisma migrate deploy
+            echo "✅ Migrations complete"
+          else
+            echo "No prisma/schema.prisma found — skipping migrations"
+          fi
+
       - name: Start API and run health checks
         env:
           NODE_ENV: test
@@ -139,68 +146,81 @@ jobs:
           REDIS_HOST: 127.0.0.1
           REDIS_PORT: 6379
           CORS_ORIGIN: http://localhost:5173
-          # Add these in repository secrets if your app requires them for startup.
-          JWT_ACCESS_TOKEN_SECRET: ci-jwt-access-secret
-          JWT_REFRESH_TOKEN_SECRET: ci-jwt-refresh-secret
+
+          # ── FIX 2: JWT secrets long enough (min 32 chars) ──────────────────
+          JWT_ACCESS_TOKEN_SECRET: ${{ secrets.JWT_ACCESS_TOKEN_SECRET || 'ci-jwt-access-secret-32-chars-min-xx' }}
+          JWT_REFRESH_TOKEN_SECRET: ${{ secrets.JWT_REFRESH_TOKEN_SECRET || 'ci-jwt-refresh-secret-32-chars-min-x' }}
+
           API_BASE_URL: http://127.0.0.1:3000
           API_HEALTH_ENDPOINTS: /,/api/v1/tryon/health
           REQUIRE_HEALTH_FIELD: true
           REQUIRE_HEALTH_TRUE: false
-          HEALTH_CHECK_STARTUP_TIMEOUT_MS: 240000
-          SKIP_TWILIO: 'true'
-          SKIP_SMS_IN_DEV: 'true'
+          HEALTH_CHECK_STARTUP_TIMEOUT_MS: 120000
+          SKIP_TWILIO: "true"
+          SKIP_SMS_IN_DEV: "true"
           PRISMA_CONNECT_RETRIES: 120
           PRISMA_CONNECT_RETRY_DELAY_MS: 1000
-          CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME || 'ci-cloud-name' }}
-          CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY || 'ci-cloud-key' }}
-          CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET || 'ci-cloud-secret' }}
+          CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME || 'ci-placeholder' }}
+          CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY || '000000000000000' }}
+          CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET || 'ci-placeholder-secret-xxxxxxxx' }}
+
         run: |
           set -e
-          echo "--- Starting backend ---"
-          echo "PORT=$PORT"
-          echo "DATABASE_URL=$DATABASE_URL"
-          echo "HEALTH_TIMEOUT_MS=$HEALTH_CHECK_STARTUP_TIMEOUT_MS"
+          echo "--- Checking start script exists ---"
+          # ── FIX 3: Fall back to start:prod if start:prod:ci doesn't exist ──
+          START_SCRIPT="start:prod:ci"
+          if ! node -e "const p=require('./aivestire-backend-tmp/package.json'); if(!p.scripts['$START_SCRIPT']) process.exit(1)" 2>/dev/null; then
+            echo "⚠️  '$START_SCRIPT' not found in package.json, falling back to 'start:prod'"
+            START_SCRIPT="start:prod"
+          fi
+          echo "Using start script: $START_SCRIPT"
+
           BACKEND_LOG=backend-server.log
-          npm run start:prod:ci --prefix aivestire-backend-tmp > "$BACKEND_LOG" 2>&1 &
+
+          echo "--- Starting backend (script: $START_SCRIPT) ---"
+          npm run "$START_SCRIPT" --prefix aivestire-backend-tmp > "$BACKEND_LOG" 2>&1 &
           BACKEND_PID=$!
-          sleep 2
-          echo "Backend PID: $BACKEND_PID"
-          if [ -f backend.log ] && [ ! -f "$BACKEND_LOG" ]; then
-            ln -sf backend.log "$BACKEND_LOG"
-          fi
+
+          # Wait and check process didn't die immediately
+          sleep 5
           if ! ps -p "$BACKEND_PID" > /dev/null 2>&1; then
-            echo "Backend process exited immediately."
-            if [ -f "$BACKEND_LOG" ]; then
-              sed -n '1,200p' "$BACKEND_LOG"
-            else
-              echo "No backend log file created"
-            fi
+            echo "❌ Backend process exited immediately after launch"
+            echo "--- Backend log ---"
+            cat "$BACKEND_LOG" || echo "No log file found"
             exit 1
           fi
-          ps -p "$BACKEND_PID" -f || true
+
+          echo "✅ Backend process is alive (PID $BACKEND_PID), running health check..."
+
           if ! npm run ci:health-check --prefix aivestire-backend-tmp; then
-            echo "--- Backend logs ---"
-            if [ -f "$BACKEND_LOG" ]; then
-              echo "--- Backend log (head) ---"
-              sed -n '1,200p' "$BACKEND_LOG"
-              echo "--- Backend log (tail) ---"
-              tail -n 240 "$BACKEND_LOG"
-            fi
+            echo "❌ Health check failed"
+            echo "--- Backend log (head) ---"
+            sed -n '1,200p' "$BACKEND_LOG" || true
+            echo "--- Backend log (tail) ---"
+            tail -n 100 "$BACKEND_LOG" || true
+            echo "--- Port 3000 status ---"
+            ss -tlnp | grep 3000 || echo "Nothing listening on port 3000"
             kill "$BACKEND_PID" || true
-            wait "$BACKEND_PID" || true
+            wait "$BACKEND_PID" 2>/dev/null || true
             exit 1
           fi
-          kill "$BACKEND_PID"
+
+          echo "✅ Health check passed"
+          kill "$BACKEND_PID" || true
+          wait "$BACKEND_PID" 2>/dev/null || true
 
       - name: Print backend logs on failure
         if: failure()
         run: |
-          BACKEND_LOG=backend-server.log
-          echo "--- Backend logs ---"
-          if [ -f "$BACKEND_LOG" ]; then
-            cat "$BACKEND_LOG"
-          elif [ -f backend.log ]; then
-            cat backend.log
+          echo "--- Full backend log ---"
+          if [ -f backend-server.log ]; then
+            cat backend-server.log
           else
-            echo "No backend log file found"
+            echo "No backend-server.log found"
           fi
+          echo ""
+          echo "--- Port 3000 status ---"
+          ss -tlnp | grep 3000 || echo "Nothing on port 3000"
+          echo ""
+          echo "--- Node processes ---"
+          ps aux | grep node || true
