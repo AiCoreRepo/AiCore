@@ -346,7 +346,11 @@ jobs:
           fi
 
           if [ -z "$GCP_INSTANCE_HOST" ] || [ -z "$GCP_INSTANCE_USER" ] || [ -z "$GCP_INSTANCE_SSH_KEY" ] || [ -z "$GCP_DEPLOY_PATH" ]; then
-            echo "Missing required deployment config: GCP_INSTANCE_HOST, GCP_INSTANCE_USER, GCP_INSTANCE_SSH_KEY, or GCP_DEPLOY_PATH."
+            echo "Missing required deployment config:"
+            [ -z "$GCP_INSTANCE_HOST" ] && echo " - GCP_INSTANCE_HOST is empty"
+            [ -z "$GCP_INSTANCE_USER" ] && echo " - GCP_INSTANCE_USER is empty"
+            [ -z "$GCP_INSTANCE_SSH_KEY" ] && echo " - GCP_INSTANCE_SSH_KEY is empty"
+            [ -z "$GCP_DEPLOY_PATH" ] && echo " - GCP_DEPLOY_PATH is empty"
             exit 1
           fi
 
