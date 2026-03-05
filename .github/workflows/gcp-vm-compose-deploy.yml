@@ -286,6 +286,8 @@ jobs:
           COMPOSE_FILE_B64="$(printf '%s' "$COMPOSE_FILE" | base64 -w0)"
           COMPOSE_SERVICES_B64="$(printf '%s' "$COMPOSE_SERVICES" | base64 -w0)"
           DEPLOY_PATH_B64="$(printf '%s' "$SSH_DEPLOY_PATH" | base64 -w0)"
+          echo "Encoded payload lengths: file=$(( ${#COMPOSE_FILE_B64} )) services=$(( ${#COMPOSE_SERVICES_B64} )) deploy=$(( ${#DEPLOY_PATH_B64} ))"
+          echo "Encoded deploy path prefix: $(printf '%.20s' "$DEPLOY_PATH_B64")..."
 
           mkdir -p ~/.ssh
           printf '%b\n' "$GCP_INSTANCE_SSH_KEY" > ~/.ssh/id_rsa
@@ -310,11 +312,8 @@ jobs:
 
           ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa \
             "$GCP_INSTANCE_USER@$GCP_INSTANCE_HOST" \
-            bash -s <<EOF
+            "COMPOSE_FILE_B64='${COMPOSE_FILE_B64}' COMPOSE_SERVICES_B64='${COMPOSE_SERVICES_B64}' DEPLOY_PATH_B64='${DEPLOY_PATH_B64}' bash -s" <<'EOF'
           set -e
-          COMPOSE_FILE_B64="${COMPOSE_FILE_B64}"
-          COMPOSE_SERVICES_B64="${COMPOSE_SERVICES_B64}"
-          DEPLOY_PATH_B64="${DEPLOY_PATH_B64}"
           COMPOSE_FILE="$(printf '%s' "$COMPOSE_FILE_B64" | base64 -d)"
           COMPOSE_SERVICES="$(printf '%s' "$COMPOSE_SERVICES_B64" | base64 -d)"
           DEPLOY_PATH="$(printf '%s' "$DEPLOY_PATH_B64" | base64 -d)"
