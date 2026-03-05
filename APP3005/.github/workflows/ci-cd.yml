@@ -166,6 +166,7 @@ jobs:
 
         run: |
           set -euo pipefail
+          echo "CI_LOG_PATCH_MARKER=v1-logging-frontend" 
           BACKEND_LOG="$PWD/backend-server.log"
           echo "--- Backend log file path: $BACKEND_LOG ---"
           echo "--- Backend log initial state ---"
