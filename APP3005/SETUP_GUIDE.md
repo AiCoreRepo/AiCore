@@ -22,7 +22,7 @@ git clone <YOUR_GITHUB_REPO_URL>
 cd <YOUR_PROJECT_FOLDER_NAME>
 ```
 
-*(Replace `<YOUR_GITHUB_REPO_URL>` with the actual link to your GitHub repository)*
+_(Replace `<YOUR_GITHUB_REPO_URL>` with the actual link to your GitHub repository)_
 
 ---
 
@@ -31,6 +31,7 @@ cd <YOUR_PROJECT_FOLDER_NAME>
 The backend and database are set up to run inside Docker containers.
 
 1.  **Navigate to the backend folder:**
+
     ```bash
     cd aivestire-backend-tmp
     ```
@@ -45,7 +46,7 @@ The backend and database are set up to run inside Docker containers.
 
     # Security (You can change this to a secure random string)
     JWT_SECRET="dev-secret"
-    
+
     # Port
     PORT=3000
     ```
@@ -58,30 +59,32 @@ The backend and database are set up to run inside Docker containers.
     docker-compose up --build -d
     ```
 
-    *   This command downloads the necessary images and starts the database and backend.
-    *   The backend will be available at: `http://localhost:3002`
+    - This command downloads the necessary images and starts the database and backend.
+    - The backend will be available at: `http://localhost:3002`
 
 ---
 
 ## Step 3: Initialize Database & Create Tables (Prisma)
 
-Once the Docker containers are running, you need to set up the database tables. We will run these commands *inside* the Docker container to make it easy.
+Once the Docker containers are running, you need to set up the database tables. We will run these commands _inside_ the Docker container to make it easy.
 
 1.  **Open your terminal** (ensure you are in the project root folder).
 
 2.  **Generate Prisma Client:**
     This prepares the code to talk to the database.
+
     ```bash
     docker exec -it nest-server npx prisma generate
     ```
 
 3.  **Create Tables (Push Schema):**
     This creates the tables in the database based on your schema.
+
     ```bash
     docker exec -it nest-server npx prisma db push
     ```
 
-    *   You should see a message saying "The database is now in sync with your Prisma schema."
+    - You should see a message saying "The database is now in sync with your Prisma schema."
 
 ---
 
@@ -90,6 +93,7 @@ Once the Docker containers are running, you need to set up the database tables. 
 The frontend runs locally on your machine.
 
 1.  **Navigate to the frontend folder:**
+
     ```bash
     cd frontend
     ```
@@ -117,8 +121,8 @@ The frontend runs locally on your machine.
     npm run dev
     ```
 
-    *   You should see a URL in the terminal, usually `http://localhost:5173`.
-    *   Open that URL in your browser to use the application.
+    - You should see a URL in the terminal, usually `http://localhost:5173`.
+    - Open that URL in your browser to use the application.
 
 ---
 
@@ -129,22 +133,22 @@ If you want to see the data inside your database, follow these steps:
 1.  **Open pgAdmin 4** on your computer.
 2.  Right-click on **Servers** in the left sidebar > **Register** > **Server...**
 3.  **General Tab**:
-    *   **Name**: Aivestire Local (or any name you like)
+    - **Name**: Aivestire Local (or any name you like)
 4.  **Connection Tab**:
-    *   **Host name/address**: `localhost`
-    *   **Port**: `5538`
-    *   **Maintenance database**: `postgres`
-    *   **Username**: `postgres`
-    *   **Password**: `postgres`
+    - **Host name/address**: `localhost`
+    - **Port**: `5538`
+    - **Maintenance database**: `postgres`
+    - **Username**: `postgres`
+    - **Password**: `postgres`
 5.  Click **Save**.
 6.  Expand the new server in the sidebar: **Databases** > **aivestire** > **Schemas** > **public** > **Tables**.
-    *   You should see all your tables (User, Product, etc.) here.
+    - You should see all your tables (User, Product, etc.) here.
 
 ---
 
 ## Troubleshooting
 
-*   **Docker errors**: Ensure Docker Desktop is running.
-*   **Database connection error**: Make sure the `DATABASE_URL` in `aivestire-backend-tmp/.env` matches exactly what is shown above.
-*   **"Prisma Client not initialized"**: Run the `npx prisma generate` command from Step 3 again.
-*   **Frontend cannot connect**: Check if the backend is running by visiting `http://localhost:3002` in your browser. You should see a "Hello World" or 404 message, confirming it's active.
+- **Docker errors**: Ensure Docker Desktop is running.
+- **Database connection error**: Make sure the `DATABASE_URL` in `aivestire-backend-tmp/.env` matches exactly what is shown above.
+- **"Prisma Client not initialized"**: Run the `npx prisma generate` command from Step 3 again.
+- **Frontend cannot connect**: Check if the backend is running by visiting `http://localhost:3002` in your browser. You should see a "Hello World" or 404 message, confirming it's active.
