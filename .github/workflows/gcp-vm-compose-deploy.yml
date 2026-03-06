@@ -286,7 +286,7 @@ jobs:
           if [ -z "$GCP_INSTANCE_USER" ]; then
             GCP_INSTANCE_USER="${{ vars.GCP_INSTANCE_USER }}"
           fi
-          if [ -z "$GCP_INSTANCE_SSH_KEY" ]; then
+          if [ -z "$GCP_INSTANCE_SSH_KEY" ] && [ "$GCP_TARGET_BRANCH" = "recommendation_model" ]; then
             GCP_INSTANCE_SSH_KEY="${{ secrets.GCP_INSTANCE_SSH_KEY }}"
           fi
           if [ -z "$GCP_DEPLOY_PATH" ]; then
@@ -346,11 +346,16 @@ jobs:
           fi
 
           if [ -z "$GCP_INSTANCE_HOST" ] || [ -z "$GCP_INSTANCE_USER" ] || [ -z "$GCP_INSTANCE_SSH_KEY" ] || [ -z "$GCP_DEPLOY_PATH" ]; then
-            echo "Missing required deployment config:"
+            echo "Missing required deployment config for branch '$GCP_TARGET_BRANCH':"
             [ -z "$GCP_INSTANCE_HOST" ] && echo " - GCP_INSTANCE_HOST is empty"
             [ -z "$GCP_INSTANCE_USER" ] && echo " - GCP_INSTANCE_USER is empty"
             [ -z "$GCP_INSTANCE_SSH_KEY" ] && echo " - GCP_INSTANCE_SSH_KEY is empty"
             [ -z "$GCP_DEPLOY_PATH" ] && echo " - GCP_DEPLOY_PATH is empty"
+            if [ "$GCP_TARGET_BRANCH" = "uat-server" ]; then
+              echo "Expected GitHub Secrets: GCP_UAT_INSTANCE_HOST, GCP_UAT_INSTANCE_USER, GCP_UAT_INSTANCE_SSH_KEY"
+            else
+              echo "Expected GitHub Secrets: GCP_INSTANCE_HOST, GCP_INSTANCE_USER, GCP_INSTANCE_SSH_KEY"
+            fi
             exit 1
           fi
 
@@ -381,9 +386,11 @@ jobs:
             echo "Invalid SSH private key format in GCP_INSTANCE_SSH_KEY."
             exit 1
           fi
+          echo "Runner SSH key fingerprint:"
+          ssh-keygen -lf ~/.ssh/id_rsa || true
 
           echo "Testing SSH connectivity to $GCP_INSTANCE_USER@$GCP_INSTANCE_HOST..."
-          if ! ssh -o BatchMode=yes -o StrictHostKeyChecking=no -o PasswordAuthentication=no \
+          if ! ssh -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=no -o PasswordAuthentication=no \
             -o ConnectTimeout=15 \
             -i ~/.ssh/id_rsa \
             "$GCP_INSTANCE_USER@$GCP_INSTANCE_HOST" \
@@ -392,10 +399,11 @@ jobs:
             echo "1) Secret GCP_INSTANCE_USER matches OS user on VM"
             echo "2) Public key for this private key exists in ~/.ssh/authorized_keys on the VM"
             echo "3) VM allows inbound SSH from GitHub runners"
+            echo "4) If VM uses GCP OS Login, add key via OS Login (authorized_keys may be ignored)"
             exit 1
           fi
 
-          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa \
+          ssh -o IdentitiesOnly=yes -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa \
             "$GCP_INSTANCE_USER@$GCP_INSTANCE_HOST" \
             "COMPOSE_FILE_B64='${COMPOSE_FILE_B64}' COMPOSE_SERVICES_B64='${COMPOSE_SERVICES_B64}' DEPLOY_PATH_B64='${DEPLOY_PATH_B64}' BACKEND_ENV_B64='${BACKEND_ENV_B64}' LOCAL_INFRA_B64='${LOCAL_INFRA_B64}' TARGET_BRANCH_B64='${TARGET_BRANCH_B64}' bash -s" <<'EOF'
           set -e
