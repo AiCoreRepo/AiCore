@@ -251,6 +251,9 @@ jobs:
             GCP_BACKEND_ENV_B64="${{ secrets.GCP_UAT_BACKEND_ENV_B64 }}"
             GCP_USE_LOCAL_INFRA="${{ vars.GCP_UAT_USE_LOCAL_INFRA }}"
             GCP_SERVER_BASE_URL="${{ vars.GCP_UAT_SERVER_BASE_URL }}"
+            if [ -z "$GCP_SERVER_BASE_URL" ]; then
+              GCP_SERVER_BASE_URL="${{ secrets.GCP_UAT_SERVER_BASE_URL }}"
+            fi
           elif [ "$GCP_TARGET_BRANCH" = "recommendation_model" ]; then
             echo "Deploy target: recommendation_model branch -> DEV VM"
             GCP_INSTANCE_HOST="${{ secrets.GCP_INSTANCE_HOST }}"
@@ -262,16 +265,17 @@ jobs:
             GCP_BACKEND_ENV_B64="${{ secrets.GCP_BACKEND_ENV_B64 }}"
             GCP_USE_LOCAL_INFRA="${{ vars.GCP_USE_LOCAL_INFRA }}"
             GCP_SERVER_BASE_URL="${{ vars.GCP_SERVER_BASE_URL }}"
+            if [ -z "$GCP_SERVER_BASE_URL" ]; then
+              GCP_SERVER_BASE_URL="${{ secrets.GCP_SERVER_BASE_URL }}"
+            fi
           else
             echo "Unsupported deployment branch: $GCP_TARGET_BRANCH"
             exit 1
           fi
 
           if [ -z "$GCP_SERVER_BASE_URL" ]; then
-            GCP_SERVER_BASE_URL="${{ secrets.GCP_UAT_SERVER_BASE_URL }}"
-          fi
-          if [ -z "$GCP_SERVER_BASE_URL" ] && [ "$GCP_TARGET_BRANCH" = "recommendation_model" ]; then
-            GCP_SERVER_BASE_URL="${{ secrets.GCP_SERVER_BASE_URL }}"
+            echo "Missing server base URL for branch '$GCP_TARGET_BRANCH'."
+            exit 1
           fi
 
           if [ -z "$GCP_INSTANCE_HOST" ]; then
@@ -576,21 +580,19 @@ jobs:
       - name: Verify deployed API (health checks)
         working-directory: APP3005/aivestire-backend-tmp
         run: |
-          GCP_SERVER_BASE_URL="${{ vars.GCP_SERVER_BASE_URL }}"
           if [ "${{ github.ref_name }}" = "uat-server" ]; then
             GCP_SERVER_BASE_URL="${{ vars.GCP_UAT_SERVER_BASE_URL }}"
-          fi
-          if [ -z "$GCP_SERVER_BASE_URL" ]; then
-            GCP_SERVER_BASE_URL="${{ vars.GCP_UAT_SERVER_BASE_URL }}"
-          fi
-          if [ -z "$GCP_SERVER_BASE_URL" ] && [ "${{ github.ref_name }}" = "recommendation_model" ]; then
+            if [ -z "$GCP_SERVER_BASE_URL" ]; then
+              GCP_SERVER_BASE_URL="${{ secrets.GCP_UAT_SERVER_BASE_URL }}"
+            fi
+          elif [ "${{ github.ref_name }}" = "recommendation_model" ]; then
             GCP_SERVER_BASE_URL="${{ vars.GCP_SERVER_BASE_URL }}"
-          fi
-          if [ -z "$GCP_SERVER_BASE_URL" ] && [ "${{ github.ref_name }}" = "uat-server" ]; then
-            GCP_SERVER_BASE_URL="${{ secrets.GCP_UAT_SERVER_BASE_URL }}"
-          fi
-          if [ -z "$GCP_SERVER_BASE_URL" ]; then
-            GCP_SERVER_BASE_URL="${{ secrets.GCP_SERVER_BASE_URL }}"
+            if [ -z "$GCP_SERVER_BASE_URL" ]; then
+              GCP_SERVER_BASE_URL="${{ secrets.GCP_SERVER_BASE_URL }}"
+            fi
+          else
+            echo "Unsupported branch for health verification: ${{ github.ref_name }}"
+            exit 1
           fi
           if [ -z "$GCP_SERVER_BASE_URL" ]; then
             echo "Missing GCP_SERVER_BASE_URL (set in GitHub Variables or Secrets)."
