@@ -339,4 +339,44 @@ export class CouponsService {
 
         return { message: 'Coupon deleted successfully' };
     }
+
+    // ============================================
+    // CREATOR COUPON APPROVALS
+    // ============================================
+
+    async getPendingCreatorCoupons() {
+        return this.prisma.creatorCoupon.findMany({
+            where: { approval_status: 'PENDING', is_deleted: false },
+            include: {
+                creator: {
+                    select: { store_name: true, user: { select: { email: true } } }
+                },
+                product: {
+                    select: { title: true, price_cents: true, images: { where: { is_primary: true }, take: 1 } }
+                }
+            },
+            orderBy: { created_at: 'desc' }
+        });
+    }
+
+    async approveCreatorCoupon(id: string) {
+        return this.prisma.creatorCoupon.update({
+            where: { creator_coupon_id: id },
+            data: { approval_status: 'APPROVED' }
+        });
+    }
+
+    async rejectCreatorCoupon(id: string, reason?: string) {
+        return this.prisma.creatorCoupon.update({
+            where: { creator_coupon_id: id },
+            data: { approval_status: 'REJECTED', approval_note: reason }
+        });
+    }
+
+    async archiveCreatorCoupon(id: string) {
+        return this.prisma.creatorCoupon.update({
+            where: { creator_coupon_id: id },
+            data: { approval_status: 'ARCHIVED' }
+        });
+    }
 }

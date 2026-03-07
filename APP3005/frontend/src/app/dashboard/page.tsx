@@ -18,7 +18,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { LayoutDashboard, Shirt, BarChart3, Settings, Menu, Upload } from "lucide-react";
+import { LayoutDashboard, Shirt, BarChart3, Settings, Menu, Upload, Ticket } from "lucide-react";
 import { useSidebar } from "@/context/SidebarContext";
 
 const DashboardPage: React.FC = () => {
@@ -54,6 +54,7 @@ const DashboardPage: React.FC = () => {
     { label: "Dashboard", icon: <LayoutDashboard size={20} />, href: "/creator-dashboard" },
     { label: "My Wardrobe", icon: <Shirt size={20} />, href: "/wardrobe" },
     { label: "Bulk Upload", icon: <Upload size={20} />, href: "/bulk-upload" },
+    { label: "My Coupons", icon: <Ticket size={20} />, href: "/creator-coupons" },
     { label: "Analytics", icon: <BarChart3 size={20} />, href: "/analytics" },
     { label: "Settings", icon: <Settings size={20} />, href: "/settings" },
   ];

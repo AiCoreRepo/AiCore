@@ -60,4 +60,31 @@ export class CouponsController {
     async deleteCoupon(@Param('id') id: string) {
         return this.couponsService.deleteCoupon(id);
     }
+
+    // ============================================
+    // CREATOR COUPON APPROVALS
+    // ============================================
+
+    @Get('creator/pending')
+    async getPendingCreatorCoupons() {
+        return this.couponsService.getPendingCreatorCoupons();
+    }
+
+    @Patch('creator/:id/approve')
+    async approveCreatorCoupon(@Param('id') id: string) {
+        return this.couponsService.approveCreatorCoupon(id);
+    }
+
+    @Patch('creator/:id/reject')
+    async rejectCreatorCoupon(
+        @Param('id') id: string,
+        @Body('reason') reason?: string
+    ) {
+        return this.couponsService.rejectCreatorCoupon(id, reason);
+    }
+
+    @Patch('creator/:id/archive')
+    async archiveCreatorCoupon(@Param('id') id: string) {
+        return this.couponsService.archiveCreatorCoupon(id);
+    }
 }

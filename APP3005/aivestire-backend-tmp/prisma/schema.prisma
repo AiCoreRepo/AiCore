@@ -51,9 +51,10 @@ model Creator {
   terms_accepted    Boolean       @default(false)
   terms_accepted_at DateTime?
   terms_version     String?
-  user              User          @relation(fields: [user_id], references: [user_id], onDelete: Cascade)
+  user              User            @relation(fields: [user_id], references: [user_id], onDelete: Cascade)
   limits            CreatorLimit?
   products          Product[]
+  creator_coupons   CreatorCoupon[]
 }
 
 model CreatorLimit {
@@ -92,6 +93,7 @@ model Product {
   guest_cart_items GuestCartItem[]
   wishlist_items   WishlistItem[]
   order_items      OrderItem[]
+  creator_coupons  CreatorCoupon[]
 }
 
 // ============================================
@@ -896,6 +898,12 @@ enum CouponScopeType {
   COMPANY_ANNIVERSARY
 }
 
+enum CouponApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  ARCHIVED
+}
 model Coupon {
   coupon_id            String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   title                String
@@ -984,4 +992,56 @@ model CouponScope {
   @@index([scope_type])
   @@index([coupon_id])
   @@map("coupon_scopes")
+}
+
+// ============================================
+// CREATOR COUPONS
+// ============================================
+
+model CreatorCoupon {
+  creator_coupon_id    String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title                String
+  code                 String                @unique
+  description          String?
+
+  // Discount
+  discount_type        CouponType
+  discount_value       Decimal               @db.Decimal(10, 2)
+  min_order_amount     Decimal               @default(0) @db.Decimal(10, 2)
+
+  // Usage
+  max_usage            Int                   @default(1)
+  current_usage        Int                   @default(0)
+
+  // Status & Approval
+  status               CouponStatus          @default(ACTIVE)
+  approval_status      CouponApprovalStatus  @default(PENDING)
+  approval_note        String?
+
+  // Validity
+  start_date           DateTime
+  end_date             DateTime
+
+  // Timestamps
+  created_at           DateTime              @default(now())
+  updated_at           DateTime              @updatedAt
+
+  // Production-ready flags
+  is_deleted           Boolean               @default(false)
+
+  // Relations
+  creator_id           String                @db.Uuid
+  product_id           String                @db.Uuid
+  creator              Creator               @relation(fields: [creator_id], references: [creator_id], onDelete: Cascade)
+  product              Product               @relation(fields: [product_id], references: [product_id], onDelete: Cascade)
+
+  @@index([status])
+  @@index([code])
+  @@index([start_date])
+  @@index([end_date])
+  @@index([is_deleted])
+  @@index([creator_id])
+  @@index([product_id])
+  @@index([approval_status])
+  @@map("creator_coupons")
 }

@@ -16,6 +16,7 @@ import NotFound from "./pages/NotFound";
 import CreatorLogin from "./pages/CreatorLogin";
 import AiTryOn from "./pages/AiTryOn";
 import DashboardPage from "./app/dashboard/page";
+import CreatorCouponsPage from "./app/creator-coupons/page";
 import SettingsPage from "./app/settings/page";
 import WardrobePage from "./app/wardrobe/page";
 import AnalyticsPage from "./app/analytics/page";
@@ -119,6 +120,11 @@ const App = () => (
                       <Route path="/creator-dashboard" element={
                         <ProtectedRoute requiredRole="CREATOR" redirectTo="/login">
                           <DashboardPage />
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/creator-coupons" element={
+                        <ProtectedRoute requiredRole="CREATOR" redirectTo="/login">
+                          <CreatorCouponsPage />
                         </ProtectedRoute>
                       } />
                       <Route path="/settings" element={
