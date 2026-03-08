@@ -37,6 +37,7 @@ model User {
   addresses           UserAddress[]
   wishlist            Wishlist?
   orders              Order[]
+  wallet              Wallet?
 }
 
 model Creator {
@@ -727,6 +728,7 @@ enum PaymentMethod {
   PREPAID
   COD
   RAZORPAY
+  WALLET
 }
 
 enum PaymentStatus {
@@ -1044,4 +1046,61 @@ model CreatorCoupon {
   @@index([product_id])
   @@index([approval_status])
   @@map("creator_coupons")
+}
+
+// ============================================
+// WALLET SYSTEM
+// ============================================
+
+model Wallet {
+  wallet_id    String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id      String              @unique @db.Uuid
+  balance      Decimal             @default(0) @db.Decimal(10, 2)
+  created_at   DateTime            @default(now())
+  updated_at   DateTime            @updatedAt
+
+  user         User                @relation(fields: [user_id], references: [user_id], onDelete: Cascade)
+  transactions WalletTransaction[]
+
+  @@index([user_id])
+  @@map("wallets")
+}
+
+model WalletTransaction {
+  transaction_id String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  wallet_id      String                  @db.Uuid
+  type           WalletTransactionType
+  source         WalletTransactionSource
+  amount         Decimal                 @db.Decimal(10, 2)
+  reference_id   String?
+  description    String?
+  status         WalletTransactionStatus @default(SUCCESS)
+  created_at     DateTime                @default(now())
+
+  wallet         Wallet                  @relation(fields: [wallet_id], references: [wallet_id], onDelete: Cascade)
+
+  @@index([wallet_id])
+  @@index([type])
+  @@index([source])
+  @@index([created_at(sort: Desc)])
+  @@map("wallet_transactions")
+}
+
+enum WalletTransactionType {
+  CREDIT
+  DEBIT
+}
+
+enum WalletTransactionSource {
+  REFUND
+  CASHBACK
+  ORDER_PAYMENT
+  ADMIN_CREDIT
+  PROMOTION
+}
+
+enum WalletTransactionStatus {
+  SUCCESS
+  FAILED
+  REVERSED
 }

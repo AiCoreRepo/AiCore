@@ -171,8 +171,18 @@ export class OrderService {
 
     console.log('Total Amount:', totalAmount, couponDiscount ? `(coupon −₹${couponDiscount})` : '');
 
-    // COD orders are instantly confirmed/booked. Prepaid wait for payment.
-    const initialStatus = dto.paymentMethod === PaymentMethod.COD ? OrderStatus.BOOKED : OrderStatus.PENDING;
+    // Check wallet balance if payment method is WALLET
+    let userWallet: any = null;
+    if (dto.paymentMethod === 'WALLET' as any || dto.paymentMethod === PaymentMethod.WALLET) {
+      userWallet = await this.prisma.wallet.findUnique({ where: { user_id: userId } });
+      if (!userWallet || Number(userWallet.balance) < totalAmount) {
+        throw new BadRequestException('Insufficient wallet balance. Please choose another payment method.');
+      }
+    }
+
+    // COD and WALLET orders are instantly confirmed/booked. Prepaid wait for payment.
+    const initialStatus = (dto.paymentMethod === PaymentMethod.COD || dto.paymentMethod === PaymentMethod.WALLET) ? OrderStatus.BOOKED : OrderStatus.PENDING;
+    const initialPaymentStatus = dto.paymentMethod === PaymentMethod.WALLET ? PaymentStatus.COMPLETED : PaymentStatus.PENDING;
 
     // Create order in transaction
     const order = await this.prisma.$transaction(
@@ -194,7 +204,7 @@ export class OrderService {
             from_status: OrderStatus.PENDING,
             to_status: OrderStatus.BOOKED,
             changed_by_type: ChangedByType.SYSTEM,
-            notes: 'COD order auto-confirmed',
+            notes: dto.paymentMethod === PaymentMethod.WALLET ? 'Wallet order auto-confirmed and paid' : 'COD order auto-confirmed',
           });
         }
 
@@ -205,7 +215,7 @@ export class OrderService {
             user_id: userId,
             total_amount: totalAmount,
             payment_method: dto.paymentMethod,
-            payment_status: PaymentStatus.PENDING,
+            payment_status: initialPaymentStatus,
             current_status: initialStatus,
             shipping_address_id: dto.shippingAddressId,
             estimated_delivery_date: new Date(
@@ -223,6 +233,26 @@ export class OrderService {
             shipping_address: true,
           },
         });
+
+        // Deduct wallet balance if paid with wallet
+        if (dto.paymentMethod === PaymentMethod.WALLET && userWallet) {
+          await tx.wallet.update({
+            where: { wallet_id: userWallet.wallet_id },
+            data: { balance: { decrement: totalAmount } }
+          });
+
+          await tx.walletTransaction.create({
+            data: {
+              wallet_id: userWallet.wallet_id,
+              type: 'DEBIT',
+              source: 'ORDER_PAYMENT',
+              amount: totalAmount,
+              reference_id: orderNumber,
+              description: `Payment for Order #${orderNumber}`,
+              status: 'SUCCESS'
+            }
+          });
+        }
 
         // Deduct inventory
         for (const item of dto.items) {

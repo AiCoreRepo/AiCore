@@ -33,6 +33,7 @@ import { CouponScopeModule } from './coupon-scopes/coupon-scope.module';
 import { CouponApplyModule } from './coupon-apply/coupon-apply.module';
 import { BirthdayCouponsModule } from './birthday-coupons/birthday-coupons.module';
 import { CreatorCouponsModule } from './creator-coupons/creator-coupons.module';
+import { WalletModule } from './wallet/wallet.module';
 
 @Module({
   imports: [
@@ -67,6 +68,7 @@ import { CreatorCouponsModule } from './creator-coupons/creator-coupons.module';
     CouponApplyModule,
     BirthdayCouponsModule,
     CreatorCouponsModule,
+    WalletModule,
   ],
   controllers: [AppController],
   providers: [AppService, AdminSeederService],

@@ -12,6 +12,7 @@ import {
 import { useCart } from '@/context/CartContext';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
+import { useWallet } from '@/hooks/useWallet';
 import { AddressSelector } from '@/components/cart/AddressSelector';
 import { Address } from '@/constants/address.constants';
 import {
@@ -46,8 +47,10 @@ const PaymentPage = () => {
     const location = useLocation();
     const { toast } = useToast();
     const { cart, clearCart } = useCart();
+    const { wallet, isLoading: isLoadingWallet } = useWallet();
 
     const [selectedMethod, setSelectedMethod] = useState('recommended');
+    const [selectedWalletProvider, setSelectedWalletProvider] = useState<string | null>('aivestire');
     const [codOption, setCodOption] = useState<'cash' | 'upi'>('cash');
     const [showBankOffers, setShowBankOffers] = useState(false);
     const [showAddressSelector, setShowAddressSelector] = useState(false);
@@ -101,8 +104,12 @@ const PaymentPage = () => {
     }, [state, cart.items]);
 
     const isCOD = selectedMethod === 'cod' || selectedMethod === 'recommended';
+    const isAivestireWalletSelected = selectedMethod === 'wallets' && selectedWalletProvider === 'aivestire';
     const codFee = isCOD ? COD_FEE_CENTS : 0;
     const finalTotal = orderDetails.total + codFee;
+
+    const hasSufficientWalletBalance = wallet ? Number(wallet.balance) >= finalTotal / 100 : false;
+    const isWalletDisabled = isAivestireWalletSelected && !hasSufficientWalletBalance;
 
     // ── Razorpay hook (only used for online payments) ─────────────────────────
     const { openCheckout } = useRazorpay({
@@ -168,7 +175,9 @@ const PaymentPage = () => {
 
         setIsPlacingOrder(true);
         try {
-            const paymentMethod = isCOD ? 'COD' : 'PREPAID';
+            let paymentMethod: any = 'PREPAID';
+            if (isCOD) paymentMethod = 'COD';
+            if (isAivestireWalletSelected) paymentMethod = 'WALLET';
 
             const payload: CreateOrderPayload = {
                 items: cart.items.map(i => ({
@@ -185,13 +194,13 @@ const PaymentPage = () => {
             const order = await ordersApi.createOrder(payload);
             if (!order?.order_id) throw new Error('Order creation failed');
 
-            // ── COD: done immediately ─────────────────────────────────────────
-            if (isCOD) {
+            // ── COD or WALLET: done immediately ─────────────────────────────────────────
+            if (isCOD || isAivestireWalletSelected) {
                 sessionStorage.removeItem('aivestire_applied_coupon'); // Clear coupon after COD order
                 await clearCart();
                 toast({
                     title: '✅ Order Placed!',
-                    description: `Order #${order.order_number} confirmed. Pay on delivery.`,
+                    description: isCOD ? `Order #${order.order_number} confirmed. Pay on delivery.` : `Order #${order.order_number} paid securely via Aivestire Wallet.`,
                     className: 'bg-emerald-50 border-emerald-200 text-emerald-900',
                 });
                 setTimeout(() => navigate('/my-orders?from=cart'), 500);
@@ -444,15 +453,55 @@ const PaymentPage = () => {
                 return (
                     <div className="space-y-3">
                         <h3 className="font-semibold text-gray-800">Wallets</h3>
-                        {WALLET_OPTIONS.map(wallet => (
-                            <div
-                                key={wallet.id}
-                                className="border border-gray-200 rounded-lg p-4 flex items-center justify-between hover:border-gray-300 cursor-pointer"
-                            >
-                                <span className="font-medium">{wallet.label}</span>
-                                <span className="text-gray-400">→</span>
-                            </div>
-                        ))}
+                        {WALLET_OPTIONS.map(w => {
+                            const isSelected = selectedWalletProvider === w.id;
+                            const isAivestire = w.id === 'aivestire';
+                            const walletBalance = wallet ? Number(wallet.balance) : 0;
+                            const hasSufficientBalance = isAivestire ? walletBalance >= finalTotal / 100 : true;
+
+                            return (
+                                <div
+                                    key={w.id}
+                                    onClick={() => setSelectedWalletProvider(w.id)}
+                                    className={`border rounded-lg p-4 flex items-center justify-between cursor-pointer transition-all ${isSelected ? 'border-[#D4AF37] bg-white shadow-sm' : 'border-gray-200 hover:border-gray-300'
+                                        } ${(!hasSufficientBalance && isAivestire) ? 'opacity-60 bg-gray-50' : 'bg-white'}`}
+                                >
+                                    <div className="flex items-center gap-4">
+                                        <div
+                                            className="w-5 h-5 rounded-full border-2 flex flex-shrink-0 items-center justify-center bg-white"
+                                            style={{ borderColor: isSelected ? GOLD : '#D1D5DB' }}
+                                        >
+                                            {isSelected && <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: GOLD }} />}
+                                        </div>
+                                        <div>
+                                            <span className="font-medium text-gray-800 flex items-center gap-2">
+                                                {w.label}
+                                                {isAivestire && (
+                                                    <span className="bg-[#F5EDD6] text-[#D4AF37] text-[10px] font-bold px-1.5 py-0.5 rounded-sm uppercase tracking-wider">
+                                                        Recommended
+                                                    </span>
+                                                )}
+                                            </span>
+                                            {isAivestire && (
+                                                <span className="block text-xs mt-1 text-gray-500">
+                                                    Available Balance: <span className="font-semibold text-[#D4AF37]">₹{walletBalance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                                                </span>
+                                            )}
+                                            {isAivestire && !hasSufficientBalance && (
+                                                <span className="block text-xs mt-1 text-red-500 font-medium">
+                                                    {PAYMENT_MESSAGES.INSUFFICIENT_FUNDS}
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+                                    {isAivestire ? (
+                                        <Wallet className={`w-5 h-5 ${isSelected ? 'text-[#D4AF37]' : 'text-gray-400'}`} />
+                                    ) : (
+                                        <span className={`text-xl ${isSelected ? 'text-[#D4AF37]' : 'text-gray-300'}`}>•</span>
+                                    )}
+                                </div>
+                            );
+                        })}
                     </div>
                 );
 
@@ -624,18 +673,22 @@ const PaymentPage = () => {
                                                                 {renderPaymentContent(method.id)}
                                                                 <motion.button
                                                                     onClick={handlePlaceOrder}
-                                                                    disabled={!selectedAddress || isPlacingOrder}
+                                                                    disabled={!selectedAddress || isPlacingOrder || isWalletDisabled}
                                                                     whileTap={{ scale: 0.98 }}
-                                                                    className="w-full mt-6 py-3.5 text-white font-semibold uppercase tracking-wide rounded-lg text-sm shadow-md"
-                                                                    style={{ backgroundColor: selectedAddress ? GOLD : '#E5E7EB', color: selectedAddress ? 'white' : '#9CA3AF' }}
+                                                                    className="w-full mt-6 py-3.5 text-white font-semibold uppercase tracking-wide rounded-lg text-sm shadow-md disabled:cursor-not-allowed"
+                                                                    style={{ backgroundColor: (selectedAddress && !isWalletDisabled) ? GOLD : '#E5E7EB', color: (selectedAddress && !isWalletDisabled) ? 'white' : '#9CA3AF' }}
                                                                 >
                                                                     {isPlacingOrder ? (
                                                                         <div className="flex items-center justify-center gap-2">
                                                                             <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                                                                             <span>Processing</span>
                                                                         </div>
+                                                                    ) : isCOD ? (
+                                                                        'Place Order'
+                                                                    ) : isAivestireWalletSelected ? (
+                                                                        `Pay ₹${(finalTotal / 100).toLocaleString('en-IN')} using Wallet`
                                                                     ) : (
-                                                                        isCOD ? 'Place Order' : `Pay ₹${(finalTotal / 100).toLocaleString('en-IN')} via Razorpay`
+                                                                        `Pay ₹${(finalTotal / 100).toLocaleString('en-IN')} via Razorpay`
                                                                     )}
                                                                 </motion.button>
                                                             </div>
@@ -692,16 +745,16 @@ const PaymentPage = () => {
                                         {/* Desktop Place Order / Pay Button */}
                                         <motion.button
                                             onClick={handlePlaceOrder}
-                                            disabled={!selectedAddress || isPlacingOrder}
-                                            whileHover={{ scale: selectedAddress ? 1.01 : 1 }}
-                                            whileTap={{ scale: selectedAddress ? 0.99 : 1 }}
-                                            className="w-full mt-8 py-4 text-white font-semibold uppercase tracking-wide rounded hover:shadow-lg transition-all"
+                                            disabled={!selectedAddress || isPlacingOrder || isWalletDisabled}
+                                            whileHover={{ scale: (selectedAddress && !isWalletDisabled) ? 1.01 : 1 }}
+                                            whileTap={{ scale: (selectedAddress && !isWalletDisabled) ? 0.99 : 1 }}
+                                            className="w-full mt-8 py-4 text-white font-semibold uppercase tracking-wide rounded hover:shadow-lg transition-all disabled:cursor-not-allowed disabled:hover:shadow-none"
                                             style={{
-                                                backgroundColor: selectedAddress ? GOLD : '#E5E7EB',
-                                                color: selectedAddress ? 'white' : '#9CA3AF',
+                                                backgroundColor: (selectedAddress && !isWalletDisabled) ? GOLD : '#E5E7EB',
+                                                color: (selectedAddress && !isWalletDisabled) ? 'white' : '#9CA3AF',
                                             }}
-                                            onMouseEnter={e => { if (selectedAddress) e.currentTarget.style.backgroundColor = GOLD_HOVER; }}
-                                            onMouseLeave={e => { if (selectedAddress) e.currentTarget.style.backgroundColor = GOLD; }}
+                                            onMouseEnter={e => { if (selectedAddress && !isWalletDisabled) e.currentTarget.style.backgroundColor = GOLD_HOVER; }}
+                                            onMouseLeave={e => { if (selectedAddress && !isWalletDisabled) e.currentTarget.style.backgroundColor = GOLD; }}
                                         >
                                             {isPlacingOrder ? (
                                                 <div className="flex items-center justify-center gap-2">
@@ -712,6 +765,8 @@ const PaymentPage = () => {
                                                 'Select Address to Continue'
                                             ) : isCOD ? (
                                                 'Place Order'
+                                            ) : isAivestireWalletSelected ? (
+                                                `Pay ₹${(finalTotal / 100).toLocaleString('en-IN')} using Wallet`
                                             ) : (
                                                 `Pay ₹${(finalTotal / 100).toLocaleString('en-IN')} via Razorpay`
                                             )}

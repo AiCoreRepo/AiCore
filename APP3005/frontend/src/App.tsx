@@ -42,6 +42,8 @@ import AdminSettingsPage from "./app/admin-settings/page";
 const AdminCouponsPage = lazy(() => import("./app/admin-coupons/page"));
 const CreateCouponPage = lazy(() => import("./app/admin-coupons/create"));
 const EditCouponPage = lazy(() => import("./app/admin-coupons/edit"));
+const WalletPage = lazy(() => import("./pages/WalletPage"));
+const AdminWalletPage = lazy(() => import("./pages/AdminWalletPage"));
 
 import AdminLogin from "./pages/AdminLogin";
 import AdminSecretConfirm from "./pages/AdminSecretConfirm";
@@ -116,6 +118,13 @@ const App = () => (
                       <Route path="/my-orders/:orderId/replace" element={<ReplaceOrderPage />} />
                       <Route path="/track-order/:orderId" element={<OrderTrackingPage />} />
 
+                      {/* Wallet Route */}
+                      <Route path="/wallet" element={
+                        <Suspense fallback={<div className="min-h-screen bg-neutral-950 flex items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-2 border-[#D4AF37] border-t-transparent"></div></div>}>
+                          <WalletPage />
+                        </Suspense>
+                      } />
+
                       {/* Protected Creator Routes */}
                       <Route path="/creator-dashboard" element={
                         <ProtectedRoute requiredRole="CREATOR" redirectTo="/login">
@@ -175,6 +184,11 @@ const App = () => (
                       <Route path="/admin-clientele" element={<ClientelePage />} />
                       <Route path="/admin-settings" element={<AdminSettingsPage />} />
                       <Route path="/admin-csv-upload" element={<AdminCSVUploadPage />} />
+                      <Route path="/admin-wallet" element={
+                        <Suspense fallback={<div className="min-h-screen bg-neutral-950 flex items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-2 border-[#D4AF37] border-t-transparent"></div></div>}>
+                          <AdminWalletPage />
+                        </Suspense>
+                      } />
                       <Route path="/admin-coupons" element={
                         <Suspense fallback={<div className="min-h-screen bg-neutral-950 flex items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-2 border-[#D4AF37] border-t-transparent"></div></div>}>
                           <AdminCouponsPage />

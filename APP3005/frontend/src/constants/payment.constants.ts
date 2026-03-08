@@ -51,6 +51,7 @@ export const NET_BANKING_OPTIONS = [
 
 // Wallet Options
 export const WALLET_OPTIONS = [
+    { id: 'aivestire', label: 'Aivestire Wallet', icon: 'Wallet' },
     { id: 'paytm', label: 'Paytm Wallet' },
     { id: 'phonepe', label: 'PhonePe Wallet' },
     { id: 'amazon', label: 'Amazon Pay' },
@@ -63,6 +64,7 @@ export const PAYMENT_MESSAGES = {
     UPI_HINT: 'A payment request will be sent to this UPI ID',
     ORDER_SUCCESS: 'Order placed successfully!',
     SELECT_PAYMENT: 'Select a payment method to continue',
+    INSUFFICIENT_FUNDS: 'Insufficient balance. Please choose another method or top up your wallet.',
 } as const;
 
 // ── Order Payment Method Badge Config ─────────────────────────────────────────
@@ -94,6 +96,14 @@ export const ORDER_PAYMENT_METHOD_CONFIG: Record<
         bg: 'bg-blue-50',
         border: 'border-blue-200',
         text: 'text-blue-700',
+    },
+    WALLET: {
+        label: 'Paid via Wallet',
+        shortLabel: 'Wallet',
+        icon: '💼',
+        bg: 'bg-emerald-50',
+        border: 'border-emerald-200',
+        text: 'text-emerald-700',
     },
 } as const;
 
