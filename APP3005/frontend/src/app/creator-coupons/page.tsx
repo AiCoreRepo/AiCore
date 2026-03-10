@@ -3,7 +3,7 @@ import { LuxeColors } from "../../lib/luxe-theme";
 import LuxeSidebar from "../../components/common/LuxeSidebar";
 import { getProfile } from "../../lib/api";
 import { useSidebar } from "@/context/SidebarContext";
-import { LayoutDashboard, Shirt, BarChart3, Settings, Menu, Upload, Ticket } from "lucide-react";
+import { LayoutDashboard, Shirt, BarChart3, Settings, Menu, Upload, Ticket, FolderTree } from "lucide-react";
 
 import { CreatorCouponList } from "../../components/creator/coupons/CreatorCouponList";
 import { CreatorCouponForm } from "../../components/creator/coupons/CreatorCouponForm";
@@ -40,6 +40,7 @@ const CreatorCouponsPage: React.FC = () => {
     const navLinks = [
         { label: "Dashboard", icon: <LayoutDashboard size={20} />, href: "/creator-dashboard" },
         { label: "My Wardrobe", icon: <Shirt size={20} />, href: "/wardrobe" },
+        { label: "Groupings", icon: <FolderTree size={20} />, href: "/product-groups" },
         { label: "Bulk Upload", icon: <Upload size={20} />, href: "/bulk-upload" },
         { label: "My Coupons", icon: <Ticket size={20} />, href: "/creator-coupons", active: true },
         { label: "Analytics", icon: <BarChart3 size={20} />, href: "/analytics" },

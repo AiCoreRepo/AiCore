@@ -19,6 +19,8 @@ interface LuxeAlertDialogProps {
     cancelLabel?: string;
     onAction: () => void;
     variant?: "default" | "destructive";
+    isOpen?: boolean;
+    setIsOpen?: (open: boolean) => void;
 }
 
 export const LuxeAlertDialog: React.FC<LuxeAlertDialogProps> = ({
@@ -29,9 +31,11 @@ export const LuxeAlertDialog: React.FC<LuxeAlertDialogProps> = ({
     cancelLabel = "Cancel",
     onAction,
     variant = "default",
+    isOpen,
+    setIsOpen,
 }) => {
     return (
-        <AlertDialog>
+        <AlertDialog open={isOpen} onOpenChange={setIsOpen}>
             <AlertDialogTrigger asChild>{trigger}</AlertDialogTrigger>
             <AlertDialogContent className="bg-stone-900 border-stone-800 text-stone-200 shadow-2xl">
                 <AlertDialogHeader>

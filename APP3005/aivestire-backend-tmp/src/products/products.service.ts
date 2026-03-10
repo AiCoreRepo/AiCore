@@ -8,15 +8,7 @@ import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { Prisma, ProductStatus, ApprovalStatus } from '@prisma/client';
 import { CloudinaryService } from '../common/cloudinary.service';
-
-function slugify(input: string): string {
-  return input
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9\s-]/g, '')
-    .replace(/\s+/g, '-')
-    .replace(/-+/g, '-');
-}
+import { slugify } from '../common/utils/string.utils';
 
 @Injectable()
 export class ProductsService {
@@ -59,7 +51,19 @@ export class ProductsService {
           })),
         },
       };
-      return await this.prisma.product.create({ data });
+      
+      const product = await this.prisma.product.create({ data });
+
+      if (dto.group_ids && dto.group_ids.length > 0) {
+        await this.prisma.productGroupAssignment.createMany({
+          data: dto.group_ids.map((groupId) => ({
+            product_id: product.product_id,
+            group_id: groupId,
+          })),
+        });
+      }
+
+      return product;
     } catch (e: unknown) {
       throw new BadRequestException(
         e instanceof Error ? e.message : 'Unknown error',
@@ -211,12 +215,14 @@ export class ProductsService {
     sortBy?: string,
     sizes?: string,
     colors?: string,
+    groupId?: string,
   ) {
     // Fetch all approved products to filter in memory (efficient for < 5000 items)
     const allProducts = await this.prisma.product.findMany({
       where: {
         status: ProductStatus.APPROVED,
         is_deleted: false,
+        ...(groupId ? { group_assignments: { some: { group_id: groupId } } } : {}),
       },
       include: {
         creator: {

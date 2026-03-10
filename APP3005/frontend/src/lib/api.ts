@@ -31,9 +31,25 @@ export interface TryOnPermission {
   userId: string;
   userEmail: string;
   userName?: string;
-  status: TryOnPermissionStatus;
+  status: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface ProductGroup {
+  group_id: string;
+  creator_id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  parent_id: string | null;
+  created_at: string;
+  updated_at: string;
+  children_groups: ProductGroup[];
+  _count?: {
+    products: number;
+    children?: number;
+  };
 }
 
 export async function login(data: { email: string; password: string }) {
@@ -312,6 +328,7 @@ export async function createProduct(data: {
   inventory_count?: number;
   images: string[];
   tags?: Array<{ name: string }>;
+  group_ids?: string[];
 }) {
   const token = localStorage.getItem('access_token');
   if (!token) {
@@ -349,6 +366,7 @@ export async function updateProduct(
     inventory_count?: number;
     images?: string[];
     tags?: Array<{ name: string }>;
+    group_ids?: string[];
     status?: string;
   }
 ) {
@@ -1657,6 +1675,114 @@ export async function mergeCart(): Promise<{ cart: CartAPIResponse; mergeResult:
   if (!res.ok) {
     const bodyText = await res.text();
     handleApiError(res, bodyText, 'Failed to merge cart');
+  }
+  return res.json();
+}
+
+// ============================================================================
+// Product Groups API Functions
+// ============================================================================
+
+export async function getCreatorGroups() {
+  const token = localStorage.getItem('access_token');
+  if (!token) {
+    throw new Error('Please login to view groups');
+  }
+
+  const res = await fetch(`${BASE_URL}/product-groups`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+  });
+
+  if (!res.ok) {
+    const bodyText = await res.text();
+    try {
+      const err = JSON.parse(bodyText);
+      throw new Error(err.message || 'Failed to fetch groups');
+    } catch {
+      throw new Error(bodyText || 'Failed to fetch groups');
+    }
+  }
+  return res.json();
+}
+
+export async function createProductGroup(data: { name: string; description?: string; parent_id?: string }) {
+  const token = localStorage.getItem('access_token');
+  if (!token) {
+    throw new Error('Please login to create groups');
+  }
+
+  const res = await fetch(`${BASE_URL}/product-groups`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!res.ok) {
+    const bodyText = await res.text();
+    try {
+      const err = JSON.parse(bodyText);
+      throw new Error(err.message || 'Failed to create group');
+    } catch {
+      throw new Error(bodyText || 'Failed to create group');
+    }
+  }
+  return res.json();
+}
+
+export async function updateProductGroup(id: string, data: { name?: string; description?: string; parent_id?: string | null }) {
+  const token = localStorage.getItem('access_token');
+  if (!token) {
+    throw new Error('Please login to update groups');
+  }
+
+  const res = await fetch(`${BASE_URL}/product-groups/${id}`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!res.ok) {
+    const bodyText = await res.text();
+    try {
+      const err = JSON.parse(bodyText);
+      throw new Error(err.message || 'Failed to update group');
+    } catch {
+      throw new Error(bodyText || 'Failed to update group');
+    }
+  }
+  return res.json();
+}
+
+export async function deleteProductGroup(id: string) {
+  const token = localStorage.getItem('access_token');
+  if (!token) {
+    throw new Error('Please login to delete groups');
+  }
+
+  const res = await fetch(`${BASE_URL}/product-groups/${id}`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+  });
+
+  if (!res.ok) {
+    const bodyText = await res.text();
+    try {
+      const err = JSON.parse(bodyText);
+      throw new Error(err.message || 'Failed to delete group');
+    } catch {
+      throw new Error(bodyText || 'Failed to delete group');
+    }
   }
   return res.json();
 }

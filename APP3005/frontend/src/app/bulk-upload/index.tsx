@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import LuxeSidebar from "../../components/common/LuxeSidebar";
-import { LayoutDashboard, Shirt, BarChart3, Settings, Menu, Upload, Ticket } from "lucide-react";
+import { LayoutDashboard, Shirt, BarChart3, Settings, Menu, Upload, Ticket, FolderTree } from "lucide-react";
 import { useSidebar } from "@/context/SidebarContext";
 import { getProfile } from "../../lib/api";
 import BulkUploadContent from "./page";
@@ -18,6 +18,7 @@ const BulkUploadDashboard: React.FC = () => {
     const navLinks = [
         { label: "Dashboard", icon: <LayoutDashboard size={20} />, href: "/creator-dashboard" },
         { label: "My Wardrobe", icon: <Shirt size={20} />, href: "/wardrobe" },
+        { label: "Groupings", icon: <FolderTree size={20} />, href: "/product-groups" },
         { label: "Bulk Upload", icon: <Upload size={20} />, href: "/bulk-upload" },
         { label: "My Coupons", icon: <Ticket size={20} />, href: "/creator-coupons" },
         { label: "Analytics", icon: <BarChart3 size={20} />, href: "/analytics" },
