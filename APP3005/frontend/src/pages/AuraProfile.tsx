@@ -16,6 +16,7 @@ interface AuraData {
     user_id: string;
     image_url: string;
     model_url?: string;
+    tryon_model_url?: string;
     height_cm?: number;
     weight_kg?: number;
     skin_tone?: string;
@@ -425,17 +426,17 @@ export default function AuraProfile() {
 
     useEffect(() => {
         if (!recreatePhoto) {
-            if (recreatePhotoPreview) {
-                URL.revokeObjectURL(recreatePhotoPreview);
-            }
             setRecreatePhotoPreview(null);
             return;
         }
 
         const nextPreview = URL.createObjectURL(recreatePhoto);
         setRecreatePhotoPreview(nextPreview);
-        return () => URL.revokeObjectURL(nextPreview);
-    }, [recreatePhoto, recreatePhotoPreview]);
+
+        return () => {
+            URL.revokeObjectURL(nextPreview);
+        };
+    }, [recreatePhoto]);
 
     useEffect(() => {
         if (!recreateJobId) {
@@ -520,6 +521,11 @@ export default function AuraProfile() {
             </div>
         );
     }
+
+    const tryOnCropPreviewUrl =
+        aura.tryon_model_url && aura.tryon_model_url !== aura.model_url
+            ? aura.tryon_model_url
+            : null;
 
     return (
         <div className="aura-profile-page">
@@ -669,6 +675,24 @@ export default function AuraProfile() {
                 {/* Right Panel - Avatar Display */}
                 <div className="avatar-panel">
                     <AvatarDisplay imageUrl={aura.model_url || aura.image_url} userName={avatarUserName} />
+                    {tryOnCropPreviewUrl && (
+                        <div className="tryon-crop-preview">
+                            <div className="tryon-crop-copy">
+                                <p className="tryon-crop-eyebrow">Temporary Preview</p>
+                                <h4 className="tryon-crop-title">Try-On Source Image</h4>
+                                <p className="tryon-crop-description">
+                                    This cropped avatar is stored in Cloudinary and used for virtual try-on so the base footwear does not interfere.
+                                </p>
+                            </div>
+                            <div className="tryon-crop-frame">
+                                <img
+                                    src={tryOnCropPreviewUrl}
+                                    alt="Cropped avatar used for try-on"
+                                    className="tryon-crop-image"
+                                />
+                            </div>
+                        </div>
+                    )}
                     {recreateJobId && (
                         <div className="recreate-inline-progress">
                             <p>Recreating your avatar</p>
@@ -725,7 +749,7 @@ export default function AuraProfile() {
                             </button>
                         </div>
 
-                        <p className="recreate-photo-placeholder" style={{ marginTop: 0, marginBottom: "0.85rem" }}>
+                        <p className="recreate-photo-helper">
                             {recreateMode === "attributes-only"
                                 ? "Keep old source photo + refresh only selected attributes."
                                 : "Upload a brand-new source photo and keep old values if you want."}
@@ -743,24 +767,35 @@ export default function AuraProfile() {
                                     onChange={handleRecreatePhotoChange}
                                     className="recreate-upload-input"
                                 />
-                                {recreatePhotoPreview ? (
-                                    <img
-                                        src={recreatePhotoPreview}
-                                        alt="Selected photo preview"
-                                        className="recreate-photo-preview"
-                                    />
-                                ) : (
-                                    <div className="recreate-photo-placeholder">Drop image here or click to upload</div>
-                                )}
+                                <label
+                                    htmlFor="recreate-photo"
+                                    className="relative rounded-2xl overflow-hidden border-2 border-gold/40 group cursor-pointer shadow-lg hover:shadow-xl transition-all duration-300 block"
+                                    style={{ height: "220px" }}
+                                >
+                                    {recreatePhotoPreview ? (
+                                        <img
+                                            src={recreatePhotoPreview}
+                                            alt="Selected photo preview"
+                                            className="w-full h-full object-cover object-top"
+                                        />
+                                    ) : (
+                                        <div className="recreate-photo-placeholder">Drop image here or click to upload</div>
+                                    )}
+                                </label>
                             </div>
                         ) : (
                             <div className="recreate-photo-source">
                                 <p>Current source photo will be kept.</p>
-                                <img
-                                    src={aura.image_url}
-                                    alt="Current source photo"
-                                    className="recreate-photo-preview"
-                                />
+                                <div
+                                    className="relative rounded-2xl overflow-hidden border-2 border-gold/40 shadow-lg transition-all duration-300"
+                                    style={{ height: "220px" }}
+                                >
+                                    <img
+                                        src={aura.image_url}
+                                        alt="Current source photo"
+                                        className="w-full h-full object-cover object-top"
+                                    />
+                                </div>
                             </div>
                         )}
 

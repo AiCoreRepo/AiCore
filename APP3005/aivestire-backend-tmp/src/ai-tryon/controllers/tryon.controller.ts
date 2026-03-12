@@ -300,7 +300,7 @@ export class TryOnController {
     description: 'User does not have Aura avatar',
     type: TryOnErrorResponseDto,
   })
-  @UseGuards(AuraGuard, TryOnPermissionGuard)
+  @UseGuards(JwtAuthGuard, AuraGuard, TryOnPermissionGuard)
   async tryOn3DWithVertex(
     @Body() request: TryOn3DRequestDto,
     @CurrentAura() aura: Aura,

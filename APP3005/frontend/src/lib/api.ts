@@ -2,6 +2,11 @@ const BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
 
 export interface ApiError extends Error {
   status?: number;
+  code?: string;
+  tryOnsUsed?: number;
+  maxTryOns?: number;
+  upgradeRequired?: boolean;
+  details?: unknown;
 }
 
 export type FeedbackContextType =
@@ -17,18 +22,64 @@ export interface FeedbackPayload {
   comment?: string;
 }
 
-// Helper function to handle API errors and trigger logout on 401
-function handleApiError(res: Response, bodyText: string, defaultMessage: string): never {
-  let message = defaultMessage;
+function parseApiErrorBody(bodyText: string, defaultMessage: string) {
   try {
     const err = JSON.parse(bodyText);
-    message = err.message || message;
-  } catch {
-    message = bodyText || message;
-  }
+    const nestedMessage =
+      typeof err?.message === 'string'
+        ? err.message
+        : typeof err?.message?.message === 'string'
+          ? err.message.message
+          : Array.isArray(err?.message)
+            ? err.message.join(', ')
+            : undefined;
 
-  const error = new Error(message) as ApiError;
+    return {
+      message: nestedMessage || defaultMessage,
+      code:
+        typeof err?.code === 'string'
+          ? err.code
+          : typeof err?.message?.code === 'string'
+            ? err.message.code
+            : undefined,
+      tryOnsUsed:
+        typeof err?.tryOnsUsed === 'number'
+          ? err.tryOnsUsed
+          : typeof err?.message?.tryOnsUsed === 'number'
+            ? err.message.tryOnsUsed
+            : undefined,
+      maxTryOns:
+        typeof err?.maxTryOns === 'number'
+          ? err.maxTryOns
+          : typeof err?.message?.maxTryOns === 'number'
+            ? err.message.maxTryOns
+            : undefined,
+      upgradeRequired:
+        typeof err?.upgradeRequired === 'boolean'
+          ? err.upgradeRequired
+          : typeof err?.message?.upgradeRequired === 'boolean'
+            ? err.message.upgradeRequired
+            : undefined,
+      details: err,
+    };
+  } catch {
+    return {
+      message: bodyText || defaultMessage,
+    };
+  }
+}
+
+// Helper function to handle API errors and trigger logout on 401
+function handleApiError(res: Response, bodyText: string, defaultMessage: string): never {
+  const parsedError = parseApiErrorBody(bodyText, defaultMessage);
+
+  const error = new Error(parsedError.message) as ApiError;
   error.status = res.status;
+  error.code = parsedError.code;
+  error.tryOnsUsed = parsedError.tryOnsUsed;
+  error.maxTryOns = parsedError.maxTryOns;
+  error.upgradeRequired = parsedError.upgradeRequired;
+  error.details = parsedError.details;
 
   // If it's a 401 Unauthorized, trigger auth-error event to logout
   if (res.status === 401) {
@@ -91,7 +142,13 @@ export async function login(data: { email: string; password: string }) {
   return responseData;
 }
 
-export async function signup(data: { email: string; password: string; brandName: string; phoneNumber?: string }) {
+export async function signup(data: {
+  email: string;
+  password: string;
+  brandName: string;
+  phoneNumber?: string;
+  dateOfBirth?: string;
+}) {
   // Always send role: 'creator' for creator signups
   const res = await fetch(`${BASE_URL}/auth/register`, {
     method: "POST",
@@ -102,6 +159,7 @@ export async function signup(data: { email: string; password: string; brandName:
       role: "CREATOR",
       store_name: data.brandName,
       ...(data.phoneNumber ? { phoneNumber: data.phoneNumber } : {}),
+      ...(data.dateOfBirth ? { dateOfBirth: data.dateOfBirth } : {}),
     }),
     credentials: "include",
   });
@@ -122,7 +180,13 @@ export async function signup(data: { email: string; password: string; brandName:
 }
 
 // User signup for regular users (buyers)
-export async function userSignup(data: { email: string; password: string; name?: string; phoneNumber?: string }) {
+export async function userSignup(data: {
+  email: string;
+  password: string;
+  name?: string;
+  phoneNumber?: string;
+  dateOfBirth?: string;
+}) {
   const res = await fetch(`${BASE_URL}/auth/register`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -132,6 +196,7 @@ export async function userSignup(data: { email: string; password: string; name?:
       role: "BUYER",
       store_name: data.name,
       ...(data.phoneNumber ? { phoneNumber: data.phoneNumber } : {}),
+      ...(data.dateOfBirth ? { dateOfBirth: data.dateOfBirth } : {}),
     }),
     credentials: "include",
   });
@@ -673,13 +738,7 @@ export async function tryOnWithGemini(data: {
   });
 
   if (!res.ok) {
-    const bodyText = await res.text();
-    try {
-      const err = JSON.parse(bodyText);
-      throw new Error(err.message || 'Try-on failed');
-    } catch {
-      throw new Error(bodyText || 'Try-on failed');
-    }
+    handleApiError(res, await res.text(), 'Try-on failed');
   }
   return res.json();
 }
@@ -705,13 +764,7 @@ export async function tryOnWithVertex(data: {
   });
 
   if (!res.ok) {
-    const bodyText = await res.text();
-    try {
-      const err = JSON.parse(bodyText);
-      throw new Error(err.message || 'Vertex try-on failed');
-    } catch {
-      throw new Error(bodyText || 'Vertex try-on failed');
-    }
+    handleApiError(res, await res.text(), 'Vertex try-on failed');
   }
   return res.json();
 }
@@ -819,13 +872,7 @@ export async function generateMoreAngles(data: {
   });
 
   if (!res.ok) {
-    const bodyText = await res.text();
-    try {
-      const err = JSON.parse(bodyText);
-      throw new Error(err.message || 'Failed to generate more angles');
-    } catch {
-      throw new Error(bodyText || 'Failed to generate more angles');
-    }
+    handleApiError(res, await res.text(), 'Failed to generate more angles');
   }
   return res.json();
 }

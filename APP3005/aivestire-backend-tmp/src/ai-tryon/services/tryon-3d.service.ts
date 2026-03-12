@@ -229,15 +229,17 @@ export class TryOn3DService {
       `🔵 VERTEX AI - Using Vertex AI for initial try-on (no background)`,
     );
 
+    const tryOnAvatarUrl = aura.tryon_model_url || aura.model_url;
+
     // Validate that avatar has been generated
-    if (!aura.model_url) {
+    if (!tryOnAvatarUrl) {
       throw new HttpException(
         'Avatar has not been generated yet. Please wait for avatar generation to complete.',
         HttpStatus.BAD_REQUEST,
       );
     }
 
-    this.logger.log(`✅ Using generated avatar: ${aura.model_url}`);
+    this.logger.log(`✅ Using try-on avatar: ${tryOnAvatarUrl}`);
 
     // Get clothing item
     const { product, imageUrl: clothingImageUrl } =
@@ -265,9 +267,9 @@ export class TryOn3DService {
       aura_attributes: auraAttributes,
     };
 
-    // Call Direct Vertex service with GENERATED AVATAR (model_url) instead of original image
+    // Prefer the cropped try-on avatar so shoes from the base avatar do not interfere.
     const result = await this.directVertexService.processTryOn(
-      aura.model_url,
+      tryOnAvatarUrl,
       clothingImageUrl,
       enhancedParams,
     );

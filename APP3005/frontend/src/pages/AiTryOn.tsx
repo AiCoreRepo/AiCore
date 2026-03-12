@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { Navbar } from '@/components/Navbar';
@@ -7,6 +7,7 @@ import { AuraDisplayCard } from '@/components/ai-tryon/AuraDisplayCard';
 import { ClothingItemCard } from '@/components/ai-tryon/ClothingItemCard';
 import { TryOnResultModal } from '@/components/ai-tryon/TryOnResultModal';
 import { TryOnGalleryModal } from '@/components/ai-tryon/TryOnGalleryModal';
+import { TryOnUpgradePopup } from '@/components/ai-tryon/TryOnUpgradePopup';
 import { AuthPopup } from '@/components/AuthPopup';
 import { usePublicProducts } from '@/hooks/usePublicProducts';
 import {
@@ -21,6 +22,13 @@ import {
 import { Sparkles, AlertCircle, Images, Lock, Clock } from 'lucide-react';
 import '@/components/ai-tryon/ai-tryon-styles.css';
 import { FeedbackBottomSheet } from '@/components/feedback/FeedbackBottomSheet';
+import {
+  getTryOnLimitSnapshot,
+  getTryOnUsageSnapshot,
+  isTryOnLimitError,
+  TRY_ON_PREMIUM_UPGRADE_URL,
+  type TryOnUsageSnapshot,
+} from '@/lib/try-on-limit';
 
 interface AuraData {
   aura_id: string;
@@ -60,11 +68,16 @@ const AiTryOn = () => {
   const [requestSuccess, setRequestSuccess] = useState(false);
   const [generatedImages, setGeneratedImages] = useState<string[]>([]);
   const [showFeedbackSheet, setShowFeedbackSheet] = useState(false);
+  const [showUpgradePopup, setShowUpgradePopup] = useState(false);
+  const [tryOnUsageSnapshot, setTryOnUsageSnapshot] = useState<TryOnUsageSnapshot>(
+    getTryOnUsageSnapshot(user)
+  );
   const [feedbackContext, setFeedbackContext] = useState<{
     type: FeedbackContextType;
     referenceId?: string;
     label?: string;
   } | null>(null);
+  const feedbackCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [pendingAutoTryOnProductId, setPendingAutoTryOnProductId] = useState<string | null>(
     (location.state as { autoTryOnProductId?: string } | null)?.autoTryOnProductId || null
   );
@@ -76,10 +89,26 @@ const AiTryOn = () => {
     const product = productsData?.products?.find((item: any) => item.product_id === productId);
     return product?.title || product?.name || productId;
   };
+  const currentTryOnUsage = getTryOnUsageSnapshot(user);
+  const hasFreeTryOnsRemaining =
+    user?.role === 'ADMIN' || currentTryOnUsage.remainingTryOns > 0;
 
   const closeFeedbackSheet = () => {
+    if (feedbackCloseTimerRef.current) {
+      clearTimeout(feedbackCloseTimerRef.current);
+      feedbackCloseTimerRef.current = null;
+    }
     setShowFeedbackSheet(false);
     setFeedbackContext(null);
+  };
+
+  const openUpgradePopup = (error?: { tryOnsUsed?: number; maxTryOns?: number }) => {
+    setTryOnUsageSnapshot(getTryOnLimitSnapshot(error, user));
+    setShowUpgradePopup(true);
+  };
+
+  const handleUpgradeToPremium = () => {
+    window.location.href = TRY_ON_PREMIUM_UPGRADE_URL;
   };
 
   // Check authentication and Aura status on mount
@@ -98,6 +127,18 @@ const AiTryOn = () => {
     checkAuraStatus();
   }, [authLoading, user]);
 
+  useEffect(() => {
+    setTryOnUsageSnapshot(getTryOnUsageSnapshot(user));
+  }, [user]);
+
+  useEffect(() => {
+    return () => {
+      if (feedbackCloseTimerRef.current) {
+        clearTimeout(feedbackCloseTimerRef.current);
+      }
+    };
+  }, []);
+
   const checkAuraStatus = async () => {
     try {
       setLoadingAura(true);
@@ -115,12 +156,22 @@ const AiTryOn = () => {
 
 
   const handleTryOn = async (productId: string, provider: 'gemini' | 'vertex' = 'vertex') => {
+    if (!hasFreeTryOnsRemaining) {
+      openUpgradePopup();
+      return;
+    }
+
     if (!aura) {
       setShowAuraPopup(true);
       return;
     }
 
     try {
+      if (feedbackCloseTimerRef.current) {
+        clearTimeout(feedbackCloseTimerRef.current);
+        feedbackCloseTimerRef.current = null;
+      }
+
       const productLabel = resolveProductLabel(productId);
       setSelectedProduct(productId);
       setCurrentProductId(productId); // Store productId for angle generation
@@ -143,6 +194,10 @@ const AiTryOn = () => {
         setResultImage(imageData);
         setOriginalTryOnImage(imageData); // Store original for face consistency in angle generation
         setGeneratedImages([imageData]);
+        if (feedbackCloseTimerRef.current) {
+          clearTimeout(feedbackCloseTimerRef.current);
+          feedbackCloseTimerRef.current = null;
+        }
         setFeedbackContext({
           type: "VIRTUAL_TRYON",
           referenceId: result.tryOnId ? String(result.tryOnId) : undefined,
@@ -156,6 +211,12 @@ const AiTryOn = () => {
       }
     } catch (error: any) {
       console.error('Try-on error:', error);
+      if (isTryOnLimitError(error)) {
+        setShowResultModal(false);
+        setTryOnError(null);
+        openUpgradePopup(error);
+        return;
+      }
       setTryOnError(error.message || 'Failed to process try-on. Please try again.');
     } finally {
       setTryOnLoading(false);
@@ -176,6 +237,10 @@ const AiTryOn = () => {
 
   const handleGenerateMoreAngles = async () => {
     if (!aura || !resultImage) return;
+    if (!hasFreeTryOnsRemaining) {
+      openUpgradePopup();
+      return;
+    }
 
     try {
       setGeneratingAngles(true);
@@ -202,6 +267,10 @@ const AiTryOn = () => {
       }
     } catch (error: any) {
       console.error('Generate angles error:', error);
+      if (isTryOnLimitError(error)) {
+        openUpgradePopup(error);
+        return;
+      }
       setTryOnError(error.message || 'Failed to generate more angles. Please try again.');
     } finally {
       setGeneratingAngles(false);
@@ -226,6 +295,20 @@ const AiTryOn = () => {
     setShowResultModal(false);
     setResultImage(null);
     setTryOnError(null);
+
+    if (!showFeedbackSheet && !feedbackContext) {
+      return;
+    }
+
+    if (feedbackCloseTimerRef.current) {
+      clearTimeout(feedbackCloseTimerRef.current);
+    }
+
+    feedbackCloseTimerRef.current = setTimeout(() => {
+      setShowFeedbackSheet(false);
+      setFeedbackContext(null);
+      feedbackCloseTimerRef.current = null;
+    }, 1000);
   };
 
   return (
@@ -304,6 +387,7 @@ const AiTryOn = () => {
                   <AuraDisplayCard
                     aura={aura}
                     tryOnCount={user?.try_ons_used || 0}
+                    maxTryOns={user?.max_try_ons}
                   />
                 </div>
 
@@ -465,6 +549,14 @@ const AiTryOn = () => {
         onClose={() => navigate('/collection')}
         type="aura"
         onAction={() => navigate('/aura-dashboard')}
+      />
+
+      <TryOnUpgradePopup
+        isOpen={showUpgradePopup}
+        onClose={() => setShowUpgradePopup(false)}
+        onUpgrade={handleUpgradeToPremium}
+        tryOnsUsed={tryOnUsageSnapshot.tryOnsUsed}
+        maxTryOns={tryOnUsageSnapshot.maxTryOns}
       />
 
       {/* Try-On Result Modal */}

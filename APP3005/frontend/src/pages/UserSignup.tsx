@@ -21,6 +21,7 @@ const UserSignup = () => {
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
+    const [pendingAuraDob, setPendingAuraDob] = useState<string>("");
     const navigate = useNavigate();
     const { toast } = useToast();
     // OTP BYPASSED: commented out - not needed currently
@@ -107,6 +108,7 @@ const UserSignup = () => {
                 password: data.password!,
                 name: data.brandName!,
                 phoneNumber: data.phoneNumber,
+                dateOfBirth: data.dateOfBirth,
             });
 
             // Auto-login after successful registration
@@ -118,6 +120,11 @@ const UserSignup = () => {
             if (loginResult.access_token) {
                 localStorage.setItem("access_token", loginResult.access_token);
             }
+
+            if (data.email && data.dateOfBirth) {
+                localStorage.setItem(`aivestire:dob:${data.email.toLowerCase()}`, data.dateOfBirth);
+            }
+            setPendingAuraDob(data.dateOfBirth || "");
 
             toast({
                 title: "Welcome to AiVestire! 🎉",
@@ -132,7 +139,7 @@ const UserSignup = () => {
             const auraStatus = await getAuraStatus();
 
             if (auraStatus.hasAura) {
-                navigate('/');
+                navigate('/collection');
             } else {
                 // Show Aura prompt modal
                 setShowAuraPrompt(true);
@@ -175,6 +182,8 @@ const UserSignup = () => {
                     localStorage.setItem("access_token", result.access_token);
                 }
 
+                setPendingAuraDob("");
+
                 toast({
                     title: "Welcome to AiVestire!",
                     description: "Your account has been created successfully.",
@@ -188,7 +197,7 @@ const UserSignup = () => {
                 const auraStatus = await getAuraStatus();
 
                 if (auraStatus.hasAura) {
-                    navigate('/');
+                    navigate('/collection');
                 } else {
                     // Show Aura prompt modal instead of directly navigating
                     setShowAuraPrompt(true);
@@ -215,12 +224,14 @@ const UserSignup = () => {
 
     const handleAuraAccept = () => {
         setShowAuraPrompt(false);
-        navigate("/aura-dashboard");
+        navigate("/aura-dashboard", {
+            state: pendingAuraDob ? { prefilledDob: pendingAuraDob } : undefined,
+        });
     };
 
     const handleAuraDecline = () => {
         setShowAuraPrompt(false);
-        navigate("/"); // Go to home page
+        navigate("/collection");
     };
 
     return (

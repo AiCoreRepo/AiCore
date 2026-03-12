@@ -24,6 +24,7 @@ interface BodyAttributes {
 interface AuraFormCardProps {
     onCreateAura: (photoFile: File, attributes: BodyAttributes) => void;
     isProcessing: boolean;
+    prefilledDob?: string;
 }
 
 // Map AI response values to form options
@@ -112,9 +113,10 @@ const calculateAgeRangeFromDob = (dobString?: string): string => {
     return ""; // Fallback or under 13
 };
 
-export const AuraFormCard = ({ onCreateAura, isProcessing }: AuraFormCardProps) => {
-    const { user } = useAuth();
+export const AuraFormCard = ({ onCreateAura, isProcessing, prefilledDob }: AuraFormCardProps) => {
+    const { user, loading } = useAuth();
     const navigate = useNavigate();
+    const requiresDobCollection = Boolean(user?.needs_dob_collection);
 
     // Step state
     const [currentStep, setCurrentStep] = useState<Step>("upload");
@@ -122,8 +124,8 @@ export const AuraFormCard = ({ onCreateAura, isProcessing }: AuraFormCardProps) 
     const [photoFile, setPhotoFile] = useState<File | null>(null);
     const [photoPreview, setPhotoPreview] = useState<string | null>(null);
     const [attributes, setAttributes] = useState<BodyAttributes>({ gender: "female" });
-    const [dob, setDob] = useState<string>(user?.dob || "");
-    const [dobInput, setDobInput] = useState<string>(user?.dob || "");
+    const [dob, setDob] = useState<string>(prefilledDob || user?.dob || "");
+    const [dobInput, setDobInput] = useState<string>(prefilledDob || user?.dob || "");
     const [dobError, setDobError] = useState<string>("");
     const [showDobDialog, setShowDobDialog] = useState(false);
 
@@ -133,9 +135,20 @@ export const AuraFormCard = ({ onCreateAura, isProcessing }: AuraFormCardProps) 
     const [analysisError, setAnalysisError] = useState<string | null>(null);
 
     useEffect(() => {
+        if (!prefilledDob) return;
+
+        setDob(prefilledDob);
+        setDobInput(prefilledDob);
+        const calculatedRange = calculateAgeRangeFromDob(prefilledDob);
+        if (calculatedRange) {
+            setAttributes(prev => ({ ...prev, ageRange: calculatedRange, gender: "female" }));
+        }
+    }, [prefilledDob]);
+
+    useEffect(() => {
         if (!user?.email) return;
 
-        const initialDob = user?.dob || getStoredDob(user.email);
+        const initialDob = user?.dob || prefilledDob || getStoredDob(user.email);
         if (initialDob) {
             setDob(initialDob);
             setDobInput(initialDob);
@@ -144,15 +157,16 @@ export const AuraFormCard = ({ onCreateAura, isProcessing }: AuraFormCardProps) 
                 setAttributes(prev => ({ ...prev, ageRange: calculatedRange, gender: "female" }));
             }
         }
-    }, [user?.dob, user?.email]);
+    }, [prefilledDob, user?.dob, user?.email]);
 
     useEffect(() => {
-        if (currentStep === "confirm" && !dob) {
+        const effectiveDob = dob || prefilledDob || (user?.email ? getStoredDob(user.email) : "");
+        if (currentStep === "confirm" && !loading && requiresDobCollection && !effectiveDob) {
             setDobInput("");
             setDobError("");
             setShowDobDialog(true);
         }
-    }, [currentStep, dob]);
+    }, [currentStep, dob, loading, prefilledDob, requiresDobCollection, user?.email]);
 
     const handlePhotoSelect = (file: File, preview: string) => {
         setPhotoFile(file);
@@ -246,13 +260,15 @@ export const AuraFormCard = ({ onCreateAura, isProcessing }: AuraFormCardProps) 
     const handleCreateAura = () => {
         if (!photoFile) return;
 
-        if (!dob) {
+        const effectiveDob = dob || prefilledDob || (user?.email ? getStoredDob(user.email) : "");
+
+        if (requiresDobCollection && !effectiveDob) {
             setShowDobDialog(true);
             return;
         }
 
-        const calculatedAgeRange = calculateAgeRangeFromDob(dob);
-        if (!calculatedAgeRange) {
+        const calculatedAgeRange = calculateAgeRangeFromDob(effectiveDob);
+        if (requiresDobCollection && !calculatedAgeRange) {
             setDobError("Please enter a valid date of birth.");
             setShowDobDialog(true);
             return;
@@ -609,7 +625,7 @@ export const AuraFormCard = ({ onCreateAura, isProcessing }: AuraFormCardProps) 
                                                 : "Fill in your body attributes below."}
                                         </p>
 
-                                        {!dob && (
+                                        {requiresDobCollection && !dob && !prefilledDob && (
                                             <div className="bg-amber-50/60 border border-amber-300 rounded-2xl p-4 mb-6">
                                                 <div className="flex items-center justify-between gap-3">
                                                     <p className="text-xs text-amber-700">

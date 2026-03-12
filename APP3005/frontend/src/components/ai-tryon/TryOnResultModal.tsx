@@ -1,6 +1,7 @@
 import { X, Download, Share2, Sparkles, ShoppingBag, CheckCircle2, Loader2 } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { AnimatedComplimentText } from '@/components/AnimatedComplimentText';
 import { LOADING_QUOTES } from './loading-quotes';
 import { getRandomCompliment, ComplimentMessage } from './compliment-messages';
 
@@ -43,7 +44,6 @@ export function TryOnResultModal({
     const [currentQuoteIndex, setCurrentQuoteIndex] = useState(0);
     const [imageRevealed, setImageRevealed] = useState(false);
     const [isLightboxOpen, setIsLightboxOpen] = useState(false);
-    const [showComplimentDialog, setShowComplimentDialog] = useState(false);
     const [currentCompliment, setCurrentCompliment] = useState<ComplimentMessage | null>(null);
     const [hasShownCompliment, setHasShownCompliment] = useState(false);
 
@@ -67,7 +67,7 @@ export function TryOnResultModal({
     useEffect(() => {
         if (isOpen) {
             setHasShownCompliment(false);
-            setShowComplimentDialog(false);
+            setCurrentCompliment(null);
             setImageRevealed(false);
             if (!loading && !generatingAngles) {
                 setLoadingProgress(0);
@@ -156,12 +156,11 @@ export function TryOnResultModal({
     // Reset state when loading starts or image changes
     useEffect(() => {
         if (loading || generatingAngles || !resultImage) {
-            setShowComplimentDialog(false);
             setImageRevealed(false);
         }
     }, [loading, generatingAngles, resultImage]);
 
-    // Trigger animations and popup when ready
+    // Trigger animations and compliment when ready
     useEffect(() => {
         if (resultImage && !loading && !error && !generatingAngles) {
             const revealTimer = setTimeout(() => setImageRevealed(true), 100);
@@ -169,7 +168,6 @@ export function TryOnResultModal({
             if (!hasShownCompliment) {
                 const showTimer = setTimeout(() => {
                     setCurrentCompliment(getRandomCompliment());
-                    setShowComplimentDialog(true);
                     setHasShownCompliment(true);
                 }, 800);
                 return () => {
@@ -231,6 +229,68 @@ export function TryOnResultModal({
         if (stepIndex < currentStep) return 'complete';
         if (stepIndex === currentStep) return 'active';
         return 'pending';
+    };
+
+    const renderComplimentCard = (className = '') => {
+        if (!currentCompliment || !resultImage || loading || error) {
+            return null;
+        }
+
+        return (
+            <div
+                className={`relative overflow-hidden rounded-[28px] p-5 ${className}`}
+                style={{
+                    background: 'linear-gradient(145deg, #fffaf2 0%, #f7ecd5 48%, #e7c98b 100%)',
+                    boxShadow: '0 18px 40px rgba(160, 123, 54, 0.16), 0 0 0 1px rgba(201, 165, 92, 0.22)',
+                    animation: 'slideUp 0.6s ease-out',
+                }}
+            >
+                <div
+                    className="absolute inset-0 opacity-70"
+                    style={{
+                        background:
+                            'radial-gradient(circle at top right, rgba(255,255,255,0.92), transparent 35%), linear-gradient(120deg, transparent 0%, rgba(255,255,255,0.2) 35%, transparent 70%)',
+                    }}
+                />
+                <div className="relative">
+                    <div
+                        className="inline-flex items-center gap-2 rounded-full px-3 py-1.5 mb-4"
+                        style={{
+                            background: 'rgba(44, 34, 18, 0.06)',
+                            border: '1px solid rgba(44, 34, 18, 0.08)',
+                        }}
+                    >
+                        <Sparkles className="w-3.5 h-3.5 text-[#9a7b4f]" />
+                        <span className="text-[11px] font-bold tracking-[0.22em] text-[#8a6936]">AI STYLE NOTE</span>
+                    </div>
+
+                    <AnimatedComplimentText
+                        text={currentCompliment.message}
+                        className="block text-lg md:text-[19px] leading-relaxed font-serif text-[#2f2416]"
+                        caretClassName="text-[#9a7b4f]"
+                        speedMs={24}
+                        startDelayMs={130}
+                    />
+
+                    <div className="mt-4 flex flex-wrap gap-2">
+                        {currentCompliment.emotion.map((emotion, index) => (
+                            <span
+                                key={`${emotion}-${index}`}
+                                className="rounded-full px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em]"
+                                style={{
+                                    background: 'rgba(255, 255, 255, 0.55)',
+                                    color: '#7f6031',
+                                    border: '1px solid rgba(127, 96, 49, 0.14)',
+                                    animation: `fadeIn 0.45s ease-out ${0.45 + index * 0.12}s both`,
+                                }}
+                            >
+                                {emotion}
+                            </span>
+                        ))}
+                    </div>
+                </div>
+            </div>
+        );
     };
 
     return (
@@ -407,30 +467,7 @@ export function TryOnResultModal({
                             </div>
 
                             {/* Smart Tips Card */}
-                            <div className="rounded-2xl p-5 flex-1" style={{
-                                background: 'linear-gradient(135deg, #ffffff 0%, #fafafa 100%)',
-                                boxShadow: '0 4px 20px rgba(0,0,0,0.04), 0 0 0 1px rgba(0,0,0,0.04)',
-                            }}>
-                                <div className="flex items-center gap-2 mb-4">
-                                    <div className="w-5 h-5 rounded-full flex items-center justify-center bg-[#c9a55c]/10">
-                                        <span className="text-[10px]">✨</span>
-                                    </div>
-                                    <span className="text-sm font-bold font-serif text-gray-800">STYLE APPRECIATION</span>
-                                </div>
-
-                                <ul className="space-y-3">
-                                    {[
-                                        'You are absolutely radiating confidence!',
-                                        'This color palette highlights your best features.',
-                                        'Honestly? The camera just loves you.'
-                                    ].map((tip, i) => (
-                                        <li key={i} className="flex gap-3 text-xs text-gray-600 leading-relaxed font-medium">
-                                            <span className="block w-1 h-1 rounded-full bg-[#c9a55c] mt-1.5 flex-shrink-0" />
-                                            {tip}
-                                        </li>
-                                    ))}
-                                </ul>
-                            </div>
+                            {renderComplimentCard("flex-1")}
                         </div>
                     )}
 
@@ -587,69 +624,14 @@ export function TryOnResultModal({
 
                                 </div>
                             )}
-
-                            {/* Compliment Popup */}
-                            {showComplimentDialog && currentCompliment && (
-                                <div
-                                    className="absolute bottom-6 left-6 z-50 slide-up"
-                                    style={{ maxWidth: '600px', width: 'calc(100% - 3rem)' }}
-                                >
-                                    <div className="rounded-2xl overflow-hidden" style={{
-                                        background: 'rgba(255, 255, 255, 0.98)',
-                                        backdropFilter: 'blur(20px)',
-                                        boxShadow: '0 16px 48px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(201, 165, 92, 0.2)',
-                                    }}>
-                                        <div style={{
-                                            height: '4px',
-                                            background: 'linear-gradient(90deg, #c9a55c 0%, #d4b896 50%, #c9a55c 100%)',
-                                        }} />
-
-                                        <div className="px-6 py-4">
-                                            <div className="flex items-start gap-3">
-                                                <div className="flex-shrink-0 w-11 h-11 rounded-full flex items-center justify-center" style={{
-                                                    background: 'linear-gradient(135deg, #c9a55c 0%, #d4b896 100%)',
-                                                }}>
-                                                    <Sparkles className="w-5 h-5 text-white" />
-                                                </div>
-
-                                                <div className="flex-1 min-w-0">
-                                                    <p className="text-base leading-relaxed font-serif italic mb-2.5" style={{ color: '#1a1a1a', fontWeight: 500 }}>
-                                                        "{currentCompliment.message}"
-                                                    </p>
-
-                                                    <div className="flex flex-wrap gap-2">
-                                                        {currentCompliment.emotion.map((emotion, index) => (
-                                                            <span
-                                                                key={index}
-                                                                className="px-3 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wide"
-                                                                style={{
-                                                                    background: 'rgba(201, 165, 92, 0.12)',
-                                                                    color: '#9a7b4f',
-                                                                }}
-                                                            >
-                                                                {emotion}
-                                                            </span>
-                                                        ))}
-                                                    </div>
-                                                </div>
-
-                                                <button
-                                                    onClick={() => setShowComplimentDialog(false)}
-                                                    className="flex-shrink-0 p-1.5 rounded-full transition-all duration-200 hover:bg-black/5 active:scale-90"
-                                                    style={{ color: '#aaa' }}
-                                                >
-                                                    <X className="w-4 h-4" />
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
                         </div>
                     </div>
 
                     {/* Right Sidebar - Premium Action Buttons */}
-                    <div className="flex md:flex-col gap-3 md:w-56 flex-shrink-0">
+                    <div className="w-full md:w-56 flex-shrink-0 flex flex-col gap-3">
+                        {renderComplimentCard("md:hidden slide-up")}
+
+                        <div className="grid grid-cols-2 md:grid-cols-1 gap-3">
                         <button
                             onClick={handleDownload}
                             disabled={!resultImage || loading}
@@ -709,6 +691,7 @@ export function TryOnResultModal({
                             <ShoppingBag className="w-5 h-5" />
                             <span>SHOP</span>
                         </button>
+                        </div>
 
 
                         {/* Gallery Grid - Right Sidebar */}

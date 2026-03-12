@@ -1,6 +1,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, Wand2, Heart, CheckCircle2, ArrowRight } from 'lucide-react';
+import { Sparkles, Wand2, Heart, ArrowRight } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { AnimatedComplimentText } from '@/components/AnimatedComplimentText';
 
 interface TryOnInterstitialModalProps {
     isOpen: boolean;
@@ -77,7 +78,15 @@ export const TryOnInterstitialModal = ({ isOpen, onClose, onConfirm, productTitl
                                     <Sparkles className="mr-1.5 h-4 w-4 text-gold" />
                                     <span className="text-xs font-semibold uppercase tracking-wider text-charcoal">AI Magic</span>
                                 </motion.div>
-                                <h2 className="text-xl font-serif text-charcoal">{compliment}</h2>
+                                <div className="mx-auto max-w-[18rem] rounded-2xl bg-white/72 px-4 py-3 shadow-lg shadow-black/5 backdrop-blur-md">
+                                    <AnimatedComplimentText
+                                        text={compliment}
+                                        className="block text-lg font-serif leading-snug text-charcoal"
+                                        caretClassName="text-gold"
+                                        speedMs={22}
+                                        startDelayMs={180}
+                                    />
+                                </div>
                             </div>
                         </div>
 

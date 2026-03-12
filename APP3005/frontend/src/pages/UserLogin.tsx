@@ -23,6 +23,7 @@ const UserLogin = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const { returnUrl, returnState } = location.state || {};
+    const postLoginUrl = returnUrl && returnUrl !== "/" ? returnUrl : "/collection";
 
     const {
         register,
@@ -78,10 +79,10 @@ const UserLogin = () => {
 
             if (auraStatus.hasAura) {
                 // User already has Aura
-                if (returnUrl) {
-                    navigate(returnUrl, { state: returnState });
+                if (returnUrl && returnUrl !== "/") {
+                    navigate(postLoginUrl, { state: returnState });
                 } else {
-                    navigate('/collection');
+                    navigate(postLoginUrl);
                 }
             } else {
                 // No Aura, show creation prompt
@@ -135,10 +136,10 @@ const UserLogin = () => {
                 const auraStatus = await getAuraStatus();
 
                 if (auraStatus.hasAura) {
-                    if (returnUrl) {
-                        navigate(returnUrl, { state: returnState });
+                    if (returnUrl && returnUrl !== "/") {
+                        navigate(postLoginUrl, { state: returnState });
                     } else {
-                        navigate('/collection');
+                        navigate(postLoginUrl);
                     }
                 } else {
                     setShowAuraPrompt(true);
@@ -170,10 +171,10 @@ const UserLogin = () => {
 
     const handleAuraDecline = () => {
         setShowAuraPrompt(false);
-        if (returnUrl) {
-            navigate(returnUrl, { state: returnState });
+        if (returnUrl && returnUrl !== "/") {
+            navigate(postLoginUrl, { state: returnState });
         } else {
-            navigate("/collection");
+            navigate(postLoginUrl);
         }
     };
 

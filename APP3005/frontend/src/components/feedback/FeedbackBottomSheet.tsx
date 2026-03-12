@@ -34,6 +34,9 @@ export const FeedbackBottomSheet = ({
   const [submitted, setSubmitted] = useState(false);
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const isAvatarFeedback =
+    context.type === "AVATAR_CREATION" || context.type === "AVATAR_RECREATION";
+  const isLowAvatarRating = isAvatarFeedback && rating > 0 && rating <= 2;
   const requiresComment = rating > 0 && rating <= 3;
   const canSubmit = rating > 0 && (!requiresComment || comment.trim().length >= 4);
 
@@ -102,6 +105,14 @@ export const FeedbackBottomSheet = ({
     return null;
   }
 
+  const helperMessage = isLowAvatarRating
+    ? "Sorry for that. We continuously work to improve our model."
+    : "Share your experience. 3 stars or below always asks for a short note.";
+
+  const submittedMessage = isLowAvatarRating
+    ? "We are sorry."
+    : "Thanks for your feedback. We are continuously improving to make your experience better.";
+
   return (
     <div
       className="fixed bottom-4 right-4 z-50 w-[min(92vw,380px)] rounded-2xl border border-[#D4B76E]/40 bg-white/95 p-4 shadow-2xl backdrop-blur"
@@ -132,13 +143,11 @@ export const FeedbackBottomSheet = ({
         </button>
       </div>
 
-      <p className="mb-3 text-xs text-[#8D755B]">
-        Share your experience. 3 stars or below always asks for a short note.
-      </p>
+      <p className="mb-3 text-xs text-[#8D755B]">{helperMessage}</p>
 
       {submitted && (
         <p className="mb-3 rounded-lg bg-[#ECF7E8] px-3 py-2 text-xs leading-relaxed text-[#2F6B3A]">
-          Thanks for your feedback. We are continuously improving to make your experience better.
+          {submittedMessage}
         </p>
       )}
 

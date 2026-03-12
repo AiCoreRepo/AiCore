@@ -15,7 +15,7 @@ from google import genai
 from google.genai import types
 from dotenv import load_dotenv
 from color_helper import generate_angle_prompt
-from body_analyzer import analyze_user_image
+from body_analyzer import analyze_user_image, assess_image_quality
 from body_analyzer_helpers import (
     _decode_base64_image,
     _load_image_bytes,
@@ -119,8 +119,12 @@ class BodyAnalyzeResponse(BaseModel):
     body_shape: Optional[
         Literal["Rectangle", "Pear Shape", "Apple Shape", "Hourglass", "Inverted Triangle"]
     ] = None
+    body_shape_reason: Optional[str] = None
+    body_shape_measurements: Optional[Dict[str, float]] = None
+    body_shape_confidence: Optional[float] = None
     full_body: bool
-    full_body_method: Optional[Literal["mediapipe", "heuristic"]] = None
+    full_body_method: Optional[Literal["mediapipe", "heuristic", "segmentation"]] = None
+    mediapipe: Optional[str] = None
 
 
 class StandardTryOnResponse(BaseModel):
@@ -280,9 +284,29 @@ def _build_body_analyze_response(result: Dict) -> BodyAnalyzeResponse:
         skin_tone_label=_format_skin_tone(result.get("skin_tone_label")),
         skin_hexes=result.get("skin_hexes") or [],
         body_shape=_format_body_shape(result.get("body_shape")),
+        body_shape_reason=result.get("body_shape_reason"),
+        body_shape_measurements=result.get("body_shape_measurements"),
+        body_shape_confidence=result.get("body_shape_confidence"),
         full_body=bool(result.get("full_body")),
         full_body_method=result.get("full_body_method"),
+        mediapipe=result.get("mediapipe"),
     )
+
+
+def _validate_image_quality(image: Image.Image, image_bytes: bytes, field: str) -> None:
+    """Reject inputs that do not pass minimum image quality checks."""
+    quality = assess_image_quality(image, image_bytes=image_bytes)
+    if not quality["ok"]:
+        reasons = quality.get("reasons") or []
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "code": "low_image_quality",
+                "field": field,
+                "reasons": reasons,
+                "metrics": quality.get("metrics"),
+            },
+        )
 
 
 async def _read_jpeg(upload: UploadFile, field_name: str) -> bytes:
@@ -1163,6 +1187,7 @@ async def body_analyze(
         raise HTTPException(status_code=400, detail="Uploaded image is empty.")
 
     image = _load_image_bytes(image_bytes)
+    _validate_image_quality(image, image_bytes, field="file")
     result = analyze_user_image(image)
     if "error" in result:
         raise HTTPException(status_code=500, detail=result["error"])
@@ -1180,6 +1205,7 @@ async def body_analyze_json(
 ):
     image_bytes = _decode_base64_image(payload.image_base64)
     image = _load_image_bytes(image_bytes)
+    _validate_image_quality(image, image_bytes, field="image_base64")
     result = analyze_user_image(image)
     if "error" in result:
         raise HTTPException(status_code=500, detail=result["error"])

@@ -105,6 +105,7 @@ const Signup = () => {
         password: data.password!,
         brandName: data.brandName!,
         phoneNumber: data.phoneNumber,
+        dateOfBirth: data.dateOfBirth,
       });
 
       // Auto-login after successful registration
@@ -115,6 +116,10 @@ const Signup = () => {
 
       if (loginResult.access_token) {
         localStorage.setItem("access_token", loginResult.access_token);
+      }
+
+      if (data.email && data.dateOfBirth) {
+        localStorage.setItem(`aivestire:dob:${data.email.toLowerCase()}`, data.dateOfBirth);
       }
 
       toast({

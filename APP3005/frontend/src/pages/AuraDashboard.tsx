@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { HeroImageSection } from "@/components/aura/HeroImageSection";
 import { AuraFormCard } from "@/components/aura/AuraFormCard";
 import { ProcessingModal } from "@/components/aura/ProcessingModal";
@@ -24,13 +24,20 @@ interface AuraCreationFeedbackContext {
   label?: string;
 }
 
+interface AuraDashboardLocationState {
+  prefilledDob?: string;
+}
+
 const AuraDashboard = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | undefined>(undefined);
   const [jobId, setJobId] = useState<string | null>(null);
   const [creationContext, setCreationContext] = useState<AuraCreationFeedbackContext | null>(null);
+  const location = useLocation();
   const navigate = useNavigate();
+  const locationState = location.state as AuraDashboardLocationState | null;
+  const prefilledDob = locationState?.prefilledDob;
 
   // Use real job polling hook
   const { jobStatus, isPolling } = useAuraJobPolling(jobId, !!jobId);
@@ -160,6 +167,7 @@ const AuraDashboard = () => {
         <AuraFormCard
           onCreateAura={handleCreateAura}
           isProcessing={isProcessing}
+          prefilledDob={prefilledDob}
         />
       ) : (
         <div className="w-full lg:w-1/2 flex items-center justify-center bg-ivory px-4 py-12">

@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { User, Ruler, Weight, Palette, Sparkles } from 'lucide-react';
+import { getTryOnUsageSnapshot } from '@/lib/try-on-limit';
 
 interface AuraData {
     aura_id: string;
@@ -20,10 +21,15 @@ interface AuraData {
 interface AuraDisplayCardProps {
     aura: AuraData;
     tryOnCount?: number;
+    maxTryOns?: number;
 }
 
-export function AuraDisplayCard({ aura, tryOnCount = 0 }: AuraDisplayCardProps) {
+export function AuraDisplayCard({ aura, tryOnCount = 0, maxTryOns }: AuraDisplayCardProps) {
     const [isCollapsed, setIsCollapsed] = useState(false);
+    const usage = getTryOnUsageSnapshot({
+        try_ons_used: tryOnCount,
+        max_try_ons: maxTryOns,
+    });
 
     return (
         <div className="ai-tryon-aura-card">
@@ -103,7 +109,25 @@ export function AuraDisplayCard({ aura, tryOnCount = 0 }: AuraDisplayCardProps) 
                             Your AI Avatar
                         </h3>
                         <p className="text-[10px] uppercase tracking-[0.2em] text-neutral-400 font-medium">
-                            {tryOnCount} Masterpieces Created
+                            {usage.tryOnsUsed} Looks Generated
+                        </p>
+                    </div>
+
+                    <div
+                        className="rounded-2xl px-4 py-4 text-center"
+                        style={{
+                            background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.12), rgba(248, 244, 236, 0.9))',
+                            border: '1px solid rgba(212, 175, 55, 0.16)',
+                        }}
+                    >
+                        <p className="text-[10px] uppercase tracking-[0.22em] text-neutral-500 font-medium">
+                            Try-On Balance
+                        </p>
+                        <p className="mt-2 text-2xl font-serif text-luxury-black">
+                            {usage.remainingTryOns} / {usage.maxTryOns}
+                        </p>
+                        <p className="mt-1 text-xs text-neutral-500">
+                            Complimentary try-ons remaining
                         </p>
                     </div>
 

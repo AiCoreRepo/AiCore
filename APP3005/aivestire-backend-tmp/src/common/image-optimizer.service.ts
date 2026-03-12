@@ -35,6 +35,7 @@ export class ImageOptimizerService {
   private readonly DEFAULT_QUALITY = 75;
   private readonly DEFAULT_MAX_DIMENSION = 1024;
   private readonly THUMBNAIL_SIZE = 512;
+  private readonly TRY_ON_AVATAR_RETAIN_RATIO = 0.88;
 
   /**
    * Compress a base64 image to reduce payload size
@@ -128,6 +129,51 @@ export class ImageOptimizerService {
   }
 
   /**
+   * Crop the lowest section of a full-body avatar so try-on uses a footwear-free version.
+   * This keeps the crop deterministic and avoids introducing new AI artifacts.
+   */
+  async cropAvatarForTryOn(imageInput: string): Promise<string> {
+    try {
+      const imageBuffer = await this.loadImageBuffer(imageInput);
+      const metadata = await sharp(imageBuffer).metadata();
+      const width = metadata.width || 0;
+      const height = metadata.height || 0;
+
+      if (!width || !height) {
+        throw new Error('Unable to determine avatar dimensions');
+      }
+
+      const croppedHeight = Math.max(
+        1,
+        Math.min(height, Math.round(height * this.TRY_ON_AVATAR_RETAIN_RATIO)),
+      );
+
+      if (croppedHeight === height) {
+        return `data:image/jpeg;base64,${imageBuffer.toString('base64')}`;
+      }
+
+      this.logger.log(
+        `✂️ Cropping avatar for try-on: ${width}x${height} → ${width}x${croppedHeight}`,
+      );
+
+      const croppedBuffer = await sharp(imageBuffer)
+        .extract({
+          left: 0,
+          top: 0,
+          width,
+          height: croppedHeight,
+        })
+        .jpeg({ quality: 92, mozjpeg: true })
+        .toBuffer();
+
+      return `data:image/jpeg;base64,${croppedBuffer.toString('base64')}`;
+    } catch (error) {
+      this.logger.error(`Failed to crop avatar for try-on: ${error.message}`);
+      throw new Error(`Avatar crop failed: ${error.message}`);
+    }
+  }
+
+  /**
    * Extract metadata from an image
    * @param base64Image - Base64 encoded image
    * @returns Image metadata including dimensions, format, and size
@@ -216,6 +262,19 @@ export class ImageOptimizerService {
       return matches ? matches[1] : base64String;
     }
     return base64String;
+  }
+
+  private async loadImageBuffer(imageInput: string): Promise<Buffer> {
+    if (imageInput.startsWith('http://') || imageInput.startsWith('https://')) {
+      const response = await fetch(imageInput);
+      if (!response.ok) {
+        throw new Error(`Failed to download image: ${response.statusText}`);
+      }
+
+      return Buffer.from(await response.arrayBuffer());
+    }
+
+    return Buffer.from(this.extractBase64Data(imageInput), 'base64');
   }
 
   /**

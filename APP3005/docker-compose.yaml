@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   backend:
     build:
@@ -7,11 +5,16 @@ services:
     container_name: nest-server
     env_file:
       - ./aivestire-backend-tmp/.env
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/aivestire
+      REDIS_HOST: redis
     ports:
       - "3001:3000"
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     restart: unless-stopped
     networks:
       - app-network
@@ -44,6 +47,11 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d aivestire"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       - app-network
 

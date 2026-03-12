@@ -16,6 +16,7 @@ import {
   GenerateAnglesResponseDto,
   ResetAngleSessionResponseDto,
 } from '../dto/generate-angles-response.dto';
+import { TryOnPermissionGuard } from '../../auth/guards/tryon-permission.guard';
 
 /**
  * Controller for angle generation endpoints
@@ -59,6 +60,7 @@ export class AngleGenerationController {
     status: 500,
     description: 'Angle generation failed',
   })
+  @UseGuards(TryOnPermissionGuard)
   async generateAngle(
     @Body() request: GenerateAnglesRequestDto,
   ): Promise<GenerateAnglesResponseDto> {

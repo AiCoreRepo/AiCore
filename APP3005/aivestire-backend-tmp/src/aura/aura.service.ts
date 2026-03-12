@@ -277,6 +277,7 @@ export class AuraService {
         status: true,
         image_url: true,
         model_url: true,
+        tryon_model_url: true,
         generated_avatar_urls: true,
         created_at: true,
       },
@@ -338,16 +339,21 @@ export class AuraService {
 
     try {
       // Delete images from Cloudinary
-      const imagesToDelete: string[] = [];
+      const imagesToDelete = new Set<string>();
 
       // Add original image URL
       if (existingAura.image_url) {
-        imagesToDelete.push(existingAura.image_url);
+        imagesToDelete.add(existingAura.image_url);
       }
 
       // Add model URL (AI generated avatar)
       if (existingAura.model_url) {
-        imagesToDelete.push(existingAura.model_url);
+        imagesToDelete.add(existingAura.model_url);
+      }
+
+      // Add footwear-removed try-on avatar
+      if (existingAura.tryon_model_url) {
+        imagesToDelete.add(existingAura.tryon_model_url);
       }
 
       // Add any generated avatar URLs
@@ -355,12 +361,13 @@ export class AuraService {
         existingAura.generated_avatar_urls &&
         existingAura.generated_avatar_urls.length > 0
       ) {
-        imagesToDelete.push(...existingAura.generated_avatar_urls);
+        existingAura.generated_avatar_urls.forEach((url) => imagesToDelete.add(url));
       }
 
       // Delete all images from Cloudinary
-      console.log('🗑️ Deleting images from Cloudinary:', imagesToDelete);
-      for (const imageUrl of imagesToDelete) {
+      const imageUrls = Array.from(imagesToDelete);
+      console.log('🗑️ Deleting images from Cloudinary:', imageUrls);
+      for (const imageUrl of imageUrls) {
         try {
           await this.cloudinary.deleteImage(imageUrl);
           console.log('✅ Deleted:', imageUrl);

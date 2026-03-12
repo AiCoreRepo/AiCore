@@ -43,6 +43,21 @@ export class AuthService {
     private otpService: OtpService,
   ) {}
 
+  private isAtLeastAge(dateOfBirth: Date, minimumAge: number): boolean {
+    const today = new Date();
+    let age = today.getFullYear() - dateOfBirth.getFullYear();
+    const monthDifference = today.getMonth() - dateOfBirth.getMonth();
+
+    if (
+      monthDifference < 0 ||
+      (monthDifference === 0 && today.getDate() < dateOfBirth.getDate())
+    ) {
+      age--;
+    }
+
+    return age >= minimumAge;
+  }
+
   private slugify(input: string): string {
     return input
       .toLowerCase()
@@ -82,10 +97,15 @@ export class AuthService {
       throw new Error('Failed to load bcrypt module');
     }
     const password_hash: string = await bcryptMod1.hash(dto.password, 10);
+    const dateOfBirth = dto.dateOfBirth ? new Date(dto.dateOfBirth) : null;
+    if (dateOfBirth && !this.isAtLeastAge(dateOfBirth, 13)) {
+      throw new BadRequestException('You must be at least 13 years old');
+    }
     const user = await this.prisma.user.create({
       data: {
         email: dto.email,
         password_hash,
+        date_of_birth: dateOfBirth,
         phone: dto.phoneNumber,
         // Keep verified only when a phone number is explicitly supplied.
         phone_verified: !!dto.phoneNumber,
@@ -244,6 +264,8 @@ export class AuthService {
         user_id: true,
         email: true,
         role: true,
+        password_hash: true,
+        date_of_birth: true,
         try_on_permission: true,
         try_ons_used: true,
         max_try_ons: true,
@@ -267,6 +289,8 @@ export class AuthService {
         user_id: user.user_id,
         email: user.email,
         role: user.role,
+        dob: user.date_of_birth?.toISOString().split('T')[0],
+        needs_dob_collection: !user.date_of_birth && !user.password_hash,
         try_on_permission: user.try_on_permission,
         store_name: user.creatorProfile.store_name,
         try_ons_used: user.try_ons_used,
@@ -282,6 +306,8 @@ export class AuthService {
       user_id: user.user_id,
       email: user.email,
       role: user.role,
+      dob: user.date_of_birth?.toISOString().split('T')[0],
+      needs_dob_collection: !user.date_of_birth && !user.password_hash,
       try_on_permission: user.try_on_permission,
       try_ons_used: user.try_ons_used,
       max_try_ons: user.max_try_ons,

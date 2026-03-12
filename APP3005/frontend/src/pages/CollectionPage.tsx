@@ -10,10 +10,18 @@ import { auraGate } from "@/utils/auraGate";
 import { ChevronDown, Heart, Search, X, SlidersHorizontal, ArrowUpDown } from "lucide-react";
 import { TryOnInterstitialModal } from "@/components/TryOnInterstitialModal";
 import { TryOnResultModal } from '@/components/ai-tryon/TryOnResultModal';
+import { TryOnUpgradePopup } from '@/components/ai-tryon/TryOnUpgradePopup';
 import { AuraPromptDialog } from '@/components/aura/AuraPromptDialog';
 import { tryOnWithVertex, generateMoreAngles, getAura, FeedbackContextType } from '@/lib/api';
 import collectionHeaderImage from "@/assets/collectionHeader.jpeg";
 import { FeedbackBottomSheet } from '@/components/feedback/FeedbackBottomSheet';
+import {
+    getTryOnLimitSnapshot,
+    getTryOnUsageSnapshot,
+    isTryOnLimitError,
+    TRY_ON_PREMIUM_UPGRADE_URL,
+    type TryOnUsageSnapshot,
+} from '@/lib/try-on-limit';
 
 const categories = ["All", "Dresses", "Outerwear", "Accessories", "Tops", "Bottoms"];
 const sizes = ["XS", "S", "M", "L", "XL", "XXL"];
@@ -23,7 +31,7 @@ const sortOptions = ["Price: Low to High", "Price: High to Low", "Newest", "Most
 const CollectionPage = () => {
     const navigate = useNavigate();
     const location = useLocation();
-    const { user } = useAuth();
+    const { user, fetchUser } = useAuth();
 
     // Aura Welcome Modal State
     const [showAuraWelcomeModal, setShowAuraWelcomeModal] = useState(false);
@@ -50,21 +58,42 @@ const CollectionPage = () => {
     const [originalTryOnImage, setOriginalTryOnImage] = useState<string | null>(null);
     const [generatedImages, setGeneratedImages] = useState<string[]>([]);
     const [showFeedbackSheet, setShowFeedbackSheet] = useState(false);
+    const [showUpgradePopup, setShowUpgradePopup] = useState(false);
+    const [tryOnUsageSnapshot, setTryOnUsageSnapshot] = useState<TryOnUsageSnapshot>(
+        getTryOnUsageSnapshot(user)
+    );
     const [feedbackContext, setFeedbackContext] = useState<{
         type: FeedbackContextType;
         referenceId?: string;
         label?: string;
     } | null>(null);
+    const feedbackCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const [selectedTryOnLabel, setSelectedTryOnLabel] = useState<string>('');
 
     const resolveProductLabel = (productId: string) => {
         const product = filteredProducts.find((item: any) => item.product_id === productId);
         return product?.title || product?.name || productId;
     };
+    const currentTryOnUsage = getTryOnUsageSnapshot(user);
+    const hasFreeTryOnsRemaining =
+        user?.role === 'ADMIN' || currentTryOnUsage.remainingTryOns > 0;
 
     const closeFeedbackSheet = () => {
+        if (feedbackCloseTimerRef.current) {
+            clearTimeout(feedbackCloseTimerRef.current);
+            feedbackCloseTimerRef.current = null;
+        }
         setShowFeedbackSheet(false);
         setFeedbackContext(null);
+    };
+
+    const openUpgradePopup = (error?: { tryOnsUsed?: number; maxTryOns?: number }) => {
+        setTryOnUsageSnapshot(getTryOnLimitSnapshot(error, user));
+        setShowUpgradePopup(true);
+    };
+
+    const handleUpgradeToPremium = () => {
+        window.location.href = TRY_ON_PREMIUM_UPGRADE_URL;
     };
 
     // Fetch Aura for user photo in modal
@@ -73,6 +102,18 @@ const CollectionPage = () => {
             getAura().then(setAura).catch(() => { });
         }
     }, [user]);
+
+    useEffect(() => {
+        setTryOnUsageSnapshot(getTryOnUsageSnapshot(user));
+    }, [user]);
+
+    useEffect(() => {
+        return () => {
+            if (feedbackCloseTimerRef.current) {
+                clearTimeout(feedbackCloseTimerRef.current);
+            }
+        };
+    }, []);
 
     // Show Aura Welcome Modal if coming from signup
     useEffect(() => {
@@ -159,6 +200,11 @@ const CollectionPage = () => {
             return;
         }
 
+        if (!hasFreeTryOnsRemaining) {
+            openUpgradePopup();
+            return;
+        }
+
         // Check permissions - BYPASSED: Allow all users
         if (false && user?.role !== 'ADMIN' && user?.try_on_permission !== 'APPROVED') {
             navigate('/ai-try-on');
@@ -192,6 +238,11 @@ const CollectionPage = () => {
         if (!user) return; // Aura check handled by gate, but need user context
 
         try {
+            if (feedbackCloseTimerRef.current) {
+                clearTimeout(feedbackCloseTimerRef.current);
+                feedbackCloseTimerRef.current = null;
+            }
+
             setTryOnLoading(true);
             setTryOnError(null);
             setShowResultModal(true);
@@ -211,6 +262,11 @@ const CollectionPage = () => {
                 setResultImage(imageData);
                 setOriginalTryOnImage(imageData);
                 setGeneratedImages([imageData]);
+                fetchUser();
+                if (feedbackCloseTimerRef.current) {
+                    clearTimeout(feedbackCloseTimerRef.current);
+                    feedbackCloseTimerRef.current = null;
+                }
                 setFeedbackContext({
                     type: "VIRTUAL_TRYON",
                     referenceId: result.tryOnId ? String(result.tryOnId) : undefined,
@@ -222,14 +278,42 @@ const CollectionPage = () => {
             }
         } catch (error: any) {
             console.error('Try-on error:', error);
+            if (isTryOnLimitError(error)) {
+                setShowResultModal(false);
+                setTryOnError(null);
+                openUpgradePopup(error);
+                return;
+            }
             setTryOnError(error.message || 'Failed to process try-on. Please try again.');
         } finally {
             setTryOnLoading(false);
         }
     };
 
+    const closeResultModal = () => {
+        setShowResultModal(false);
+
+        if (!showFeedbackSheet && !feedbackContext) {
+            return;
+        }
+
+        if (feedbackCloseTimerRef.current) {
+            clearTimeout(feedbackCloseTimerRef.current);
+        }
+
+        feedbackCloseTimerRef.current = setTimeout(() => {
+            setShowFeedbackSheet(false);
+            setFeedbackContext(null);
+            feedbackCloseTimerRef.current = null;
+        }, 1000);
+    };
+
     const handleGenerateMoreAngles = async () => {
         if (!user || !resultImage || !selectedTryOnProduct) return;
+        if (!hasFreeTryOnsRemaining) {
+            openUpgradePopup();
+            return;
+        }
 
         try {
             setGeneratingAngles(true);
@@ -245,8 +329,13 @@ const CollectionPage = () => {
                     : `data:image/jpeg;base64,${result.resultImage}`;
                 setResultImage(imageData);
                 setGeneratedImages(prev => [...prev, imageData]);
+                fetchUser();
             }
         } catch (error: any) {
+            if (isTryOnLimitError(error)) {
+                openUpgradePopup(error);
+                return;
+            }
             setTryOnError(error.message || 'Failed to generate angles');
         } finally {
             setGeneratingAngles(false);
@@ -555,9 +644,17 @@ const CollectionPage = () => {
                 onConfirm={handleConfirmTryOn}
             />
 
+            <TryOnUpgradePopup
+                isOpen={showUpgradePopup}
+                onClose={() => setShowUpgradePopup(false)}
+                onUpgrade={handleUpgradeToPremium}
+                tryOnsUsed={tryOnUsageSnapshot.tryOnsUsed}
+                maxTryOns={tryOnUsageSnapshot.maxTryOns}
+            />
+
             <TryOnResultModal
                 isOpen={showResultModal}
-                onClose={() => setShowResultModal(false)}
+                onClose={closeResultModal}
                 resultImage={resultImage}
                 loading={tryOnLoading}
                 error={tryOnError}

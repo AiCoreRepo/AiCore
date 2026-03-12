@@ -591,13 +591,18 @@
     background: linear-gradient(135deg, rgba(201, 165, 95, 0.15), rgba(212, 183, 110, 0.08));
 }
 
+.recreate-photo-helper {
+    margin: 0 0 0.85rem;
+    color: rgba(44, 36, 22, 0.72);
+    font-size: 0.82rem;
+    line-height: 1.5;
+}
+
 .recreate-upload-area,
 .recreate-photo-source {
-    border: 2px dashed rgba(201, 165, 95, 0.4);
-    border-radius: 0.9rem;
-    padding: 0.75rem;
+    display: grid;
+    gap: 0.65rem;
     margin-bottom: 0.85rem;
-    background: rgba(255, 255, 255, 0.6);
 }
 
 .recreate-upload-label {
@@ -605,37 +610,36 @@
     font-size: 0.75rem;
     font-weight: 600;
     color: #2C2416;
-    margin-bottom: 0.55rem;
+    margin-bottom: 0;
 }
 
 .recreate-upload-input {
-    width: 100%;
-    font-size: 0.8rem;
-}
-
-.recreate-photo-preview,
-.recreate-photo-source img {
-    width: 100%;
-    max-height: 180px;
-    border-radius: 0.75rem;
-    object-fit: cover;
-    margin-top: 0.55rem;
-    border: 2px solid rgba(201, 165, 95, 0.35);
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
 }
 
 .recreate-photo-placeholder {
-    min-height: 112px;
-    border-radius: 0.75rem;
-    border: 1.5px dashed rgba(44, 36, 22, 0.3);
     display: grid;
     place-items: center;
+    width: 100%;
+    height: 100%;
+    padding: 1rem;
     color: rgba(44, 36, 22, 0.62);
     font-size: 0.82rem;
-    margin-top: 0.55rem;
+    font-weight: 600;
+    text-align: center;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(245, 240, 230, 0.88));
 }
 
 .recreate-photo-source p {
-    margin: 0 0 0.3rem;
+    margin: 0;
     font-size: 0.8rem;
     font-weight: 600;
     color: #2C2416;
@@ -822,6 +826,57 @@
     font-size: 1.125rem;
     color: #2C2416;
     text-align: center;
+}
+
+.tryon-crop-preview {
+    width: 100%;
+    max-width: 320px;
+    margin-top: 1.5rem;
+    padding: 1rem;
+    border-radius: 1.5rem;
+    background: rgba(255, 250, 240, 0.92);
+    border: 1px solid rgba(201, 165, 95, 0.28);
+    box-shadow: 0 12px 30px rgba(73, 57, 34, 0.08);
+}
+
+.tryon-crop-copy {
+    margin-bottom: 0.85rem;
+}
+
+.tryon-crop-eyebrow {
+    margin: 0 0 0.35rem;
+    font-size: 0.7rem;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    color: #9B7B3F;
+}
+
+.tryon-crop-title {
+    margin: 0;
+    font-family: 'Playfair Display', serif;
+    font-size: 1.1rem;
+    color: #1A1A1A;
+}
+
+.tryon-crop-description {
+    margin: 0.45rem 0 0;
+    font-size: 0.88rem;
+    line-height: 1.55;
+    color: rgba(26, 26, 26, 0.72);
+}
+
+.tryon-crop-frame {
+    border-radius: 1.1rem;
+    overflow: hidden;
+    background: linear-gradient(180deg, #6B8BA4 0%, #4A6B7C 100%);
+    min-height: 180px;
+}
+
+.tryon-crop-image {
+    width: 100%;
+    display: block;
+    object-fit: cover;
+    object-position: center top;
 }
 
 /* Responsive Design */

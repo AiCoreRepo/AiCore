@@ -1,5 +1,25 @@
 import { z } from "zod";
 
+const isAtLeastAge = (date: string, minimumAge: number) => {
+  const birthDate = new Date(date);
+  if (Number.isNaN(birthDate.getTime())) {
+    return false;
+  }
+
+  const today = new Date();
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const monthDifference = today.getMonth() - birthDate.getMonth();
+
+  if (
+    monthDifference < 0 ||
+    (monthDifference === 0 && today.getDate() < birthDate.getDate())
+  ) {
+    age--;
+  }
+
+  return age >= minimumAge;
+};
+
 export const loginSchema = z.object({
   email: z
     .string()
@@ -24,12 +44,9 @@ export const signupSchema = z
     dateOfBirth: z
       .string()
       .min(1, { message: "Date of birth is required" })
-      .refine((date) => {
-        const birthDate = new Date(date);
-        const today = new Date();
-        const age = today.getFullYear() - birthDate.getFullYear();
-        return age >= 13;
-      }, { message: "You must be at least 13 years old" }),
+      .refine((date) => isAtLeastAge(date, 13), {
+        message: "You must be at least 13 years old",
+      }),
     email: z
       .string()
       .trim()

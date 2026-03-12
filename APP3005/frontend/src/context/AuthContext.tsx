@@ -13,6 +13,7 @@ interface User {
   try_on_permission?: string;
   age_range?: string;
   dob?: string;
+  needs_dob_collection?: boolean;
 }
 
 interface AuthContextType {

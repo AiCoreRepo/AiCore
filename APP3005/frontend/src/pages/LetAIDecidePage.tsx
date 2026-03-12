@@ -13,9 +13,17 @@ import { ProductCard } from '@/components/collection/ProductCard';
 import { auraGate } from '@/utils/auraGate';
 import { TryOnInterstitialModal } from "@/components/TryOnInterstitialModal";
 import { TryOnResultModal } from '@/components/ai-tryon/TryOnResultModal';
+import { TryOnUpgradePopup } from '@/components/ai-tryon/TryOnUpgradePopup';
 import { tryOnWithVertex, generateMoreAngles } from '@/lib/api';
 import { FeedbackContextType } from '@/lib/api';
 import { FeedbackBottomSheet } from '@/components/feedback/FeedbackBottomSheet';
+import {
+    getTryOnLimitSnapshot,
+    getTryOnUsageSnapshot,
+    isTryOnLimitError,
+    TRY_ON_PREMIUM_UPGRADE_URL,
+    type TryOnUsageSnapshot,
+} from '@/lib/try-on-limit';
 
 interface AuraData {
     aura_id: string;
@@ -51,7 +59,7 @@ const occasions = [
 
 const LetAIDecidePage = () => {
     const navigate = useNavigate();
-    const { user, loading: authLoading } = useAuth();
+    const { user, loading: authLoading, fetchUser } = useAuth();
     const [aura, setAura] = useState<AuraData | null>(null);
     const [loadingAura, setLoadingAura] = useState(true);
     const [showLoginPopup, setShowLoginPopup] = useState(false);
@@ -73,16 +81,37 @@ const LetAIDecidePage = () => {
     const [originalTryOnImage, setOriginalTryOnImage] = useState<string | null>(null);
     const [generatedImages, setGeneratedImages] = useState<string[]>([]);
     const [showFeedbackSheet, setShowFeedbackSheet] = useState(false);
+    const [showUpgradePopup, setShowUpgradePopup] = useState(false);
+    const [tryOnUsageSnapshot, setTryOnUsageSnapshot] = useState<TryOnUsageSnapshot>(
+        getTryOnUsageSnapshot(user)
+    );
     const [feedbackContext, setFeedbackContext] = useState<{
         type: FeedbackContextType;
         referenceId?: string;
         label?: string;
     } | null>(null);
+    const feedbackCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const [selectedTryOnLabel, setSelectedTryOnLabel] = useState<string>('');
+    const currentTryOnUsage = getTryOnUsageSnapshot(user);
+    const hasFreeTryOnsRemaining =
+        user?.role === 'ADMIN' || currentTryOnUsage.remainingTryOns > 0;
 
     const closeFeedbackSheet = () => {
+        if (feedbackCloseTimerRef.current) {
+            clearTimeout(feedbackCloseTimerRef.current);
+            feedbackCloseTimerRef.current = null;
+        }
         setShowFeedbackSheet(false);
         setFeedbackContext(null);
+    };
+
+    const openUpgradePopup = (error?: { tryOnsUsed?: number; maxTryOns?: number }) => {
+        setTryOnUsageSnapshot(getTryOnLimitSnapshot(error, user));
+        setShowUpgradePopup(true);
+    };
+
+    const handleUpgradeToPremium = () => {
+        window.location.href = TRY_ON_PREMIUM_UPGRADE_URL;
     };
 
     useEffect(() => {
@@ -100,6 +129,18 @@ const LetAIDecidePage = () => {
         // User is logged in, check aura
         checkAuraStatus();
     }, [authLoading, user]);
+
+    useEffect(() => {
+        setTryOnUsageSnapshot(getTryOnUsageSnapshot(user));
+    }, [user]);
+
+    useEffect(() => {
+        return () => {
+            if (feedbackCloseTimerRef.current) {
+                clearTimeout(feedbackCloseTimerRef.current);
+            }
+        };
+    }, []);
 
     const checkAuraStatus = async () => {
         try {
@@ -167,6 +208,11 @@ const LetAIDecidePage = () => {
             return;
         }
 
+        if (!hasFreeTryOnsRemaining) {
+            openUpgradePopup();
+            return;
+        }
+
         // Check permissions - BYPASSED: Allow all users
         if (false && user?.role !== 'ADMIN' && user?.try_on_permission !== 'APPROVED') {
             navigate('/ai-try-on');
@@ -200,6 +246,11 @@ const LetAIDecidePage = () => {
         if (!aura) return;
 
         try {
+            if (feedbackCloseTimerRef.current) {
+                clearTimeout(feedbackCloseTimerRef.current);
+                feedbackCloseTimerRef.current = null;
+            }
+
             setTryOnLoading(true);
             setTryOnError(null);
             setShowResultModal(true);
@@ -216,6 +267,11 @@ const LetAIDecidePage = () => {
                 setResultImage(imageData);
                 setOriginalTryOnImage(imageData);
                 setGeneratedImages([imageData]);
+                fetchUser();
+                if (feedbackCloseTimerRef.current) {
+                    clearTimeout(feedbackCloseTimerRef.current);
+                    feedbackCloseTimerRef.current = null;
+                }
                 setFeedbackContext({
                     type: "VIRTUAL_TRYON",
                     referenceId: result.tryOnId ? String(result.tryOnId) : undefined,
@@ -227,14 +283,42 @@ const LetAIDecidePage = () => {
             }
         } catch (error: any) {
             console.error('Try-on error:', error);
+            if (isTryOnLimitError(error)) {
+                setShowResultModal(false);
+                setTryOnError(null);
+                openUpgradePopup(error);
+                return;
+            }
             setTryOnError(error.message || 'Failed to process try-on. Please try again.');
         } finally {
             setTryOnLoading(false);
         }
     };
 
+    const closeResultModal = () => {
+        setShowResultModal(false);
+
+        if (!showFeedbackSheet && !feedbackContext) {
+            return;
+        }
+
+        if (feedbackCloseTimerRef.current) {
+            clearTimeout(feedbackCloseTimerRef.current);
+        }
+
+        feedbackCloseTimerRef.current = setTimeout(() => {
+            setShowFeedbackSheet(false);
+            setFeedbackContext(null);
+            feedbackCloseTimerRef.current = null;
+        }, 1000);
+    };
+
     const handleGenerateMoreAngles = async () => {
         if (!aura || !resultImage || !selectedTryOnProduct) return;
+        if (!hasFreeTryOnsRemaining) {
+            openUpgradePopup();
+            return;
+        }
 
         try {
             setGeneratingAngles(true);
@@ -250,8 +334,13 @@ const LetAIDecidePage = () => {
                     : `data:image/jpeg;base64,${result.resultImage}`;
                 setResultImage(imageData);
                 setGeneratedImages(prev => [...prev, imageData]);
+                fetchUser();
             }
         } catch (error: any) {
+            if (isTryOnLimitError(error)) {
+                openUpgradePopup(error);
+                return;
+            }
             setTryOnError(error.message || 'Failed to generate angles');
         } finally {
             setGeneratingAngles(false);
@@ -327,7 +416,11 @@ const LetAIDecidePage = () => {
                         {!loadingAura && aura && (
                             <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
                                 <div className="lg:col-span-1">
-                                    <AuraDisplayCard aura={aura} />
+                                    <AuraDisplayCard
+                                        aura={aura}
+                                        tryOnCount={user?.try_ons_used || 0}
+                                        maxTryOns={user?.max_try_ons}
+                                    />
                                 </div>
 
                                 <div className="lg:col-span-3 space-y-8">
@@ -556,9 +649,17 @@ const LetAIDecidePage = () => {
                 onConfirm={handleConfirmTryOn}
             />
 
+            <TryOnUpgradePopup
+                isOpen={showUpgradePopup}
+                onClose={() => setShowUpgradePopup(false)}
+                onUpgrade={handleUpgradeToPremium}
+                tryOnsUsed={tryOnUsageSnapshot.tryOnsUsed}
+                maxTryOns={tryOnUsageSnapshot.maxTryOns}
+            />
+
             <TryOnResultModal
                 isOpen={showResultModal}
-                onClose={() => setShowResultModal(false)}
+                onClose={closeResultModal}
                 resultImage={resultImage}
                 loading={tryOnLoading}
                 error={tryOnError}

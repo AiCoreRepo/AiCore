@@ -4,6 +4,7 @@ import {
   MinLength,
   IsIn,
   IsOptional,
+  IsDateString,
   MaxLength,
   Matches,
 } from 'class-validator';
@@ -46,4 +47,8 @@ export class RegisterDto {
   @IsString()
   @MaxLength(500)
   about?: string;
+
+  @IsOptional()
+  @IsDateString()
+  dateOfBirth?: string;
 }

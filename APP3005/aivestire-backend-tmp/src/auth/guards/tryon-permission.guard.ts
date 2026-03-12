@@ -3,6 +3,7 @@ import {
   CanActivate,
   ExecutionContext,
   ForbiddenException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 
@@ -14,29 +15,40 @@ export class TryOnPermissionGuard implements CanActivate {
     const request = context.switchToHttp().getRequest();
     const user = request.user;
 
-    if (!user || user.role === 'ADMIN') {
-      return true; // Admins always allowed
+    if (!user) {
+      throw new UnauthorizedException('Please login to use Virtual Try-On');
+    }
+
+    if (user.role === 'ADMIN') {
+      return true;
     }
 
     const dbUser = await this.prisma.user.findUnique({
       where: { user_id: user.user_id },
       select: {
-        try_on_permission: true,
         try_ons_used: true,
         max_try_ons: true,
       },
     });
 
-    if (!dbUser || dbUser.try_on_permission !== 'APPROVED') {
-      throw new ForbiddenException(
-        'You do not have permission to use Virtual Try-On. Please request access.',
-      );
+    if (!dbUser) {
+      throw new ForbiddenException('User account not found');
     }
 
-    const effectiveTryOnLimit = Math.min(dbUser.max_try_ons, 3);
+    const effectiveTryOnLimit =
+      typeof dbUser.max_try_ons === 'number' && dbUser.max_try_ons > 0
+        ? dbUser.max_try_ons
+        : 3;
+
     if (dbUser.try_ons_used >= effectiveTryOnLimit) {
       throw new ForbiddenException(
-        `Virtual Try-On limit reached. You can use it up to ${effectiveTryOnLimit} times.`,
+        {
+          message: `You have used all ${effectiveTryOnLimit} virtual try-ons. Upgrade to Premium for more try-ons.`,
+          code: 'TRY_ON_LIMIT_REACHED',
+          tryOnsUsed: dbUser.try_ons_used,
+          maxTryOns: effectiveTryOnLimit,
+          upgradeRequired: true,
+        },
       );
     }
 

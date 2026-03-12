@@ -12,6 +12,7 @@ model User {
   user_id                   String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   email                     String                @unique
   password_hash             String?
+  date_of_birth             DateTime?
   phone                     String?
   phone_verified            Boolean               @default(false)
   status                    String                @default("active")
@@ -283,6 +284,7 @@ model Aura {
   beard                 Boolean?
   extra_attributes      Json?
   model_url             String?
+  tryon_model_url       String?
   generated_avatar_urls String[]   @default([])
   attributes            Json?
   status                AuraStatus @default(PENDING)

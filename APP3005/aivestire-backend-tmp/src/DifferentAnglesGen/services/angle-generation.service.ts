@@ -358,6 +358,11 @@ export class AngleGenerationService {
         },
       });
 
+      await this.prisma.user.update({
+        where: { user_id: userId },
+        data: { try_ons_used: { increment: 1 } },
+      });
+
       this.logger.log(`✅ Uploaded to Cloudinary: ${uploadResult.secureUrl}`);
 
       return {
@@ -367,6 +372,11 @@ export class AngleGenerationService {
     } catch (error) {
       this.logger.error(`Failed to upload and save: ${error.message}`);
       // Don't fail the request if upload fails
+      await this.prisma.user.update({
+        where: { user_id: userId },
+        data: { try_ons_used: { increment: 1 } },
+      });
+
       return {
         imageUrl: '',
       };

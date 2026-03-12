@@ -7,6 +7,7 @@ import { AuraProcessor } from './aura.processor';
 import { PrismaModule } from '../prisma/prisma.module';
 import { CloudinaryService } from '../common/cloudinary.service';
 import { GeminiAIService } from '../common/gemini-ai.service';
+import { ImageOptimizerService } from '../common/image-optimizer.service';
 import { AiTryOnModule } from '../ai-tryon/ai-tryon.module';
 import { QUEUE_NAMES } from '../common/constants/queue.constants';
 
@@ -25,6 +26,7 @@ import { QUEUE_NAMES } from '../common/constants/queue.constants';
     AuraProcessor,
     CloudinaryService,
     GeminiAIService,
+    ImageOptimizerService,
   ],
   exports: [AuraService],
 })

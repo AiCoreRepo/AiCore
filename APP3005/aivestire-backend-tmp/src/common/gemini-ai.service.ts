@@ -149,17 +149,19 @@ USER-SPECIFIED ATTRIBUTES (MUST FOLLOW):
 ${specificInstructions.join('\n')}
 
 INSTRUCTIONS:
-1. Use the reference photo for facial features, expression, and posture.
+1. Use the reference photo for facial features, expression, and overall likeness.
 2. CRITICALLY IMPORTANT: Apply ALL the user-specified attributes above to the generated avatar. These attributes OVERRIDE what you observe in the photo.
 3. Beautify the face subtly while preserving the person's recognizable facial features.
 4. Create a full-body avatar. If the photo is not full body, extend realistically to full body with matching outfit and appropriate footwear.
-5. Keep the existing clothing unchanged but ensure it looks clean and well-fitted.
-6. Set the background to a clean, premium studio look with soft, natural lighting.
-7. Maintain photorealism with sharp details throughout.
-8. The final image must look like a professional fashion model photo.`;
+5. Use a simple neutral fashion pose. The body should face forward or slightly 3/4, with both legs closed together in a straight natural stance. Keep the inner thighs, knees, calves, and ankles nearly touching so there is minimal or no visible gap between the legs. Do not create a wide stance, separated legs, or a walking pose. Both legs must remain fully visible, complete, and anatomically correct.
+6. Keep both hands in a natural, relaxed, aesthetically pleasing pose near the sides or lightly in front of the body. Fingers must be well-formed and realistic. Avoid awkward, twisted, cropped, hidden, extra, or malformed hands.
+7. Keep the existing clothing unchanged but ensure it looks clean and well-fitted.
+8. Set the background to a clean, premium studio look with soft, natural lighting.
+9. Maintain photorealism with sharp details throughout.
+10. The final image must look like a professional fashion model photo.`;
       } else {
         // ---- NO ATTRIBUTES: Simple photo-based avatar generation ----
-        prompt = `Create a hyper-realistic full-body avatar based on this photo. Beautify the face subtly while preserving the person's exact facial features, skin tone, and natural appearance. Maintain their current hairstyle and body proportions. Preserve the same posture and expression. Keep clothing unchanged; if the photo is not full body, extend realistically to full body with matching outfit and appropriate footwear. Enhance the background to a clean premium studio look that complements the outfit. Maintain photorealism, sharp details, and natural lighting. The final image must look like a professional fashion model photo.`;
+        prompt = `Create a hyper-realistic full-body avatar based on this photo. Beautify the face subtly while preserving the person's exact facial features, skin tone, and natural appearance. Maintain their current hairstyle and body proportions. Preserve the same expression and overall likeness. Use a simple neutral fashion pose with both legs closed together in a straight natural stance. Keep the inner thighs, knees, calves, and ankles nearly touching so there is minimal or no visible gap between the legs. Do not create a wide stance, separated legs, or a walking pose. Make sure both legs are fully visible, complete, and anatomically correct. Keep both hands in a natural, relaxed, aesthetically pleasing pose with realistic fingers, avoiding awkward, twisted, cropped, hidden, extra, or malformed hands. Keep clothing unchanged; if the photo is not full body, extend realistically to full body with matching outfit and appropriate footwear. Enhance the background to a clean premium studio look that complements the outfit. Maintain photorealism, sharp details, and natural lighting. The final image must look like a professional fashion model photo.`;
       }
 
       console.log(' [GeminiAI] Has user attributes:', hasAnyAttribute);

@@ -10,6 +10,11 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d aivestire -p 5540"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       - app-network
 
@@ -38,11 +43,12 @@ services:
       [
         "sh",
         "-c",
-        "set -e; DB_WAIT_HOST=${DB_WAIT_HOST:-db}; DB_WAIT_PORT=${DB_WAIT_PORT:-5540}; until node -e \"const net=require('net'); const host=process.env.DB_WAIT_HOST || 'db'; const port=Number(process.env.DB_WAIT_PORT || 5540); const s=net.createConnection({host, port},()=>process.exit(0)); s.on('error',()=>process.exit(1));\"; do echo \"waiting for db at ${DB_WAIT_HOST}:${DB_WAIT_PORT}...\"; sleep 2; done; if ! node ./node_modules/prisma/build/index.js migrate deploy; then echo 'migrate deploy failed; attempting to mark known pre-applied migration as applied'; node ./node_modules/prisma/build/index.js migrate resolve --applied 20260215_add_refund_return_replacement; node ./node_modules/prisma/build/index.js migrate deploy; fi; node scripts/seed-products.js; node dist/src/main"
+        "set -e; DB_WAIT_HOST=db; DB_WAIT_PORT=5540; until node -e \"const net=require('net'); const host=process.env.DB_WAIT_HOST || 'db'; const port=Number(process.env.DB_WAIT_PORT || 5540); const s=net.createConnection({host, port},()=>process.exit(0)); s.on('error',()=>process.exit(1));\"; do echo \"waiting for db at $$DB_WAIT_HOST:$$DB_WAIT_PORT...\"; sleep 2; done; if ! node ./node_modules/prisma/build/index.js migrate deploy; then echo 'migrate deploy failed; attempting to mark known pre-applied migration as applied'; node ./node_modules/prisma/build/index.js migrate resolve --applied 20260215_add_refund_return_replacement; node ./node_modules/prisma/build/index.js migrate deploy; fi; node scripts/seed-products.js; node dist/src/main"
       ]
     env_file:
       - ./APP3005/aivestire-backend-tmp/.env
     environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5540/aivestire
       NODE_ENV: production
       FRONTEND_URL: https://aivestire.com
       FASTAPI_BODY_ANALYZE_URL: http://body-analyzer:8898/body_analyze_json
@@ -50,16 +56,22 @@ services:
       RECOMMENDATION_DUMMY_ONLY: ${RECOMMENDATION_DUMMY_ONLY:-true}
       RECOMMENDATION_ML_ENABLED: ${RECOMMENDATION_ML_ENABLED:-false}
       CORS_ORIGIN: ${CORS_ORIGIN:-}
+      REDIS_HOST: redis
+      REDIS_PORT: 6380
       GOOGLE_APPLICATION_CREDENTIALS: /app/service_account.json
       SEED_COLLECTION_PATH: /app/seed/main_train_data.csv
       SEED_LIMIT: ${SEED_LIMIT:-200}
     volumes:
       - ./APP3005/aivestire-backend-tmp/service_account.json:/app/service_account.json:ro
     depends_on:
-      - db
-      - redis
-      - body-analyzer
-      - recommendation-api
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      body-analyzer:
+        condition: service_started
+      recommendation-api:
+        condition: service_started
     restart: unless-stopped
     networks:
       - app-network
