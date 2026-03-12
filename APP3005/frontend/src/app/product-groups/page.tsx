@@ -110,7 +110,6 @@ const ProductGroupsPage: React.FC = () => {
     const navLinks = [
         { label: "Dashboard", icon: <LayoutDashboard size={20} />, href: "/creator-dashboard" },
         { label: "My Wardrobe", icon: <Shirt size={20} />, href: "/wardrobe" },
-        { label: "Groupings", icon: <FolderTree size={20} />, href: "/product-groups" },
         { label: "Bulk Upload", icon: <Upload size={20} />, href: "/bulk-upload" },
         { label: "My Coupons", icon: <Ticket size={20} />, href: "/creator-coupons" },
         { label: "Analytics", icon: <BarChart3 size={20} />, href: "/analytics" },
@@ -178,58 +177,48 @@ const ProductGroupsPage: React.FC = () => {
                     )}
                     
                     <div className="max-w-5xl mx-auto space-y-8 animate-in fade-in slide-in-from-top-4 duration-700">
-                        {/* Dramatic Luxury Header - Refined & More Compact */}
-                        <div className="relative group p-8 md:p-12 rounded-[2rem] bg-[#121212] text-white shadow-2xl overflow-hidden border border-white/10">
-                            {/* Decorative background elements */}
-                            <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-luxury-gold/15 rounded-full blur-[100px] -mr-32 -mt-16 group-hover:bg-luxury-gold/25 transition-all duration-1000" />
-                            <div className="absolute bottom-0 left-0 w-32 h-32 bg-luxury-gold/10 rounded-full blur-[60px] -ml-12 -mb-12" />
-                            <div className="absolute inset-0 bg-gradient-to-br from-black via-transparent to-luxury-gold/5" />
-
-                            <div className="relative z-10 flex flex-col sm:flex-row justify-between items-center gap-8">
-                                <div className="space-y-4 text-center sm:text-left">
-                                    <div className="inline-flex items-center gap-2 px-3 py-1 bg-luxury-gold text-black rounded-full text-[10px] font-black uppercase tracking-[0.2em]">
-                                        Architect
-                                    </div>
-                                    <h1 className="text-3xl md:text-5xl font-serif font-black tracking-tight leading-none">
-                                        Product <span className="text-transparent bg-clip-text bg-gradient-to-r from-luxury-gold via-white to-luxury-gold animate-gradient-x underline decoration-luxury-gold/30 decoration-offset-4">Collections</span>
+                        {/* Clean, Modern Header Area */}
+                        <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 pb-6 border-b border-stone-200">
+                            <div className="space-y-2">
+                                <div className="flex items-center gap-3">
+                                    <h1 className="text-3xl font-serif font-black text-luxury-charcoal tracking-tight">
+                                        Product Collections
                                     </h1>
-                                    <p className="text-white/50 max-w-md text-base md:text-lg font-medium leading-relaxed italic">
-                                        Design your boutique's hierarchy with clinical precision.
-                                    </p>
-                                </div>
-                                <div className="flex flex-col items-center sm:items-end gap-4">
-                                    <button
-                                        onClick={handleCreate}
-                                        className="px-8 py-4 rounded-xl bg-luxury-gold text-black font-black text-lg transition-all shadow-[0_15px_40px_rgba(212,175,55,0.2)] hover:shadow-[0_20px_50px_rgba(212,175,55,0.4)] hover:-translate-y-1 active:scale-95 flex items-center gap-2 group/btn"
-                                    >
-                                        <Plus size={20} strokeWidth={4} className="group-hover/btn:rotate-90 transition-transform duration-300" />
-                                        New Collection
-                                    </button>
-                                    <div className="flex items-center gap-6 text-white/30 text-[10px] font-black uppercase tracking-[0.2em]">
-                                        <span>Total: {flatGroups.length}</span>
-                                        <div className="w-1 h-1 rounded-full bg-luxury-gold/40" />
-                                        <span>Status: Active</span>
+                                    <div className="flex items-center gap-3 px-3 py-1 bg-stone-100/80 rounded-lg text-xs font-bold text-stone-500 uppercase tracking-wider">
+                                        <span>Total {flatGroups.length}</span>
+                                        <div className="w-1 h-1 rounded-full bg-stone-300" />
+                                        <span className="text-emerald-600 flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />Active</span>
                                     </div>
                                 </div>
+                                <p className="text-stone-500 font-medium text-sm">
+                                    Organize and manage your boutique's product hierarchy.
+                                </p>
                             </div>
-                        </div>
 
-                        {/* Control Bar - More balanced scale */}
-                        <div className="flex flex-col sm:flex-row gap-4 items-center justify-between px-2">
-                            <div className="relative w-full sm:w-[380px] group transform transition-all duration-300 focus-within:translate-x-1">
-                                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400 group-focus-within:text-luxury-gold transition-colors" size={20} />
-                                <input 
-                                    type="text" 
-                                    placeholder="Search collections..."
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                    className="w-full pl-12 pr-6 py-4 bg-white border border-stone-200 rounded-2xl focus:outline-none focus:border-luxury-gold transition-all shadow-md font-bold text-luxury-charcoal placeholder:text-stone-300 text-base"
-                                />
-                                {searchQuery && (
-                                    <div className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-black text-white bg-luxury-gold px-2 py-1 rounded-lg">
-                                        {filteredGroups.length} FOUND
-                                    </div>
-                                )}
+                            <div className="flex items-center gap-3 w-full md:w-auto">
+                                <div className="relative w-full md:w-64 group">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 group-focus-within:text-luxury-charcoal transition-colors w-4 h-4" />
+                                    <input 
+                                        type="text" 
+                                        placeholder="Search collections..."
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        className="w-full pl-9 pr-4 py-2 bg-white border border-stone-200 rounded-lg focus:outline-none focus:border-luxury-charcoal focus:ring-1 focus:ring-luxury-charcoal transition-all text-sm font-medium text-luxury-charcoal placeholder:text-stone-400 shadow-sm"
+                                    />
+                                    {searchQuery && (
+                                        <div className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-bold text-luxury-charcoal bg-stone-100 px-1.5 py-0.5 rounded">
+                                            {filteredGroups.length}
+                                        </div>
+                                    )}
+                                </div>
+                                
+                                <button
+                                    onClick={handleCreate}
+                                    className="shrink-0 px-4 py-2 bg-luxury-charcoal text-white rounded-lg hover:bg-black transition-colors font-bold text-sm shadow-sm active:scale-95 flex items-center gap-2"
+                                >
+                                    <Plus size={16} strokeWidth={3} />
+                                    Create Node
+                                </button>
                             </div>
                         </div>
 

@@ -9,6 +9,8 @@ import {
 import { type ProductGroup } from "@/lib/api";
 import { useSidebar } from "@/context/SidebarContext";
 
+import { useNavigate } from "react-router-dom";
+
 interface GroupNodeProps {
     node: ProductGroup;
     level: number;
@@ -19,114 +21,110 @@ interface GroupNodeProps {
 
 const GroupNode = ({ node, level, onEdit, onAddChild, onDelete }: GroupNodeProps) => {
     const { isMobile } = useSidebar();
-    const [isExpanded, setIsExpanded] = useState(level < 1); // Expand top level by default
+    const navigate = useNavigate();
+    const [isExpanded, setIsExpanded] = useState(level < 1);
     const hasChildren = node.children_groups && node.children_groups.length > 0;
     const productCount = node._count?.products || 0;
 
     const toggleExpand = () => setIsExpanded(!isExpanded);
 
-    // More decent, balanced card design
-    const cardBaseStyle = level === 0 
-        ? "bg-white border-stone-100 shadow-lg shadow-stone-200/40 mb-4 py-4" 
-        : "bg-white/90 border-stone-100 hover:border-luxury-gold/20 my-2 py-3";
-
-    const leftBorderWidth = level === 0 ? "border-l-4" : "border-l-2";
-    
-    // Responsive indentation: less on mobile
-    const indentation = isMobile ? level * 16 : level * 28;
+    // Modern, minimal indentation
+    const indentation = level * (isMobile ? 16 : 24);
 
     return (
-        <div className="w-full">
+        <div className="w-full relative">
+            {/* Indentation guide lines */}
+            {level > 0 && Array.from({ length: level }).map((_, i) => (
+                <div 
+                    key={i} 
+                    className="absolute top-0 bottom-0 border-l border-stone-100 z-0" 
+                    style={{ left: `${i * (isMobile ? 16 : 24) + 20}px` }} 
+                />
+            ))}
+
             <div
-                className={`flex items-center justify-between px-4 sm:px-6 rounded-xl transition-all duration-300 group border ${cardBaseStyle} ${leftBorderWidth} border-l-luxury-gold relative overflow-hidden`}
+                className={`group/row relative z-10 flex items-center justify-between py-2 sm:py-2.5 pr-2 sm:pr-4 rounded-lg transition-colors border border-transparent hover:bg-white hover:border-stone-200 hover:shadow-sm cursor-pointer ${level === 0 ? 'bg-stone-50/50 mb-1' : 'mb-0.5'}`}
                 style={{ marginLeft: `${indentation}px` }}
+                onClick={() => navigate(`/product-groups/${node.group_id}`)}
             >
-                {/* Subtle sheen for top level */}
-                {level === 0 && (
-                    <div className="absolute top-0 right-0 w-24 h-24 bg-luxury-gold/5 rounded-full blur-2xl -mr-8 -mt-8 pointer-events-none" />
-                )}
-                
-                <div className="flex items-center gap-3 sm:gap-5 cursor-pointer flex-1 relative z-10" onClick={toggleExpand}>
+                <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0 pl-1">
                     <button
-                        className={`w-7 h-7 flex items-center justify-center rounded-lg transition-all ${hasChildren ? 'bg-stone-50 hover:bg-luxury-gold/10 text-stone-600 hover:text-luxury-gold border border-stone-100' : 'text-stone-300 pointer-events-none'}`}
+                        onClick={(e) => { e.stopPropagation(); toggleExpand(); }}
+                        className={`w-6 h-6 shrink-0 flex items-center justify-center rounded transition-colors ${hasChildren ? 'text-stone-400 hover:bg-stone-200 hover:text-stone-700' : 'text-transparent pointer-events-none'}`}
                     >
-                        {hasChildren ? (
-                            isExpanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />
-                        ) : (
-                            <div className="w-1.5 h-1.5 rounded-full bg-stone-200" />
-                        )}
+                        {hasChildren && (isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />)}
                     </button>
 
-                    <div className={`w-11 h-11 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center transition-all duration-300 shadow-sm ${isExpanded ? 'bg-luxury-gold text-white' : 'bg-stone-50 text-luxury-gold border border-stone-100'}`}>
+                    <div className={`w-8 h-8 shrink-0 flex items-center justify-center rounded-md ${level === 0 ? 'bg-luxury-charcoal/5 text-luxury-charcoal' : 'bg-stone-100 text-stone-500'}`}>
                         {hasChildren ? (
-                            isExpanded ? <FolderOpen size={22} /> : <Folder size={22} />
+                            <Folder size={16} className={isExpanded ? "fill-current opacity-20" : ""} />
                         ) : (
-                            <Layers size={22} />
+                            <Layers size={16} />
                         )}
                     </div>
 
-                    <div className="flex flex-col min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                            <h2 className={`font-serif leading-tight font-bold text-luxury-charcoal tracking-tight truncate ${level === 0 ? 'text-xl md:text-2xl' : 'text-lg md:text-xl'}`}>
+                    <div className="flex flex-col min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                            <span className={`truncate font-medium ${level === 0 ? 'text-luxury-charcoal text-sm' : 'text-stone-700 text-sm'}`}>
                                 {node.name}
-                            </h2>
-                            <span className="text-[10px] bg-stone-50 text-stone-400 px-2 py-0.5 rounded-md font-mono font-bold border border-stone-100 uppercase tracking-tighter">
-                                {node.slug}
                             </span>
                             {productCount > 0 && (
-                                <div className="flex items-center gap-1 px-2 py-0.5 bg-luxury-gold/5 rounded-md text-[10px] text-luxury-gold font-bold border border-luxury-gold/5">
-                                    <Package size={10} />
-                                    {productCount}
-                                </div>
+                                <span className="shrink-0 px-1.5 py-0.5 bg-stone-100 text-stone-500 rounded text-[10px] font-medium flex items-center gap-1 border border-stone-200/50">
+                                    {productCount} items
+                                </span>
                             )}
                         </div>
-                        {node.description && (
-                            <p className="text-xs text-stone-500 line-clamp-1 max-w-lg font-medium opacity-80">
-                                {node.description}
-                            </p>
-                        )}
                     </div>
                 </div>
 
-                <div className="flex items-center gap-2 relative z-10 ml-2">
+                <div className="flex items-center gap-1 relative z-20" onClick={(e) => e.stopPropagation()}>
+                    {/* Desktop Actions - Show on hover */}
                     {!isMobile && (
-                        <button
-                            onClick={(e) => { e.stopPropagation(); onAddChild(node.group_id); }}
-                            className="px-3 py-1.5 text-emerald-600 bg-emerald-50 hover:bg-emerald-100 border border-emerald-100 rounded-lg transition-all active:scale-95 font-bold text-[11px] flex items-center gap-1.5"
-                            title="Add subgroup"
-                        >
-                            <Plus size={14} strokeWidth={3} />
-                            Add Inner
-                        </button>
+                        <div className="flex items-center gap-1 opacity-0 group-hover/row:opacity-100 transition-opacity">
+                            <button
+                                onClick={() => onAddChild(node.group_id)}
+                                className="p-1.5 text-stone-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-md transition-colors"
+                                title="Add sub-collection"
+                            >
+                                <Plus size={16} />
+                            </button>
+                            <button
+                                onClick={() => onEdit(node)}
+                                className="p-1.5 text-stone-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
+                                title="Edit collection"
+                            >
+                                <Edit2 size={16} />
+                            </button>
+                            <button
+                                onClick={() => onDelete(node)}
+                                className="p-1.5 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                                title="Delete collection"
+                            >
+                                <Trash2 size={16} />
+                            </button>
+                        </div>
                     )}
 
+                    {/* Mobile Dropdown Menu or Fallback */}
                     <DropdownMenu>
-                        <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                            <button className="p-2 text-stone-400 hover:text-luxury-gold hover:bg-luxury-gold/5 rounded-lg transition-all focus:outline-none">
-                                <MoreVertical size={18} />
+                        <DropdownMenuTrigger asChild>
+                            <button className={`p-1.5 text-stone-400 hover:text-luxury-charcoal hover:bg-stone-100 rounded-md transition-colors ${!isMobile && 'opacity-0 group-hover/row:opacity-100'}`}>
+                                <MoreVertical size={16} />
                             </button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-56 p-1.5 bg-white border-luxury-gold/20 shadow-xl rounded-xl">
-                            <DropdownMenuItem onClick={() => onEdit(node)} className="rounded-lg p-2 cursor-pointer focus:bg-luxury-gold/5 focus:text-luxury-gold">
-                                <Edit2 size={16} className="mr-2.5 text-stone-400" />
-                                <div className="flex flex-col">
-                                    <span className="font-bold text-sm tracking-tight">Edit Collection</span>
-                                </div>
+                        <DropdownMenuContent align="end" className="w-48 p-1.5 bg-white border-stone-200 shadow-xl rounded-xl">
+                            <DropdownMenuItem onClick={() => onAddChild(node.group_id)} className="rounded-md p-2 cursor-pointer focus:bg-stone-50">
+                                <Plus size={14} className="mr-2 text-emerald-600" />
+                                <span className="font-medium text-sm">Add nested</span>
                             </DropdownMenuItem>
-                            {isMobile && (
-                                <DropdownMenuItem onClick={() => onAddChild(node.group_id)} className="rounded-lg p-2 cursor-pointer focus:bg-emerald-50 focus:text-emerald-600">
-                                    <FolderPlus size={16} className="mr-2.5 text-stone-400" />
-                                    <div className="flex flex-col">
-                                        <span className="font-bold text-sm tracking-tight">Create Subgroup</span>
-                                    </div>
-                                </DropdownMenuItem>
-                            )}
-                            <div className="h-px bg-stone-100 my-1.5 mx-1" />
-                            <DropdownMenuItem onClick={() => onDelete(node)} className="rounded-lg p-2 cursor-pointer text-red-600 focus:text-red-700 focus:bg-red-50">
-                                <Trash2 size={16} className="mr-2.5" />
-                                <div className="flex flex-col">
-                                    <span className="font-bold text-sm tracking-tight">Dissolve Group</span>
-                                </div>
+                            <DropdownMenuItem onClick={() => onEdit(node)} className="rounded-md p-2 cursor-pointer focus:bg-stone-50">
+                                <Edit2 size={14} className="mr-2 text-blue-600" />
+                                <span className="font-medium text-sm">Edit details</span>
+                            </DropdownMenuItem>
+                            <div className="h-px bg-stone-100 my-1 mx-1" />
+                            <DropdownMenuItem onClick={() => onDelete(node)} className="rounded-md p-2 cursor-pointer text-red-600 focus:text-red-700 focus:bg-red-50">
+                                <Trash2 size={14} className="mr-2" />
+                                <span className="font-medium text-sm">Delete collection</span>
                             </DropdownMenuItem>
                         </DropdownMenuContent>
                     </DropdownMenu>
@@ -134,26 +132,16 @@ const GroupNode = ({ node, level, onEdit, onAddChild, onDelete }: GroupNodeProps
             </div>
 
             {isExpanded && hasChildren && (
-                <div className="w-full relative mt-1">
-                    {/* Strong Connection lines - simplified for decent look */}
-                    <div
-                        className="absolute top-[-10px] bottom-6 border-l-2 border-luxury-gold/10"
-                        style={{ left: `${indentation + 14}px` }}
-                    />
+                <div className="w-full relative">
                     {node.children_groups.map((child: ProductGroup) => (
-                        <div key={child.group_id} className="relative">
-                            <div 
-                                className="absolute top-6 w-4 h-px bg-luxury-gold/10"
-                                style={{ left: `${indentation + 14}px` }}
-                            />
-                            <GroupNode
-                                node={child}
-                                level={level + 1}
-                                onEdit={onEdit}
-                                onAddChild={onAddChild}
-                                onDelete={onDelete}
-                            />
-                        </div>
+                        <GroupNode
+                            key={child.group_id}
+                            node={child}
+                            level={level + 1}
+                            onEdit={onEdit}
+                            onAddChild={onAddChild}
+                            onDelete={onDelete}
+                        />
                     ))}
                 </div>
             )}
@@ -191,18 +179,20 @@ export const ProductGroupTree = ({ groups, onEdit, onAddChild, onDelete }: Produ
     }
 
     return (
-        <div className="animate-in fade-in slide-in-from-bottom-8 duration-1000">
-            <div className="space-y-6">
-                {groups.map((group) => (
-                    <GroupNode
-                        key={group.group_id}
-                        node={group}
-                        level={0}
-                        onEdit={onEdit}
-                        onAddChild={onAddChild}
-                        onDelete={onDelete}
-                    />
-                ))}
+        <div className="animate-in fade-in slide-in-from-bottom-8 duration-700">
+            <div className="bg-white rounded-2xl shadow-sm border border-stone-200 p-2 sm:p-4">
+                <div className="space-y-1">
+                    {groups.map((group) => (
+                        <GroupNode
+                            key={group.group_id}
+                            node={group}
+                            level={0}
+                            onEdit={onEdit}
+                            onAddChild={onAddChild}
+                            onDelete={onDelete}
+                        />
+                    ))}
+                </div>
             </div>
         </div>
     );

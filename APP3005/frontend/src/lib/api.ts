@@ -213,13 +213,18 @@ export async function getDashboardMetrics() {
   return res.json();
 }
 
-export async function getCreatorProducts(page: number = 1, limit: number = 10) {
+export async function getCreatorProducts(page: number = 1, limit: number = 10, groupId?: string) {
   const token = localStorage.getItem('access_token');
   if (!token) {
     throw new Error('No access token found');
   }
 
-  const res = await fetch(`${BASE_URL}/creator-dashboard/products?page=${page}&limit=${limit}`, {
+  let url = `${BASE_URL}/creator-dashboard/products?page=${page}&limit=${limit}`;
+  if (groupId) {
+    url += `&groupId=${groupId}`;
+  }
+
+  const res = await fetch(url, {
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',
@@ -329,6 +334,11 @@ export async function createProduct(data: {
   images: string[];
   tags?: Array<{ name: string }>;
   group_ids?: string[];
+  occasions?: string[];
+  body_shapes?: string[];
+  skin_tones?: string[];
+  sizes?: string[];
+  age_ranges?: string[];
 }) {
   const token = localStorage.getItem('access_token');
   if (!token) {
@@ -368,6 +378,11 @@ export async function updateProduct(
     tags?: Array<{ name: string }>;
     group_ids?: string[];
     status?: string;
+    occasions?: string[];
+    body_shapes?: string[];
+    skin_tones?: string[];
+    sizes?: string[];
+    age_ranges?: string[];
   }
 ) {
   const token = localStorage.getItem('access_token');

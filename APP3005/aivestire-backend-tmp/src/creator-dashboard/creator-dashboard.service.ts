@@ -118,16 +118,27 @@ export class CreatorDashboardService {
     userId: string,
     page: number = 1,
     limit: number = 10,
+    groupId?: string,
   ) {
     const creatorId = await this.getCreatorIdFromUserId(userId);
     const skip = (page - 1) * limit;
 
+    const whereClause: Prisma.ProductWhereInput = {
+      creator_id: creatorId,
+      is_deleted: false,
+    };
+
+    if (groupId) {
+      whereClause.group_assignments = {
+        some: {
+          group_id: groupId,
+        },
+      };
+    }
+
     const [products, total] = await Promise.all([
       this.prisma.product.findMany({
-        where: {
-          creator_id: creatorId,
-          is_deleted: false,
-        },
+        where: whereClause,
         include: {
           stats: true,
           images: {
@@ -141,7 +152,6 @@ export class CreatorDashboardService {
               status: true,
               comment: true,
               actioned_at: true,
-              // SECURITY: Never expose admin_user_id to creators
             },
           },
         },
@@ -152,10 +162,7 @@ export class CreatorDashboardService {
         take: Number(limit),
       }),
       this.prisma.product.count({
-        where: {
-          creator_id: creatorId,
-          is_deleted: false,
-        },
+        where: whereClause,
       }),
     ]);
 
@@ -210,6 +217,13 @@ export class CreatorDashboardService {
                 : 'Pending',
         rejectionReason, // Only present if status is REJECTED
         tags: tags,
+        metadata: (product as any).metadata || {},
+        // Dedicated attribute columns
+        occasions: (product as any).occasions || [],
+        body_shapes: (product as any).body_shapes || [],
+        skin_tones: (product as any).skin_tones || [],
+        sizes: (product as any).sizes || [],
+        age_ranges: (product as any).age_ranges || [],
         stats: {
           likes_count: product.stats?.likes_count || 0,
           tries_count: triesCount,
@@ -233,9 +247,45 @@ export class CreatorDashboardService {
     };
   }
 
+  /**
+   * Build recommendation metadata from DTO attribute arrays
+   */
+  private buildMetadata(dto: Partial<CreateProductDto>, existingMetadata?: any): any {
+    const metadata = existingMetadata ? { ...existingMetadata } : {};
+
+    if (dto.occasions !== undefined) metadata.occasions = dto.occasions;
+    if (dto.body_shapes !== undefined) metadata.body_shapes = dto.body_shapes;
+    if (dto.skin_tones !== undefined) metadata.skin_tones = dto.skin_tones;
+    if (dto.sizes !== undefined) metadata.sizes = dto.sizes;
+    if (dto.age_ranges !== undefined) metadata.age_ranges = dto.age_ranges;
+
+    return Object.keys(metadata).length > 0 ? metadata : undefined;
+  }
+
   async createProduct(userId: string, dto: CreateProductDto) {
     const creatorId = await this.getCreatorIdFromUserId(userId);
+
+    // ── Enforce product upload limit ──────────────────────────────────
+    const limits = await this.prisma.creatorLimit.findUnique({
+      where: { creator_id: creatorId },
+    });
+    const maxProducts = limits?.max_products ?? 30;
+
+    const currentCount = await this.prisma.product.count({
+      where: { creator_id: creatorId, is_deleted: false },
+    });
+
+    if (currentCount >= maxProducts) {
+      throw new BadRequestException(
+        `You have reached the maximum limit of ${maxProducts} products. Please delete an existing product before uploading a new one.`,
+      );
+    }
+    // ─────────────────────────────────────────────────────────────────
+
     const slug = `${dto.title.toLowerCase().replace(/\s+/g, '-')}-${nanoid(6)}`;
+
+    // Build recommendation metadata from attribute fields
+    const metadata = this.buildMetadata(dto);
 
     const product = await this.prisma.product.create({
       data: {
@@ -247,8 +297,25 @@ export class CreatorDashboardService {
         inventory_count: dto.inventory_count || 0,
         creator_id: creatorId,
         status: ProductStatus.DRAFT, // Start as DRAFT
+        ...(metadata ? { metadata } : {}),
+        // Store in dedicated columns
+        occasions: dto.occasions || [],
+        body_shapes: dto.body_shapes || [],
+        skin_tones: dto.skin_tones || [],
+        sizes: dto.sizes || [],
+        age_ranges: dto.age_ranges || [],
       },
     });
+
+    if (dto.group_ids && dto.group_ids.length > 0) {
+      this.logger.log(`Assigning product ${product.product_id} to ${dto.group_ids.length} groups`);
+      await this.prisma.productGroupAssignment.createMany({
+        data: dto.group_ids.map((groupId) => ({
+          product_id: product.product_id,
+          group_id: groupId,
+        })),
+      });
+    }
 
     // Handle new image uploads (raw/base64)
     if (dto.images && Array.isArray(dto.images)) {
@@ -365,15 +432,34 @@ export class CreatorDashboardService {
     if (dto.tags !== undefined) {
       let description = dto.description || product.description || '';
       if (dto.tags.length > 0) {
-        const metadata = {
+        const tagMetadata = {
           tags: dto.tags,
           ...(description && !description.startsWith('{')
             ? { originalDescription: description }
             : {}),
         };
-        description = JSON.stringify(metadata);
+        description = JSON.stringify(tagMetadata);
       }
       updateData.description = description;
+    }
+
+    // Handle recommendation attributes — update dedicated columns + metadata
+    const hasAttributeUpdates =
+      dto.occasions !== undefined ||
+      dto.body_shapes !== undefined ||
+      dto.skin_tones !== undefined ||
+      dto.sizes !== undefined ||
+      dto.age_ranges !== undefined;
+
+    if (hasAttributeUpdates) {
+      const existingMetadata = (product.metadata as any) || {};
+      updateData.metadata = this.buildMetadata(dto, existingMetadata);
+      // Write to dedicated columns
+      if (dto.occasions !== undefined) updateData.occasions = dto.occasions;
+      if (dto.body_shapes !== undefined) updateData.body_shapes = dto.body_shapes;
+      if (dto.skin_tones !== undefined) updateData.skin_tones = dto.skin_tones;
+      if (dto.sizes !== undefined) updateData.sizes = dto.sizes;
+      if (dto.age_ranges !== undefined) updateData.age_ranges = dto.age_ranges;
     }
 
     // Handle image updates
@@ -426,6 +512,26 @@ export class CreatorDashboardService {
       where: { product_id: productId },
       data: updateData,
     });
+
+    // Update group assignments if provided
+    if (dto.group_ids !== undefined) {
+      this.logger.log(`Updating group assignments for product ${productId}. Received ${dto.group_ids.length} groups.`);
+      
+      // 1. Delete existing assignments
+      await this.prisma.productGroupAssignment.deleteMany({
+        where: { product_id: productId },
+      });
+
+      // 2. Create new assignments
+      if (dto.group_ids.length > 0) {
+        await this.prisma.productGroupAssignment.createMany({
+          data: dto.group_ids.map((groupId) => ({
+            product_id: productId,
+            group_id: groupId,
+          })),
+        });
+      }
+    }
 
     return this.getProductById(updatedProduct.product_id, creatorId);
   }
@@ -594,6 +700,12 @@ export class CreatorDashboardService {
             ? 'Draft'
             : 'Pending',
       tags: tags,
+      metadata: (product as any).metadata || {},
+      occasions: product.occasions || [],
+      body_shapes: product.body_shapes || [],
+      skin_tones: product.skin_tones || [],
+      sizes: product.sizes || [],
+      age_ranges: product.age_ranges || [],
       stats: {
         likes_count: product.stats?.likes_count || 0,
         tries_count: triesCount,

@@ -61,7 +61,7 @@ model Creator {
 
 model CreatorLimit {
   creator_id             String   @id @db.Uuid
-  max_products           Int      @default(100)
+  max_products           Int      @default(30)
   max_images_per_product Int      @default(20)
   created_at             DateTime @default(now())
   creator                Creator  @relation(fields: [creator_id], references: [creator_id])
@@ -84,6 +84,12 @@ model Product {
   status            ProductStatus            @default(PENDING)
   category          String?
   is_featured       Boolean                  @default(false)
+  // Recommendation attribute columns
+  occasions         String[]                 @default([])
+  body_shapes       String[]                 @default([])
+  skin_tones        String[]                 @default([])
+  sizes             String[]                 @default([])
+  age_ranges        String[]                 @default([])
   creator           Creator                  @relation(fields: [creator_id], references: [creator_id])
   approvals         ProductApproval[]
   images            ProductImage[]

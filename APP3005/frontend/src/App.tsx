@@ -20,7 +20,8 @@ import CreatorCouponsPage from "./app/creator-coupons/page";
 import SettingsPage from "./app/settings/page";
 import WardrobePage from "./app/wardrobe/page";
 import AnalyticsPage from "./app/analytics/page";
-import ProductGroupsPage from "./app/product-groups/page.tsx";
+import ProductGroupsPage from "./app/product-groups/page";
+import CategoryProductsPage from "./app/product-groups/[id]/page";
 import UserLogin from "./pages/UserLogin";
 import UserSignup from "./pages/UserSignup";
 import UserForgotPassword from "./pages/UserForgotPassword";
@@ -160,6 +161,11 @@ const App = () => (
                       <Route path="/product-groups" element={
                         <ProtectedRoute requiredRole="CREATOR" redirectTo="/login">
                           <ProductGroupsPage />
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/product-groups/:id" element={
+                        <ProtectedRoute requiredRole="CREATOR" redirectTo="/login">
+                          <CategoryProductsPage />
                         </ProtectedRoute>
                       } />
 

@@ -45,4 +45,35 @@ export class CreateProductDto {
   @ValidateNested({ each: true })
   @Type(() => TagDto)
   tags?: TagDto[];
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  group_ids?: string[];
+
+  // Recommendation attributes — who is this garment best suited for?
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  occasions?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  body_shapes?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  skin_tones?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  sizes?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  age_ranges?: string[];
 }

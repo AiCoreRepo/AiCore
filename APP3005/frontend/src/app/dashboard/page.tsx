@@ -18,8 +18,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { LayoutDashboard, Shirt, BarChart3, Settings, Menu, Upload, Ticket, FolderTree } from "lucide-react";
+import { LayoutDashboard, Shirt, BarChart3, Settings, Menu, Upload, Ticket, FolderTree, AlertCircle } from "lucide-react";
 import { useSidebar } from "@/context/SidebarContext";
+
+const MAX_PRODUCTS = 30;
 
 const DashboardPage: React.FC = () => {
   const { sidebarWidth, toggleSidebar, isMobile } = useSidebar();
@@ -38,6 +40,7 @@ const DashboardPage: React.FC = () => {
   const [editingProduct, setEditingProduct] = useState<any>(null);
   const [deletingProduct, setDeletingProduct] = useState<any>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isLimitDialogOpen, setIsLimitDialogOpen] = useState(false);
 
   const [user, setUser] = useState({
     name: "Loading...",
@@ -46,20 +49,14 @@ const DashboardPage: React.FC = () => {
     subtitle: "",
   });
 
-
-
-  // ... existing imports ...
   const navLinks = [
     { label: "Dashboard", icon: <LayoutDashboard size={20} />, href: "/creator-dashboard" },
     { label: "My Wardrobe", icon: <Shirt size={20} />, href: "/wardrobe" },
-    { label: "Groupings", icon: <FolderTree size={20} />, href: "/product-groups" },
     { label: "Bulk Upload", icon: <Upload size={20} />, href: "/bulk-upload" },
     { label: "My Coupons", icon: <Ticket size={20} />, href: "/creator-coupons" },
     { label: "Analytics", icon: <BarChart3 size={20} />, href: "/analytics" },
     { label: "Settings", icon: <Settings size={20} />, href: "/settings" },
   ];
-
-
 
   const fetchProfileData = async () => {
     try {
@@ -164,20 +161,26 @@ const DashboardPage: React.FC = () => {
     }
   }, [currentPage]);
 
+  // ── Upload with limit enforcement ────────────────────────────────
+  const handleUploadClick = () => {
+    const currentUploads = stats.uploads || 0;
+    if (currentUploads >= MAX_PRODUCTS) {
+      setIsLimitDialogOpen(true);
+      return;
+    }
+    setEditingProduct(null);
+    setIsUploadFormOpen(true);
+  };
+
   const handleUploadSuccess = (newProduct?: any) => {
     if (newProduct) {
-      // Optimistic update
       const mapped = mapProduct(newProduct);
-      setUploads(prev => [mapped, ...prev.slice(0, 9)]); // Keep page size roughly consistent
-
-      // Update stats optimistically
+      setUploads(prev => [mapped, ...prev.slice(0, 9)]);
       setStats((prev: any) => ({
         ...prev,
         uploads: (prev.uploads || 0) + 1,
         latestImages: [mapped.image, ...(prev.latestImages || [])].slice(0, 5)
       }));
-
-      // Refresh data in background to ensure everything is in sync
       fetchMetricsData();
       fetchProductsData(currentPage, true);
     } else {
@@ -202,11 +205,8 @@ const DashboardPage: React.FC = () => {
 
   const confirmDelete = async () => {
     if (!deletingProduct) return;
-
     try {
       const response = await deleteProduct(deletingProduct.product_id);
-
-      // Update stats immediately from response
       if (response.totalUploads !== undefined) {
         setStats((prev: any) => ({
           ...prev,
@@ -214,10 +214,9 @@ const DashboardPage: React.FC = () => {
           latestImages: response.latestImages || prev.latestImages
         }));
       }
-
       setIsDeleteDialogOpen(false);
       setDeletingProduct(null);
-      fetchData(); // Refresh list
+      fetchData();
     } catch (error) {
       console.error("Failed to delete product", error);
     }
@@ -230,18 +229,11 @@ const DashboardPage: React.FC = () => {
         `${import.meta.env.VITE_API_URL}/creator-dashboard/products/${productId}/publish`,
         {
           method: 'PATCH',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
+          headers: { 'Authorization': `Bearer ${token}` },
         }
       );
-
-      if (response.ok) {
-        // Refresh the products list
-        fetchData();
-      } else {
-        console.error('Failed to publish product');
-      }
+      if (response.ok) fetchData();
+      else console.error('Failed to publish product');
     } catch (error) {
       console.error('Error publishing product:', error);
     }
@@ -251,9 +243,7 @@ const DashboardPage: React.FC = () => {
   const [dashboardConfig, setDashboardConfig] = useState(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('dashboardConfig');
-      if (saved) {
-        return JSON.parse(saved);
-      }
+      if (saved) return JSON.parse(saved);
     }
     return { showStats: true, showUploads: true };
   });
@@ -270,21 +260,14 @@ const DashboardPage: React.FC = () => {
         <div className="flex-1 dashboard-theme transition-all duration-300 ease-in-out" style={{ marginLeft: sidebarWidth }}>
           <div className="min-h-screen dashboard-gradient p-4 md:p-8">
             {isMobile && (
-              <button
-                onClick={toggleSidebar}
-                className="mb-6 p-2 text-foreground hover:bg-white/10 rounded-lg transition-colors"
-                aria-label="Open menu"
-              >
+              <button onClick={toggleSidebar} className="mb-6 p-2 text-foreground hover:bg-white/10 rounded-lg transition-colors" aria-label="Open menu">
                 <Menu size={24} />
               </button>
             )}
             <div className="max-w-7xl mx-auto">
               <ProfileHeader
                 user={user}
-                onUploadClick={() => {
-                  setEditingProduct(null);
-                  setIsUploadFormOpen(true);
-                }}
+                onUploadClick={handleUploadClick}
                 onCustomizeClick={() => setIsCustomizeModalOpen(true)}
                 onProfileUpdate={fetchData}
               />
@@ -324,6 +307,7 @@ const DashboardPage: React.FC = () => {
         onConfigChange={setDashboardConfig}
       />
 
+      {/* Delete Confirmation Dialog */}
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent className="bg-card border-muted-foreground/20 text-card-foreground">
           <AlertDialogHeader>
@@ -342,6 +326,100 @@ const DashboardPage: React.FC = () => {
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* ── Product Limit Reached Dialog ──────────────────────────── */}
+      <AlertDialog open={isLimitDialogOpen} onOpenChange={setIsLimitDialogOpen}>
+        <AlertDialogContent
+          className="border-none p-0"
+          style={{
+            maxWidth: '440px',
+            borderRadius: '20px',
+            background: 'linear-gradient(135deg, #FFFDF8 0%, #FFF9EF 50%, #FFFDF8 100%)',
+            border: '2px solid rgba(201,165,95,0.4)',
+            boxShadow: '0 20px 60px rgba(201,165,95,0.25), 0 0 40px rgba(201,165,95,0.1)',
+            overflow: 'hidden',
+          }}
+        >
+          {/* Top gold accent bar */}
+          <div style={{
+            height: '4px',
+            background: 'linear-gradient(90deg, #C9A75F, #D4B76E, #C9A75F)',
+            boxShadow: '0 2px 12px rgba(201,165,95,0.4)',
+          }} />
+
+          <div style={{ padding: '32px 28px 28px' }}>
+            <AlertDialogHeader>
+              {/* Gold icon */}
+              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px' }}>
+                <div style={{
+                  width: '64px', height: '64px', borderRadius: '50%',
+                  background: 'linear-gradient(135deg, rgba(201,165,95,0.15), rgba(201,165,95,0.05))',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  border: '2px solid rgba(201,165,95,0.25)',
+                }}>
+                  <AlertCircle size={28} style={{ color: '#C9A75F' }} />
+                </div>
+              </div>
+
+              <AlertDialogTitle style={{
+                textAlign: 'center',
+                fontFamily: "'Playfair Display', serif",
+                fontSize: '22px', fontWeight: 700, color: '#2C2416',
+              }}>
+                Collection Limit Reached
+              </AlertDialogTitle>
+
+              <AlertDialogDescription style={{
+                textAlign: 'center', fontSize: '14px',
+                lineHeight: 1.6, color: 'rgba(44,36,22,0.65)', marginTop: '8px',
+              }}>
+                You've uploaded <strong style={{ color: '#C9A75F', fontWeight: 700 }}>{stats.uploads || MAX_PRODUCTS}</strong> of{' '}
+                <strong style={{ color: '#C9A75F', fontWeight: 700 }}>{MAX_PRODUCTS}</strong> allowed products.
+                <br />
+                Please delete an existing product to make room for a new one.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+
+            {/* Usage progress bar */}
+            <div style={{
+              margin: '20px 0', padding: '14px 16px', borderRadius: '12px',
+              background: 'rgba(201,165,95,0.06)', border: '1px solid rgba(201,165,95,0.15)',
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px', color: 'rgba(44,36,22,0.5)' }}>
+                  Usage
+                </span>
+                <span style={{ fontSize: '11px', fontWeight: 800, color: '#C9A75F' }}>
+                  {stats.uploads || MAX_PRODUCTS}/{MAX_PRODUCTS}
+                </span>
+              </div>
+              <div style={{ height: '8px', borderRadius: '4px', background: 'rgba(201,165,95,0.12)', overflow: 'hidden' }}>
+                <div style={{
+                  height: '100%', borderRadius: '4px',
+                  background: 'linear-gradient(90deg, #C9A75F, #D4B76E)',
+                  width: `${Math.min(((stats.uploads || MAX_PRODUCTS) / MAX_PRODUCTS) * 100, 100)}%`,
+                  boxShadow: '0 0 8px rgba(201,165,95,0.4)',
+                }} />
+              </div>
+            </div>
+
+            <AlertDialogFooter style={{ display: 'flex', justifyContent: 'center' }}>
+              <AlertDialogAction
+                onClick={() => setIsLimitDialogOpen(false)}
+                style={{
+                  width: '100%', height: '44px', borderRadius: '12px',
+                  fontWeight: 700, fontSize: '13px', color: '#2C2416',
+                  border: 'none', cursor: 'pointer',
+                  background: 'linear-gradient(135deg, #C9A75F 0%, #D4B76E 100%)',
+                  boxShadow: '0 4px 16px rgba(201,165,95,0.3)',
+                }}
+              >
+                Got It
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </div>
         </AlertDialogContent>
       </AlertDialog>
     </div>
