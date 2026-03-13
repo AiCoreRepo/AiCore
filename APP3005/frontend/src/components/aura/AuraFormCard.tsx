@@ -75,6 +75,53 @@ type Step = "upload" | "confirm";
 const PARTIAL_BODY_TOAST_MESSAGE =
     "We couldn’t detect your body shape because the uploaded photo doesn’t show your full body. Please upload a full-length photo with your whole frame visible.";
 
+const formatDobForInput = (value?: string): string => {
+    if (!value) return "";
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(value)) return value;
+
+    const isoMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (isoMatch) {
+        const [, year, month, day] = isoMatch;
+        return `${day}/${month}/${year}`;
+    }
+
+    return value;
+};
+
+const normalizeDobInput = (value: string): string => {
+    const digits = value.replace(/\D/g, "").slice(0, 8);
+
+    if (digits.length <= 2) return digits;
+    if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+    return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
+};
+
+const parseDobInput = (value: string): string | null => {
+    const trimmed = value.trim();
+
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+        return trimmed;
+    }
+
+    const match = trimmed.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (!match) return null;
+
+    const [, day, month, year] = match;
+    const isoValue = `${year}-${month}-${day}`;
+    const parsed = new Date(`${isoValue}T00:00:00`);
+
+    if (Number.isNaN(parsed.getTime())) return null;
+    if (
+        parsed.getUTCFullYear() !== Number(year) ||
+        parsed.getUTCMonth() + 1 !== Number(month) ||
+        parsed.getUTCDate() !== Number(day)
+    ) {
+        return null;
+    }
+
+    return isoValue;
+};
+
 const getDobStorageKey = (email?: string) =>
     email ? `aivestire:dob:${email.toLowerCase()}` : "";
 
@@ -121,6 +168,7 @@ export const AuraFormCard = ({ onCreateAura, isProcessing, prefilledDob }: AuraF
     const { user, loading } = useAuth();
     const navigate = useNavigate();
     const requiresDobCollection = Boolean(user?.needs_dob_collection);
+    const initialDobValue = prefilledDob || user?.dob || "";
 
     // Step state
     const [currentStep, setCurrentStep] = useState<Step>("upload");
@@ -128,8 +176,8 @@ export const AuraFormCard = ({ onCreateAura, isProcessing, prefilledDob }: AuraF
     const [photoFile, setPhotoFile] = useState<File | null>(null);
     const [photoPreview, setPhotoPreview] = useState<string | null>(null);
     const [attributes, setAttributes] = useState<BodyAttributes>({ gender: "female" });
-    const [dob, setDob] = useState<string>(prefilledDob || user?.dob || "");
-    const [dobInput, setDobInput] = useState<string>(prefilledDob || user?.dob || "");
+    const [dob, setDob] = useState<string>(initialDobValue);
+    const [dobInput, setDobInput] = useState<string>(formatDobForInput(initialDobValue));
     const [dobError, setDobError] = useState<string>("");
     const [showDobDialog, setShowDobDialog] = useState(false);
 
@@ -142,7 +190,7 @@ export const AuraFormCard = ({ onCreateAura, isProcessing, prefilledDob }: AuraF
         if (!prefilledDob) return;
 
         setDob(prefilledDob);
-        setDobInput(prefilledDob);
+        setDobInput(formatDobForInput(prefilledDob));
         const calculatedRange = calculateAgeRangeFromDob(prefilledDob);
         if (calculatedRange) {
             setAttributes(prev => ({ ...prev, ageRange: calculatedRange, gender: "female" }));
@@ -155,7 +203,7 @@ export const AuraFormCard = ({ onCreateAura, isProcessing, prefilledDob }: AuraF
         const initialDob = user?.dob || prefilledDob || getStoredDob(user.email);
         if (initialDob) {
             setDob(initialDob);
-            setDobInput(initialDob);
+            setDobInput(formatDobForInput(initialDob));
             const calculatedRange = calculateAgeRangeFromDob(initialDob);
             if (calculatedRange) {
                 setAttributes(prev => ({ ...prev, ageRange: calculatedRange, gender: "female" }));
@@ -304,26 +352,33 @@ export const AuraFormCard = ({ onCreateAura, isProcessing, prefilledDob }: AuraF
             return;
         }
 
-        const birthDate = new Date(dobInput);
+        const parsedDob = parseDobInput(dobInput);
+        if (!parsedDob) {
+            setDobError("Please enter date of birth in DD/MM/YYYY format.");
+            return;
+        }
+
+        const birthDate = new Date(`${parsedDob}T00:00:00`);
         const today = new Date();
         if (isNaN(birthDate.getTime()) || birthDate > today) {
             setDobError("Please enter a valid date of birth.");
             return;
         }
 
-        const calculatedRange = calculateAgeRangeFromDob(dobInput);
+        const calculatedRange = calculateAgeRangeFromDob(parsedDob);
         if (!calculatedRange) {
             setDobError("You must be at least 13 years old.");
             return;
         }
 
-        setDob(dobInput);
+        setDob(parsedDob);
+        setDobInput(formatDobForInput(parsedDob));
         setDobError("");
         setShowDobDialog(false);
         setAttributes(prev => ({ ...prev, ageRange: calculatedRange, gender: "female" }));
 
         if (user?.email) {
-            setStoredDob(user.email, dobInput);
+            setStoredDob(user.email, parsedDob);
         }
     };
 
@@ -648,7 +703,7 @@ export const AuraFormCard = ({ onCreateAura, isProcessing, prefilledDob }: AuraF
                                                     <button
                                                         type="button"
                                                         onClick={() => {
-                                                            setDobInput(dob);
+                                                            setDobInput(formatDobForInput(dob));
                                                             setDobError("");
                                                             setShowDobDialog(true);
                                                         }}
@@ -788,10 +843,13 @@ export const AuraFormCard = ({ onCreateAura, isProcessing, prefilledDob }: AuraF
                     </DialogHeader>
                     <div className="space-y-3">
                         <Input
-                            type="date"
+                            type="text"
+                            inputMode="numeric"
+                            placeholder="DD/MM/YYYY"
+                            maxLength={10}
                             value={dobInput}
                             onChange={(event) => {
-                                setDobInput(event.target.value);
+                                setDobInput(normalizeDobInput(event.target.value));
                                 setDobError("");
                             }}
                             className="text-charcoal"
