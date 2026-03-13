@@ -96,30 +96,54 @@ const normalizeDobInput = (value: string): string => {
     return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
 };
 
+const parseDobDate = (value: string): Date | null => {
+    const trimmed = value.trim();
+
+    const isoMatch = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (isoMatch) {
+        const [, year, month, day] = isoMatch;
+        const parsed = new Date(Number(year), Number(month) - 1, Number(day));
+
+        if (
+            parsed.getFullYear() !== Number(year) ||
+            parsed.getMonth() + 1 !== Number(month) ||
+            parsed.getDate() !== Number(day)
+        ) {
+            return null;
+        }
+
+        return parsed;
+    }
+
+    const slashMatch = trimmed.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (!slashMatch) return null;
+
+    const [, day, month, year] = slashMatch;
+    const parsed = new Date(Number(year), Number(month) - 1, Number(day));
+
+    if (
+        parsed.getFullYear() !== Number(year) ||
+        parsed.getMonth() + 1 !== Number(month) ||
+        parsed.getDate() !== Number(day)
+    ) {
+        return null;
+    }
+
+    return parsed;
+};
+
 const parseDobInput = (value: string): string | null => {
     const trimmed = value.trim();
 
     if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
-        return trimmed;
+        return parseDobDate(trimmed) ? trimmed : null;
     }
 
     const match = trimmed.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
     if (!match) return null;
 
     const [, day, month, year] = match;
-    const isoValue = `${year}-${month}-${day}`;
-    const parsed = new Date(`${isoValue}T00:00:00`);
-
-    if (Number.isNaN(parsed.getTime())) return null;
-    if (
-        parsed.getUTCFullYear() !== Number(year) ||
-        parsed.getUTCMonth() + 1 !== Number(month) ||
-        parsed.getUTCDate() !== Number(day)
-    ) {
-        return null;
-    }
-
-    return isoValue;
+    return parseDobDate(trimmed) ? `${year}-${month}-${day}` : null;
 };
 
 const getDobStorageKey = (email?: string) =>
@@ -142,9 +166,8 @@ const setStoredDob = (email: string, dob: string): void => {
 const calculateAgeRangeFromDob = (dobString?: string): string => {
     if (!dobString) return "";
 
-    // Parse DOB
-    const birthDate = new Date(dobString);
-    if (isNaN(birthDate.getTime())) return "";
+    const birthDate = parseDobDate(dobString);
+    if (!birthDate) return "";
 
     // Calculate Age
     const today = new Date();
@@ -358,9 +381,9 @@ export const AuraFormCard = ({ onCreateAura, isProcessing, prefilledDob }: AuraF
             return;
         }
 
-        const birthDate = new Date(`${parsedDob}T00:00:00`);
+        const birthDate = parseDobDate(parsedDob);
         const today = new Date();
-        if (isNaN(birthDate.getTime()) || birthDate > today) {
+        if (!birthDate || birthDate > today) {
             setDobError("Please enter a valid date of birth.");
             return;
         }
