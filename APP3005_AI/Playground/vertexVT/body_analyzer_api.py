@@ -77,16 +77,12 @@ def _load_image_bytes(image_bytes: bytes) -> Image.Image:
 
 
 def _validate_image_quality(image: Image.Image, image_bytes: bytes) -> None:
-    """Reject images that fail minimum quality thresholds."""
+    """Assess image quality, but do not reject uploads for low quality alone."""
     quality = assess_image_quality(image, image_bytes=image_bytes)
     if not quality["ok"]:
-        reasons = quality.get("reasons") or []
-        detail = {
-            "code": "low_image_quality",
-            "reasons": reasons,
-            "metrics": quality.get("metrics"),
-        }
-        raise HTTPException(status_code=400, detail=detail)
+        print(
+            f"⚠️ Low-quality image accepted for analysis. reasons={quality.get('reasons')}, metrics={quality.get('metrics')}"
+        )
 
 
 def _build_response(result: Dict) -> BodyAnalyzeResponse:

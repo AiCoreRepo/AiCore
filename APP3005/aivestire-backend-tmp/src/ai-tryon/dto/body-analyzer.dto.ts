@@ -57,6 +57,13 @@ export class BodyAnalysisResultDto {
   })
   bodyShape?: string | null;
 
+  @ApiPropertyOptional({
+    description: 'Explanation of the body shape decision or fallback',
+    example:
+      'full body detected, but body proportions were ambiguous; defaulted to rectangle',
+  })
+  bodyShapeReason?: string | null;
+
   @ApiProperty({
     description: 'Whether a full body was detected in the image',
     example: true,
@@ -89,5 +96,6 @@ export interface FastAPIBodyAnalysisResponse {
     | 'Hourglass'
     | 'Inverted Triangle'
     | null;
+  body_shape_reason?: string | null;
   full_body: boolean;
 }

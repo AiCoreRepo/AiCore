@@ -102,6 +102,7 @@ export class BodyAnalyzerService {
         skinToneLabel: result.skin_tone_label,
         skinHexes: result.skin_hexes || [],
         bodyShape: result.body_shape,
+        bodyShapeReason: result.body_shape_reason,
         fullBody: result.full_body,
         processingTime,
       };

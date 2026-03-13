@@ -1321,6 +1321,17 @@ def analyze_user_image(image: Image.Image) -> Dict:
         if body_shape_reason is None:
             body_shape_reason = "full body not detected"
         pose_shape_confidence = 0.0
+    elif body_shape is None:
+        body_shape = "rectangle"
+        fallback_reason = (
+            "full body detected, but body proportions were ambiguous; defaulted to rectangle"
+        )
+        if body_shape_reason:
+            body_shape_reason = f"{body_shape_reason}; {fallback_reason}"
+        else:
+            body_shape_reason = fallback_reason
+        body_shape_measurements = None
+        pose_shape_confidence = _clamp01(max(pose_shape_confidence, 0.35))
 
     if not full_body:
         body_shape_measurements = None

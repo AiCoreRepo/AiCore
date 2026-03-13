@@ -915,6 +915,7 @@ export interface BodyAnalysisResult {
   skinToneLabel?: string | null;
   skinHexes: string[];
   bodyShape?: string | null;
+  bodyShapeReason?: string | null;
   fullBody: boolean;
   error?: string;
   processingTime?: number;

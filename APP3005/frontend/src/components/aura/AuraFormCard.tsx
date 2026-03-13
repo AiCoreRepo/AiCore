@@ -10,6 +10,7 @@ import { SKIN_TONE_OPTIONS, BODY_SHAPE_OPTIONS } from "@/constants/aura.constant
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { showWarningToast } from "@/components/common/ToastNotification";
 import "./aura-styles.css";
 
 interface BodyAttributes {
@@ -70,6 +71,9 @@ const mapBodyShape = (aiValue: string | null | undefined): string => {
 };
 
 type Step = "upload" | "confirm";
+
+const PARTIAL_BODY_TOAST_MESSAGE =
+    "We couldn’t detect your body shape because the uploaded photo doesn’t show your full body. Please upload a full-length photo with your whole frame visible.";
 
 const getDobStorageKey = (email?: string) =>
     email ? `aivestire:dob:${email.toLowerCase()}` : "";
@@ -216,15 +220,25 @@ export const AuraFormCard = ({ onCreateAura, isProcessing, prefilledDob }: AuraF
             setAnalysisResult(result);
 
             if (result.success) {
+                const mappedSkinTone = mapSkinTone(result.skinToneLabel);
+                const mappedBodyShape = result.fullBody ? mapBodyShape(result.bodyShape) : "";
+
                 // Auto-populate attributes from AI analysis
                 setAttributes(prev => ({
                     ...prev,
-                    skinTone: mapSkinTone(result.skinToneLabel) || prev.skinTone,
-                    bodyShape: mapBodyShape(result.bodyShape) || prev.bodyShape,
+                    skinTone: mappedSkinTone || prev.skinTone,
+                    bodyShape: result.fullBody ? (mappedBodyShape || prev.bodyShape) : "",
                     ageRange: prev.ageRange || calculateAgeRangeFromDob(dob),
                     gender: "female",
                 }));
-                console.log('✅ AI detected:', result.skinToneLabel, result.bodyShape);
+
+                if (!result.fullBody) {
+                    setAnalysisError(PARTIAL_BODY_TOAST_MESSAGE);
+                    showWarningToast("Full-body photo needed", PARTIAL_BODY_TOAST_MESSAGE);
+                    console.log('⚠️ Partial body photo uploaded, body shape left for manual entry');
+                } else {
+                    console.log('✅ AI detected:', result.skinToneLabel, result.bodyShape);
+                }
             } else {
                 console.log('⚠️ Analysis failed, proceeding with manual entry');
                 setAnalysisError(result.error || "Analysis unavailable");
@@ -620,7 +634,7 @@ export const AuraFormCard = ({ onCreateAura, isProcessing, prefilledDob }: AuraF
                                         </h1>
 
                                         <p className="text-sm text-charcoal/60 mb-6">
-                                            {analysisResult?.success
+                                            {analysisResult?.success && analysisResult?.fullBody
                                                 ? "We detected your attributes! Review and adjust if needed."
                                                 : "Fill in your body attributes below."}
                                         </p>
@@ -651,7 +665,9 @@ export const AuraFormCard = ({ onCreateAura, isProcessing, prefilledDob }: AuraF
                                             <div className="bg-emerald-50/50 border border-emerald-200 rounded-2xl p-4 mb-6">
                                                 <div className="flex items-center gap-2 mb-3">
                                                     <CheckCircle2 className="w-5 h-5 text-emerald-600" />
-                                                    <span className="text-sm font-semibold text-emerald-700">AI Detected</span>
+                                                    <span className="text-sm font-semibold text-emerald-700">
+                                                        {analysisResult.fullBody ? "AI Detected" : "Partial AI Detection"}
+                                                    </span>
                                                 </div>
                                                 <div className="grid grid-cols-2 gap-3">
                                                     {/* Skin Tone */}
@@ -679,7 +695,9 @@ export const AuraFormCard = ({ onCreateAura, isProcessing, prefilledDob }: AuraF
                                                     <div className="bg-white/80 rounded-xl p-3 border border-emerald-100">
                                                         <p className="text-xs text-charcoal/60 mb-1">Body Shape</p>
                                                         <p className="text-sm font-medium text-charcoal">
-                                                            {analysisResult.bodyShape || "—"}
+                                                            {analysisResult.fullBody
+                                                                ? (analysisResult.bodyShape || "—")
+                                                                : "Full-body photo required"}
                                                         </p>
                                                     </div>
                                                 </div>
@@ -691,7 +709,11 @@ export const AuraFormCard = ({ onCreateAura, isProcessing, prefilledDob }: AuraF
                                             <div className="bg-amber-50/50 border border-amber-200 rounded-2xl p-4 mb-6">
                                                 <div className="flex items-center gap-2 mb-2">
                                                     <AlertCircle className="w-5 h-5 text-amber-600" />
-                                                    <span className="text-sm font-semibold text-amber-700">Manual Entry Required</span>
+                                                    <span className="text-sm font-semibold text-amber-700">
+                                                        {analysisResult?.success && !analysisResult?.fullBody
+                                                            ? "Full-body photo needed"
+                                                            : "Manual Entry Required"}
+                                                    </span>
                                                 </div>
                                                 <p className="text-xs text-amber-600">
                                                     {analysisError}. Please fill in your details below.
