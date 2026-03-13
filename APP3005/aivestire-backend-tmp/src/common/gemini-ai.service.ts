@@ -102,7 +102,7 @@ export class GeminiAIService {
 
       let prompt: string;
       const poseInstructions =
-        'Use a strict front-facing neutral fashion pose. The face, shoulders, torso, hips, knees, and feet must point directly toward the camera. Both arms must hang straight down along the outer sides of the body with relaxed open hands beside the thighs. Do not bend the elbows, raise the arms, place the hands in front of the body, behind the body, on the hips, or in pockets. Keep both legs straight and joined together, with the inner thighs, knees, calves, and ankles touching or nearly touching, feet parallel, and no split stance. Both legs must remain fully visible, connected, complete, and anatomically correct.';
+        'Use a simple neutral front-facing pose. If the source photo shows spread legs, a walking pose, one leg forward, bent knees, or any gap between the legs, correct it so the generated avatar stands with both legs straight and joined together. Keep the inner thighs, knees, calves, ankles, and feet touching or nearly touching, with no split stance, step, stride, or visible gap between the legs. Both legs must remain fully visible, complete, connected, and anatomically correct.';
       const hairInstructions =
         'Preserve the person\'s visible hair length, volume, silhouette, and style exactly. Do not shorten, trim, crop, tuck behind the shoulders, tie back, or otherwise reduce the apparent hair length.';
 
