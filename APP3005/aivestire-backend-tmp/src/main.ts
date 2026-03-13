@@ -46,6 +46,7 @@ async function bootstrap() {
     'http://127.0.0.1:8082',
     'https://aivestire.com',
     'https://www.aivestire.com',
+    'https://uat.aivestire.com',
   ];
 
   // console.log('🔧 CORS Configuration:');
