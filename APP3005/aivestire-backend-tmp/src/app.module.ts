@@ -16,7 +16,7 @@ import { AdminModule } from './admin/admin.module';
 import { AiTryOnModule } from './ai-tryon/ai-tryon.module';
 import { AdminSeederService } from './common/admin-seeder.service';
 import { RecommendationModule } from './recommendation/recommendation.module';
-import { DifferentAnglesGenModule } from './DifferentAnglesGen/different-angles-gen.module';
+import { DifferentAnglesGenModule } from './angles-generation/different-angles-gen.module';
 import { CartModule } from './cart/cart.module';
 import { AddressModule } from './address/address.module';
 import { WishlistModule } from './wishlist/wishlist.module';
