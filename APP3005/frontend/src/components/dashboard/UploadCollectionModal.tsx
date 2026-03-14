@@ -472,8 +472,8 @@ const UploadCollectionModal = ({ open, onOpenChange, onSuccess, initialData }: U
                 style={{
                     // @ts-ignore
                     '--input-color': '#1a1408',
-                    maxWidth: '680px', width: '95vw', height: '90vh', maxHeight: '90vh',
-                    borderRadius: '24px', overflow: 'hidden',
+                    maxWidth: '680px', width: '96vw', height: '92vh', maxHeight: '92vh',
+                    borderRadius: '20px', overflow: 'hidden',
                     display: 'flex', flexDirection: 'column',
                     background: 'linear-gradient(135deg, #FFFDF8 0%, #FFF9EF 50%, #FFFDF8 100%)',
                     border: '2px solid rgba(201,165,95,0.4)',
@@ -506,7 +506,7 @@ const UploadCollectionModal = ({ open, onOpenChange, onSuccess, initialData }: U
 
                 {/* Header */}
                 <div style={{
-                    padding: '20px 28px', paddingRight: '60px', flexShrink: 0, position: 'relative', zIndex: 1,
+                    padding: '16px 16px', paddingRight: '52px', flexShrink: 0, position: 'relative', zIndex: 1,
                     borderBottom: '1.5px solid rgba(201,165,95,0.2)',
                     background: 'linear-gradient(135deg, rgba(255,255,255,0.95), rgba(248,243,235,0.9))',
                 }}>
@@ -532,7 +532,7 @@ const UploadCollectionModal = ({ open, onOpenChange, onSuccess, initialData }: U
                 <style>{inputStyleOverrides}</style>
 
                 {/* Scrollable Body */}
-                <div className="hide-scrollbar" style={{ flex: 1, overflowY: 'auto', padding: '20px 28px', position: 'relative', zIndex: 1 }}>
+                <div className="hide-scrollbar" style={{ flex: 1, overflowY: 'auto', padding: '12px 14px', position: 'relative', zIndex: 1 }}>
                     <form onSubmit={handleSubmit} className="upload-modal-form" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
 
                         {/* ─── 1. Product Information ──────────────────── */}
@@ -571,7 +571,7 @@ const UploadCollectionModal = ({ open, onOpenChange, onSuccess, initialData }: U
                             </div>
 
                             {/* Price + Stock row */}
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 <div>
                                     <label className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'rgba(44,36,22,0.7)' }}>
                                         Price (INR) <span style={{ color: '#e74c3c' }}>*</span>
@@ -632,7 +632,7 @@ const UploadCollectionModal = ({ open, onOpenChange, onSuccess, initialData }: U
                                 </div>
                             </div>
                             
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 <div>
                                     <label className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'rgba(44,36,22,0.7)' }}>
                                         Category <span style={{ color: '#e74c3c' }}>*</span>
