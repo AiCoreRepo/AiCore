@@ -339,6 +339,8 @@ export async function createProduct(data: {
   skin_tones?: string[];
   sizes?: string[];
   age_ranges?: string[];
+  category_id?: string;
+  sub_category_id?: string;
 }) {
   const token = localStorage.getItem('access_token');
   if (!token) {
@@ -383,6 +385,8 @@ export async function updateProduct(
     skin_tones?: string[];
     sizes?: string[];
     age_ranges?: string[];
+    category_id?: string;
+    sub_category_id?: string;
   }
 ) {
   const token = localStorage.getItem('access_token');
@@ -1798,6 +1802,159 @@ export async function deleteProductGroup(id: string) {
     } catch {
       throw new Error(bodyText || 'Failed to delete group');
     }
+  }
+  return res.json();
+}
+
+// ==========================================
+// CATEGORIES & SUBCATEGORIES
+// ==========================================
+
+export interface Category {
+  category_id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  subcategories?: SubCategory[];
+}
+
+export interface SubCategory {
+  sub_category_id: string;
+  category_id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export async function getCategories() {
+  const res = await fetch(`${BASE_URL}/categories`, {
+    method: 'GET',
+    headers: { 'Content-Type': 'application/json' },
+  });
+  if (!res.ok) throw new Error('Failed to fetch categories');
+  return res.json();
+}
+
+export async function getAdminCategories() {
+  const res = await fetch(`${BASE_URL}/admin/categories`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include'
+  });
+  if (!res.ok) {
+    const txt = await res.text();
+    let msg = 'Failed to fetch admin categories';
+    try { msg = JSON.parse(txt).message; } catch { }
+    throw new Error(msg);
+  }
+  return res.json();
+}
+
+export async function createCategory(data: Partial<Category>) {
+  const res = await fetch(`${BASE_URL}/admin/categories`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include',
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const txt = await res.text();
+    let msg = 'Failed to create category';
+    try { msg = JSON.parse(txt).message; } catch { }
+    throw new Error(msg);
+  }
+  return res.json();
+  console.log(res.json());
+}
+
+export async function updateCategory(id: string, data: Partial<Category>) {
+  const res = await fetch(`${BASE_URL}/admin/categories/${id}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include',
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const txt = await res.text();
+    let msg = 'Failed to update category';
+    try { msg = JSON.parse(txt).message; } catch { }
+    throw new Error(msg);
+  }
+  return res.json();
+}
+
+export async function deleteCategory(id: string) {
+  const res = await fetch(`${BASE_URL}/admin/categories/${id}`, {
+    method: 'DELETE',
+    credentials: 'include'
+  });
+  if (!res.ok) {
+    const txt = await res.text();
+    let msg = 'Failed to delete category';
+    try { msg = JSON.parse(txt).message; } catch { }
+    throw new Error(msg);
+  }
+  return res.json();
+}
+
+export async function createSubCategory(categoryId: string, data: Partial<SubCategory>) {
+  const res = await fetch(`${BASE_URL}/admin/categories/${categoryId}/subcategories`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include',
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const txt = await res.text();
+    let msg = 'Failed to create subcategory';
+    try { msg = JSON.parse(txt).message; } catch { }
+    throw new Error(msg);
+  }
+  return res.json();
+}
+
+export async function updateSubCategory(id: string, data: Partial<SubCategory>) {
+  const res = await fetch(`${BASE_URL}/admin/subcategories/${id}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include',
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const txt = await res.text();
+    let msg = 'Failed to update subcategory';
+    try { msg = JSON.parse(txt).message; } catch { }
+    throw new Error(msg);
+  }
+  return res.json();
+}
+
+export async function deleteSubCategory(id: string) {
+  const res = await fetch(`${BASE_URL}/admin/subcategories/${id}`, {
+    method: 'DELETE',
+    credentials: 'include'
+  });
+  if (!res.ok) {
+    const txt = await res.text();
+    let msg = 'Failed to delete subcategory';
+    try { msg = JSON.parse(txt).message; } catch { }
+    throw new Error(msg);
   }
   return res.json();
 }

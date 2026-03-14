@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import {
     Upload, X, Loader2, Check, ChevronDown, ChevronRight,
     Package, Tags, DollarSign, Search, Sparkles, Heart,
-    Users, Palette, Ruler, CalendarRange, ImageIcon, ArrowRight
+    Users, Palette, Ruler, CalendarRange, ImageIcon, ArrowRight,
+    FolderTree, Layers
 } from "lucide-react";
 import {
     Dialog,
@@ -11,7 +12,7 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { createProduct, updateProduct, getCreatorGroups, type ProductGroup } from "@/lib/api";
+import { createProduct, updateProduct, getCreatorGroups, getCategories, type ProductGroup, type Category, type SubCategory } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { LuxeButton } from "@/components/common/Buttons/LuxeButton";
 import { compressImage } from "@/lib/utils";
@@ -282,6 +283,7 @@ const UploadCollectionModal = ({ open, onOpenChange, onSuccess, initialData }: U
     const [formData, setFormData] = useState({
         title: "", description: "", price: "0.00", currency: "INR",
         inventory: "0", tags: "", group_ids: [] as string[],
+        category_id: "", sub_category_id: "",
         occasions: [] as string[], body_shapes: [] as string[],
         skin_tones: [] as string[], sizes: [] as string[], age_ranges: [] as string[],
     });
@@ -289,19 +291,24 @@ const UploadCollectionModal = ({ open, onOpenChange, onSuccess, initialData }: U
     const [imageFiles, setImageFiles] = useState<File[]>([]);
     const [rawGroups, setRawGroups] = useState<ProductGroup[]>([]);
     const [availableGroups, setAvailableGroups] = useState<GroupOption[]>([]);
+    const [categories, setCategories] = useState<Category[]>([]);
     const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const [groupSearchQuery, setGroupSearchQuery] = useState("");
 
     useEffect(() => {
-        const fetchGroups = async () => {
+        const fetchInitialData = async () => {
             try {
-                const data = await getCreatorGroups();
-                setRawGroups(data || []);
-                setAvailableGroups(flattenGroupsTree(data || []));
+                const [groupsData, catsData] = await Promise.all([
+                    getCreatorGroups(),
+                    getCategories()
+                ]);
+                setRawGroups(groupsData || []);
+                setAvailableGroups(flattenGroupsTree(groupsData || []));
+                setCategories(catsData || []);
             } catch (e) { /* ignore */ }
         };
-        if (open) fetchGroups();
+        if (open) fetchInitialData();
     }, [open]);
 
     const toggleExpand = (groupId: string, e: React.MouseEvent) => {
@@ -356,6 +363,8 @@ const UploadCollectionModal = ({ open, onOpenChange, onSuccess, initialData }: U
                 inventory: initialData.inventory_count?.toString() || "0",
                 tags: initialData.tags ? initialData.tags.map((t: any) => t.name || t).join(", ") : "",
                 group_ids: initialData.group_assignments ? initialData.group_assignments.map((g: any) => g.group_id) : [],
+                category_id: initialData.category_id || "",
+                sub_category_id: initialData.sub_category_id || "",
                 occasions: initialData.occasions || meta.occasions || [],
                 body_shapes: initialData.body_shapes || meta.body_shapes || [],
                 skin_tones: initialData.skin_tones || meta.skin_tones || [],
@@ -366,7 +375,7 @@ const UploadCollectionModal = ({ open, onOpenChange, onSuccess, initialData }: U
             if (imgs.length === 0 && initialData.image && !initialData.image.includes("placehold.co")) imgs = [initialData.image];
             setImages(imgs);
         } else if (!initialData && open) {
-            setFormData({ title: "", description: "", price: "0.00", currency: "INR", inventory: "0", tags: "", group_ids: [], occasions: [], body_shapes: [], skin_tones: [], sizes: [], age_ranges: [] });
+            setFormData({ title: "", description: "", price: "0.00", currency: "INR", inventory: "0", tags: "", group_ids: [], category_id: "", sub_category_id: "", occasions: [], body_shapes: [], skin_tones: [], sizes: [], age_ranges: [] });
             setImages([]); setImageFiles([]);
         }
     }, [initialData, open]);
@@ -394,6 +403,8 @@ const UploadCollectionModal = ({ open, onOpenChange, onSuccess, initialData }: U
                 inventory_count: parseInt(formData.inventory) || 0, images,
                 tags: tags.length > 0 ? tags : undefined,
                 group_ids: formData.group_ids.length > 0 ? formData.group_ids : undefined,
+                category_id: formData.category_id || undefined,
+                sub_category_id: formData.sub_category_id || undefined,
                 occasions: formData.occasions, body_shapes: formData.body_shapes,
                 skin_tones: formData.skin_tones, sizes: formData.sizes, age_ranges: formData.age_ranges,
             };
@@ -426,6 +437,9 @@ const UploadCollectionModal = ({ open, onOpenChange, onSuccess, initialData }: U
     const selectedGroupNames = availableGroups.filter(g => formData.group_ids.includes(g.group_id)).map(g => g.name);
     const filteredGroups = availableGroups.filter(g => g.name.toLowerCase().includes(groupSearchQuery.toLowerCase()));
     const totalAttrs = formData.occasions.length + formData.body_shapes.length + formData.skin_tones.length + formData.sizes.length + formData.age_ranges.length;
+
+    const selectedCategory = categories.find(c => c.category_id === formData.category_id);
+    const availableSubCategories = selectedCategory?.subcategories?.filter(s => s.is_active) || [];
 
     // Aura-style input class
     const inputCls: React.CSSProperties = {
@@ -593,12 +607,12 @@ const UploadCollectionModal = ({ open, onOpenChange, onSuccess, initialData }: U
                             </div>
                         </CollapsibleSection>
 
-                        {/* ─── 2. Who Is This For? ─────────────────────── */}
+                        {/* ─── 2. Classification & Targeting ─────────────────────── */}
                         <CollapsibleSection
-                            title="Who Is This For?"
+                            title="Classification & Targeting"
                             icon={Sparkles}
                             defaultOpen={true}
-                            badge={totalAttrs > 0 ? `${totalAttrs} selected` : undefined}
+                            badge={totalAttrs > 0 ? `${totalAttrs} filters` : undefined}
                         >
                             {/* Gradient accent bar + Quote */}
                             <div style={{ position: 'relative' }}>
@@ -610,11 +624,60 @@ const UploadCollectionModal = ({ open, onOpenChange, onSuccess, initialData }: U
                                 }} />
                                 <div style={{ paddingLeft: '16px' }}>
                                     <p style={{ fontFamily: "'Playfair Display', serif", fontSize: '15px', fontWeight: 700, color: '#2C2416', marginBottom: '4px' }}>
-                                        Help us match your creation ✨
+                                        Help us classify your creation ✨
                                     </p>
                                     <p style={{ fontSize: '12px', color: 'rgba(44,36,22,0.55)', lineHeight: 1.5, fontWeight: 500 }}>
-                                        Select attributes your garment suits — this powers our AI recommendation engine to reach the right audience.
+                                        Select category and attributes to power our AI recommendation engine.
                                     </p>
+                                </div>
+                            </div>
+                            
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                                <div>
+                                    <label className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'rgba(44,36,22,0.7)' }}>
+                                        Category <span style={{ color: '#e74c3c' }}>*</span>
+                                    </label>
+                                    <div style={{ position: 'relative' }}>
+                                        <div style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: 'rgba(201,165,95,0.7)', pointerEvents: 'none', zIndex: 10 }}>
+                                            <FolderTree size={18} />
+                                        </div>
+                                        <select
+                                            required
+                                            value={formData.category_id}
+                                            onChange={(e) => setFormData({ ...formData, category_id: e.target.value, sub_category_id: "" })}
+                                            style={inputCls}
+                                            onFocus={(e) => { e.target.style.borderColor = '#C9A75F'; }}
+                                            onBlur={(e) => { e.target.style.borderColor = 'rgba(201,165,95,0.3)'; }}
+                                        >
+                                            <option value="">Select Category</option>
+                                            {categories.filter(c => c.is_active).map(c => (
+                                                <option key={c.category_id} value={c.category_id}>{c.name}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'rgba(44,36,22,0.7)' }}>
+                                        Subcategory
+                                    </label>
+                                    <div style={{ position: 'relative' }}>
+                                        <div style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: 'rgba(201,165,95,0.7)', pointerEvents: 'none', zIndex: 10 }}>
+                                            <Layers size={18} />
+                                        </div>
+                                        <select
+                                            value={formData.sub_category_id}
+                                            onChange={(e) => setFormData({ ...formData, sub_category_id: e.target.value })}
+                                            style={inputCls}
+                                            disabled={!formData.category_id || availableSubCategories.length === 0}
+                                            onFocus={(e) => { e.target.style.borderColor = '#C9A75F'; }}
+                                            onBlur={(e) => { e.target.style.borderColor = 'rgba(201,165,95,0.3)'; }}
+                                        >
+                                            <option value="">Select Subcategory</option>
+                                            {availableSubCategories.map(s => (
+                                                <option key={s.sub_category_id} value={s.sub_category_id}>{s.name}</option>
+                                            ))}
+                                        </select>
+                                    </div>
                                 </div>
                             </div>
 
@@ -650,7 +713,7 @@ const UploadCollectionModal = ({ open, onOpenChange, onSuccess, initialData }: U
                             />
                         </CollapsibleSection>
 
-                        {/* ─── 3. Classification & Media ──────────────── */}
+                        {/* ─── 3. Tags, Collections & Media ──────────────── */}
                         <CollapsibleSection title="Tags & Images" icon={ImageIcon} defaultOpen={true}>
                             {/* Search tags */}
                             <div>

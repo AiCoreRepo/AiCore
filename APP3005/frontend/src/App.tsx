@@ -46,6 +46,7 @@ const CreateCouponPage = lazy(() => import("./app/admin-coupons/create"));
 const EditCouponPage = lazy(() => import("./app/admin-coupons/edit"));
 const WalletPage = lazy(() => import("./pages/WalletPage"));
 const AdminWalletPage = lazy(() => import("./pages/AdminWalletPage"));
+const AdminCategoriesPage = lazy(() => import("./app/admin-categories/page"));
 
 import AdminLogin from "./pages/AdminLogin";
 import AdminSecretConfirm from "./pages/AdminSecretConfirm";
@@ -184,6 +185,11 @@ const App = () => (
                       <Route path="/admin-login" element={<AdminLogin />} />
                       <Route path="/admin-secret-confirm" element={<AdminSecretConfirm />} />
                       <Route path="/admin-dashboard" element={<AdminDashboardPage />} />
+                      <Route path="/admin-categories" element={
+                        <Suspense fallback={<div className="min-h-screen bg-neutral-950 flex items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-2 border-[#D4AF37] border-t-transparent"></div></div>}>
+                          <AdminCategoriesPage />
+                        </Suspense>
+                      } />
                       <Route path="/admin-approvals" element={
                         <Suspense fallback={<div className="min-h-screen bg-neutral-950 flex items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-2 border-[#D4AF37] border-t-transparent"></div></div>}>
                           <AtelierApprovalPage />
