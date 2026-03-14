@@ -42,6 +42,8 @@ export class ProductsService {
         price_cents: dto.price_cents,
         currency: dto.currency ?? undefined,
         inventory_count: dto.inventory_count ?? undefined,
+        category_rel: dto.category_id ? { connect: { category_id: dto.category_id } } : undefined,
+        sub_category_rel: dto.sub_category_id ? { connect: { sub_category_id: dto.sub_category_id } } : undefined,
         creator: { connect: { creator_id: dto.creator_id } },
         images: {
           create: imageUrls.map((image, index) => ({
@@ -80,6 +82,8 @@ export class ProductsService {
         currency: dto.currency,
         inventory_count: dto.inventory_count,
         slug: dto.slug,
+        category_rel: dto.category_id ? { connect: { category_id: dto.category_id } } : undefined,
+        sub_category_rel: dto.sub_category_id ? { connect: { sub_category_id: dto.sub_category_id } } : undefined,
       };
 
       Object.keys(updateData).forEach(
@@ -166,6 +170,8 @@ export class ProductsService {
             comments_count: true,
           },
         },
+        category_rel: true,
+        sub_category_rel: true,
       },
     });
 
@@ -186,6 +192,10 @@ export class ProductsService {
         order_index: img.order_index,
       })),
       category: product.category,
+      category_id: product.category_id,
+      sub_category_id: product.sub_category_id,
+      category_name: product.category_rel?.name,
+      sub_category_name: product.sub_category_rel?.name,
       is_featured: product.is_featured,
       likes: product.stats?.likes_count || 0,
       reviews: product.stats?.comments_count || 0,
@@ -243,6 +253,8 @@ export class ProductsService {
             comments_count: true,
           },
         },
+        category_rel: true,
+        sub_category_rel: true,
       },
       orderBy: { updated_at: 'desc' },
     });
@@ -342,6 +354,10 @@ export class ProductsService {
           order_index: img.order_index,
         })),
         category: product.category,
+        category_id: product.category_id,
+        sub_category_id: product.sub_category_id,
+        category_name: product.category_rel?.name,
+        sub_category_name: product.sub_category_rel?.name,
         is_featured: product.is_featured,
         likes: product.stats?.likes_count || 0,
         reviews: product.stats?.comments_count || 0,

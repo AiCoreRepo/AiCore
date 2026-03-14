@@ -35,6 +35,7 @@ import { BirthdayCouponsModule } from './birthday-coupons/birthday-coupons.modul
 import { CreatorCouponsModule } from './creator-coupons/creator-coupons.module';
 import { WalletModule } from './wallet/wallet.module';
 import { ProductGroupsModule } from './product-groups/product-groups.module';
+import { CategoriesModule } from './categories/categories.module';
 
 
 @Module({
@@ -72,6 +73,7 @@ import { ProductGroupsModule } from './product-groups/product-groups.module';
     CreatorCouponsModule,
     WalletModule,
     ProductGroupsModule,
+    CategoriesModule,
   ],
   controllers: [AppController],
   providers: [AppService, AdminSeederService],

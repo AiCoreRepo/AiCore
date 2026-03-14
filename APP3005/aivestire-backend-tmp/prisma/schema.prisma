@@ -83,6 +83,8 @@ model Product {
   updated_at        DateTime?
   status            ProductStatus            @default(PENDING)
   category          String?
+  category_id       String?                  @db.Uuid
+  sub_category_id   String?                  @db.Uuid
   is_featured       Boolean                  @default(false)
   // Recommendation attribute columns
   occasions         String[]                 @default([])
@@ -103,6 +105,8 @@ model Product {
   order_items       OrderItem[]
   creator_coupons   CreatorCoupon[]
   group_assignments ProductGroupAssignment[]
+  category_rel      Category?                @relation(fields: [category_id], references: [category_id])
+  sub_category_rel  SubCategory?             @relation(fields: [sub_category_id], references: [sub_category_id])
 }
 
 model ProductGroup {
@@ -139,6 +143,43 @@ model ProductGroupAssignment {
   @@index([group_id])
   @@index([product_id])
   @@map("product_group_assignments")
+}
+
+// ============================================
+// CATEGORIES & SUBCATEGORIES 
+// ============================================
+
+model Category {
+  category_id String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String   @unique
+  slug        String   @unique
+  description String?
+  is_active   Boolean  @default(true)
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  subcategories SubCategory[]
+  products      Product[]
+
+  @@map("categories")
+}
+
+model SubCategory {
+  sub_category_id String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  category_id     String   @db.Uuid
+  name            String
+  slug            String   @unique
+  description     String?
+  is_active       Boolean  @default(true)
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  category Category  @relation(fields: [category_id], references: [category_id], onDelete: Cascade)
+  products Product[]
+
+  @@unique([category_id, name])
+  @@index([category_id])
+  @@map("sub_categories")
 }
 
 // ============================================
