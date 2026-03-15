@@ -83,8 +83,9 @@ export const TryOnInterstitialModal = ({ isOpen, onClose, onConfirm, productTitl
                                         text={compliment}
                                         className="block text-lg font-serif leading-snug text-charcoal"
                                         caretClassName="text-gold"
-                                        speedMs={22}
+                                        speedMs={110}
                                         startDelayMs={180}
+                                        unit="word"
                                     />
                                 </div>
                             </div>

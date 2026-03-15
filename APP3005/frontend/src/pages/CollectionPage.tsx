@@ -74,6 +74,7 @@ const CollectionPage = () => {
         const product = filteredProducts.find((item: any) => item.product_id === productId);
         return product?.title || product?.name || productId;
     };
+    const currentUserName = user?.store_name || user?.email?.split('@')[0] || 'You';
     const currentTryOnUsage = getTryOnUsageSnapshot(user);
     const hasFreeTryOnsRemaining =
         user?.role === 'ADMIN' || currentTryOnUsage.remainingTryOns > 0;
@@ -662,8 +663,10 @@ const CollectionPage = () => {
                 generatingAngles={generatingAngles}
                 userPhoto={aura?.image_url}
                 garmentId={selectedTryOnProduct || undefined}
+                garmentTitle={selectedTryOnLabel || undefined}
                 generatedImages={generatedImages}
                 onSelectImage={(img) => setResultImage(img)}
+                userName={currentUserName}
             />
 
             {feedbackContext && (

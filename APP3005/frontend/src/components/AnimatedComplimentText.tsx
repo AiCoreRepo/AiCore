@@ -7,6 +7,7 @@ interface AnimatedComplimentTextProps {
   speedMs?: number;
   startDelayMs?: number;
   mode?: "typing" | "fade";
+  unit?: "character" | "word";
 }
 
 export function AnimatedComplimentText({
@@ -16,16 +17,22 @@ export function AnimatedComplimentText({
   speedMs = 26,
   startDelayMs = 120,
   mode = "typing",
+  unit = "word",
 }: AnimatedComplimentTextProps) {
-  const characters = Array.from(text);
-  const [visibleChars, setVisibleChars] = useState(
-    mode === "fade" ? characters.length : 0
+  const getSegments = (value: string) =>
+    unit === "word" ? value.match(/\S+\s*/g) ?? [] : Array.from(value);
+
+  const segments = mode === "fade" ? [text] : getSegments(text);
+  const [visibleSegments, setVisibleSegments] = useState(
+    mode === "fade" ? segments.length : 0
   );
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
+    const nextSegments = mode === "fade" ? [text] : getSegments(text);
+
     if (!text) {
-      setVisibleChars(0);
+      setVisibleSegments(0);
       setIsVisible(false);
       return;
     }
@@ -35,7 +42,7 @@ export function AnimatedComplimentText({
       window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
     if (prefersReducedMotion) {
-      setVisibleChars(characters.length);
+      setVisibleSegments(nextSegments.length);
       setIsVisible(true);
       return;
     }
@@ -43,23 +50,23 @@ export function AnimatedComplimentText({
     let startTimer: number | null = null;
     let typingTimer: number | null = null;
 
-    setVisibleChars(0);
+    setVisibleSegments(0);
     setIsVisible(false);
 
     startTimer = window.setTimeout(() => {
       setIsVisible(true);
 
       if (mode === "fade") {
-        setVisibleChars(characters.length);
+        setVisibleSegments(nextSegments.length);
         return;
       }
 
-      let nextChars = 0;
+      let nextVisibleSegments = 0;
       typingTimer = window.setInterval(() => {
-        nextChars += 1;
-        setVisibleChars(nextChars);
+        nextVisibleSegments += 1;
+        setVisibleSegments(nextVisibleSegments);
 
-        if (nextChars >= characters.length && typingTimer) {
+        if (nextVisibleSegments >= nextSegments.length && typingTimer) {
           window.clearInterval(typingTimer);
         }
       }, speedMs);
@@ -73,20 +80,23 @@ export function AnimatedComplimentText({
         window.clearInterval(typingTimer);
       }
     };
-  }, [characters.length, mode, speedMs, startDelayMs, text]);
+  }, [mode, speedMs, startDelayMs, text, unit]);
 
   const displayText =
-    mode === "fade" ? text : characters.slice(0, visibleChars).join("");
+    mode === "fade" ? text : segments.slice(0, visibleSegments).join("");
   const showCaret =
-    mode === "typing" && isVisible && visibleChars < characters.length;
+    mode === "typing" && isVisible && visibleSegments < segments.length;
 
   return (
     <div className="relative">
-      <span aria-hidden="true" className={`invisible block ${className}`}>
+      <span
+        aria-hidden="true"
+        className={`invisible block whitespace-pre-wrap ${className}`}
+      >
         {text}
       </span>
       <span
-        className={`absolute inset-0 block transition-all duration-500 ${
+        className={`absolute inset-0 block whitespace-pre-wrap transition-all duration-500 ${
           isVisible ? "translate-y-0 opacity-100" : "translate-y-2 opacity-0"
         } ${className}`}
       >

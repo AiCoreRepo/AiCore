@@ -92,6 +92,7 @@ const LetAIDecidePage = () => {
     } | null>(null);
     const feedbackCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const [selectedTryOnLabel, setSelectedTryOnLabel] = useState<string>('');
+    const currentUserName = user?.store_name || user?.email?.split('@')[0] || 'You';
     const currentTryOnUsage = getTryOnUsageSnapshot(user);
     const hasFreeTryOnsRemaining =
         user?.role === 'ADMIN' || currentTryOnUsage.remainingTryOns > 0;
@@ -667,8 +668,10 @@ const LetAIDecidePage = () => {
                 generatingAngles={generatingAngles}
                 userPhoto={aura?.image_url}
                 garmentId={selectedTryOnProduct || undefined}
+                garmentTitle={selectedTryOnLabel || undefined}
                 generatedImages={generatedImages}
                 onSelectImage={(img) => setResultImage(img)}
+                userName={currentUserName}
             />
 
             {feedbackContext && (

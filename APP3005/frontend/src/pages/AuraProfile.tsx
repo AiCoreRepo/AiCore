@@ -3,13 +3,14 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast"; // Import toast hook
 import { EditableAttributeCard } from "@/components/aura/EditableAttributeCard";
 import { AvatarDisplay } from "@/components/aura/AvatarDisplay";
+import { ProcessingModal } from "@/components/aura/ProcessingModal";
 import { BODY_SIZE_OPTIONS, SKIN_TONE_OPTIONS, BODY_SHAPE_OPTIONS, GENDER_OPTIONS } from "@/constants/aura.constants";
 import "@/components/aura/aura-styles.css";
 import { FeedbackBottomSheet } from "@/components/feedback/FeedbackBottomSheet";
 import { FeedbackContextType } from "@/lib/api";
 import { RefreshCw, Upload, Wand2, XCircle } from "lucide-react";
 
-const MAX_RECREATION_ATTEMPTS = 1;
+const DEFAULT_MAX_RECREATION_ATTEMPTS = 2;
 
 interface AuraData {
     aura_id: string;
@@ -53,7 +54,7 @@ export default function AuraProfile() {
     const [userName, setUserName] = useState<string>('');
     const [avatarUserName, setAvatarUserName] = useState<string>('');
     const [exactAge, setExactAge] = useState<number | null>(null);
-    const [isRecreateDisabled, setIsRecreateDisabled] = useState(false);
+    const [maxRecreationAttempts, setMaxRecreationAttempts] = useState(DEFAULT_MAX_RECREATION_ATTEMPTS);
     const [recreateUsed, setRecreateUsed] = useState(0);
     const [showRecreateModal, setShowRecreateModal] = useState(false);
     const [recreateMode, setRecreateMode] = useState<RecreateMode>("attributes-only");
@@ -74,6 +75,10 @@ export default function AuraProfile() {
     const [showFeedbackSheet, setShowFeedbackSheet] = useState(false);
     const [feedbackContext, setFeedbackContext] = useState<FeedbackContext | null>(null);
     const { toast } = useToast();
+    const recreateEstimatedTime = Math.max(0, Math.ceil((100 - recreateProgress) / 5));
+    const isRecreationInProgress = recreateJobId !== null;
+    const hasReachedRecreationLimit = recreateUsed >= maxRecreationAttempts;
+    const isRecreateDisabled = isRecreationInProgress || hasReachedRecreationLimit;
 
     // Editable attributes state
     const [attributes, setAttributes] = useState<AttributeValues>({
@@ -116,6 +121,22 @@ export default function AuraProfile() {
             .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
             .join(' ')
     , []);
+
+    const parseRecreationLimit = useCallback((value: unknown) => {
+        const parsed = Number(value);
+        if (!Number.isFinite(parsed)) {
+            return DEFAULT_MAX_RECREATION_ATTEMPTS;
+        }
+
+        return Math.max(0, Math.floor(parsed));
+    }, []);
+
+    const isRecreationLimitError = useCallback((message: string) => {
+        const normalizedMessage = message.toLowerCase();
+        return normalizedMessage.includes('recreation limit')
+            || normalizedMessage.includes('already used your aura recreation')
+            || normalizedMessage.includes('only once');
+    }, []);
 
     // Check for pending login from signup
     useEffect(() => {
@@ -169,9 +190,9 @@ export default function AuraProfile() {
                 const cleanedName = toTitleCase(rawName.replace(/[._-]+/g, ' '));
                 setAvatarUserName(cleanedName);
                 const regenUsed = Number(userData.avatar_regenerations_used ?? 0);
-                const normalizedMax = Math.min(MAX_RECREATION_ATTEMPTS, Number(userData.max_avatar_regenerations ?? MAX_RECREATION_ATTEMPTS));
-                setRecreateUsed(regenUsed);
-                setIsRecreateDisabled(regenUsed >= normalizedMax);
+                const normalizedMax = parseRecreationLimit(userData.max_avatar_regenerations);
+                setMaxRecreationAttempts(normalizedMax);
+                setRecreateUsed(Number.isFinite(regenUsed) ? Math.max(0, regenUsed) : 0);
 
                 const localDobKey = `aivestire:dob:${(userData.email || '').toLowerCase()}`;
                 const storedDob = userData?.dob || localStorage.getItem(localDobKey) || undefined;
@@ -209,7 +230,7 @@ export default function AuraProfile() {
         } finally {
             setLoading(false);
         }
-    }, [navigate, toTitleCase]);
+    }, [navigate, parseRecreationLimit, toTitleCase]);
 
     useEffect(() => {
         fetchAura();
@@ -395,9 +416,8 @@ export default function AuraProfile() {
                 typeof payload.message === 'string' ? payload.message : 'Failed to recreate Aura';
 
             if (!response.ok) {
-                if (response.status === 409) {
-                    setRecreateUsed(MAX_RECREATION_ATTEMPTS);
-                    setIsRecreateDisabled(true);
+                if (response.status === 409 && isRecreationLimitError(payloadMessage)) {
+                    setRecreateUsed(maxRecreationAttempts);
                 }
                 throw new Error(payloadMessage);
             }
@@ -409,7 +429,6 @@ export default function AuraProfile() {
             }
 
             setShowRecreateModal(false);
-            setIsRecreateDisabled(true);
 
             toast({
                 title: "Recreate Started",
@@ -437,6 +456,20 @@ export default function AuraProfile() {
             URL.revokeObjectURL(nextPreview);
         };
     }, [recreatePhoto]);
+
+    useEffect(() => {
+        if (!showRecreateModal) {
+            document.body.style.overflow = "";
+            return;
+        }
+
+        const previousOverflow = document.body.style.overflow;
+        document.body.style.overflow = "hidden";
+
+        return () => {
+            document.body.style.overflow = previousOverflow;
+        };
+    }, [showRecreateModal]);
 
     useEffect(() => {
         if (!recreateJobId) {
@@ -468,8 +501,7 @@ export default function AuraProfile() {
                             ? String(payload.result.auraId)
                             : latestAuraId;
                     fetchAura();
-                    setRecreateUsed((prev) => Math.min(prev + 1, MAX_RECREATION_ATTEMPTS));
-                    setIsRecreateDisabled(true);
+                    setRecreateUsed((prev) => Math.min(prev + 1, maxRecreationAttempts));
                     setFeedbackContext({
                         type: "AVATAR_RECREATION",
                         referenceId: completedAuraId,
@@ -485,6 +517,7 @@ export default function AuraProfile() {
                 } else if (payload.status === 'failed') {
                     clearInterval(interval);
                     setRecreateJobId(null);
+                    setRecreateProgress(0);
                     toast({
                         variant: "destructive",
                         title: "Recreation Failed",
@@ -498,7 +531,7 @@ export default function AuraProfile() {
         }, 2000);
 
         return () => clearInterval(interval);
-    }, [recreateJobId, toast, fetchAura, latestAuraId]);
+    }, [recreateJobId, toast, fetchAura, latestAuraId, maxRecreationAttempts]);
 
     if (loading) {
         return (
@@ -510,7 +543,7 @@ export default function AuraProfile() {
         );
     }
 
-    const remainingRecreations = Math.max(0, MAX_RECREATION_ATTEMPTS - recreateUsed);
+    const remainingRecreations = Math.max(0, maxRecreationAttempts - recreateUsed);
 
     if (!aura) {
         return (
@@ -654,7 +687,7 @@ export default function AuraProfile() {
                                 disabled={isRecreateDisabled}
                                 className={`action-btn cancel-btn ${isRecreateDisabled ? "disabled-btn" : ""}`}
                             >
-                                Recreate Avatar
+                                {isRecreationInProgress ? "Recreating Avatar..." : "Recreate Avatar"}
                             </button>
                             <button
                                 onClick={() => navigate('/')}
@@ -666,9 +699,11 @@ export default function AuraProfile() {
                     )}
 
                     <div className="recreate-note">
-                        {isRecreateDisabled
-                            ? 'Recreation used. This avatar cannot be recreated again.'
-                            : `Recreation credits: ${remainingRecreations} of ${MAX_RECREATION_ATTEMPTS} remaining`}
+                        {isRecreationInProgress
+                            ? 'Aura recreation is in progress.'
+                            : hasReachedRecreationLimit
+                                ? 'Recreation limit reached for this account.'
+                                : `Recreation credits: ${remainingRecreations} of ${maxRecreationAttempts} remaining`}
                     </div>
                 </div>
 
@@ -691,18 +726,6 @@ export default function AuraProfile() {
                                     className="tryon-crop-image"
                                 />
                             </div>
-                        </div>
-                    )}
-                    {recreateJobId && (
-                        <div className="recreate-inline-progress">
-                            <p>Recreating your avatar</p>
-                            <div className="recreate-progress-track">
-                                <div
-                                    className="recreate-progress-fill"
-                                    style={{ width: `${Math.min(recreateProgress, 100)}%` }}
-                                />
-                            </div>
-                            <p>{Math.min(recreateProgress, 100)}%</p>
                         </div>
                     )}
                 </div>
@@ -875,6 +898,12 @@ export default function AuraProfile() {
                     onClose={closeFeedbackSheet}
                 />
             )}
+
+            <ProcessingModal
+                isOpen={!!recreateJobId}
+                progress={Math.min(recreateProgress, 100)}
+                estimatedTime={recreateEstimatedTime}
+            />
         </div>
     );
 }

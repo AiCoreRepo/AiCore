@@ -19,8 +19,6 @@ export class AuraService {
     private readonly auraQueue: AuraQueueService,
   ) {}
 
-  private readonly MAX_RECREATION_ATTEMPTS = 1;
-
   private getAuraAttributeValue(
     valueFromPayload: string | undefined | null,
     valueFromAura: string | null | undefined,
@@ -37,6 +35,31 @@ export class AuraService {
     return typeof valueFromPayload === 'number'
       ? valueFromPayload
       : (valueFromAura ?? fallback);
+  }
+
+  private getMaxRecreationAttempts(
+    maxAttemptsFromUser: number | null | undefined,
+  ): number {
+    if (
+      typeof maxAttemptsFromUser !== 'number' ||
+      !Number.isFinite(maxAttemptsFromUser)
+    ) {
+      return 0;
+    }
+
+    return Math.max(0, Math.floor(maxAttemptsFromUser));
+  }
+
+  private getRecreationLimitMessage(maxAttempts: number): string {
+    if (maxAttempts <= 0) {
+      return 'Aura recreation is not available for this account.';
+    }
+
+    if (maxAttempts === 1) {
+      return 'You have already used your Aura recreation.';
+    }
+
+    return `You have reached your Aura recreation limit of ${maxAttempts}.`;
   }
 
   async createAura(
@@ -141,6 +164,7 @@ export class AuraService {
       where: { user_id: userId },
       select: {
         avatar_regenerations_used: true,
+        max_avatar_regenerations: true,
       },
     });
 
@@ -148,8 +172,14 @@ export class AuraService {
       throw new ConflictException('User not found.');
     }
 
-    if (user.avatar_regenerations_used >= this.MAX_RECREATION_ATTEMPTS) {
-      throw new ConflictException('You can recreate your Aura only once.');
+    const maxRecreationAttempts = this.getMaxRecreationAttempts(
+      user.max_avatar_regenerations,
+    );
+
+    if (user.avatar_regenerations_used >= maxRecreationAttempts) {
+      throw new ConflictException(
+        this.getRecreationLimitMessage(maxRecreationAttempts),
+      );
     }
 
     let sourceImageUrl = existingAura.image_url || '';
@@ -184,7 +214,7 @@ export class AuraService {
           where: {
             user_id: userId,
             avatar_regenerations_used: {
-              lt: this.MAX_RECREATION_ATTEMPTS,
+              lt: maxRecreationAttempts,
             },
           },
           data: {
@@ -195,7 +225,9 @@ export class AuraService {
         });
 
         if (updatedUser.count === 0) {
-          throw new ConflictException('You can recreate your Aura only once.');
+          throw new ConflictException(
+            this.getRecreationLimitMessage(maxRecreationAttempts),
+          );
         }
 
         await tx.aura.update({

@@ -503,24 +503,49 @@
     position: fixed;
     inset: 0;
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: center;
     background: rgba(17, 15, 11, 0.55);
     backdrop-filter: blur(6px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
     padding: 1rem;
     z-index: 40;
 }
 
 .recreate-modal-panel {
-    width: min(760px, 96vw);
-    max-height: calc(100vh - 2rem);
+    width: min(760px, 100%);
+    max-height: calc(100dvh - 2rem);
+    margin: auto;
     overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-gutter: stable;
     background: linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(248, 243, 235, 0.92));
     border: 2px solid rgba(201, 165, 95, 0.35);
     border-radius: 1.25rem;
     padding: 1.15rem;
     box-shadow: 0 18px 50px rgba(44, 36, 22, 0.3);
     color: #2C2416;
+}
+
+.recreate-modal-panel::-webkit-scrollbar {
+    width: 10px;
+}
+
+.recreate-modal-panel::-webkit-scrollbar-track {
+    background: rgba(201, 165, 95, 0.08);
+    border-radius: 999px;
+}
+
+.recreate-modal-panel::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, rgba(201, 165, 95, 0.8), rgba(177, 141, 72, 0.85));
+    border-radius: 999px;
+    border: 2px solid rgba(255, 250, 242, 0.95);
+}
+
+.recreate-modal-panel::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, rgba(201, 165, 95, 0.95), rgba(162, 126, 58, 0.95));
 }
 
 .recreate-modal-header {
@@ -961,6 +986,8 @@
 
     .recreate-modal-panel {
         width: 100%;
+        max-height: calc(100dvh - 1.5rem);
+        border-radius: 1rem;
     }
 
     .recreate-mode-switch {

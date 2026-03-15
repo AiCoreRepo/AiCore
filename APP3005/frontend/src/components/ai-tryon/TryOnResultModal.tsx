@@ -16,8 +16,10 @@ interface TryOnResultModalProps {
     userPhoto?: string | null;
     garmentImage?: string | null;
     garmentId?: string;
+    garmentTitle?: string;
     generatedImages?: string[];
     onSelectImage?: (image: string) => void;
+    userName?: string;
 }
 
 interface ProcessStep {
@@ -38,8 +40,10 @@ export function TryOnResultModal({
     userPhoto,
     garmentImage,
     garmentId,
+    garmentTitle,
     generatedImages = [],
     onSelectImage,
+    userName,
 }: TryOnResultModalProps) {
     const [currentQuoteIndex, setCurrentQuoteIndex] = useState(0);
     const [imageRevealed, setImageRevealed] = useState(false);
@@ -55,6 +59,12 @@ export function TryOnResultModal({
     const progressRef = useRef(0);
 
     const navigate = useNavigate();
+    const displayUserName = userName?.trim() || 'You';
+    const displayGarmentTitle = garmentTitle?.trim() || 'this look';
+    const userPrompt = garmentTitle
+        ? `How does ${displayGarmentTitle} look on me? Does it suit me?`
+        : 'How does this look on me? Does it suit me?';
+    const userInitial = displayUserName.charAt(0).toUpperCase();
 
     const processSteps: ProcessStep[] = [
         { id: 1, label: 'Analyzing Image', icon: '🔍', status: 'pending' },
@@ -231,17 +241,22 @@ export function TryOnResultModal({
         return 'pending';
     };
 
-    const renderComplimentCard = (className = '') => {
+    const renderComplimentCard = (
+        className = '',
+        layout: 'default' | 'mobile' = 'default',
+    ) => {
         if (!currentCompliment || !resultImage || loading || error) {
             return null;
         }
 
+        const isMobileLayout = layout === 'mobile';
+
         return (
             <div
-                className={`relative overflow-hidden rounded-[28px] p-5 ${className}`}
+                className={`relative min-w-0 overflow-hidden rounded-[24px] p-4 md:rounded-[28px] md:p-5 ${className}`}
                 style={{
-                    background: 'linear-gradient(145deg, #fffaf2 0%, #f7ecd5 48%, #e7c98b 100%)',
-                    boxShadow: '0 18px 40px rgba(160, 123, 54, 0.16), 0 0 0 1px rgba(201, 165, 92, 0.22)',
+                    background: 'linear-gradient(160deg, #fffdf9 0%, #f9f1df 58%, #efd19e 100%)',
+                    boxShadow: '0 18px 40px rgba(160, 123, 54, 0.16), 0 0 0 1px rgba(201, 165, 92, 0.2)',
                     animation: 'slideUp 0.6s ease-out',
                 }}
             >
@@ -252,41 +267,121 @@ export function TryOnResultModal({
                             'radial-gradient(circle at top right, rgba(255,255,255,0.92), transparent 35%), linear-gradient(120deg, transparent 0%, rgba(255,255,255,0.2) 35%, transparent 70%)',
                     }}
                 />
-                <div className="relative">
-                    <div
-                        className="inline-flex items-center gap-2 rounded-full px-3 py-1.5 mb-4"
-                        style={{
-                            background: 'rgba(44, 34, 18, 0.06)',
-                            border: '1px solid rgba(44, 34, 18, 0.08)',
-                        }}
-                    >
-                        <Sparkles className="w-3.5 h-3.5 text-[#9a7b4f]" />
-                        <span className="text-[11px] font-bold tracking-[0.22em] text-[#8a6936]">AI STYLE NOTE</span>
+                <div className="relative min-w-0">
+                    <div className={`mb-3 flex min-w-0 ${isMobileLayout ? 'items-start gap-2.5' : 'items-center gap-3 md:mb-4'}`}>
+                        <div
+                            className={`flex shrink-0 items-center justify-center ${isMobileLayout ? 'h-10 w-10 rounded-[18px]' : 'h-11 w-11 rounded-2xl'}`}
+                            style={{
+                                background: 'linear-gradient(135deg, rgba(201, 165, 92, 0.22) 0%, rgba(255, 255, 255, 0.92) 100%)',
+                                border: '1px solid rgba(127, 96, 49, 0.12)',
+                            }}
+                        >
+                            <Sparkles className={`${isMobileLayout ? 'h-4 w-4' : 'h-5 w-5'} text-[#8a6936]`} />
+                        </div>
+                        <div className="min-w-0">
+                            <p className={`${isMobileLayout ? 'text-[10px] tracking-[0.16em]' : 'text-[11px] tracking-[0.2em]'} font-semibold uppercase text-[#8a6936]`}>
+                                Stylist Conversation
+                            </p>
+                            <h3 className={`${isMobileLayout ? 'text-[15px] leading-5' : 'text-lg'} font-serif text-[#2f2416]`}>
+                                A quick verdict on your try-on
+                            </h3>
+                        </div>
                     </div>
 
-                    <AnimatedComplimentText
-                        text={currentCompliment.message}
-                        className="block text-lg md:text-[19px] leading-relaxed font-serif text-[#2f2416]"
-                        caretClassName="text-[#9a7b4f]"
-                        speedMs={24}
-                        startDelayMs={130}
-                    />
-
-                    <div className="mt-4 flex flex-wrap gap-2">
-                        {currentCompliment.emotion.map((emotion, index) => (
-                            <span
-                                key={`${emotion}-${index}`}
-                                className="rounded-full px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em]"
+                    <div className={`${isMobileLayout ? 'space-y-3' : 'space-y-4'}`}>
+                        <div className={`flex min-w-0 items-start justify-end ${isMobileLayout ? 'gap-2' : 'gap-3'}`}>
+                            <div
+                                className={`min-w-0 ${isMobileLayout ? 'max-w-[calc(100%-3rem)] rounded-[20px] rounded-tr-md px-3 py-3' : 'max-w-[85%] rounded-[24px] rounded-tr-md px-4 py-3.5'}`}
                                 style={{
-                                    background: 'rgba(255, 255, 255, 0.55)',
+                                    background: 'linear-gradient(135deg, #2f2416 0%, #4a3520 100%)',
+                                    boxShadow: '0 10px 24px rgba(47, 36, 22, 0.22)',
+                                }}
+                            >
+                                <p className={`${isMobileLayout ? 'text-[10px] tracking-[0.12em]' : 'text-xs tracking-[0.14em]'} font-semibold uppercase text-[#f2d7a5]`}>
+                                    {displayUserName}
+                                </p>
+                                <p className={`${isMobileLayout ? 'text-[13px] leading-5' : 'text-sm leading-6 md:text-[15px]'} mt-1 text-[#fff8ec]`}>
+                                    {userPrompt}
+                                </p>
+                            </div>
+
+                            <div
+                                className={`flex shrink-0 items-center justify-center overflow-hidden ${isMobileLayout ? 'h-10 w-10 rounded-[18px]' : 'h-11 w-11 rounded-2xl'}`}
+                                style={{
+                                    background: 'linear-gradient(135deg, #e8c98b 0%, #f9f1df 100%)',
+                                    boxShadow: '0 8px 20px rgba(160, 123, 54, 0.16)',
+                                }}
+                            >
+                                {userPhoto ? (
+                                    <img src={userPhoto} alt={displayUserName} className="h-full w-full object-cover" />
+                                ) : (
+                                    <span className={`${isMobileLayout ? 'text-[13px]' : 'text-sm'} font-semibold text-[#6b4f26]`}>{userInitial}</span>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className={`flex min-w-0 items-start ${isMobileLayout ? 'gap-2' : 'gap-3'}`}>
+                            <div
+                                className={`flex shrink-0 items-center justify-center ${isMobileLayout ? 'h-10 w-10 rounded-[18px]' : 'h-11 w-11 rounded-2xl'}`}
+                                style={{
+                                    background: 'linear-gradient(135deg, #d1aa62 0%, #f2dfba 100%)',
+                                    boxShadow: '0 8px 20px rgba(160, 123, 54, 0.18)',
+                                }}
+                            >
+                                <Sparkles className={`${isMobileLayout ? 'h-4 w-4' : 'h-5 w-5'} text-white`} />
+                            </div>
+
+                            <div
+                                className={`min-w-0 flex-1 ${isMobileLayout ? 'rounded-[20px] rounded-tl-md px-3.5 py-3.5' : 'rounded-[24px] rounded-tl-md px-4 py-4'}`}
+                                style={{
+                                    background: 'rgba(255, 251, 244, 0.96)',
+                                    border: '1px solid rgba(138, 105, 54, 0.12)',
+                                    boxShadow: '0 10px 24px rgba(160, 123, 54, 0.08)',
+                                }}
+                            >
+                                <p className={`${isMobileLayout ? 'text-[10px] tracking-[0.13em]' : 'text-xs tracking-[0.16em]'} font-semibold uppercase text-[#8a6936]`}>
+                                    AiVestire Fashion Expert
+                                </p>
+
+                                <AnimatedComplimentText
+                                    text={currentCompliment.message}
+                                    className={`mt-2 block font-serif text-[#2f2416] ${isMobileLayout ? 'text-[15px] leading-7' : 'text-[17px] leading-8 md:text-[19px]'}`}
+                                    caretClassName="text-[#9a7b4f]"
+                                    speedMs={110}
+                                    startDelayMs={120}
+                                    unit="word"
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className={`mt-4 flex flex-wrap ${isMobileLayout ? 'gap-1.5' : 'gap-2 md:mt-5'}`}>
+                        {currentCompliment.highlights.map((highlight, index) => (
+                            <span
+                                key={`${highlight}-${index}`}
+                                className={`${isMobileLayout ? 'px-2.5 py-1 text-[10px] tracking-[0.12em]' : 'px-3 py-1.5 text-[11px] tracking-[0.14em]'} rounded-full font-semibold uppercase`}
+                                style={{
+                                    background: 'rgba(255, 255, 255, 0.6)',
                                     color: '#7f6031',
                                     border: '1px solid rgba(127, 96, 49, 0.14)',
                                     animation: `fadeIn 0.45s ease-out ${0.45 + index * 0.12}s both`,
                                 }}
                             >
-                                {emotion}
+                                {highlight}
                             </span>
                         ))}
+                    </div>
+
+                    <div className={`${isMobileLayout ? 'mt-3 rounded-[20px] px-3.5 py-3' : 'mt-4 rounded-[22px] px-4 py-3'}`} style={{
+                        background: 'rgba(255, 255, 255, 0.48)',
+                        border: '1px solid rgba(138, 105, 54, 0.08)',
+                    }}>
+                        <p className={`${isMobileLayout ? 'text-[10px] tracking-[0.15em]' : 'text-xs tracking-[0.18em]'} uppercase text-[#8a6936]`}>
+                            Style focus
+                        </p>
+                        <p className={`${isMobileLayout ? 'text-[13px] leading-5' : 'text-sm leading-6'} mt-1 text-[#5a4630]`}>
+                            {displayGarmentTitle} feels flattering, elegant, and well balanced on you.
+                        </p>
                     </div>
                 </div>
             </div>
@@ -426,7 +521,7 @@ export function TryOnResultModal({
 
                     {/* Left Sidebar - AI Insights (Desktop) */}
                     {resultImage && !loading && !error && (
-                        <div className="hidden md:flex w-64 flex-col gap-4 slide-right">
+                        <div className="hidden xl:flex w-[21rem] flex-col gap-4 slide-right">
                             {/* Style Analysis Card */}
                             <div className="rounded-2xl p-5" style={{
                                 background: 'linear-gradient(135deg, #ffffff 0%, #fafafa 100%)',
@@ -467,7 +562,7 @@ export function TryOnResultModal({
                             </div>
 
                             {/* Smart Tips Card */}
-                            {renderComplimentCard("flex-1")}
+                            {renderComplimentCard("flex-1 min-h-0")}
                         </div>
                     )}
 
@@ -625,11 +720,13 @@ export function TryOnResultModal({
                                 </div>
                             )}
                         </div>
+
+                        {renderComplimentCard("hidden md:block xl:hidden w-full max-w-4xl self-center flex-shrink-0")}
                     </div>
 
                     {/* Right Sidebar - Premium Action Buttons */}
                     <div className="w-full md:w-56 flex-shrink-0 flex flex-col gap-3">
-                        {renderComplimentCard("md:hidden slide-up")}
+                        {renderComplimentCard("md:hidden slide-up", "mobile")}
 
                         <div className="grid grid-cols-2 md:grid-cols-1 gap-3">
                         <button

@@ -35,6 +35,9 @@ export class GeminiAIService {
       // Use Gemini 2.5 Flash Image (Nano Banana) for image generation
       this.imageModel = this.genAI.getGenerativeModel({
         model: 'gemini-2.5-flash-image',
+        generationConfig: {
+          temperature: 0.2,
+        } as any,
       });
       console.log(
         ' Using Gemini 2.5 Flash Image (Nano Banana) for avatar generation',
@@ -67,174 +70,12 @@ export class GeminiAIService {
       );
 
       const { attributes } = request;
+      const prompt = this.buildAvatarPrompt(attributes);
 
-      // Build dynamic prompt from user attributes
-      const {
-        height,
-        weight,
-        skinTone,
-        gender,
-        bodyShape,
-        ageRange,
-        hairStyle,
-      } = attributes;
-
-      // Helper to clean up internal keys (e.g., 'pear_shape' -> 'pear shape')
-      const formatAttr = (val: string) => val.replace(/_/g, ' ');
-
-      // Check which attributes the user actually provided (non-empty, non-default)
-      const hasGender = gender && gender !== 'unspecified';
-      const hasAgeRange = !!ageRange;
-      const hasSkinTone = !!skinTone;
-      const hasBodyShape = bodyShape && bodyShape !== 'average';
-      const hasHeight = !!height;
-      const hasWeight = !!weight;
-      const hasHairStyle = !!hairStyle;
-
-      const hasAnyAttribute =
-        hasGender ||
-        hasAgeRange ||
-        hasSkinTone ||
-        hasBodyShape ||
-        hasHeight ||
-        hasWeight ||
-        hasHairStyle;
-
-      let prompt: string;
-      const posePriorityInstructions = `STRICT POSE REQUIREMENT (HIGHEST PRIORITY):
-The avatar MUST stand with:
-- BOTH legs fully straight
-- BOTH legs touching from thighs to ankles
-- NO GAP between legs
-- feet together and parallel
-- no walking stance
-- no staggered stance
-- no leg separation
-
-If the source photo shows separated legs, you MUST correct it.
-
-STRICT ARM REQUIREMENT:
-- both arms straight down along body
-- hands beside thighs
-- elbows straight
-
-CRITICAL POSE REQUIREMENT:
-The avatar MUST stand upright with BOTH legs touching together.
-
-Leg position must follow ALL rules:
-- thighs touching
-- knees touching
-- calves touching
-- ankles touching
-- feet touching
-- no visible gap anywhere between the legs
-
-The model must NOT generate:
-- wide stance
-- separated legs
-- walking stance
-- one leg forward
-- bent knees
-
-DO NOT generate:
-- walking pose
-- wide stance
-- legs apart
-- one leg forward
-- split stance
-- bent knees
-
-Keep both arms and both legs fully visible, complete, connected, symmetrical, and anatomically correct.
-The final pose should resemble a passport photo full-body stance with legs together.`;
-      const referenceUsageInstructions = `REFERENCE PHOTO USAGE:
-Use the reference photo ONLY for:
-- face
-- identity
-- hairstyle
-- clothing
-
-DO NOT copy the pose from the reference photo.`;
-      const fullBodyInstructions =
-        'FULL-BODY RULE: if the source photo is cropped, partial, or does not show the entire body, you MUST extend it to a complete full-body avatar in the same strict pose described above. When generating missing body parts, synthesize both arms straight down at the outer sides with hands beside the thighs, and synthesize both legs fully straight and tightly closed together from upper thighs to ankles with no visible gap between them. Do not invent a walking pose, bent-arm pose, wide stance, separated legs, one leg forward, or bent knees while extending to full body.';
-      const hairInstructions =
-        "Preserve the person's visible hair length, volume, silhouette, and style exactly. Do not shorten, trim, crop, tuck behind the shoulders, tie back, or otherwise reduce the apparent hair length.";
-      const finalPoseCheck = `FINAL POSE CHECK:
-The avatar MUST have both legs closed together with no visible gap.
-If legs appear separated, regenerate the pose so the legs touch.`;
-
-      if (hasAnyAttribute) {
-        // ---- ATTRIBUTES PROVIDED: Build a detailed, attribute-driven prompt ----
-        // Build specific attribute instructions so Gemini follows them precisely
-        const specificInstructions: string[] = [];
-
-        if (hasGender) {
-          specificInstructions.push(
-            `- Gender: The person is ${formatAttr(gender)}. The avatar MUST clearly represent a ${formatAttr(gender)} person.`,
-          );
-        }
-        if (hasAgeRange) {
-          specificInstructions.push(
-            `- Age: The person appears to be in the ${ageRange} age range. Reflect this age accurately in the avatar's face and body.`,
-          );
-        }
-        if (hasSkinTone) {
-          specificInstructions.push(
-            `- Skin Tone: The person has a ${formatAttr(skinTone)} skin tone. The avatar's skin MUST match this ${formatAttr(skinTone)} tone exactly — do NOT lighten or darken it.`,
-          );
-        }
-        if (hasBodyShape) {
-          specificInstructions.push(
-            `- Body Shape: The person has a ${formatAttr(bodyShape)} body shape. The avatar's body proportions MUST reflect a ${formatAttr(bodyShape)} silhouette.`,
-          );
-        }
-        if (hasHeight) {
-          specificInstructions.push(
-            `- Height: The person is approximately ${height}cm tall. Reflect appropriate body proportions for this height.`,
-          );
-        }
-        if (hasWeight) {
-          specificInstructions.push(
-            `- Weight: The person weighs approximately ${weight}kg. The avatar's build should match this weight realistically.`,
-          );
-        }
-        if (hasHairStyle) {
-          specificInstructions.push(
-            `- Hair: The person has ${formatAttr(hairStyle)} hair. The avatar MUST have ${formatAttr(hairStyle)} hair style while preserving the visible hair length and fullness. Do NOT shorten, trim, tuck back, or reduce the hair.`,
-          );
-        }
-
-        prompt = `${posePriorityInstructions}
-
-${referenceUsageInstructions}
-
-You are generating a hyper-realistic full-body avatar based on the reference photo AND the following user-specified attributes. The attributes below are PROVIDED BY THE USER and MUST take priority over what you see in the photo.
-
-USER-SPECIFIED ATTRIBUTES (MUST FOLLOW):
-${specificInstructions.join('\n')}
-
-INSTRUCTIONS:
-1. CRITICALLY IMPORTANT: Apply ALL the user-specified attributes above to the generated avatar. These attributes OVERRIDE what you observe in the photo.
-2. Beautify the face subtly while preserving the person's recognizable facial features.
-3. Create a full-body avatar. ${fullBodyInstructions} Preserve the outfit and add matching appropriate footwear if the lower body is missing.
-4. ${hairInstructions}
-5. Keep the existing clothing unchanged but ensure it looks clean and well-fitted.
-6. Set the background to a clean, premium studio look with soft, natural lighting.
-7. Maintain photorealism with sharp details throughout.
-8. The final image must look like a professional fashion model photo.
-
-${finalPoseCheck}`;
-      } else {
-        // ---- NO ATTRIBUTES: Simple photo-based avatar generation ----
-        prompt = `${posePriorityInstructions}
-
-${referenceUsageInstructions}
-
-Create a hyper-realistic full-body avatar based on this photo. Beautify the face subtly while preserving the person's exact facial features, skin tone, natural appearance, and overall identity. Preserve their current hairstyle and clothing. ${hairInstructions} ${fullBodyInstructions} Keep clothing unchanged; if the photo is not full body, preserve the outfit and add matching appropriate footwear while extending to full body. Enhance the background to a clean premium studio look that complements the outfit. Maintain photorealism, sharp details, and natural lighting. The final image must look like a professional fashion model photo.
-
-${finalPoseCheck}`;
-      }
-
-      console.log(' [GeminiAI] Has user attributes:', hasAnyAttribute);
+      console.log(
+        ' [GeminiAI] Has user attributes:',
+        prompt.includes('[USER ATTRIBUTES — OVERRIDE PHOTO WHERE DIFFERENT]'),
+      );
       console.log(
         ' [GeminiAI] Generated prompt:',
         prompt.substring(0, 150) + '...',
@@ -307,5 +148,111 @@ ${finalPoseCheck}`;
     const response = await fetch(url);
     const buffer = Buffer.from(await response.arrayBuffer());
     return buffer.toString('base64');
+  }
+
+  private buildAvatarPrompt(
+    attributes: AvatarGenerationRequest['attributes'],
+  ): string {
+    const {
+      height,
+      weight,
+      skinTone,
+      gender,
+      bodyShape,
+      ageRange,
+      hairStyle,
+    } = attributes;
+
+    const formatAttr = (value: string) => value.replace(/_/g, ' ');
+
+    const taskSection = `[TASK]
+Edit the provided source photo into a single hyper-realistic full-body studio portrait of the exact same person.
+This is an identity-preserving image edit, not a redesign and not a new character.
+The output must show the full body from top of head to tips of toes.`;
+
+    const poseSection = `[NON-NEGOTIABLE POSE]
+The person stands perfectly upright, centered, fully front-facing, and fully symmetrical.
+Both legs are straight, vertical, and fully joined together from upper thigh to feet: inner thighs touching, knees touching, calves touching, ankles touching, and feet touching. There must be zero visible gap anywhere between the legs from hip to toe.
+Both arms hang straight down vertically at the sides of the body. Elbows are fully straight, shoulders are neutral, forearms are straight, wrists are beside the outer thighs, and hands rest naturally next to the thighs.
+The body weight is evenly balanced on both feet. No walking pose, no step forward, no contrapposto, no hip shift, no bent knees, no bent elbows, no arm lift, no hand on hip, no crossed arms.
+If the source image pose conflicts with these requirements, keep the same identity and clothing but change the pose to this exact straight joined-leg and straight-arm pose.
+If the person is wearing pants, jeans, trousers, a skirt, or a dress, the garment must follow the closed-leg pose. The fabric between the legs must be rendered closed and flat with no crotch gap or separation.`;
+
+    const identitySection = `[IDENTITY PRESERVATION — NON-NEGOTIABLE]
+- Copy the person's exact face: bone structure, eye shape, nose, lips, skin tone. Do not idealise or alter facial geometry.
+- Copy the person's exact hair: length, volume, texture, color, and silhouette. Do not shorten, trim, tuck, pin back, or reduce hair in any way.
+- Copy the person's clothing exactly as worn. Do not change the outfit.
+- Preserve the same body identity while only correcting the pose and framing.`;
+
+    const userAttributeLines: string[] = [];
+
+    if (gender && gender !== 'unspecified') {
+      userAttributeLines.push(`- Gender: clearly ${formatAttr(gender)}`);
+    }
+    if (ageRange) {
+      userAttributeLines.push(
+        `- Age appearance: ${formatAttr(ageRange)} — reflect in face and body`,
+      );
+    }
+    if (skinTone) {
+      userAttributeLines.push(
+        `- Skin tone: ${formatAttr(skinTone)} — match exactly, do not lighten or darken`,
+      );
+    }
+    if (bodyShape && bodyShape !== 'average') {
+      userAttributeLines.push(
+        `- Body shape: ${formatAttr(bodyShape)} silhouette`,
+      );
+    }
+    if (height) {
+      userAttributeLines.push(
+        `- Height: ~${height} cm — use appropriate body proportions`,
+      );
+    }
+    if (weight) {
+      userAttributeLines.push(
+        `- Weight: ~${weight} kg — reflect realistic build`,
+      );
+    }
+    if (hairStyle) {
+      userAttributeLines.push(
+        `- Hair style: ${formatAttr(hairStyle)} — apply this style while keeping the hair length and volume from the source photo intact`,
+      );
+    }
+
+    const generationRulesSection = `[GENERATION RULES]
+- If the source photo is cropped, partial, seated, angled, or not full body, extend or reconstruct it into a complete full-body image in the exact pose above.
+- Keep the person centered with enough space to clearly show the entire silhouette from head to toe.
+- Add matching neutral footwear only if the original feet or shoes are missing.
+- Background: clean neutral studio backdrop with soft even fashion lighting.
+- Output style: hyper-realistic, sharp detail, premium fashion photo, natural anatomy.`;
+
+    const hardNegativesSection = `[HARD NEGATIVES — NEVER GENERATE]
+wide stance | legs apart | one leg forward | split stance | walking pose | contrapposto | hip shift | bent knees | bent elbows | arms away from body | one arm forward | raised arm | hand on hip | crossed arms | leg gap | visible crotch gap | trouser gap | pants separation | fabric gap between legs | shortened hair | tied-back hair | altered face shape | different skin tone | cropped feet | partial body`;
+
+    const finalSelfCheckSection = `[FINAL VALIDATION BEFORE OUTPUT]
+Before returning the image, internally verify all of these are true:
+1. The full body is visible from head to toe.
+2. The legs are straight and fully touching with absolutely no gap anywhere from hip to feet.
+3. The arms are straight, vertical, and resting beside the outer thighs.
+4. The face, hair, skin tone, and outfit still match the source person exactly.
+If any check fails, correct the image so all checks pass before outputting it.`;
+
+    const sections = [taskSection, poseSection, identitySection];
+
+    if (userAttributeLines.length > 0) {
+      sections.push(
+        `[USER ATTRIBUTES — OVERRIDE PHOTO WHERE DIFFERENT]
+${userAttributeLines.join('\n')}`,
+      );
+    }
+
+    sections.push(
+      generationRulesSection,
+      hardNegativesSection,
+      finalSelfCheckSection,
+    );
+
+    return sections.join('\n\n');
   }
 }
