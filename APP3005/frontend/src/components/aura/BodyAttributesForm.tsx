@@ -70,17 +70,6 @@ export const BodyAttributesForm = ({ attributes, onChange, errors = {} }: BodyAt
                 <div className="flex-1 h-px bg-gradient-to-r from-gold/30 to-transparent" />
             </div>
 
-            <div className="rounded-2xl border border-gold/25 bg-white/70 px-4 py-3 shadow-[0_12px_28px_rgba(201,165,95,0.08)]">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#8A6936]">
-                    Required To Continue
-                </p>
-                <div className="mt-2 flex flex-wrap gap-2">
-                    <span className={requiredBadgeClass}>Body Shape</span>
-                    <span className={requiredBadgeClass}>Body Size</span>
-                    <span className={requiredBadgeClass}>Skin Tone</span>
-                </div>
-            </div>
-
             {/* Height */}
             <motion.div
                 initial={{ opacity: 0, y: 20 }}

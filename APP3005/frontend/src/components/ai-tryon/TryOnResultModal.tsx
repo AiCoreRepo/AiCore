@@ -75,6 +75,7 @@ export function TryOnResultModal({
     const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
     const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
     const [feedbackError, setFeedbackError] = useState('');
+    const [hasCompletedUserPrompt, setHasCompletedUserPrompt] = useState(false);
 
     // Progress State
     const [loadingProgress, setLoadingProgress] = useState(0);
@@ -139,8 +140,13 @@ export function TryOnResultModal({
             setFeedbackSubmitting(false);
             setFeedbackSubmitted(false);
             setFeedbackError('');
+            setHasCompletedUserPrompt(false);
         }
     }, [isOpen, activeImageIndex, loading, generatingAngles, feedbackContext?.referenceId]);
+
+    useEffect(() => {
+        setHasCompletedUserPrompt(false);
+    }, [currentCompliment?.id]);
 
     useEffect(() => {
         if (!carouselApi || carouselImages.length === 0) {
@@ -462,7 +468,7 @@ export function TryOnResultModal({
                     <>
                         <div className={`flex min-w-0 items-start justify-end ${isMobileLayout ? 'gap-2' : 'gap-3'}`}>
                             <div
-                                className={`min-w-0 ${isMobileLayout ? 'max-w-[calc(100%-3rem)] rounded-[20px] rounded-tr-md px-3 py-3' : 'max-w-[85%] rounded-[24px] rounded-tr-md px-4 py-3.5'}`}
+                                className={`chat-pop-right min-w-0 ${isMobileLayout ? 'max-w-[calc(100%-3rem)] rounded-[20px] rounded-tr-md px-3 py-3' : 'max-w-[85%] rounded-[24px] rounded-tr-md px-4 py-3.5'}`}
                                 style={{
                                     background: 'linear-gradient(135deg, #2f2416 0%, #4a3520 100%)',
                                     boxShadow: '0 10px 24px rgba(47, 36, 22, 0.22)',
@@ -515,7 +521,7 @@ export function TryOnResultModal({
                             </div>
 
                             <div
-                                className={`min-w-0 flex-1 ${isMobileLayout ? 'rounded-[20px] rounded-tl-md px-3.5 py-3.5' : 'rounded-[24px] rounded-tl-md px-4 py-4'}`}
+                                className={`chat-pop-left min-w-0 flex-1 ${isMobileLayout ? 'rounded-[20px] rounded-tl-md px-3.5 py-3.5' : 'rounded-[24px] rounded-tl-md px-4 py-4'}`}
                                 style={{
                                     background: 'rgba(255, 251, 244, 0.96)',
                                     border: '1px solid rgba(138, 105, 54, 0.12)',
@@ -639,7 +645,7 @@ export function TryOnResultModal({
                     <div className={`${isMobileLayout ? 'space-y-3' : 'space-y-4'}`}>
                         <div className={`flex min-w-0 items-start justify-end ${isMobileLayout ? 'gap-2' : 'gap-3'}`}>
                             <div
-                                className={`min-w-0 ${isMobileLayout ? 'max-w-[calc(100%-3rem)] rounded-[20px] rounded-tr-md px-3 py-3' : 'max-w-[85%] rounded-[24px] rounded-tr-md px-4 py-3.5'}`}
+                                className={`chat-pop-right min-w-0 ${isMobileLayout ? 'max-w-[calc(100%-3rem)] rounded-[20px] rounded-tr-md px-3 py-3' : 'max-w-[85%] rounded-[24px] rounded-tr-md px-4 py-3.5'}`}
                                 style={{
                                     background: 'linear-gradient(135deg, #2f2416 0%, #4a3520 100%)',
                                     boxShadow: '0 10px 24px rgba(47, 36, 22, 0.22)',
@@ -648,9 +654,15 @@ export function TryOnResultModal({
                                 <p className={`${isMobileLayout ? 'text-[10px] tracking-[0.12em]' : 'text-xs tracking-[0.14em]'} font-semibold uppercase text-[#f2d7a5]`}>
                                     {displayUserName}
                                 </p>
-                                <p className={`${isMobileLayout ? 'text-[13px] leading-5' : 'text-sm leading-6 md:text-[15px]'} mt-1 text-[#fff8ec]`}>
-                                    {userPrompt}
-                                </p>
+                                <AnimatedComplimentText
+                                    text={userPrompt}
+                                    className={`${isMobileLayout ? 'mt-1 block text-[13px] leading-5' : 'mt-1 block text-sm leading-6 md:text-[15px]'} text-[#fff8ec]`}
+                                    caretClassName="text-[#f2d7a5]"
+                                    speedMs={95}
+                                    startDelayMs={120}
+                                    unit="word"
+                                    onComplete={() => setHasCompletedUserPrompt(true)}
+                                />
                             </div>
 
                             <div
@@ -680,7 +692,7 @@ export function TryOnResultModal({
                             </div>
 
                             <div
-                                className={`min-w-0 flex-1 ${isMobileLayout ? 'rounded-[20px] rounded-tl-md px-3.5 py-3.5' : 'rounded-[24px] rounded-tl-md px-4 py-4'}`}
+                                className={`chat-pop-left min-w-0 flex-1 ${isMobileLayout ? 'rounded-[20px] rounded-tl-md px-3.5 py-3.5' : 'rounded-[24px] rounded-tl-md px-4 py-4'}`}
                                 style={{
                                     background: 'rgba(255, 251, 244, 0.96)',
                                     border: '1px solid rgba(138, 105, 54, 0.12)',
@@ -691,46 +703,31 @@ export function TryOnResultModal({
                                     AiVestire Fashion Expert
                                 </p>
 
-                                <AnimatedComplimentText
-                                    text={currentCompliment.message}
-                                    className={`mt-2 block font-serif text-[#2f2416] ${isMobileLayout ? 'text-[15px] leading-7' : 'text-[17px] leading-8 md:text-[19px]'}`}
-                                    caretClassName="text-[#9a7b4f]"
-                                    speedMs={110}
-                                    startDelayMs={120}
-                                    unit="word"
-                                    onComplete={handleComplimentComplete}
-                                />
+                                {hasCompletedUserPrompt ? (
+                                    <AnimatedComplimentText
+                                        text={currentCompliment.message}
+                                        className={`mt-2 block font-serif text-[#2f2416] ${isMobileLayout ? 'text-[15px] leading-7' : 'text-[17px] leading-8 md:text-[19px]'}`}
+                                        caretClassName="text-[#9a7b4f]"
+                                        speedMs={110}
+                                        startDelayMs={160}
+                                        unit="word"
+                                        onComplete={handleComplimentComplete}
+                                    />
+                                ) : (
+                                    <div className="mt-2 flex items-center gap-1.5 text-[#9a7b4f]">
+                                        {[0, 1, 2].map((index) => (
+                                            <span
+                                                key={index}
+                                                className={`${isMobileLayout ? 'h-2 w-2' : 'h-2.5 w-2.5'} rounded-full bg-current`}
+                                                style={{
+                                                    animation: `pulse 1.15s ease-in-out ${index * 0.18}s infinite`,
+                                                }}
+                                            />
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                         </div>
-                    </div>
-
-                    <div className={`mt-4 flex flex-wrap ${isMobileLayout ? 'gap-1.5' : 'gap-2 md:mt-5'}`}>
-                        {currentCompliment.highlights.map((highlight, index) => (
-                            <span
-                                key={`${highlight}-${index}`}
-                                className={`${isMobileLayout ? 'px-2.5 py-1 text-[10px] tracking-[0.12em]' : 'px-3 py-1.5 text-[11px] tracking-[0.14em]'} rounded-full font-semibold uppercase`}
-                                style={{
-                                    background: 'rgba(255, 255, 255, 0.6)',
-                                    color: '#7f6031',
-                                    border: '1px solid rgba(127, 96, 49, 0.14)',
-                                    animation: `fadeIn 0.45s ease-out ${0.45 + index * 0.12}s both`,
-                                }}
-                            >
-                                {highlight}
-                            </span>
-                        ))}
-                    </div>
-
-                    <div className={`${isMobileLayout ? 'mt-3 rounded-[20px] px-3.5 py-3' : 'mt-4 rounded-[22px] px-4 py-3'}`} style={{
-                        background: 'rgba(255, 255, 255, 0.48)',
-                        border: '1px solid rgba(138, 105, 54, 0.08)',
-                    }}>
-                        <p className={`${isMobileLayout ? 'text-[10px] tracking-[0.15em]' : 'text-xs tracking-[0.18em]'} uppercase text-[#8a6936]`}>
-                            Style focus
-                        </p>
-                        <p className={`${isMobileLayout ? 'text-[13px] leading-5' : 'text-sm leading-6'} mt-1 text-[#5a4630]`}>
-                            {displayGarmentTitle} feels flattering, elegant, and well balanced on you.
-                        </p>
                     </div>
 
                     {renderFeedbackConversation(layout)}
@@ -769,6 +766,18 @@ export function TryOnResultModal({
                     to { opacity: 1; transform: translateY(0); }
                 }
 
+                @keyframes chatPopRight {
+                    0% { opacity: 0; transform: translateX(18px) scale(0.96); }
+                    65% { opacity: 1; transform: translateX(-2px) scale(1.015); }
+                    100% { opacity: 1; transform: translateX(0) scale(1); }
+                }
+
+                @keyframes chatPopLeft {
+                    0% { opacity: 0; transform: translateX(-18px) scale(0.96); }
+                    65% { opacity: 1; transform: translateX(2px) scale(1.015); }
+                    100% { opacity: 1; transform: translateX(0) scale(1); }
+                }
+
                 @keyframes checkmark {
                     0% { transform: scale(0) rotate(0deg); }
                     50% { transform: scale(1.2) rotate(180deg); }
@@ -783,6 +792,14 @@ export function TryOnResultModal({
                 .modal-appear { animation: fadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
                 .slide-up { animation: slideUp 0.5s ease-out; }
                 .slide-right { animation: slideRight 0.6s ease-out; }
+                .chat-pop-right {
+                    animation: chatPopRight 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
+                    transform-origin: right bottom;
+                }
+                .chat-pop-left {
+                    animation: chatPopLeft 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
+                    transform-origin: left bottom;
+                }
                 .shimmer-effect {
                     position: relative;
                     overflow: hidden;
@@ -1024,18 +1041,6 @@ export function TryOnResultModal({
                                             />
                                         </div>
                                     </div>
-
-                                    {/* Queue Info */}
-                                    {generatingAngles && (
-                                        <div className="mt-5 rounded-xl px-5 py-3 slide-up sm:mt-6 sm:px-6" style={{
-                                            background: 'rgba(201, 165, 92, 0.08)',
-                                            border: '1px solid rgba(201, 165, 92, 0.2)',
-                                        }}>
-                                            <p className="text-sm font-medium text-center" style={{ color: '#9a7b4f' }}>
-                                                🎯 Processing your angle generation request
-                                            </p>
-                                        </div>
-                                    )}
 
                                     <p className="mt-4 max-w-lg px-1 text-center text-[11px] leading-5 text-gray-400">
                                         AI-generated previews may occasionally make mistakes.
