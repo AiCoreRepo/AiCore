@@ -1874,7 +1874,6 @@ export async function createCategory(data: Partial<Category>) {
     throw new Error(msg);
   }
   return res.json();
-  console.log(res.json());
 }
 
 export async function updateCategory(id: string, data: Partial<Category>) {

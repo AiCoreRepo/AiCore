@@ -89,6 +89,12 @@ const DashboardPage: React.FC = () => {
   };
 
   const mapProduct = (p: any) => {
+    const normalizedImageUrls: string[] = Array.isArray(p?.images)
+      ? p.images
+          .map((img: any) => (typeof img === 'string' ? img : img?.url))
+          .filter((u: any) => typeof u === 'string' && u.length > 0)
+      : [];
+
     const currency = p.currency || 'INR';
     const priceValue = p.price_cents ? p.price_cents / 100 : (p.price || 0);
     const formattedPrice = typeof priceValue === 'string' ? priceValue : new Intl.NumberFormat('en-US', {
@@ -112,8 +118,8 @@ const DashboardPage: React.FC = () => {
       ...p,
       price: formattedPrice,
       status: mappedStatus,
-      image: p.image_url ?? (p.images && p.images[0]) ?? 'https://placehold.co/400x600/F5F2EB/8B7355?text=No+Image',
-      images: p.images && p.images.length > 0 ? p.images : (p.image_url ? [p.image_url] : []),
+      image: p.image_url ?? normalizedImageUrls[0] ?? 'https://placehold.co/400x600/F5F2EB/8B7355?text=No+Image',
+      images: normalizedImageUrls.length > 0 ? normalizedImageUrls : (p.image_url ? [p.image_url] : []),
       name: p.name ?? p.title ?? 'Unnamed',
       tags: p.tags?.map((t: any) => typeof t === 'string' ? t : t.name) ?? [],
       isNew: p.is_new ?? false,

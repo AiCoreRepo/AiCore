@@ -203,7 +203,15 @@ export class CreatorDashboardService {
         title: product.title,
         description: product.description,
         image_url: imageUrl,
-        images: product.images.map((img) => img.url),
+        images: product.images.map((img) => ({
+          image_id: img.image_id,
+          url: img.url,
+          is_primary: img.is_primary,
+          order_index: img.order_index,
+        })),
+        category: product.category,
+        category_id: product.category_id,
+        sub_category_id: product.sub_category_id,
         price_cents: product.price_cents,
         currency: product.currency,
         inventory_count: product.inventory_count,
@@ -287,6 +295,16 @@ export class CreatorDashboardService {
     // Build recommendation metadata from attribute fields
     const metadata = this.buildMetadata(dto);
 
+    // Resolve category display string (legacy `product.category`) from category_id
+    const categoryName = dto.category_id
+      ? (
+          await this.prisma.category.findUnique({
+            where: { category_id: dto.category_id },
+            select: { name: true },
+          })
+        )?.name ?? null
+      : null;
+
     const product = await this.prisma.product.create({
       data: {
         title: dto.title,
@@ -295,8 +313,15 @@ export class CreatorDashboardService {
         price_cents: dto.price_cents,
         currency: dto.currency || 'INR',
         inventory_count: dto.inventory_count || 0,
-        creator_id: creatorId,
+        creator: { connect: { creator_id: creatorId } },
         status: ProductStatus.DRAFT, // Start as DRAFT
+        category: categoryName ?? undefined,
+        category_rel: dto.category_id
+          ? { connect: { category_id: dto.category_id } }
+          : undefined,
+        sub_category_rel: dto.sub_category_id
+          ? { connect: { sub_category_id: dto.sub_category_id } }
+          : undefined,
         ...(metadata ? { metadata } : {}),
         // Store in dedicated columns
         occasions: dto.occasions || [],
@@ -342,6 +367,7 @@ export class CreatorDashboardService {
                 product_id: product.product_id,
                 url: uploadedUrl,
                 order_index: index,
+                is_primary: index === 0,
               },
             });
             this.logger.log(`Product image record created for ${uploadedUrl}`);
@@ -391,6 +417,29 @@ export class CreatorDashboardService {
     const updateData: Prisma.ProductUpdateInput = {
       updated_at: new Date(),
     };
+
+    // Category mapping updates
+    if (dto.category_id !== undefined) {
+      const categoryName = dto.category_id
+        ? (
+            await this.prisma.category.findUnique({
+              where: { category_id: dto.category_id },
+              select: { name: true },
+            })
+          )?.name ?? null
+        : null;
+
+      updateData.category = categoryName ?? undefined;
+      updateData.category_rel = dto.category_id
+        ? { connect: { category_id: dto.category_id } }
+        : { disconnect: true };
+    }
+
+    if (dto.sub_category_id !== undefined) {
+      updateData.sub_category_rel = dto.sub_category_id
+        ? { connect: { sub_category_id: dto.sub_category_id } }
+        : { disconnect: true };
+    }
 
     if (dto.title) {
       updateData.title = dto.title;
@@ -493,6 +542,7 @@ export class CreatorDashboardService {
                 product_id: productId,
                 url: imageUrl,
                 order_index: index,
+                is_primary: index === 0,
               },
             });
           } catch (error) {
@@ -690,6 +740,15 @@ export class CreatorDashboardService {
       title: product.title,
       description: product.description,
       image_url: imageUrl,
+      images: product.images.map((img) => ({
+        image_id: img.image_id,
+        url: img.url,
+        is_primary: img.is_primary,
+        order_index: img.order_index,
+      })),
+      category: product.category,
+      category_id: product.category_id,
+      sub_category_id: product.sub_category_id,
       price_cents: product.price_cents,
       currency: product.currency,
       inventory_count: product.inventory_count,

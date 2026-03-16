@@ -11,8 +11,16 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
+import {
+    AlertDialog,
+    AlertDialogContent,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogDescription,
+    AlertDialogFooter,
+} from "@/components/ui/alert-dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { createProduct, updateProduct, getCreatorGroups, getCategories, type ProductGroup, type Category, type SubCategory } from "@/lib/api";
+import { createProduct, updateProduct, getCategories, type Category, type SubCategory } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { LuxeButton } from "@/components/common/Buttons/LuxeButton";
 import { compressImage } from "@/lib/utils";
@@ -24,20 +32,7 @@ const SKIN_TONES = ['Light', 'Medium', 'Dusky', 'Deep'];
 const SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
 const AGE_RANGES = ['18-24', '25-34', '35-44', '45-54', '55+'];
 
-// ─── Group Helpers ──────────────────────────────────────────────────────────
-interface GroupOption extends ProductGroup {
-    level: number;
-}
 
-const flattenGroupsTree = (groups: ProductGroup[], result: GroupOption[] = [], level = 0): GroupOption[] => {
-    for (const group of groups) {
-        result.push({ ...group, level });
-        if (group.children_groups && group.children_groups.length > 0) {
-            flattenGroupsTree(group.children_groups, result, level + 1);
-        }
-    }
-    return result;
-};
 
 // ─── Collapsible Section (Aura-style) ───────────────────────────────────────
 const CollapsibleSection = ({
@@ -268,6 +263,145 @@ const AttributeDropdown = ({
     );
 };
 
+// ─── Luxe Single-Select Dropdown (Aura-style) ─────────────────────────────
+const LuxeSelect = ({
+    label,
+    options,
+    value,
+    onChange,
+    icon: Icon,
+    placeholder,
+    disabled = false,
+    required = false,
+}: {
+    label: string;
+    options: { id: string; name: string }[];
+    value: string;
+    onChange: (id: string) => void;
+    icon: React.ElementType;
+    placeholder?: string;
+    disabled?: boolean;
+    required?: boolean;
+}) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const selectedOption = options.find(opt => opt.id === value);
+
+    return (
+        <div style={{ opacity: disabled ? 0.6 : 1, pointerEvents: disabled ? 'none' : 'auto' }}>
+            <label className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'rgba(44,36,22,0.7)' }}>
+                {label} {required && <span style={{ color: '#e74c3c' }}>*</span>}
+            </label>
+            <Popover open={isOpen} onOpenChange={setIsOpen}>
+                <PopoverTrigger asChild>
+                    <button
+                        type="button"
+                        className="w-full relative transition-all duration-300"
+                        style={{
+                            padding: '12px 16px 12px 44px',
+                            borderRadius: '12px',
+                            border: isOpen ? '2px solid #C9A75F' : '2px solid rgba(201,165,95,0.3)',
+                            background: 'rgba(255,255,255,0.8)',
+                            backdropFilter: 'blur(8px)',
+                            color: '#2C2416',
+                            fontSize: '14px',
+                            fontWeight: 500,
+                            textAlign: 'left',
+                            cursor: 'pointer',
+                            boxShadow: isOpen ? '0 0 0 3px rgba(201,165,95,0.1)' : 'none',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                        }}
+                    >
+                        {/* Left icon */}
+                        <div style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: 'rgba(201,165,95,0.7)', pointerEvents: 'none' }}>
+                            <Icon size={18} />
+                        </div>
+                        <span style={{ color: selectedOption ? '#2C2416' : 'rgba(44,36,22,0.4)', fontWeight: selectedOption ? 600 : 400 }}>
+                            {selectedOption ? selectedOption.name : placeholder || `Select ${label}`}
+                        </span>
+                        <ChevronDown
+                            size={16}
+                            style={{
+                                color: '#C9A75F',
+                                transition: 'transform 0.3s ease',
+                                transform: isOpen ? 'rotate(180deg)' : 'none',
+                                flexShrink: 0,
+                            }}
+                        />
+                    </button>
+                </PopoverTrigger>
+                <PopoverContent
+                    className="p-0 shadow-2xl"
+                    align="start"
+                    style={{
+                        width: 'var(--radix-popover-trigger-width)',
+                        borderRadius: '14px',
+                        border: '1.5px solid rgba(201,165,95,0.3)',
+                        background: 'linear-gradient(135deg, #FFFDF8, #FFF9EF)',
+                        overflow: 'hidden',
+                        zIndex: 100,
+                    }}
+                >
+                    <div className="max-h-[300px] overflow-y-auto hide-scrollbar" style={{ padding: '6px' }}>
+                        {options.length === 0 ? (
+                            <div style={{ padding: '12px', textAlign: 'center', fontSize: '13px', color: 'rgba(44,36,22,0.5)' }}>
+                                No options available
+                            </div>
+                        ) : (
+                            options.map((option) => {
+                                const isSelected = value === option.id;
+                                return (
+                                    <button
+                                        key={option.id}
+                                        type="button"
+                                        onClick={() => {
+                                            onChange(option.id);
+                                            setIsOpen(false);
+                                        }}
+                                        className="w-full transition-all duration-200"
+                                        style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'space-between',
+                                            padding: '10px 14px',
+                                            borderRadius: '10px',
+                                            border: 'none',
+                                            cursor: 'pointer',
+                                            background: isSelected
+                                                ? 'linear-gradient(135deg, rgba(201,165,95,0.12), rgba(201,165,95,0.06))'
+                                                : 'transparent',
+                                            marginBottom: '2px',
+                                            textAlign: 'left'
+                                        }}
+                                    >
+                                        <span style={{
+                                            fontSize: '14px',
+                                            fontWeight: isSelected ? 700 : 500,
+                                            color: isSelected ? '#2C2416' : 'rgba(44,36,22,0.7)',
+                                        }}>
+                                            {option.name}
+                                        </span>
+                                        {isSelected && (
+                                            <div style={{
+                                                width: '20px', height: '20px', borderRadius: '6px',
+                                                background: 'linear-gradient(135deg, #C9A75F, #D4B76E)',
+                                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                            }}>
+                                                <Check size={12} strokeWidth={3} style={{ color: '#fff' }} />
+                                            </div>
+                                        )}
+                                    </button>
+                                );
+                            })
+                        )}
+                    </div>
+                </PopoverContent>
+            </Popover>
+        </div>
+    );
+};
+
 // ─── Main Component ─────────────────────────────────────────────────────────
 interface UploadCollectionModalProps {
     open: boolean;
@@ -282,76 +416,25 @@ const UploadCollectionModal = ({ open, onOpenChange, onSuccess, initialData }: U
     const [uploadProgress, setUploadProgress] = useState("");
     const [formData, setFormData] = useState({
         title: "", description: "", price: "0.00", currency: "INR",
-        inventory: "0", tags: "", group_ids: [] as string[],
+        inventory: "0", tags: "",
         category_id: "", sub_category_id: "",
         occasions: [] as string[], body_shapes: [] as string[],
         skin_tones: [] as string[], sizes: [] as string[], age_ranges: [] as string[],
     });
     const [images, setImages] = useState<string[]>([]);
     const [imageFiles, setImageFiles] = useState<File[]>([]);
-    const [rawGroups, setRawGroups] = useState<ProductGroup[]>([]);
-    const [availableGroups, setAvailableGroups] = useState<GroupOption[]>([]);
     const [categories, setCategories] = useState<Category[]>([]);
-    const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
-    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-    const [groupSearchQuery, setGroupSearchQuery] = useState("");
+    const [isInstructionsOpen, setIsInstructionsOpen] = useState(false);
 
     useEffect(() => {
         const fetchInitialData = async () => {
             try {
-                const [groupsData, catsData] = await Promise.all([
-                    getCreatorGroups(),
-                    getCategories()
-                ]);
-                setRawGroups(groupsData || []);
-                setAvailableGroups(flattenGroupsTree(groupsData || []));
+                const catsData = await getCategories();
                 setCategories(catsData || []);
             } catch (e) { /* ignore */ }
         };
         if (open) fetchInitialData();
     }, [open]);
-
-    const toggleExpand = (groupId: string, e: React.MouseEvent) => {
-        e.stopPropagation();
-        setExpandedGroups(prev => {
-            const next = new Set(prev);
-            if (next.has(groupId)) next.delete(groupId); else next.add(groupId);
-            return next;
-        });
-    };
-
-    const renderGroupNode = (group: ProductGroup, level: number) => {
-        const hasChildren = group.children_groups && group.children_groups.length > 0;
-        const isExpanded = expandedGroups.has(group.group_id);
-        const isSelected = formData.group_ids.includes(group.group_id);
-        return (
-            <div key={group.group_id} style={{ display: 'flex', flexDirection: 'column' }}>
-                <div
-                    onClick={() => toggleGroup(group.group_id)}
-                    style={{
-                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                        padding: '10px 12px', borderRadius: '10px', cursor: 'pointer',
-                        marginLeft: `${level * 16}px`, marginTop: '3px',
-                        border: isSelected ? '1.5px solid rgba(201,165,95,0.5)' : '1.5px solid transparent',
-                        background: isSelected ? 'rgba(201,165,95,0.08)' : 'transparent',
-                    }}
-                >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: 0 }}>
-                        {hasChildren ? (
-                            <button type="button" onClick={(e) => toggleExpand(group.group_id, e)} style={{ padding: '4px', border: 'none', background: 'transparent', cursor: 'pointer', color: '#C9A75F', flexShrink: 0 }}>
-                                {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                            </button>
-                        ) : <div style={{ width: 24, flexShrink: 0 }} />}
-                        <span style={{ fontSize: '13px', fontWeight: isSelected ? 700 : 500, color: '#2C2416' }}>{group.name}</span>
-                    </div>
-                    <div style={{ width: 18, height: 18, borderRadius: '50%', border: isSelected ? '2px solid #C9A75F' : '2px solid rgba(201,165,95,0.25)', background: isSelected ? 'linear-gradient(135deg, #C9A75F, #D4B76E)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                        {isSelected && <Check size={10} strokeWidth={4} style={{ color: '#fff' }} />}
-                    </div>
-                </div>
-                {hasChildren && isExpanded && group.children_groups.map(child => renderGroupNode(child, level + 1))}
-            </div>
-        );
-    };
 
     useEffect(() => {
         if (initialData && open) {
@@ -362,7 +445,6 @@ const UploadCollectionModal = ({ open, onOpenChange, onSuccess, initialData }: U
                 currency: initialData.currency || "INR",
                 inventory: initialData.inventory_count?.toString() || "0",
                 tags: initialData.tags ? initialData.tags.map((t: any) => t.name || t).join(", ") : "",
-                group_ids: initialData.group_assignments ? initialData.group_assignments.map((g: any) => g.group_id) : [],
                 category_id: initialData.category_id || "",
                 sub_category_id: initialData.sub_category_id || "",
                 occasions: initialData.occasions || meta.occasions || [],
@@ -372,17 +454,20 @@ const UploadCollectionModal = ({ open, onOpenChange, onSuccess, initialData }: U
                 age_ranges: initialData.age_ranges || meta.age_ranges || [],
             });
             let imgs = initialData.images || [];
+            if (Array.isArray(imgs)) {
+                imgs = imgs
+                    .map((img: any) => (typeof img === "string" ? img : img?.url))
+                    .filter((u: any) => typeof u === "string" && u.length > 0);
+            } else {
+                imgs = [];
+            }
             if (imgs.length === 0 && initialData.image && !initialData.image.includes("placehold.co")) imgs = [initialData.image];
             setImages(imgs);
         } else if (!initialData && open) {
-            setFormData({ title: "", description: "", price: "0.00", currency: "INR", inventory: "0", tags: "", group_ids: [], category_id: "", sub_category_id: "", occasions: [], body_shapes: [], skin_tones: [], sizes: [], age_ranges: [] });
+            setFormData({ title: "", description: "", price: "0.00", currency: "INR", inventory: "0", tags: "", category_id: "", sub_category_id: "", occasions: [], body_shapes: [], skin_tones: [], sizes: [], age_ranges: [] });
             setImages([]); setImageFiles([]);
         }
     }, [initialData, open]);
-
-    const toggleGroup = (groupId: string) => {
-        setFormData(prev => ({ ...prev, group_ids: prev.group_ids.includes(groupId) ? prev.group_ids.filter(id => id !== groupId) : [...prev.group_ids, groupId] }));
-    };
 
     const toggleAttribute = (field: 'occasions' | 'body_shapes' | 'skin_tones' | 'sizes' | 'age_ranges', value: string) => {
         setFormData(prev => ({ ...prev, [field]: prev[field].includes(value) ? prev[field].filter((v: string) => v !== value) : [...prev[field], value] }));
@@ -402,7 +487,6 @@ const UploadCollectionModal = ({ open, onOpenChange, onSuccess, initialData }: U
                 price_cents: Math.round(parseFloat(formData.price) * 100), currency: formData.currency,
                 inventory_count: parseInt(formData.inventory) || 0, images,
                 tags: tags.length > 0 ? tags : undefined,
-                group_ids: formData.group_ids.length > 0 ? formData.group_ids : undefined,
                 category_id: formData.category_id || undefined,
                 sub_category_id: formData.sub_category_id || undefined,
                 occasions: formData.occasions, body_shapes: formData.body_shapes,
@@ -434,8 +518,6 @@ const UploadCollectionModal = ({ open, onOpenChange, onSuccess, initialData }: U
 
     const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => { if (e.target.files) await processFiles(Array.from(e.target.files)); };
     const removeImage = (i: number) => { setImages(p => p.filter((_, idx) => idx !== i)); setImageFiles(p => p.filter((_, idx) => idx !== i)); };
-    const selectedGroupNames = availableGroups.filter(g => formData.group_ids.includes(g.group_id)).map(g => g.name);
-    const filteredGroups = availableGroups.filter(g => g.name.toLowerCase().includes(groupSearchQuery.toLowerCase()));
     const totalAttrs = formData.occasions.length + formData.body_shapes.length + formData.skin_tones.length + formData.sizes.length + formData.age_ranges.length;
 
     const selectedCategory = categories.find(c => c.category_id === formData.category_id);
@@ -466,6 +548,7 @@ const UploadCollectionModal = ({ open, onOpenChange, onSuccess, initialData }: U
     `;
 
     return (
+        <>
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent
                 className="p-0 border-none [&>button]:hidden"
@@ -633,52 +716,24 @@ const UploadCollectionModal = ({ open, onOpenChange, onSuccess, initialData }: U
                             </div>
                             
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                <div>
-                                    <label className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'rgba(44,36,22,0.7)' }}>
-                                        Category <span style={{ color: '#e74c3c' }}>*</span>
-                                    </label>
-                                    <div style={{ position: 'relative' }}>
-                                        <div style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: 'rgba(201,165,95,0.7)', pointerEvents: 'none', zIndex: 10 }}>
-                                            <FolderTree size={18} />
-                                        </div>
-                                        <select
-                                            required
-                                            value={formData.category_id}
-                                            onChange={(e) => setFormData({ ...formData, category_id: e.target.value, sub_category_id: "" })}
-                                            style={inputCls}
-                                            onFocus={(e) => { e.target.style.borderColor = '#C9A75F'; }}
-                                            onBlur={(e) => { e.target.style.borderColor = 'rgba(201,165,95,0.3)'; }}
-                                        >
-                                            <option value="">Select Category</option>
-                                            {categories.filter(c => c.is_active).map(c => (
-                                                <option key={c.category_id} value={c.category_id}>{c.name}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'rgba(44,36,22,0.7)' }}>
-                                        Subcategory
-                                    </label>
-                                    <div style={{ position: 'relative' }}>
-                                        <div style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: 'rgba(201,165,95,0.7)', pointerEvents: 'none', zIndex: 10 }}>
-                                            <Layers size={18} />
-                                        </div>
-                                        <select
-                                            value={formData.sub_category_id}
-                                            onChange={(e) => setFormData({ ...formData, sub_category_id: e.target.value })}
-                                            style={inputCls}
-                                            disabled={!formData.category_id || availableSubCategories.length === 0}
-                                            onFocus={(e) => { e.target.style.borderColor = '#C9A75F'; }}
-                                            onBlur={(e) => { e.target.style.borderColor = 'rgba(201,165,95,0.3)'; }}
-                                        >
-                                            <option value="">Select Subcategory</option>
-                                            {availableSubCategories.map(s => (
-                                                <option key={s.sub_category_id} value={s.sub_category_id}>{s.name}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                </div>
+                                <LuxeSelect
+                                    label="Category"
+                                    icon={FolderTree}
+                                    required
+                                    options={categories.filter(c => c.is_active).map(c => ({ id: c.category_id, name: c.name }))}
+                                    value={formData.category_id}
+                                    onChange={(id) => setFormData({ ...formData, category_id: id, sub_category_id: "" })}
+                                    placeholder="Select Category"
+                                />
+                                <LuxeSelect
+                                    label="Subcategory"
+                                    icon={Layers}
+                                    disabled={!formData.category_id || availableSubCategories.length === 0}
+                                    options={availableSubCategories.map(s => ({ id: s.sub_category_id, name: s.name }))}
+                                    value={formData.sub_category_id}
+                                    onChange={(id) => setFormData({ ...formData, sub_category_id: id })}
+                                    placeholder={!formData.category_id ? "Select Category First" : availableSubCategories.length === 0 ? "No Subcategories" : "Select Subcategory"}
+                                />
                             </div>
 
                             <AttributeDropdown
@@ -733,69 +788,12 @@ const UploadCollectionModal = ({ open, onOpenChange, onSuccess, initialData }: U
                                 </div>
                             </div>
 
-                            {/* Collections */}
-                            <div>
-                                <label className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'rgba(44,36,22,0.7)' }}>Collections</label>
-                                <Popover open={isDropdownOpen} onOpenChange={setIsDropdownOpen}>
-                                    <PopoverTrigger asChild>
-                                        <button type="button" className="w-full transition-all" style={{
-                                            ...inputCls, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                                            textAlign: 'left', cursor: 'pointer', paddingLeft: '16px',
-                                            color: 'rgba(44,36,22,0.4)', fontStyle: 'italic',
-                                        }}>
-                                            <span>Select collections...</span>
-                                            <ChevronDown size={16} style={{ color: '#C9A75F', transform: isDropdownOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.3s' }} />
-                                        </button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="p-0 shadow-2xl" align="start" style={{
-                                        width: '380px', borderRadius: '14px', border: '1.5px solid rgba(201,165,95,0.3)',
-                                        background: 'linear-gradient(135deg, #FFFDF8, #FFF9EF)', overflow: 'hidden',
-                                    }}>
-                                        <div style={{ padding: '10px', borderBottom: '1px solid rgba(201,165,95,0.1)' }}>
-                                            <div style={{ position: 'relative' }}>
-                                                <Search size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'rgba(201,165,95,0.5)' }} />
-                                                <input type="text" placeholder="Search..." value={groupSearchQuery} onChange={(e) => setGroupSearchQuery(e.target.value)}
-                                                    style={{ ...inputCls, paddingLeft: '34px', fontSize: '13px', padding: '8px 12px 8px 34px' }} />
-                                            </div>
-                                        </div>
-                                        <div className="hide-scrollbar" style={{ maxHeight: '260px', overflowY: 'auto', padding: '6px' }}>
-                                            {groupSearchQuery.trim() !== "" ? (
-                                                filteredGroups.length > 0 ? filteredGroups.map(g => (
-                                                    <div key={g.group_id} onClick={() => toggleGroup(g.group_id)}
-                                                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '9px 12px', borderRadius: '8px', cursor: 'pointer', marginBottom: '2px', background: formData.group_ids.includes(g.group_id) ? 'rgba(201,165,95,0.08)' : 'transparent', border: formData.group_ids.includes(g.group_id) ? '1px solid rgba(201,165,95,0.4)' : '1px solid transparent' }}>
-                                                        <span style={{ fontSize: '13px', fontWeight: formData.group_ids.includes(g.group_id) ? 700 : 500, color: '#2C2416' }}>{g.name}</span>
-                                                        <div style={{ width: 16, height: 16, borderRadius: '50%', border: formData.group_ids.includes(g.group_id) ? '2px solid #C9A75F' : '2px solid rgba(201,165,95,0.25)', background: formData.group_ids.includes(g.group_id) ? '#C9A75F' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                                            {formData.group_ids.includes(g.group_id) && <Check size={9} strokeWidth={4} style={{ color: '#fff' }} />}
-                                                        </div>
-                                                    </div>
-                                                )) : <div style={{ padding: '24px', textAlign: 'center', color: 'rgba(44,36,22,0.4)', fontSize: '12px' }}>No results</div>
-                                            ) : rawGroups.length > 0 ? rawGroups.map(g => renderGroupNode(g, 0)) : <div style={{ padding: '24px', textAlign: 'center', color: 'rgba(44,36,22,0.4)', fontSize: '12px' }}>No categories</div>}
-                                        </div>
-                                    </PopoverContent>
-                                </Popover>
-                                {selectedGroupNames.length > 0 && (
-                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '8px' }}>
-                                        {selectedGroupNames.map(name => {
-                                            const gid = availableGroups.find(g => g.name === name)?.group_id;
-                                            return (
-                                                <span key={name} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '3px 10px 3px 12px', borderRadius: '20px', fontSize: '11px', fontWeight: 700, background: 'rgba(201,165,95,0.1)', border: '1px solid rgba(201,165,95,0.3)', color: '#2C2416' }}>
-                                                    {name}
-                                                    <button type="button" onClick={(e) => { e.stopPropagation(); if (gid) toggleGroup(gid); }} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px', color: 'rgba(44,36,22,0.5)', display: 'flex' }}>
-                                                        <X size={10} strokeWidth={3} />
-                                                    </button>
-                                                </span>
-                                            );
-                                        })}
-                                    </div>
-                                )}
-                            </div>
-
                             {/* Image Upload */}
                             <div>
                                 <label className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'rgba(44,36,22,0.7)' }}>
                                     Product Images <span style={{ color: '#e74c3c' }}>*</span>
                                 </label>
-                                <label style={{
+                                <div onClick={() => setIsInstructionsOpen(true)} style={{
                                     display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
                                     width: '100%', minHeight: '140px', borderRadius: '16px', cursor: 'pointer',
                                     border: '2.5px dashed rgba(201,165,95,0.35)', background: 'rgba(255,255,255,0.6)',
@@ -813,8 +811,7 @@ const UploadCollectionModal = ({ open, onOpenChange, onSuccess, initialData }: U
                                     <span style={{ fontSize: '10px', fontWeight: 700, color: 'rgba(44,36,22,0.4)', marginTop: '4px', textTransform: 'uppercase', letterSpacing: '1px' }}>
                                         JPG • PNG • WEBP
                                     </span>
-                                    <input type="file" multiple accept="image/*" onChange={handleImageUpload} style={{ display: 'none' }} />
-                                </label>
+                                </div>
 
                                 {images.length > 0 && (
                                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', marginTop: '10px' }}>
@@ -877,6 +874,132 @@ const UploadCollectionModal = ({ open, onOpenChange, onSuccess, initialData }: U
                 </div>
             </DialogContent>
         </Dialog>
+
+        {/* Crazy, Respectful & Humorous Instructions Dialog */}
+        <AlertDialog open={isInstructionsOpen} onOpenChange={setIsInstructionsOpen}>
+            <AlertDialogContent
+                className="border-none p-0"
+                style={{
+                    maxWidth: '480px',
+                    borderRadius: '24px',
+                    background: 'linear-gradient(135deg, #FFFDF8 0%, #FFF9EF 50%, #FFFDF8 100%)',
+                    border: '2px solid rgba(201,165,95,0.4)',
+                    boxShadow: '0 20px 60px rgba(201,165,95,0.25), 0 0 40px rgba(201,165,95,0.1)',
+                    overflow: 'hidden',
+                    zIndex: 99999, // ensures it stays above the parent modal
+                }}
+            >
+                {/* Top gold accent bar */}
+                <div style={{
+                    height: '5px',
+                    background: 'linear-gradient(90deg, #C9A75F, #D4B76E, #C9A75F)',
+                    boxShadow: '0 2px 12px rgba(201,165,95,0.4)',
+                }} />
+
+                <div style={{ padding: '32px 28px 28px' }}>
+                    <AlertDialogHeader>
+                        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}>
+                            <div style={{
+                                width: '72px', height: '72px', borderRadius: '50%',
+                                background: 'linear-gradient(135deg, rgba(201,165,95,0.15), rgba(201,165,95,0.05))',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                border: '2px solid rgba(201,165,95,0.25)',
+                                boxShadow: '0 4px 15px rgba(201,165,95,0.15)',
+                            }}>
+                                <Sparkles size={32} style={{ color: '#C9A75F' }} />
+                            </div>
+                        </div>
+
+                        <AlertDialogTitle style={{
+                            textAlign: 'center',
+                            fontFamily: "'Playfair Display', serif",
+                            fontSize: '26px', fontWeight: 700, color: '#2C2416',
+                            marginBottom: '10px'
+                        }}>
+                            A Gentle <span style={{ color: '#C9A75F' }}>(& Crazy)</span> Request!
+                        </AlertDialogTitle>
+
+                        <AlertDialogDescription style={{
+                            textAlign: 'center', fontSize: '14.5px',
+                            lineHeight: 1.6, color: 'rgba(44,36,22,0.8)',
+                        }}>
+                            Dearest fabulous creator! Before you bless our servers with your stunning designs, please humor us with these tiny, microscopic, incredibly important rules:
+                            
+                            <div style={{ 
+                                marginTop: '20px', 
+                                textAlign: 'left', 
+                                background: 'rgba(255,255,255,0.6)', 
+                                padding: '16px', 
+                                borderRadius: '16px',
+                                border: '1px solid rgba(201,165,95,0.2)'
+                            }}>
+                                <ul style={{ listStyleType: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                    <li style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+                                        <div style={{ color: '#C9A75F', marginTop: '2px' }}><Check size={16} strokeWidth={3} /></div>
+                                        <span><strong>Crystal Clear Please!</strong> No blurry, potato-quality photos. Let your design shine brighter than a diamond. 💎</span>
+                                    </li>
+                                    <li style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+                                        <div style={{ color: '#C9A75F', marginTop: '2px' }}><Check size={16} strokeWidth={3} /></div>
+                                        <span><strong>Keep it under 20MB.</strong> Our servers hit the gym, but they can't lift heavier than that! 🏋️‍♂️</span>
+                                    </li>
+                                    <li style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+                                        <div style={{ color: '#C9A75F', marginTop: '2px' }}><Check size={16} strokeWidth={3} /></div>
+                                        <span><strong>JPG, PNG, or WEBP only.</strong> (Sorry, no magical moving GIFs of your outfit just yet. 🪄)</span>
+                                    </li>
+                                </ul>
+                            </div>
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+
+                    <AlertDialogFooter style={{ display: 'flex', justifyContent: 'center', marginTop: '28px', flexDirection: 'column', gap: '12px' }}>
+                        {/* 
+                          We use a <label> pretending to be a button, so when they click it, 
+                          it triggers the file input natively, AND we close the dialog!
+                        */}
+                        <label 
+                            style={{
+                                width: '100%', height: '50px', borderRadius: '14px',
+                                fontWeight: 700, fontSize: '15px', color: '#2C2416',
+                                background: 'linear-gradient(135deg, #C9A75F 0%, #D4B76E 100%)',
+                                boxShadow: '0 6px 20px rgba(201,165,95,0.3)',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+                                transition: 'all 0.2s', margin: 0
+                            }}
+                            onMouseOver={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 8px 25px rgba(201,165,95,0.4)'; }}
+                            onMouseOut={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 6px 20px rgba(201,165,95,0.3)'; }}
+                        >
+                            I Swear on Fashion, I Understand! 👗✨
+                            <input
+                                type="file"
+                                multiple
+                                accept="image/*"
+                                onChange={async (e) => {
+                                    await handleImageUpload(e);
+                                    // Close only after we've received and processed the files
+                                    setIsInstructionsOpen(false);
+                                }}
+                                style={{ display: 'none' }}
+                            />
+                        </label>
+
+                        <button
+                            type="button"
+                            onClick={() => setIsInstructionsOpen(false)}
+                            style={{
+                                width: '100%', height: '40px', borderRadius: '12px',
+                                fontWeight: 600, fontSize: '14px', color: 'rgba(44,36,22,0.6)',
+                                background: 'transparent', border: 'none', cursor: 'pointer',
+                            }}
+                            onMouseOver={(e) => { e.currentTarget.style.color = '#2C2416'; e.currentTarget.style.background = 'rgba(201,165,95,0.1)'; }}
+                            onMouseOut={(e) => { e.currentTarget.style.color = 'rgba(44,36,22,0.6)'; e.currentTarget.style.background = 'transparent'; }}
+                        >
+                            Nevermind, I'll return later
+                        </button>
+                    </AlertDialogFooter>
+                </div>
+            </AlertDialogContent>
+        </AlertDialog>
+        </>
     );
 };
 

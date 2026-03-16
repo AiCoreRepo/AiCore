@@ -51,6 +51,15 @@ export class CreateProductDto {
   @IsString({ each: true })
   group_ids?: string[];
 
+  // Category mapping
+  @IsOptional()
+  @IsString()
+  category_id?: string;
+
+  @IsOptional()
+  @IsString()
+  sub_category_id?: string;
+
   // Recommendation attributes — who is this garment best suited for?
   @IsOptional()
   @IsArray()
