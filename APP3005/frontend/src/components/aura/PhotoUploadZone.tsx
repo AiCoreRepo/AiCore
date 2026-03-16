@@ -28,13 +28,12 @@ export const PhotoUploadZone = ({ onPhotoSelect, photoPreview, onRemove }: Photo
             {!photoPreview ? (
                 <div
                     {...getRootProps()}
-                    className="relative group cursor-pointer"
-                    style={{ height: "220px" }}
+                    className="relative group h-[190px] cursor-pointer sm:h-[220px]"
                 >
                     <input {...getInputProps()} />
 
                     <div className={`
-                        relative h-full rounded-2xl overflow-hidden
+                        relative h-full overflow-hidden rounded-[22px] sm:rounded-2xl
                         border-2 border-dashed
                         transition-all duration-500 ease-out
                         ${isDragActive
@@ -44,7 +43,7 @@ export const PhotoUploadZone = ({ onPhotoSelect, photoPreview, onRemove }: Photo
                     `}>
                         {/* Inner Glass Container */}
                         <div className={`
-                                h-full w-full rounded-2xl
+                                h-full w-full rounded-[22px] sm:rounded-2xl
                                 bg-gradient-to-br from-cream/30 via-ivory/25 to-cream/40
                                 backdrop-blur-md
                                 border border-gold/30
@@ -61,28 +60,27 @@ export const PhotoUploadZone = ({ onPhotoSelect, photoPreview, onRemove }: Photo
                             </div>
 
                             {/* Content - Clean Professional Layout */}
-                            <div className="relative h-full flex flex-col items-center justify-center px-6 py-8 z-10">
+                            <div className="relative z-10 flex h-full flex-col items-center justify-center px-4 py-6 sm:px-6 sm:py-8">
                                 {/* Upload Icon - Smaller & More Subtle */}
                                 <div className={`
-                                    w-12 h-12 rounded-lg mb-4
+                                    mb-4 flex h-11 w-11 items-center justify-center rounded-lg sm:h-12 sm:w-12
                                     bg-gold/5
-                                    flex items-center justify-center
                                     border border-gold/15
                                     transition-all duration-300
                                     ${isDragActive ? 'bg-gold/15 border-gold/30 scale-105' : ''}
                                 `}>
-                                    <Upload className={`w-5 h-5 ${isDragActive ? 'text-gold' : 'text-gold/40'} transition-colors`} />
+                                    <Upload className={`h-5 w-5 ${isDragActive ? 'text-gold' : 'text-gold/40'} transition-colors`} />
                                 </div>
 
                                 {/* Main Heading - Improved Typography */}
-                                <h3 className="text-base font-medium text-charcoal mb-1">
-                                    {isDragActive ? "Drop your photo here" : "Drag & drop your photo"}
+                                <h3 className="mb-1 text-[15px] font-medium text-charcoal sm:text-base">
+                                    {isDragActive ? "Drop your photo here" : "Upload your photo"}
                                 </h3>
-                                <p className="text-xs text-charcoal/40 mb-5">or click to browse</p>
+                                <p className="mb-4 text-xs text-charcoal/40 sm:mb-5">Tap or click to browse</p>
 
                                 {/* Instruction Box - More Refined */}
                                 <div className={`
-                                    w-full px-4 py-3 rounded-lg
+                                    w-full rounded-lg px-3.5 py-3 sm:px-4
                                     bg-cream/15
                                     border border-gold/15
                                     transition-all duration-300
@@ -91,11 +89,11 @@ export const PhotoUploadZone = ({ onPhotoSelect, photoPreview, onRemove }: Photo
                                     <div className="flex items-start gap-2">
                                         <span className="text-base flex-shrink-0">📸</span>
                                         <div className="flex-1">
-                                            <p className="text-xs text-charcoal/65 leading-relaxed">
+                                            <p className="text-xs leading-relaxed text-charcoal/65">
                                                 Please upload a full-body photo of yourself{" "}
                                                 <span className="text-gold font-medium">standing upright</span>
                                             </p>
-                                            <p className="text-xs text-charcoal/45 mt-1 leading-relaxed">
+                                            <p className="mt-1 text-xs leading-relaxed text-charcoal/45">
                                                 Standing poses help our AI detect your body shape more accurately
                                             </p>
                                         </div>
@@ -117,7 +115,7 @@ export const PhotoUploadZone = ({ onPhotoSelect, photoPreview, onRemove }: Photo
             ) : (
                 <Dialog>
                     <DialogTrigger asChild>
-                        <div className="relative rounded-2xl overflow-hidden border-2 border-gold/40 group cursor-pointer shadow-lg hover:shadow-xl transition-all duration-300" style={{ height: "220px" }}>
+                        <div className="relative group h-[190px] cursor-pointer overflow-hidden rounded-[22px] border-2 border-gold/40 shadow-lg transition-all duration-300 hover:shadow-xl sm:h-[220px] sm:rounded-2xl">
                             <img
                                 src={photoPreview}
                                 alt="Preview"
@@ -128,7 +126,7 @@ export const PhotoUploadZone = ({ onPhotoSelect, photoPreview, onRemove }: Photo
                             <div className="absolute inset-0 bg-gradient-to-t from-charcoal/70 via-charcoal/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
                             {/* Expand Hint */}
-                            <div className="absolute bottom-3 left-3 right-3 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-y-2 group-hover:translate-y-0">
+                            <div className="absolute bottom-3 left-3 right-3 flex translate-y-0 items-center gap-2 opacity-100 transition-all duration-300 sm:translate-y-2 sm:opacity-0 sm:group-hover:translate-y-0 sm:group-hover:opacity-100">
                                 <div className="flex items-center gap-2 px-3 py-2 bg-white/90 backdrop-blur-sm rounded-lg shadow-lg">
                                     <ImageIcon className="w-4 h-4 text-gold" />
                                     <span className="text-xs text-charcoal font-semibold">Click to expand</span>
@@ -141,7 +139,7 @@ export const PhotoUploadZone = ({ onPhotoSelect, photoPreview, onRemove }: Photo
                                     e.stopPropagation();
                                     onRemove();
                                 }}
-                                className="absolute top-3 right-3 w-9 h-9 rounded-full bg-charcoal/90 hover:bg-red-600 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 z-10 shadow-lg hover:scale-110"
+                                className="absolute top-3 right-3 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-charcoal/90 opacity-100 shadow-lg transition-all duration-300 hover:scale-110 hover:bg-red-600 sm:opacity-0 sm:group-hover:opacity-100"
                             >
                                 <X className="w-5 h-5 text-white" />
                             </button>
@@ -169,7 +167,7 @@ export const PhotoUploadZone = ({ onPhotoSelect, photoPreview, onRemove }: Photo
             )
             }
 
-            <p className="text-xs text-grey-soft mt-3 flex items-start gap-2 px-1">
+            <p className="mt-2.5 flex items-start gap-2 px-1 text-xs text-grey-soft sm:mt-3">
                 <span className="text-gold/80 mt-0.5 text-sm">ℹ</span>
                 <span className="leading-relaxed">We only use this photo to create your avatar. You can delete it anytime.</span>
             </p>

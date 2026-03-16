@@ -4,11 +4,13 @@ import { useNavigate } from 'react-router-dom';
 import { AnimatedComplimentText } from '@/components/AnimatedComplimentText';
 import { LOADING_QUOTES } from './loading-quotes';
 import { getRandomCompliment, ComplimentMessage } from './compliment-messages';
+import { ImageCompareSlider } from './ImageCompareSlider';
 
 interface TryOnResultModalProps {
     isOpen: boolean;
     onClose: () => void;
     resultImage: string | null;
+    comparisonImage?: string | null;
     loading: boolean;
     error: string | null;
     onGenerateMoreAngles?: () => void;
@@ -20,6 +22,7 @@ interface TryOnResultModalProps {
     generatedImages?: string[];
     onSelectImage?: (image: string) => void;
     userName?: string;
+    onComplimentComplete?: () => void;
 }
 
 interface ProcessStep {
@@ -33,6 +36,7 @@ export function TryOnResultModal({
     isOpen,
     onClose,
     resultImage,
+    comparisonImage,
     loading,
     error,
     onGenerateMoreAngles,
@@ -44,12 +48,14 @@ export function TryOnResultModal({
     generatedImages = [],
     onSelectImage,
     userName,
+    onComplimentComplete,
 }: TryOnResultModalProps) {
     const [currentQuoteIndex, setCurrentQuoteIndex] = useState(0);
     const [imageRevealed, setImageRevealed] = useState(false);
     const [isLightboxOpen, setIsLightboxOpen] = useState(false);
     const [currentCompliment, setCurrentCompliment] = useState<ComplimentMessage | null>(null);
     const [hasShownCompliment, setHasShownCompliment] = useState(false);
+    const [viewMode, setViewMode] = useState<'single' | 'compare'>('single');
 
     // Progress State
     const [loadingProgress, setLoadingProgress] = useState(0);
@@ -57,10 +63,14 @@ export function TryOnResultModal({
 
     // Refs for monotonic progress (prevents backward jumps)
     const progressRef = useRef(0);
+    const hasTriggeredComplimentCompleteRef = useRef(false);
 
     const navigate = useNavigate();
     const displayUserName = userName?.trim() || 'You';
     const displayGarmentTitle = garmentTitle?.trim() || 'this look';
+    const hasMultipleGeneratedImages = generatedImages.length > 1;
+    const canCompareAngle =
+        Boolean(comparisonImage) && Boolean(resultImage) && comparisonImage !== resultImage;
     const userPrompt = garmentTitle
         ? `How does ${displayGarmentTitle} look on me? Does it suit me?`
         : 'How does this look on me? Does it suit me?';
@@ -79,6 +89,7 @@ export function TryOnResultModal({
             setHasShownCompliment(false);
             setCurrentCompliment(null);
             setImageRevealed(false);
+            hasTriggeredComplimentCompleteRef.current = false;
             if (!loading && !generatingAngles) {
                 setLoadingProgress(0);
                 setCurrentStep(0);
@@ -86,6 +97,15 @@ export function TryOnResultModal({
             }
         }
     }, [isOpen]);
+
+    useEffect(() => {
+        if (!resultImage) {
+            setViewMode('single');
+            return;
+        }
+
+        setViewMode(canCompareAngle ? 'compare' : 'single');
+    }, [canCompareAngle, resultImage]);
 
     // Rotate quotes every 3 seconds during loading
     useEffect(() => {
@@ -189,6 +209,21 @@ export function TryOnResultModal({
             return () => clearTimeout(revealTimer);
         }
     }, [resultImage, loading, error, generatingAngles, hasShownCompliment]);
+
+    const handleComplimentComplete = () => {
+        if (
+            hasTriggeredComplimentCompleteRef.current ||
+            !currentCompliment ||
+            loading ||
+            error ||
+            generatingAngles
+        ) {
+            return;
+        }
+
+        hasTriggeredComplimentCompleteRef.current = true;
+        onComplimentComplete?.();
+    };
 
 
 
@@ -350,6 +385,7 @@ export function TryOnResultModal({
                                     speedMs={110}
                                     startDelayMs={120}
                                     unit="word"
+                                    onComplete={handleComplimentComplete}
                                 />
                             </div>
                         </div>
@@ -390,7 +426,7 @@ export function TryOnResultModal({
 
     return (
         <div
-            className="fixed inset-0 z-50 flex items-center justify-center p-3 md:p-4"
+            className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-3 md:p-4"
             style={{
                 background: 'linear-gradient(135deg, rgba(0, 0, 0, 0.7) 0%, rgba(0, 0, 0, 0.5) 100%)',
                 backdropFilter: 'blur(16px)',
@@ -450,29 +486,28 @@ export function TryOnResultModal({
             `}</style>
 
             <div
-                className="relative w-full max-w-7xl h-[94vh] overflow-hidden flex flex-col modal-appear"
+                className="relative flex h-[100dvh] w-full max-w-7xl flex-col overflow-hidden rounded-none modal-appear sm:h-[96vh] sm:rounded-[28px] md:h-[94vh]"
                 style={{
                     background: 'linear-gradient(135deg, #fdfbf7 0%, #f7f4ef 100%)',
-                    borderRadius: '28px',
                     boxShadow: '0 30px 90px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(201, 165, 92, 0.15)',
                 }}
                 onClick={(e) => e.stopPropagation()}
             >
                 {/* Premium Header */}
                 <div
-                    className="relative flex items-center justify-between px-6 md:px-8 py-4 md:py-5 border-b"
+                    className="relative flex items-center justify-between border-b px-4 py-3 sm:px-6 sm:py-4 md:px-8 md:py-5"
                     style={{
                         background: 'linear-gradient(135deg, rgba(253, 251, 247, 0.98) 0%, rgba(247, 244, 239, 0.98) 100%)',
                         backdropFilter: 'blur(20px)',
                         borderColor: 'rgba(201, 165, 92, 0.12)',
                     }}
                 >
-                    <div className="flex items-center gap-4 md:gap-6">
+                    <div className="flex items-center gap-3 sm:gap-4 md:gap-6">
                         <div>
-                            <h1 className="text-xl md:text-2xl font-serif bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent font-bold">
+                            <h1 className="text-lg font-bold font-serif bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent sm:text-xl md:text-2xl">
                                 AiVestire
                             </h1>
-                            <p className="text-xs md:text-sm text-gray-500 mt-0.5">Virtual Fitting Room</p>
+                            <p className="mt-0.5 text-[11px] text-gray-500 sm:text-xs md:text-sm">Virtual Fitting Room</p>
                         </div>
 
                         {/* Compact Process Pills */}
@@ -505,7 +540,7 @@ export function TryOnResultModal({
 
                     <button
                         onClick={onClose}
-                        className="flex items-center gap-2 px-4 md:px-5 py-2 md:py-2.5 rounded-xl transition-all duration-300 hover:bg-black/5 active:scale-95"
+                        className="hidden items-center gap-2 rounded-xl px-4 py-2 transition-all duration-300 hover:bg-black/5 active:scale-95 md:flex md:px-5 md:py-2.5"
                         style={{
                             color: '#2c2c2c',
                             border: '1px solid rgba(0,0,0,0.08)',
@@ -514,10 +549,22 @@ export function TryOnResultModal({
                         <span className="text-sm font-semibold">CLOSE</span>
                         <X className="w-4 h-4" />
                     </button>
+
+                    <button
+                        onClick={onClose}
+                        className="flex h-10 w-10 items-center justify-center rounded-full transition-all duration-300 hover:bg-black/5 active:scale-95 md:hidden"
+                        style={{
+                            color: '#2c2c2c',
+                            border: '1px solid rgba(0,0,0,0.08)',
+                        }}
+                        aria-label="Close try-on result"
+                    >
+                        <X className="w-4 h-4" />
+                    </button>
                 </div>
 
                 {/* Main Content */}
-                <div className="flex-1 flex flex-col md:flex-row gap-4 md:gap-5 p-4 md:p-6 overflow-hidden relative">
+                <div className="relative flex flex-1 flex-col gap-3 overflow-y-auto p-3 pb-24 sm:gap-4 sm:p-4 sm:pb-24 md:flex-row md:gap-5 md:overflow-hidden md:p-6 md:pb-6">
 
                     {/* Left Sidebar - AI Insights (Desktop) */}
                     {resultImage && !loading && !error && (
@@ -567,9 +614,9 @@ export function TryOnResultModal({
                     )}
 
                     {/* Center - Result Image Area */}
-                    <div className="flex-1 flex flex-col gap-4 overflow-hidden relative">
+                    <div className="relative flex flex-col gap-4 md:flex-1 md:overflow-hidden">
                         {/* Image Display */}
-                        <div className="flex-1 flex items-center justify-center rounded-3xl overflow-hidden relative" style={{
+                        <div className="relative flex min-h-[36vh] items-center justify-center overflow-hidden rounded-[26px] sm:min-h-[44vh] md:min-h-0 md:flex-1 md:rounded-3xl" style={{
                             background: 'linear-gradient(135deg, #f0ebe4 0%, #e8e3dc 50%, #f0ebe4 100%)',
                             boxShadow: 'inset 0 2px 16px rgba(0, 0, 0, 0.06)'
                         }}>
@@ -591,10 +638,10 @@ export function TryOnResultModal({
                                     </div>
 
                                     {/* Title - Smaller */}
-                                    <h3 className="text-xl md:text-2xl font-serif font-bold mb-1 bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+                                    <h3 className="mb-1 text-lg font-bold font-serif bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent sm:text-xl md:text-2xl">
                                         {generatingAngles ? 'Generating New Angle' : 'Creating Your Look'}
                                     </h3>
-                                    <p className="text-sm text-gray-500 mb-6 text-center max-w-md">
+                                    <p className="mb-6 max-w-md text-center text-sm text-gray-500">
                                         {LOADING_QUOTES[currentQuoteIndex]}
                                     </p>
 
@@ -672,6 +719,10 @@ export function TryOnResultModal({
                                             </p>
                                         </div>
                                     )}
+
+                                    <p className="mt-4 max-w-lg text-center text-[11px] leading-5 text-gray-400">
+                                        AI-generated previews may occasionally make mistakes.
+                                    </p>
                                 </div>
                             )}
 
@@ -700,34 +751,115 @@ export function TryOnResultModal({
 
                             {/* Result Image */}
                             {resultImage && !loading && !error && (
-                                <div
-                                    className="w-full h-full flex items-center justify-center p-4 md:p-6 cursor-pointer group"
-                                    onClick={() => setIsLightboxOpen(true)}
-                                    title="Click to view full size"
-                                >
-                                    <img
-                                        src={resultImage}
-                                        alt="Try-On Result"
-                                        className={`w-full h-full object-contain rounded-2xl transition-all duration-500 group-hover:scale-[1.02] ${imageRevealed ? 'modal-appear' : ''}`}
-                                        style={{
-                                            boxShadow: '0 16px 48px rgba(0, 0, 0, 0.12)',
-                                            maxWidth: '100%',
-                                            maxHeight: '100%',
-                                        }}
-                                    />
+                                <>
+                                    {canCompareAngle && comparisonImage && (
+                                        <div className="absolute left-2.5 right-2.5 top-2.5 z-10 flex flex-col items-stretch gap-2 sm:left-3 sm:right-3 sm:top-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3 md:left-5 md:right-5 md:top-5">
+                                            <span className="self-start rounded-full bg-[rgba(44,36,22,0.68)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-white backdrop-blur">
+                                                Compare the new angle
+                                            </span>
 
+                                            <div className="flex items-center self-end rounded-full border border-white/60 bg-white/90 p-1 shadow-[0_10px_22px_rgba(28,21,14,0.12)] backdrop-blur sm:self-auto">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setViewMode('single')}
+                                                    className={`rounded-full px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] transition ${viewMode === 'single' ? 'bg-[#2f2416] text-white shadow-[0_8px_18px_rgba(47,36,22,0.2)]' : 'text-[#6f5a42]'}`}
+                                                >
+                                                    Preview
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setViewMode('compare')}
+                                                    className={`rounded-full px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] transition ${viewMode === 'compare' ? 'bg-[#D4AF37] text-[#2f2416] shadow-[0_8px_18px_rgba(212,175,55,0.22)]' : 'text-[#6f5a42]'}`}
+                                                >
+                                                    Compare
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
 
-                                </div>
+                                    {viewMode === 'compare' && canCompareAngle && comparisonImage ? (
+                                        <div className="h-full w-full p-3 sm:p-4 md:p-6">
+                                            <ImageCompareSlider
+                                                beforeImage={comparisonImage}
+                                                afterImage={resultImage}
+                                                className={imageRevealed ? 'modal-appear' : ''}
+                                            />
+                                        </div>
+                                    ) : (
+                                        <div
+                                            className="group flex h-full w-full cursor-pointer items-center justify-center p-3 sm:p-4 md:p-6"
+                                            onClick={() => setIsLightboxOpen(true)}
+                                            title="Click to view full size"
+                                        >
+                                            <img
+                                                src={resultImage}
+                                                alt="Try-On Result"
+                                                className={`w-full h-full object-contain rounded-2xl transition-all duration-500 group-hover:scale-[1.02] ${imageRevealed ? 'modal-appear' : ''}`}
+                                                style={{
+                                                    boxShadow: '0 16px 48px rgba(0, 0, 0, 0.12)',
+                                                    maxWidth: '100%',
+                                                    maxHeight: '100%',
+                                                }}
+                                            />
+                                        </div>
+                                    )}
+                                </>
                             )}
                         </div>
+
+                        {renderComplimentCard("w-full flex-shrink-0 md:hidden", "mobile")}
+
+                        {!loading && !generatingAngles && hasMultipleGeneratedImages && (
+                            <div
+                                className="rounded-[20px] border border-white/70 bg-white/88 p-2.5 shadow-[0_12px_32px_rgba(28,21,14,0.08)] md:hidden"
+                                style={{
+                                    backdropFilter: 'blur(14px)',
+                                }}
+                            >
+                                <div className="mb-2 flex items-center justify-between gap-2">
+                                    <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#8a6936]">
+                                        Generated Angles
+                                    </p>
+                                    <span className="text-[10px] font-medium text-[#9d8660]">
+                                        {generatedImages.length} views
+                                    </span>
+                                </div>
+
+                                <div className="-mx-1 flex snap-x snap-mandatory gap-2 overflow-x-auto px-1 pb-1">
+                                    {generatedImages.map((img, idx) => (
+                                        <button
+                                            key={idx}
+                                            onClick={() => onSelectImage?.(img)}
+                                            className={`relative aspect-[3/4] w-20 flex-none snap-start overflow-hidden rounded-2xl transition-all duration-300 ${
+                                                img === resultImage
+                                                    ? 'scale-[1.02] ring-2 ring-[#c9a55c] ring-offset-2 ring-offset-[#f7f4ef]'
+                                                    : 'border border-[rgba(138,105,54,0.14)] opacity-80'
+                                            }`}
+                                        >
+                                            <img
+                                                src={img}
+                                                alt={`Generated angle ${idx + 1}`}
+                                                className="h-full w-full object-cover"
+                                            />
+                                            <span
+                                                className="absolute bottom-1 left-1 rounded-full px-1.5 py-0.5 text-[9px] font-semibold text-white"
+                                                style={{
+                                                    background: 'rgba(44, 36, 22, 0.72)',
+                                                }}
+                                            >
+                                                {idx + 1}
+                                            </span>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
 
                         {renderComplimentCard("hidden md:block xl:hidden w-full max-w-4xl self-center flex-shrink-0")}
                     </div>
 
                     {/* Right Sidebar - Premium Action Buttons */}
-                    <div className="w-full md:w-56 flex-shrink-0 flex flex-col gap-3">
-                        {renderComplimentCard("md:hidden slide-up", "mobile")}
-
+                    <div className="hidden w-full flex-shrink-0 flex-col gap-3 md:flex md:w-56">
                         <div className="grid grid-cols-2 md:grid-cols-1 gap-3">
                         <button
                             onClick={handleDownload}
@@ -792,7 +924,7 @@ export function TryOnResultModal({
 
 
                         {/* Gallery Grid - Right Sidebar */}
-                        {!loading && !generatingAngles && generatedImages && generatedImages.length > 1 && (
+                        {!loading && !generatingAngles && hasMultipleGeneratedImages && (
                             <div className="mt-2 p-3 rounded-2xl bg-white/50 border border-white/60">
                                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 text-center">Generated Angles</p>
                                 <div className="grid grid-cols-3 gap-2">
@@ -811,6 +943,50 @@ export function TryOnResultModal({
                                 </div>
                             </div>
                         )}
+                    </div>
+                </div>
+
+                <div
+                    className="absolute inset-x-2.5 bottom-2.5 z-10 rounded-[20px] border border-white/70 bg-white/92 p-2 shadow-[0_18px_48px_rgba(0,0,0,0.14)] backdrop-blur md:hidden"
+                    style={{
+                        boxShadow: '0 18px 48px rgba(28, 21, 14, 0.16)',
+                    }}
+                >
+                    <div className="grid grid-cols-3 gap-2">
+                        <button
+                            onClick={handleDownload}
+                            disabled={!resultImage || loading}
+                            className="flex flex-col items-center justify-center gap-1 rounded-2xl px-2 py-2.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#2c2c2c] transition active:scale-95 disabled:opacity-40"
+                            style={{
+                                background: 'linear-gradient(135deg, #2c2c2c 0%, #1a1a1a 100%)',
+                                color: '#ffffff',
+                            }}
+                        >
+                            <Download className="h-5 w-5" />
+                            <span>Download</span>
+                        </button>
+
+                        <button
+                            onClick={handleShare}
+                            disabled={!resultImage || loading}
+                            className="flex flex-col items-center justify-center gap-1 rounded-2xl border border-[rgba(0,0,0,0.08)] bg-white px-2 py-2.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#2c2c2c] transition active:scale-95 disabled:opacity-40"
+                        >
+                            <Share2 className="h-5 w-5" />
+                            <span>Share</span>
+                        </button>
+
+                        <button
+                            onClick={onGenerateMoreAngles}
+                            disabled={generatingAngles || !resultImage || loading || !onGenerateMoreAngles}
+                            className="flex flex-col items-center justify-center gap-1 rounded-2xl border border-[rgba(0,0,0,0.08)] bg-white px-2 py-2.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#2c2c2c] transition active:scale-95 disabled:opacity-40"
+                        >
+                            {generatingAngles ? (
+                                <Loader2 className="h-5 w-5 animate-spin" />
+                            ) : (
+                                <Sparkles className="h-5 w-5" />
+                            )}
+                            <span>{generatingAngles ? 'Working' : 'New Angle'}</span>
+                        </button>
                     </div>
                 </div>
 

@@ -679,6 +679,7 @@ const LetAIDecidePage = () => {
                     isOpen={showFeedbackSheet}
                     context={feedbackContext}
                     onClose={closeFeedbackSheet}
+                    mobilePlacement="above-actions"
                 />
             )}
         </div>

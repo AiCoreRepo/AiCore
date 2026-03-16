@@ -10,7 +10,6 @@ import { SKIN_TONE_OPTIONS, BODY_SHAPE_OPTIONS } from "@/constants/aura.constant
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { showWarningToast } from "@/components/common/ToastNotification";
 import "./aura-styles.css";
 
 interface BodyAttributes {
@@ -203,6 +202,7 @@ export const AuraFormCard = ({ onCreateAura, isProcessing, prefilledDob }: AuraF
     const [dobInput, setDobInput] = useState<string>(formatDobForInput(initialDobValue));
     const [dobError, setDobError] = useState<string>("");
     const [showDobDialog, setShowDobDialog] = useState(false);
+    const [showPartialBodyDialog, setShowPartialBodyDialog] = useState(false);
 
     // AI Analysis state
     const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -249,6 +249,7 @@ export const AuraFormCard = ({ onCreateAura, isProcessing, prefilledDob }: AuraF
         // Reset analysis state for new photo
         setAnalysisResult(null);
         setAnalysisError(null);
+        setShowPartialBodyDialog(false);
 
         // Auto-populate age range and default gender.
         const calculatedRange = calculateAgeRangeFromDob(dob);
@@ -266,6 +267,7 @@ export const AuraFormCard = ({ onCreateAura, isProcessing, prefilledDob }: AuraF
         setPhotoPreview(null);
         setAnalysisResult(null);
         setAnalysisError(null);
+        setShowPartialBodyDialog(false);
         setAttributes({ gender: "female" });
         setCurrentStep("upload");
     };
@@ -276,6 +278,7 @@ export const AuraFormCard = ({ onCreateAura, isProcessing, prefilledDob }: AuraF
 
         setIsAnalyzing(true);
         setAnalysisError(null);
+        setShowPartialBodyDialog(false);
 
         // Failsafe timeout - if analysis takes more than 35 seconds, force proceed
         const failsafeTimeout = setTimeout(() => {
@@ -305,7 +308,7 @@ export const AuraFormCard = ({ onCreateAura, isProcessing, prefilledDob }: AuraF
 
                 if (!result.fullBody) {
                     setAnalysisError(PARTIAL_BODY_TOAST_MESSAGE);
-                    showWarningToast("Full-body photo needed", PARTIAL_BODY_TOAST_MESSAGE);
+                    setShowPartialBodyDialog(true);
                     console.log('⚠️ Partial body photo uploaded, body shape left for manual entry');
                 } else {
                     console.log('✅ AI detected:', result.skinToneLabel, result.bodyShape);
@@ -331,15 +334,17 @@ export const AuraFormCard = ({ onCreateAura, isProcessing, prefilledDob }: AuraF
             clearTimeout(failsafeTimeout);
             console.log('🎯 Transitioning to confirm step');
             setIsAnalyzing(false);
-            // Use setTimeout to ensure state updates are processed
-            setTimeout(() => {
-                setCurrentStep("confirm");
-            }, 100);
+            setCurrentStep("confirm");
         }
     };
 
     const handleBackToUpload = () => {
         setCurrentStep("upload");
+    };
+
+    const handleRetryWithFullBodyPhoto = () => {
+        setShowPartialBodyDialog(false);
+        handlePhotoRemove();
     };
 
     const handleCreateAura = () => {
@@ -413,7 +418,7 @@ export const AuraFormCard = ({ onCreateAura, isProcessing, prefilledDob }: AuraF
 
     return (
         <div className="w-full lg:w-1/2 flex flex-col bg-gradient-to-br from-cream via-ivory to-cream overflow-hidden">
-            <div className="flex-1 flex items-center justify-center px-4 sm:px-6 py-6 lg:py-8">
+            <div className="flex-1 flex items-center justify-center px-3 sm:px-6 py-4 sm:py-6 lg:py-8">
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -427,9 +432,9 @@ export const AuraFormCard = ({ onCreateAura, isProcessing, prefilledDob }: AuraF
                         <div className="absolute -bottom-1 -right-1 w-20 h-20 bg-gradient-to-tl from-gold/20 to-transparent rounded-br-3xl blur-xl" />
 
                         <div
-                            className="relative bg-gradient-to-br from-white/95 via-cream/90 to-gold/10 backdrop-blur-xl rounded-3xl shadow-2xl border-2 border-gold/40 p-6 sm:p-8 lg:p-10 overflow-y-auto hide-scrollbar"
+                            className="relative bg-gradient-to-br from-white/95 via-cream/90 to-gold/10 backdrop-blur-xl rounded-[28px] sm:rounded-3xl shadow-2xl border-2 border-gold/40 p-4 sm:p-8 lg:p-10 overflow-y-auto hide-scrollbar"
                             style={{
-                                maxHeight: "85vh",
+                                maxHeight: "88dvh",
                                 boxShadow: '0 20px 60px rgba(201, 165, 95, 0.25), 0 0 40px rgba(201, 165, 95, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.8)'
                             }}
                         >
@@ -441,7 +446,7 @@ export const AuraFormCard = ({ onCreateAura, isProcessing, prefilledDob }: AuraF
                                 initial={{ opacity: 0, y: -10 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: 0.4, duration: 0.5 }}
-                                className="relative mb-5"
+                                className="relative mb-4 sm:mb-5"
                             >
                                 {/* Sparkle Decorations */}
                                 <motion.span
@@ -465,19 +470,19 @@ export const AuraFormCard = ({ onCreateAura, isProcessing, prefilledDob }: AuraF
                                     ✨
                                 </motion.span>
 
-                                <p className="text-sm text-charcoal/60 mb-1 font-medium">
+                                <p className="text-xs sm:text-sm text-charcoal/60 mb-1 font-medium">
                                     Welcome back,
                                 </p>
-                                <p className="text-xl font-bold bg-gradient-to-r from-gold via-amber-500 to-gold bg-clip-text text-transparent animate-gradient">
+                                <p className="text-lg sm:text-xl font-bold bg-gradient-to-r from-gold via-amber-500 to-gold bg-clip-text text-transparent animate-gradient break-all sm:break-normal">
                                     {user?.email || "User"}
                                 </p>
                             </motion.div>
 
                             {/* Enhanced Step Indicator */}
-                            <div className="relative flex items-center gap-3 mb-8">
+                            <div className="relative mb-6 flex flex-col gap-2 sm:mb-8 sm:flex-row sm:items-center sm:gap-3">
                                 {/* Step 1 */}
                                 <motion.div
-                                    className={`relative flex items-center gap-2.5 px-4 py-2 rounded-full text-xs font-semibold transition-all duration-500 ${currentStep === "upload"
+                                    className={`relative flex w-full items-center justify-between gap-2.5 rounded-full px-4 py-2 text-xs font-semibold transition-all duration-500 sm:w-auto sm:justify-start ${currentStep === "upload"
                                         ? "bg-gradient-to-r from-gold via-amber-400 to-gold text-charcoal shadow-lg"
                                         : "bg-gradient-to-r from-gold/20 to-gold/10 text-charcoal/60"
                                         }`}
@@ -498,7 +503,7 @@ export const AuraFormCard = ({ onCreateAura, isProcessing, prefilledDob }: AuraF
                                 </motion.div>
 
                                 {/* Connecting Line with Gradient */}
-                                <div className="relative flex-1 h-1 bg-gold/20 rounded-full overflow-hidden max-w-[40px]">
+                                <div className="relative hidden h-1 max-w-[40px] flex-1 overflow-hidden rounded-full bg-gold/20 sm:block">
                                     <motion.div
                                         className="absolute inset-0 bg-gradient-to-r from-gold to-amber-400"
                                         initial={{ scaleX: 0 }}
@@ -510,7 +515,7 @@ export const AuraFormCard = ({ onCreateAura, isProcessing, prefilledDob }: AuraF
 
                                 {/* Step 2 */}
                                 <motion.div
-                                    className={`relative flex items-center gap-2.5 px-4 py-2 rounded-full text-xs font-semibold transition-all duration-500 ${currentStep === "confirm"
+                                    className={`relative flex w-full items-center justify-between gap-2.5 rounded-full px-4 py-2 text-xs font-semibold transition-all duration-500 sm:w-auto sm:justify-start ${currentStep === "confirm"
                                         ? "bg-gradient-to-r from-gold via-amber-400 to-gold text-charcoal shadow-lg"
                                         : "bg-gradient-to-r from-gold/20 to-gold/10 text-charcoal/60"
                                         }`}
@@ -542,16 +547,16 @@ export const AuraFormCard = ({ onCreateAura, isProcessing, prefilledDob }: AuraF
                                         transition={{ duration: 0.3 }}
                                     >
                                         {/* Title */}
-                                        <h1 className="text-3xl md:text-4xl font-serif text-charcoal mb-3 leading-tight">
+                                        <h1 className="mb-3 text-[1.9rem] font-serif leading-tight text-charcoal sm:text-3xl md:text-4xl">
                                             Upload Your Photo
                                         </h1>
 
-                                        <p className="text-sm text-charcoal/60 mb-6">
+                                        <p className="mb-5 text-sm text-charcoal/60 sm:mb-6">
                                             We'll analyze your photo to detect your body attributes automatically.
                                         </p>
 
                                         {/* Photo Upload Zone */}
-                                        <div className="mb-6">
+                                        <div className="mb-5 sm:mb-6">
                                             <PhotoUploadZone
                                                 onPhotoSelect={handlePhotoSelect}
                                                 photoPreview={photoPreview}
@@ -559,131 +564,133 @@ export const AuraFormCard = ({ onCreateAura, isProcessing, prefilledDob }: AuraF
                                             />
                                         </div>
 
-                                        {/* Enhanced Next Button */}
-                                        <button
-                                            onClick={handleProceedToConfirm}
-                                            disabled={!photoFile || isAnalyzing}
-                                            className={`group relative w-full overflow-hidden rounded-2xl transition-all duration-300 ${isAnalyzing ? '' : 'disabled:opacity-50 disabled:cursor-not-allowed hover:scale-[1.02] active:scale-[0.98]'}`}
-                                            style={{
-                                                boxShadow: isAnalyzing
-                                                    ? '0 8px 30px rgba(201, 165, 95, 0.5), 0 4px 15px rgba(201, 165, 95, 0.3)'
-                                                    : photoFile
-                                                        ? '0 8px 24px rgba(201, 165, 95, 0.35), 0 4px 12px rgba(201, 165, 95, 0.2)'
-                                                        : '0 2px 8px rgba(0, 0, 0, 0.1)'
-                                            }}
-                                        >
-                                            {/* Background layers */}
-                                            {isAnalyzing ? (
-                                                <>
-                                                    {/* Golden animated gradient background when analyzing */}
-                                                    <div className="absolute inset-0 bg-gradient-to-r from-amber-400 via-gold to-amber-400 bg-[length:200%_100%] animate-[shimmer_2s_ease-in-out_infinite]"></div>
-                                                    {/* Sweep shimmer effect */}
-                                                    <motion.div
-                                                        className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent"
-                                                        animate={{ x: ['-100%', '100%'] }}
-                                                        transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
-                                                    />
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <div className={`absolute inset-0 bg-gradient-to-br from-gold via-amber-400 to-gold transition-all duration-300 ${photoFile ? 'opacity-100' : 'opacity-0'}`}></div>
-                                                    <div className={`absolute inset-0 bg-gradient-to-br from-gray-200 to-gray-300 ${photoFile ? 'opacity-0' : 'opacity-100'}`}></div>
-                                                    {/* Top Highlight for 3D Effect */}
-                                                    {photoFile && (
-                                                        <div className="absolute top-0 inset-x-0 h-1/2 bg-gradient-to-b from-white/40 to-transparent rounded-t-2xl" />
-                                                    )}
-                                                    {/* Shine Animation */}
-                                                    {photoFile && (
-                                                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
-                                                    )}
-                                                </>
-                                            )}
-
-                                            <div className="relative px-8 py-4 flex items-center justify-center gap-3">
+                                        <div className="sticky bottom-0 z-10 -mx-4 mt-6 bg-gradient-to-t from-[#fffdf8] via-[#fffdf8]/95 to-transparent px-4 pb-1 pt-4 sm:static sm:mx-0 sm:bg-none sm:px-0 sm:pb-0 sm:pt-0">
+                                            {/* Enhanced Next Button */}
+                                            <button
+                                                onClick={handleProceedToConfirm}
+                                                disabled={!photoFile || isAnalyzing}
+                                                className={`group relative w-full overflow-hidden rounded-2xl transition-all duration-300 ${isAnalyzing ? '' : 'disabled:opacity-50 disabled:cursor-not-allowed hover:scale-[1.02] active:scale-[0.98]'}`}
+                                                style={{
+                                                    boxShadow: isAnalyzing
+                                                        ? '0 8px 30px rgba(201, 165, 95, 0.5), 0 4px 15px rgba(201, 165, 95, 0.3)'
+                                                        : photoFile
+                                                            ? '0 8px 24px rgba(201, 165, 95, 0.35), 0 4px 12px rgba(201, 165, 95, 0.2)'
+                                                            : '0 2px 8px rgba(0, 0, 0, 0.1)'
+                                                }}
+                                            >
+                                                {/* Background layers */}
                                                 {isAnalyzing ? (
                                                     <>
-                                                        {/* Animated scanning icon */}
+                                                        {/* Golden animated gradient background when analyzing */}
+                                                        <div className="absolute inset-0 bg-gradient-to-r from-amber-400 via-gold to-amber-400 bg-[length:200%_100%] animate-[shimmer_2s_ease-in-out_infinite]"></div>
+                                                        {/* Sweep shimmer effect */}
                                                         <motion.div
-                                                            animate={{ rotate: 360 }}
-                                                            transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
-                                                        >
-                                                            <Wand2 className="w-5 h-5 text-charcoal" />
-                                                        </motion.div>
-                                                        <span className="font-bold text-base text-charcoal">Analyzing Photo</span>
-                                                        {/* Bouncing dots */}
-                                                        <div className="flex gap-1 items-end h-5">
-                                                            {[0, 1, 2].map(i => (
-                                                                <motion.span
-                                                                    key={i}
-                                                                    className="w-1.5 h-1.5 bg-charcoal rounded-full"
-                                                                    animate={{ y: [0, -6, 0] }}
-                                                                    transition={{
-                                                                        duration: 0.6,
-                                                                        repeat: Infinity,
-                                                                        delay: i * 0.15,
-                                                                        ease: 'easeInOut',
-                                                                    }}
-                                                                />
-                                                            ))}
-                                                        </div>
+                                                            className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent"
+                                                            animate={{ x: ['-100%', '100%'] }}
+                                                            transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+                                                        />
                                                     </>
                                                 ) : (
                                                     <>
-                                                        <Wand2 className={`w-5 h-5 transition-all ${photoFile ? 'text-charcoal group-hover:rotate-12' : 'text-gray-500'}`} />
-                                                        <span className={`font-bold text-base transition-colors ${photoFile ? 'text-charcoal' : 'text-gray-500'}`}>
-                                                            Analyze & Continue
-                                                        </span>
-                                                        <ArrowRight className={`w-5 h-5 transition-all ${photoFile ? 'text-charcoal group-hover:translate-x-1' : 'text-gray-500'}`} />
+                                                        <div className={`absolute inset-0 bg-gradient-to-br from-gold via-amber-400 to-gold transition-all duration-300 ${photoFile ? 'opacity-100' : 'opacity-0'}`}></div>
+                                                        <div className={`absolute inset-0 bg-gradient-to-br from-gray-200 to-gray-300 ${photoFile ? 'opacity-0' : 'opacity-100'}`}></div>
+                                                        {/* Top Highlight for 3D Effect */}
+                                                        {photoFile && (
+                                                            <div className="absolute top-0 inset-x-0 h-1/2 rounded-t-2xl bg-gradient-to-b from-white/40 to-transparent" />
+                                                        )}
+                                                        {/* Shine Animation */}
+                                                        {photoFile && (
+                                                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
+                                                        )}
                                                     </>
                                                 )}
-                                            </div>
 
-                                            {/* Progress bar at bottom when analyzing */}
-                                            {isAnalyzing && (
-                                                <div className="absolute bottom-0 left-0 right-0 h-1 bg-black/10 overflow-hidden">
-                                                    <motion.div
-                                                        className="h-full bg-charcoal/60 rounded-full"
-                                                        initial={{ width: '0%', x: '0%' }}
-                                                        animate={{ width: ['0%', '40%', '20%', '70%', '40%', '100%'], x: ['0%', '10%', '30%', '10%', '40%', '0%'] }}
-                                                        transition={{ duration: 8, ease: 'easeInOut' }}
-                                                    />
+                                                <div className="relative flex items-center justify-center gap-3 px-6 py-3.5 sm:px-8 sm:py-4">
+                                                    {isAnalyzing ? (
+                                                        <>
+                                                            {/* Animated scanning icon */}
+                                                            <motion.div
+                                                                animate={{ rotate: 360 }}
+                                                                transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
+                                                            >
+                                                                <Wand2 className="h-5 w-5 text-charcoal" />
+                                                            </motion.div>
+                                                            <span className="text-sm font-bold text-charcoal sm:text-base">Analyzing Photo</span>
+                                                            {/* Bouncing dots */}
+                                                            <div className="flex h-5 items-end gap-1">
+                                                                {[0, 1, 2].map(i => (
+                                                                    <motion.span
+                                                                        key={i}
+                                                                        className="h-1.5 w-1.5 rounded-full bg-charcoal"
+                                                                        animate={{ y: [0, -6, 0] }}
+                                                                        transition={{
+                                                                            duration: 0.6,
+                                                                            repeat: Infinity,
+                                                                            delay: i * 0.15,
+                                                                            ease: 'easeInOut',
+                                                                        }}
+                                                                    />
+                                                                ))}
+                                                            </div>
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <Wand2 className={`h-5 w-5 transition-all ${photoFile ? 'text-charcoal group-hover:rotate-12' : 'text-gray-500'}`} />
+                                                            <span className={`text-sm font-bold transition-colors sm:text-base ${photoFile ? 'text-charcoal' : 'text-gray-500'}`}>
+                                                                Analyze & Continue
+                                                            </span>
+                                                            <ArrowRight className={`h-5 w-5 transition-all ${photoFile ? 'text-charcoal group-hover:translate-x-1' : 'text-gray-500'}`} />
+                                                        </>
+                                                    )}
                                                 </div>
-                                            )}
 
-                                            {/* Enhanced Glow Effect - only when not analyzing */}
-                                            {photoFile && !isAnalyzing && (
-                                                <motion.div
-                                                    className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-3/4 h-4 bg-gold/50 blur-2xl rounded-full"
-                                                    animate={{
-                                                        opacity: [0.5, 0.8, 0.5],
-                                                        scale: [1, 1.1, 1]
-                                                    }}
-                                                    transition={{ duration: 2, repeat: Infinity }}
-                                                />
-                                            )}
+                                                {/* Progress bar at bottom when analyzing */}
+                                                {isAnalyzing && (
+                                                    <div className="absolute bottom-0 left-0 right-0 h-1 overflow-hidden bg-black/10">
+                                                        <motion.div
+                                                            className="h-full rounded-full bg-charcoal/60"
+                                                            initial={{ width: '0%', x: '0%' }}
+                                                            animate={{ width: ['0%', '40%', '20%', '70%', '40%', '100%'], x: ['0%', '10%', '30%', '10%', '40%', '0%'] }}
+                                                            transition={{ duration: 8, ease: 'easeInOut' }}
+                                                        />
+                                                    </div>
+                                                )}
 
-                                            {/* Pulsing glow when analyzing */}
-                                            {isAnalyzing && (
-                                                <motion.div
-                                                    className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-full h-6 bg-gold/60 blur-2xl rounded-full"
-                                                    animate={{
-                                                        opacity: [0.4, 0.8, 0.4],
-                                                        scale: [0.9, 1.1, 0.9]
-                                                    }}
-                                                    transition={{ duration: 1.5, repeat: Infinity }}
-                                                />
-                                            )}
-                                        </button>
+                                                {/* Enhanced Glow Effect - only when not analyzing */}
+                                                {photoFile && !isAnalyzing && (
+                                                    <motion.div
+                                                        className="absolute -bottom-2 left-1/2 h-4 w-3/4 -translate-x-1/2 rounded-full bg-gold/50 blur-2xl"
+                                                        animate={{
+                                                            opacity: [0.5, 0.8, 0.5],
+                                                            scale: [1, 1.1, 1]
+                                                        }}
+                                                        transition={{ duration: 2, repeat: Infinity }}
+                                                    />
+                                                )}
 
-                                        {/* Skip Button */}
-                                        <button
-                                            onClick={handleSkip}
-                                            disabled={isAnalyzing}
-                                            className="group w-full mt-4 px-8 py-3 rounded-2xl font-semibold text-sm border-2 border-gold/30 text-charcoal/70 hover:border-gold hover:text-charcoal hover:bg-gold/5 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                                        >
-                                            <span>Skip for now</span>
-                                            <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                                        </button>
+                                                {/* Pulsing glow when analyzing */}
+                                                {isAnalyzing && (
+                                                    <motion.div
+                                                        className="absolute -bottom-2 left-1/2 h-6 w-full -translate-x-1/2 rounded-full bg-gold/60 blur-2xl"
+                                                        animate={{
+                                                            opacity: [0.4, 0.8, 0.4],
+                                                            scale: [0.9, 1.1, 0.9]
+                                                        }}
+                                                        transition={{ duration: 1.5, repeat: Infinity }}
+                                                    />
+                                                )}
+                                            </button>
+
+                                            {/* Skip Button */}
+                                            <button
+                                                onClick={handleSkip}
+                                                disabled={isAnalyzing}
+                                                className="group mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-gold/30 px-6 py-3 font-semibold text-sm text-charcoal/70 transition-all duration-300 hover:border-gold hover:bg-gold/5 hover:text-charcoal disabled:cursor-not-allowed disabled:opacity-50 sm:mt-4 sm:px-8"
+                                            >
+                                                <span>Skip for now</span>
+                                                <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                                            </button>
+                                        </div>
                                     </motion.div>
                                 )}
 
@@ -707,11 +714,11 @@ export const AuraFormCard = ({ onCreateAura, isProcessing, prefilledDob }: AuraF
                                         </button>
 
                                         {/* Title */}
-                                        <h1 className="text-3xl md:text-4xl font-serif text-charcoal mb-3 leading-tight">
+                                        <h1 className="mb-3 text-[1.9rem] font-serif leading-tight text-charcoal sm:text-3xl md:text-4xl">
                                             Confirm Your Details
                                         </h1>
 
-                                        <p className="text-sm text-charcoal/60 mb-6">
+                                        <p className="mb-5 text-sm text-charcoal/60 sm:mb-6">
                                             {analysisResult?.success && analysisResult?.fullBody
                                                 ? "We detected your attributes! Review and adjust if needed."
                                                 : "Fill in your body attributes below."}
@@ -747,7 +754,7 @@ export const AuraFormCard = ({ onCreateAura, isProcessing, prefilledDob }: AuraF
                                                         {analysisResult.fullBody ? "AI Detected" : "Partial AI Detection"}
                                                     </span>
                                                 </div>
-                                                <div className="grid grid-cols-2 gap-3">
+                                                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                                                     {/* Skin Tone */}
                                                     <div className="bg-white/80 rounded-xl p-3 border border-emerald-100">
                                                         <p className="text-xs text-charcoal/60 mb-1">Skin Tone</p>
@@ -800,53 +807,55 @@ export const AuraFormCard = ({ onCreateAura, isProcessing, prefilledDob }: AuraF
                                         )}
 
                                         {/* Body Attributes Form */}
-                                        <div className="mb-6">
+                                        <div className="mb-5 sm:mb-6">
                                             <BodyAttributesForm
                                                 attributes={attributes}
                                                 onChange={setAttributes}
                                             />
                                         </div>
 
-                                        {/* Create Aura Button */}
-                                        <button
-                                            onClick={handleCreateAura}
-                                            disabled={isProcessing}
-                                            className="group relative w-full overflow-hidden rounded-2xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
-                                        >
-                                            <div className={`absolute inset-0 bg-gradient-to-r from-gold via-[#D4B76E] to-gold transition-all duration-300 ${!isProcessing ? 'opacity-100' : 'opacity-0'}`}></div>
-                                            <div className={`absolute inset-0 bg-gray-200 ${!isProcessing ? 'opacity-0' : 'opacity-100'}`}></div>
+                                        <div className="sticky bottom-0 z-10 -mx-4 mt-6 bg-gradient-to-t from-[#fffdf8] via-[#fffdf8]/95 to-transparent px-4 pb-1 pt-4 sm:static sm:mx-0 sm:bg-none sm:px-0 sm:pb-0 sm:pt-0">
+                                            {/* Create Aura Button */}
+                                            <button
+                                                onClick={handleCreateAura}
+                                                disabled={isProcessing}
+                                                className="group relative w-full overflow-hidden rounded-2xl transition-all duration-300 disabled:cursor-not-allowed disabled:opacity-50"
+                                            >
+                                                <div className={`absolute inset-0 bg-gradient-to-r from-gold via-[#D4B76E] to-gold transition-all duration-300 ${!isProcessing ? 'opacity-100' : 'opacity-0'}`}></div>
+                                                <div className={`absolute inset-0 bg-gray-200 ${!isProcessing ? 'opacity-0' : 'opacity-100'}`}></div>
 
-                                            {!isProcessing && (
-                                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
-                                            )}
-
-                                            <div className="relative px-8 py-4 flex items-center justify-center gap-3">
-                                                {isProcessing ? (
-                                                    <>
-                                                        <Sparkles className="w-5 h-5 text-charcoal animate-spin" />
-                                                        <span className="font-bold text-base text-charcoal">Creating Your Aura...</span>
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <Sparkles className="w-5 h-5 text-charcoal" />
-                                                        <span className="font-bold text-base text-charcoal">
-                                                            Confirm & Create Aura
-                                                        </span>
-                                                        <ArrowRight className="w-5 h-5 text-charcoal group-hover:translate-x-1 transition-all" />
-                                                    </>
+                                                {!isProcessing && (
+                                                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full transition-transform duration-1000 group-hover:translate-x-full"></div>
                                                 )}
+
+                                                <div className="relative flex items-center justify-center gap-3 px-6 py-3.5 sm:px-8 sm:py-4">
+                                                    {isProcessing ? (
+                                                        <>
+                                                            <Sparkles className="h-5 w-5 animate-spin text-charcoal" />
+                                                            <span className="text-sm font-bold text-charcoal sm:text-base">Creating Your Aura...</span>
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <Sparkles className="h-5 w-5 text-charcoal" />
+                                                            <span className="text-sm font-bold text-charcoal sm:text-base">
+                                                                Confirm & Create Aura
+                                                            </span>
+                                                            <ArrowRight className="h-5 w-5 text-charcoal transition-all group-hover:translate-x-1" />
+                                                        </>
+                                                    )}
+                                                </div>
+
+                                                {!isProcessing && (
+                                                    <div className="absolute -bottom-1 left-1/2 h-3 w-3/4 -translate-x-1/2 bg-gold/40 blur-xl transition-all group-hover:bg-gold/60"></div>
+                                                )}
+                                            </button>
+
+                                            {/* Helper Text */}
+                                            <div className="mt-4 text-center sm:mt-6">
+                                                <p className="text-xs text-charcoal/50">
+                                                    ⏱️ Takes approximately 20 seconds to generate your personalized Aura
+                                                </p>
                                             </div>
-
-                                            {!isProcessing && (
-                                                <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-3/4 h-3 bg-gold/40 blur-xl group-hover:bg-gold/60 transition-all"></div>
-                                            )}
-                                        </button>
-
-                                        {/* Helper Text */}
-                                        <div className="mt-6 text-center">
-                                            <p className="text-xs text-charcoal/50">
-                                                ⏱️ Takes approximately 20 seconds to generate your personalized Aura
-                                            </p>
                                         </div>
                                     </motion.div>
                                 )}
@@ -894,6 +903,53 @@ export const AuraFormCard = ({ onCreateAura, isProcessing, prefilledDob }: AuraF
                         >
                             Save DOB
                         </Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={showPartialBodyDialog} onOpenChange={setShowPartialBodyDialog}>
+                <DialogContent className="max-w-[92vw] overflow-hidden rounded-[28px] border-gold/30 bg-[linear-gradient(160deg,_#fffdf8_0%,_#f8f2e6_58%,_#f1dcc0_100%)] p-0 shadow-[0_24px_60px_rgba(70,52,26,0.2)] sm:max-w-md">
+                    <div className="p-5 sm:p-6">
+                        <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-100/80 text-amber-700 shadow-[0_10px_24px_rgba(201,165,92,0.18)]">
+                            <AlertCircle className="h-6 w-6" />
+                        </div>
+
+                        <DialogHeader className="space-y-2 text-left">
+                            <DialogTitle className="text-xl font-serif text-charcoal">
+                                Full-body photo needed
+                            </DialogTitle>
+                            <DialogDescription className="text-sm leading-6 text-charcoal/70">
+                                We could not detect your body shape because the uploaded photo only shows part of your body.
+                                Upload a full-length photo with your whole frame visible for better results.
+                            </DialogDescription>
+                        </DialogHeader>
+
+                        <div className="mt-4 rounded-2xl border border-amber-200/80 bg-white/60 px-4 py-3">
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-700">
+                                Best result
+                            </p>
+                            <p className="mt-1 text-sm leading-6 text-charcoal/70">
+                                Stand upright and keep your head, torso, and legs fully inside the frame.
+                            </p>
+                        </div>
+
+                        <div className="mt-5 flex flex-col-reverse gap-2.5 sm:flex-row sm:justify-end">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => setShowPartialBodyDialog(false)}
+                                className="w-full border-charcoal/15 bg-white/70 text-charcoal hover:bg-white sm:w-auto"
+                            >
+                                Continue manually
+                            </Button>
+                            <Button
+                                type="button"
+                                onClick={handleRetryWithFullBodyPhoto}
+                                className="w-full bg-luxury-gold text-luxury-black hover:bg-luxury-gold/90 sm:w-auto"
+                            >
+                                Upload another photo
+                            </Button>
+                        </div>
                     </div>
                 </DialogContent>
             </Dialog>

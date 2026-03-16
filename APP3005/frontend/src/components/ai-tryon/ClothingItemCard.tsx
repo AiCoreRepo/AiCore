@@ -35,12 +35,12 @@ export function ClothingItemCard({ product, onTryOn, loading = false }: Clothing
     return (
         <>
             <div
-                className="clothing-item-card group h-full flex flex-col cursor-pointer"
+                className="clothing-item-card group relative flex h-full cursor-pointer flex-col"
                 onClick={() => setShowDetails(true)}
                 style={{
                     background: '#FFFFFF',
                     border: '1px solid rgba(212, 175, 55, 0.1)',
-                    borderRadius: '24px',
+                    borderRadius: '22px',
                     overflow: 'hidden',
                     transition: 'all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1)',
                     boxShadow: '0 4px 20px rgba(0, 0, 0, 0.03)',
@@ -74,16 +74,16 @@ export function ClothingItemCard({ product, onTryOn, loading = false }: Clothing
                 </div>
 
                 {/* Product Info */}
-                <div className="p-4 flex flex-col flex-grow">
-                    <div className="mb-4">
-                        <h3 className="text-sm font-serif text-luxury-black line-clamp-1 mb-1 group-hover:text-luxury-gold transition-colors">
+                <div className="flex flex-grow flex-col p-3.5 sm:p-4">
+                    <div className="mb-3.5 sm:mb-4">
+                        <h3 className="mb-1 line-clamp-2 text-sm font-serif text-luxury-black transition-colors group-hover:text-luxury-gold sm:line-clamp-1">
                             {product.title || 'Exquisite Design'}
                         </h3>
                         <div className="flex items-center justify-between">
                             <p className="text-base font-bold text-luxury-gold">
                                 {product.currency} {price}
                             </p>
-                            <p className="text-[10px] uppercase tracking-widest text-neutral-400 font-medium">
+                            <p className="text-[9px] font-medium uppercase tracking-[0.18em] text-neutral-400 sm:text-[10px] sm:tracking-widest">
                                 {product.creator?.store_name || 'Aivestire'}
                             </p>
                         </div>
@@ -97,7 +97,7 @@ export function ClothingItemCard({ product, onTryOn, loading = false }: Clothing
                                 onTryOn();
                             }}
                             disabled={loading}
-                            className="w-full py-3 px-4 rounded-xl font-medium text-[10px] tracking-widest uppercase transition-all duration-300 hover:shadow-gold/20 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                            className="flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-[10px] font-medium uppercase tracking-[0.16em] transition-all duration-300 hover:shadow-gold/20 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 sm:py-3 sm:tracking-widest"
                             style={{
                                 background: '#D4AF37',
                                 color: '#FFFFFF',
@@ -105,7 +105,8 @@ export function ClothingItemCard({ product, onTryOn, loading = false }: Clothing
                             }}
                         >
                             <Zap className="w-3.5 h-3.5 fill-white" />
-                            {loading ? 'Processing...' : 'Vestire Try On'}
+                            <span className="sm:hidden">{loading ? 'Working...' : 'Try On'}</span>
+                            <span className="hidden sm:inline">{loading ? 'Processing...' : 'Vestire Try On'}</span>
                         </button>
                     </div>
                 </div>

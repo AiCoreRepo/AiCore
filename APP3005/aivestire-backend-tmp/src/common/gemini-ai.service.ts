@@ -34,7 +34,7 @@ export class GeminiAIService {
       this.genAI = new GoogleGenerativeAI(apiKey);
       // Use Gemini 2.5 Flash Image (Nano Banana) for image generation
       this.imageModel = this.genAI.getGenerativeModel({
-        model: 'gemini-2.5-flash-image',
+        model: 'gemini-3-pro-image-preview',
         generationConfig: {
           temperature: 0.2,
         } as any,
@@ -222,13 +222,16 @@ If the person is wearing pants, jeans, trousers, a skirt, or a dress, the garmen
 
     const generationRulesSection = `[GENERATION RULES]
 - If the source photo is cropped, partial, seated, angled, or not full body, extend or reconstruct it into a complete full-body image in the exact pose above.
+- If the lower body is missing, cropped, occluded, or impossible to infer from the source image, complete it with tasteful, modest, full-length lower wear that matches the visible upper outfit and reads as a premium studio portrait.
+- Default missing lower wear to elegant full-length trousers, straight pants, churidar, leggings, or an ankle-length skirt when appropriate for the visible top. Keep the result conservative and fashion-appropriate.
+- Never leave the lower body nude, bare, underwear-only, bikini-bottom-like, mini-short, hot-short, or revealing. Do not generate exposed upper thighs as the main lower-body completion.
 - Keep the person centered with enough space to clearly show the entire silhouette from head to toe.
 - Add matching neutral footwear only if the original feet or shoes are missing.
 - Background: clean neutral studio backdrop with soft even fashion lighting.
 - Output style: hyper-realistic, sharp detail, premium fashion photo, natural anatomy.`;
 
     const hardNegativesSection = `[HARD NEGATIVES — NEVER GENERATE]
-wide stance | legs apart | one leg forward | split stance | walking pose | contrapposto | hip shift | bent knees | bent elbows | arms away from body | one arm forward | raised arm | hand on hip | crossed arms | leg gap | visible crotch gap | trouser gap | pants separation | fabric gap between legs | shortened hair | tied-back hair | altered face shape | different skin tone | cropped feet | partial body`;
+wide stance | legs apart | one leg forward | split stance | walking pose | contrapposto | hip shift | bent knees | bent elbows | arms away from body | one arm forward | raised arm | hand on hip | crossed arms | leg gap | visible crotch gap | trouser gap | pants separation | fabric gap between legs | shortened hair | tied-back hair | altered face shape | different skin tone | cropped feet | partial body | nude lower body | bare legs as missing lower-wear completion | underwear | bikini bottom | mini shorts | hot pants | revealing shorts`;
 
     const finalSelfCheckSection = `[FINAL VALIDATION BEFORE OUTPUT]
 Before returning the image, internally verify all of these are true:
@@ -236,6 +239,7 @@ Before returning the image, internally verify all of these are true:
 2. The legs are straight and fully touching with absolutely no gap anywhere from hip to feet.
 3. The arms are straight, vertical, and resting beside the outer thighs.
 4. The face, hair, skin tone, and outfit still match the source person exactly.
+5. If any part of the lower body was reconstructed, the final lower wear is modest, full-length, and suitable for a decent fashion portrait.
 If any check fails, correct the image so all checks pass before outputting it.`;
 
     const sections = [taskSection, poseSection, identitySection];

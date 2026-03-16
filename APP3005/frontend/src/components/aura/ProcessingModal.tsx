@@ -14,17 +14,19 @@ interface ProcessingModalProps {
     estimatedTime: number;
 }
 
+const BASE_STEPS: ProcessingStep[] = [
+    { id: "upload", label: "Upload verified", status: "pending" },
+    { id: "sending", label: "Sending to AI", status: "pending" },
+    { id: "generating", label: "Generating your Aura", status: "pending" },
+    { id: "finalizing", label: "Finalizing", status: "pending" },
+];
+
 export const ProcessingModal = ({ isOpen, progress, estimatedTime }: ProcessingModalProps) => {
-    const [steps, setSteps] = useState<ProcessingStep[]>([
-        { id: "upload", label: "Upload verified", status: "pending" },
-        { id: "sending", label: "Sending to AI", status: "pending" },
-        { id: "generating", label: "Generating your Aura", status: "pending" },
-        { id: "finalizing", label: "Finalizing", status: "pending" },
-    ]);
+    const [steps, setSteps] = useState<ProcessingStep[]>(BASE_STEPS);
 
     useEffect(() => {
         // Update steps based on progress
-        const newSteps = [...steps];
+        const newSteps = BASE_STEPS.map((step) => ({ ...step }));
 
         if (progress >= 25) {
             newSteps[0].status = "completed";
@@ -69,13 +71,13 @@ export const ProcessingModal = ({ isOpen, progress, estimatedTime }: ProcessingM
                             animate={{ opacity: 1, scale: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.95, y: 20 }}
                             transition={{ duration: 0.3 }}
-                            className="w-full max-w-md rounded-2xl shadow-2xl border-2 border-gold/40 p-8"
+                            className="w-full max-w-md rounded-[24px] border-2 border-gold/40 p-5 shadow-2xl sm:rounded-2xl sm:p-8"
                             style={{
                                 background: "linear-gradient(135deg, #FFFDF8 0%, #F5F1E8 50%, #FFFDF8 100%)",
                             }}
                         >
                             {/* Title */}
-                            <h2 className="text-2xl font-serif text-charcoal text-center mb-6">
+                            <h2 className="mb-5 text-center text-xl font-serif text-charcoal sm:mb-6 sm:text-2xl">
                                 Creating Your Aura
                             </h2>
 
@@ -105,13 +107,13 @@ export const ProcessingModal = ({ isOpen, progress, estimatedTime }: ProcessingM
                                         />
                                     </motion.div>
                                 </div>
-                                <p className="text-center text-sm text-charcoal font-medium mt-2">
+                                <p className="mt-2 text-center text-sm font-medium text-charcoal">
                                     {progress}% Complete
                                 </p>
                             </div>
 
                             {/* Processing Steps */}
-                            <div className="space-y-3 mb-6">
+                            <div className="mb-6 space-y-3">
                                 {steps.map((step) => (
                                     <div
                                         key={step.id}
@@ -132,12 +134,12 @@ export const ProcessingModal = ({ isOpen, progress, estimatedTime }: ProcessingM
 
                                         {/* Label */}
                                         <p
-                                            className={`text-base ${step.status === "completed"
+                                            className={`text-[15px] ${step.status === "completed"
                                                 ? "text-grey-soft line-through"
                                                 : step.status === "processing"
                                                     ? "text-charcoal font-medium"
                                                     : "text-grey-soft"
-                                                }`}
+                                                } sm:text-base`}
                                         >
                                             {step.label}
                                             {step.status === "processing" && "..."}
@@ -149,6 +151,10 @@ export const ProcessingModal = ({ isOpen, progress, estimatedTime }: ProcessingM
                             {/* Estimated Time */}
                             <p className="text-center text-sm text-grey-soft">
                                 Estimated time: <span className="font-medium text-charcoal">{estimatedTime} seconds</span>
+                            </p>
+
+                            <p className="mt-3 text-center text-xs text-grey-soft/80">
+                                AI-generated output may occasionally make mistakes.
                             </p>
                         </motion.div>
                     </div>

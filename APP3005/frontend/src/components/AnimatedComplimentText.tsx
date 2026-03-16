@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 interface AnimatedComplimentTextProps {
   text: string;
@@ -8,6 +8,7 @@ interface AnimatedComplimentTextProps {
   startDelayMs?: number;
   mode?: "typing" | "fade";
   unit?: "character" | "word";
+  onComplete?: () => void;
 }
 
 export function AnimatedComplimentText({
@@ -18,6 +19,7 @@ export function AnimatedComplimentText({
   startDelayMs = 120,
   mode = "typing",
   unit = "word",
+  onComplete,
 }: AnimatedComplimentTextProps) {
   const getSegments = (value: string) =>
     unit === "word" ? value.match(/\S+\s*/g) ?? [] : Array.from(value);
@@ -27,9 +29,25 @@ export function AnimatedComplimentText({
     mode === "fade" ? segments.length : 0
   );
   const [isVisible, setIsVisible] = useState(false);
+  const onCompleteRef = useRef(onComplete);
+  const hasNotifiedCompletionRef = useRef(false);
+
+  useEffect(() => {
+    onCompleteRef.current = onComplete;
+  }, [onComplete]);
 
   useEffect(() => {
     const nextSegments = mode === "fade" ? [text] : getSegments(text);
+    const notifyComplete = () => {
+      if (hasNotifiedCompletionRef.current) {
+        return;
+      }
+
+      hasNotifiedCompletionRef.current = true;
+      onCompleteRef.current?.();
+    };
+
+    hasNotifiedCompletionRef.current = false;
 
     if (!text) {
       setVisibleSegments(0);
@@ -44,6 +62,7 @@ export function AnimatedComplimentText({
     if (prefersReducedMotion) {
       setVisibleSegments(nextSegments.length);
       setIsVisible(true);
+      notifyComplete();
       return;
     }
 
@@ -58,6 +77,7 @@ export function AnimatedComplimentText({
 
       if (mode === "fade") {
         setVisibleSegments(nextSegments.length);
+        notifyComplete();
         return;
       }
 
@@ -68,6 +88,7 @@ export function AnimatedComplimentText({
 
         if (nextVisibleSegments >= nextSegments.length && typingTimer) {
           window.clearInterval(typingTimer);
+          notifyComplete();
         }
       }, speedMs);
     }, startDelayMs);

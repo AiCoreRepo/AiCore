@@ -108,6 +108,14 @@ const AiTryOn = () => {
     setShowUpgradePopup(true);
   };
 
+  const openVirtualTryOnFeedback = () => {
+    if (!feedbackContext || feedbackContext.type !== "VIRTUAL_TRYON") {
+      return;
+    }
+
+    setShowFeedbackSheet(true);
+  };
+
   const handleUpgradeToPremium = () => {
     window.location.href = TRY_ON_PREMIUM_UPGRADE_URL;
   };
@@ -178,6 +186,7 @@ const AiTryOn = () => {
       setCurrentProductId(productId); // Store productId for angle generation
       setTryOnLoading(true);
       setTryOnError(null);
+      setShowFeedbackSheet(false);
       setShowResultModal(true);
 
       const tryOnFunction = provider === 'gemini' ? tryOnWithGemini : tryOnWithVertex;
@@ -204,7 +213,6 @@ const AiTryOn = () => {
           referenceId: result.tryOnId ? String(result.tryOnId) : undefined,
           label: productLabel,
         });
-        setShowFeedbackSheet(true);
         // Refresh user data to update try-on count
         fetchUser();
       } else {
@@ -321,16 +329,16 @@ const AiTryOn = () => {
     >
       <Navbar />
 
-      <main className="pt-32 pb-12">
+      <main className="pb-8 pt-24 md:pb-12 md:pt-32">
         {/* Header */}
-        <section className="py-8 border-b border-[#D4AF37]/10 bg-[#F8F4EC]">
-          <div className="max-w-[1600px] mx-auto px-6 md:px-12">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <section className="border-b border-[#D4AF37]/10 bg-[#F8F4EC] py-6 md:py-8">
+          <div className="mx-auto max-w-[1600px] px-4 sm:px-6 md:px-12">
+            <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center md:gap-6">
               <div className="flex-1">
                 <div className="flex flex-col gap-1">
                   <div className="flex items-center gap-3">
                     <Sparkles className="w-5 h-5 text-luxury-gold" />
-                    <h1 className="text-3xl md:text-4xl font-serif text-luxury-black">
+                    <h1 className="text-[2rem] font-serif text-luxury-black md:text-4xl">
                       AI Virtual Try-On
                     </h1>
                   </div>
@@ -355,7 +363,7 @@ const AiTryOn = () => {
                         alert('Failed to load gallery: ' + error.message);
                       });
                   }}
-                  className="flex items-center gap-2 px-7 py-3 rounded-xl font-medium text-xs tracking-[0.2em] uppercase transition-all duration-300 hover:shadow-gold/10 active:scale-[0.98] group"
+                  className="group flex w-full items-center justify-center gap-2 rounded-xl px-6 py-3 text-xs font-medium uppercase tracking-[0.2em] transition-all duration-300 hover:shadow-gold/10 active:scale-[0.98] sm:w-auto sm:px-7"
                   style={{
                     background: '#D4AF37',
                     color: '#FFFFFF',
@@ -370,11 +378,11 @@ const AiTryOn = () => {
         </section>
 
         {/* Main Content */}
-        <section className="py-8">
-          <div className="max-w-[1600px] mx-auto px-6 md:px-12">
+        <section className="py-6 md:py-8">
+          <div className="mx-auto max-w-[1600px] px-4 sm:px-6 md:px-12">
             {/* Loading State */}
             {loadingAura && (
-              <div className="text-center py-20">
+              <div className="py-16 text-center md:py-20">
                 <div className="inline-block animate-spin rounded-full h-12 w-12 border-2 border-luxury-gold border-t-transparent mb-6" />
                 <p className="text-xs uppercase tracking-[0.2em] text-neutral-400 font-medium italic">Summoning your digital twin...</p>
               </div>
@@ -382,7 +390,7 @@ const AiTryOn = () => {
 
             {/* Main Layout */}
             {!loadingAura && aura && (
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+              <div className="grid grid-cols-1 gap-6 md:gap-8 lg:grid-cols-12 lg:gap-10">
                 {/* Left Sidebar - Aura Display (3/12) */}
                 <div className="lg:col-span-3">
                   <AuraDisplayCard
@@ -448,7 +456,7 @@ const AiTryOn = () => {
                     <>
                       {/* Products Loading */}
                       {productsLoading && (
-                        <div className="text-center py-24">
+                        <div className="py-20 text-center md:py-24">
                           <div className="inline-block animate-spin rounded-full h-10 w-10 border-2 border-luxury-gold border-t-transparent mb-6" />
                           <p className="text-xs uppercase tracking-widest text-neutral-400 italic">Curating your selection...</p>
                         </div>
@@ -473,7 +481,7 @@ const AiTryOn = () => {
                       {/* Products Grid */}
                       {!productsLoading && !productsError && productsData?.products && (
                         <>
-                          <div className="mb-8 flex items-end justify-between border-b border-neutral-100 pb-5">
+                          <div className="mb-6 flex flex-col gap-3 border-b border-neutral-100 pb-4 sm:mb-8 sm:flex-row sm:items-end sm:justify-between sm:pb-5">
                             <div>
                               <h2 className="text-2xl md:text-3xl font-serif text-luxury-black italic mb-1">
                                 Select Your Masterpiece
@@ -496,7 +504,7 @@ const AiTryOn = () => {
                             </div>
                           </div>
 
-                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                          <div className="grid grid-cols-1 gap-4 min-[560px]:grid-cols-2 sm:gap-6 lg:grid-cols-3 xl:grid-cols-4">
                             {productsData.products
                               .filter((product: any) => {
                                 // Age filter: Only show models 40 or younger (or if age not specified)
@@ -567,6 +575,7 @@ const AiTryOn = () => {
         resultImage={resultImage}
         loading={tryOnLoading}
         error={tryOnError}
+        comparisonImage={originalTryOnImage}
         onGenerateMoreAngles={handleGenerateMoreAngles}
         generatingAngles={generatingAngles}
         userPhoto={aura?.image_url}
@@ -575,6 +584,7 @@ const AiTryOn = () => {
         generatedImages={generatedImages}
         onSelectImage={(img) => setResultImage(img)}
         userName={currentUserName}
+        onComplimentComplete={openVirtualTryOnFeedback}
       />
 
       {/* Gallery Modal */}
@@ -589,6 +599,7 @@ const AiTryOn = () => {
           isOpen={showFeedbackSheet}
           context={feedbackContext}
           onClose={closeFeedbackSheet}
+          mobilePlacement="above-actions"
         />
       )}
     </div>

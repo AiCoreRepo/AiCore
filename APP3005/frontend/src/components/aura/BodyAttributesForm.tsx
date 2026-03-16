@@ -32,7 +32,7 @@ export const BodyAttributesForm = ({ attributes, onChange }: BodyAttributesFormP
     };
 
     const inputClass = `
-        w-full pl-11 pr-4 py-3.5 rounded-xl 
+        w-full rounded-xl pl-10 pr-4 py-3 sm:pl-11 sm:py-3.5
         border-2 border-gold/30 
         bg-white/80 backdrop-blur-sm
         text-charcoal text-sm font-medium 
@@ -42,16 +42,16 @@ export const BodyAttributesForm = ({ attributes, onChange }: BodyAttributesFormP
         placeholder:text-charcoal/40
     `;
 
-    const labelClass = "block text-xs font-bold text-charcoal/80 mb-2.5 uppercase tracking-wider";
-    const guideHeaderLabelClass = "block text-xs font-bold text-charcoal/80 uppercase tracking-wider";
-    const guideButtonClass = "flex items-center gap-1.5 px-3 py-1.5 text-xs text-gold hover:text-amber-600 transition-all group bg-gold/10 hover:bg-gold/20 rounded-lg";
+    const labelClass = "mb-2 block text-[11px] font-bold uppercase tracking-[0.18em] text-charcoal/80 sm:mb-2.5 sm:text-xs";
+    const guideHeaderLabelClass = "block text-[11px] font-bold uppercase tracking-[0.18em] text-charcoal/80 sm:text-xs";
+    const guideButtonClass = "group flex items-center gap-1.5 rounded-lg bg-gold/10 px-2.5 py-1.5 text-[11px] text-gold transition-all hover:bg-gold/20 hover:text-amber-600 sm:px-3 sm:text-xs";
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
             {/* Section Header with Gradient */}
-            <div className="relative flex items-center gap-3 pb-4 mb-2">
-                <div className="w-1.5 h-8 bg-gradient-to-b from-gold via-amber-400 to-gold rounded-full shadow-lg" />
-                <h3 className="text-lg font-bold bg-gradient-to-r from-charcoal to-charcoal/70 bg-clip-text text-transparent">
+            <div className="relative mb-1 flex items-center gap-2.5 pb-3 sm:mb-2 sm:gap-3 sm:pb-4">
+                <div className="h-7 w-1.5 rounded-full bg-gradient-to-b from-gold via-amber-400 to-gold shadow-lg sm:h-8" />
+                <h3 className="text-base font-bold bg-gradient-to-r from-charcoal to-charcoal/70 bg-clip-text text-transparent sm:text-lg">
                     Your Attributes
                 </h3>
                 <div className="flex-1 h-px bg-gradient-to-r from-gold/30 to-transparent" />
@@ -94,7 +94,7 @@ export const BodyAttributesForm = ({ attributes, onChange }: BodyAttributesFormP
                 transition={{ delay: 0.1 }}
                 className="relative"
             >
-                <div className="flex items-center justify-between mb-2.5">
+                <div className="mb-2 flex flex-wrap items-center justify-between gap-2 sm:mb-2.5">
                     <label className={guideHeaderLabelClass}>Body Shape</label>
                     <button
                         type="button"
@@ -154,7 +154,7 @@ export const BodyAttributesForm = ({ attributes, onChange }: BodyAttributesFormP
                 transition={{ delay: 0.3 }}
                 className="relative"
             >
-                <div className="flex items-center justify-between mb-2.5">
+                <div className="mb-2 flex flex-wrap items-center justify-between gap-2 sm:mb-2.5">
 
                     <label className={guideHeaderLabelClass}>Skin Tone</label>
                     <button

@@ -93,6 +93,14 @@ const CollectionPage = () => {
         setShowUpgradePopup(true);
     };
 
+    const openVirtualTryOnFeedback = () => {
+        if (!feedbackContext || feedbackContext.type !== "VIRTUAL_TRYON") {
+            return;
+        }
+
+        setShowFeedbackSheet(true);
+    };
+
     const handleUpgradeToPremium = () => {
         window.location.href = TRY_ON_PREMIUM_UPGRADE_URL;
     };
@@ -246,6 +254,7 @@ const CollectionPage = () => {
 
             setTryOnLoading(true);
             setTryOnError(null);
+            setShowFeedbackSheet(false);
             setShowResultModal(true);
 
             // Use aura.user_id if available, otherwise fallback to user.user_id (though aura is preferred)
@@ -273,7 +282,6 @@ const CollectionPage = () => {
                     referenceId: result.tryOnId ? String(result.tryOnId) : undefined,
                     label: selectedTryOnLabel || resolveProductLabel(productId),
                 });
-                setShowFeedbackSheet(true);
             } else {
                 throw new Error(result.message || 'Try-on failed');
             }
@@ -659,6 +667,7 @@ const CollectionPage = () => {
                 resultImage={resultImage}
                 loading={tryOnLoading}
                 error={tryOnError}
+                comparisonImage={originalTryOnImage}
                 onGenerateMoreAngles={handleGenerateMoreAngles}
                 generatingAngles={generatingAngles}
                 userPhoto={aura?.image_url}
@@ -667,6 +676,7 @@ const CollectionPage = () => {
                 generatedImages={generatedImages}
                 onSelectImage={(img) => setResultImage(img)}
                 userName={currentUserName}
+                onComplimentComplete={openVirtualTryOnFeedback}
             />
 
             {feedbackContext && (
@@ -674,6 +684,7 @@ const CollectionPage = () => {
                     isOpen={showFeedbackSheet}
                     context={feedbackContext}
                     onClose={closeFeedbackSheet}
+                    mobilePlacement="above-actions"
                 />
             )}
         </div>

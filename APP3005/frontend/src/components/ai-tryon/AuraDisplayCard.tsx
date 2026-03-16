@@ -35,7 +35,7 @@ export function AuraDisplayCard({ aura, tryOnCount = 0, maxTryOns }: AuraDisplay
         <div className="ai-tryon-aura-card">
             {/* Mobile Toggle */}
             <button
-                className="lg:hidden w-full flex items-center justify-between p-5 bg-white rounded-2xl mb-4 shadow-sm group"
+                className="group mb-4 flex w-full items-center justify-between rounded-2xl bg-white p-4 shadow-sm lg:hidden"
                 onClick={() => setIsCollapsed(!isCollapsed)}
                 style={{
                     border: '1px solid rgba(212, 175, 55, 0.15)',
@@ -53,15 +53,11 @@ export function AuraDisplayCard({ aura, tryOnCount = 0, maxTryOns }: AuraDisplay
 
             {/* Aura Card Content */}
             <div
-                className={`aura-card-content transition-all duration-500 ${isCollapsed ? 'hidden lg:block' : 'block'}`}
+                className={`aura-card-content transition-all duration-500 ${isCollapsed ? 'hidden lg:block' : 'block'} rounded-[24px] p-5 sm:rounded-[28px] sm:p-7 lg:sticky lg:top-[120px]`}
                 style={{
                     background: '#FFFFFF',
                     border: '1px solid rgba(212, 175, 55, 0.1)',
-                    borderRadius: '28px',
-                    padding: '28px',
                     boxShadow: '0 10px 40px rgba(0, 0, 0, 0.04)',
-                    position: 'sticky',
-                    top: '120px',
                 }}
             >
                 {/* Avatar Image */}
@@ -104,8 +100,8 @@ export function AuraDisplayCard({ aura, tryOnCount = 0, maxTryOns }: AuraDisplay
                 {/* Aura Info */}
                 <div className="space-y-4">
                     {/* Title */}
-                    <div className="text-center pb-6 border-b border-neutral-100">
-                        <h3 className="text-2xl font-serif text-luxury-black mb-1">
+                    <div className="border-b border-neutral-100 pb-5 text-center sm:pb-6">
+                        <h3 className="mb-1 text-xl font-serif text-luxury-black sm:text-2xl">
                             Your AI Avatar
                         </h3>
                         <p className="text-[10px] uppercase tracking-[0.2em] text-neutral-400 font-medium">
@@ -157,7 +153,7 @@ export function AuraDisplayCard({ aura, tryOnCount = 0, maxTryOns }: AuraDisplay
 
                     {/* Additional Info */}
                     <div
-                        className="mt-6 p-4 rounded-2xl text-center"
+                        className="mt-5 rounded-2xl p-4 text-center sm:mt-6"
                         style={{
                             background: '#F8F4EC',
                         }}
@@ -178,12 +174,12 @@ export function AuraDisplayCard({ aura, tryOnCount = 0, maxTryOns }: AuraDisplay
 
 function AttributeRow({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
     return (
-        <div className="flex items-center justify-between p-3.5 rounded-xl transition-colors hover:bg-neutral-50">
+        <div className="flex items-center justify-between rounded-xl p-3 transition-colors hover:bg-neutral-50 sm:p-3.5">
             <div className="flex items-center gap-3">
                 <span className="text-luxury-gold/70">{icon}</span>
                 <span className="text-xs uppercase tracking-widest text-neutral-400 font-medium">{label}</span>
             </div>
-            <span className="text-sm font-semibold text-luxury-black">{value}</span>
+            <span className="text-right text-sm font-semibold text-luxury-black">{value}</span>
         </div>
     );
 }

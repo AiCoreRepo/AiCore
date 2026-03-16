@@ -70,13 +70,19 @@ export default function AuraProfile() {
     const [recreateDraftError, setRecreateDraftError] = useState("");
     const [recreateJobId, setRecreateJobId] = useState<string | null>(null);
     const [recreateProgress, setRecreateProgress] = useState(0);
+    const [isStartingRecreation, setIsStartingRecreation] = useState(false);
     const navigate = useNavigate();
     const location = useLocation();
     const [showFeedbackSheet, setShowFeedbackSheet] = useState(false);
     const [feedbackContext, setFeedbackContext] = useState<FeedbackContext | null>(null);
     const { toast } = useToast();
-    const recreateEstimatedTime = Math.max(0, Math.ceil((100 - recreateProgress) / 5));
-    const isRecreationInProgress = recreateJobId !== null;
+    const displayedRecreateProgress = recreateJobId
+        ? recreateProgress
+        : isStartingRecreation
+            ? 8
+            : 0;
+    const recreateEstimatedTime = Math.max(0, Math.ceil((100 - displayedRecreateProgress) / 5));
+    const isRecreationInProgress = recreateJobId !== null || isStartingRecreation;
     const hasReachedRecreationLimit = recreateUsed >= maxRecreationAttempts;
     const isRecreateDisabled = isRecreationInProgress || hasReachedRecreationLimit;
 
@@ -387,6 +393,9 @@ export default function AuraProfile() {
 
         try {
             setRecreateDraftError("");
+            setShowRecreateModal(false);
+            setIsStartingRecreation(true);
+            setRecreateProgress(8);
             const formData = new FormData();
             if (recreateMode === "new-photo" && recreatePhoto) {
                 formData.append('photo', recreatePhoto);
@@ -425,10 +434,12 @@ export default function AuraProfile() {
             const nextJobId = payload.job_id ? String(payload.job_id) : null;
             if (nextJobId) {
                 setRecreateJobId(nextJobId);
+                setRecreateProgress((prev) => Math.max(prev, 12));
+            } else {
                 setRecreateProgress(0);
             }
 
-            setShowRecreateModal(false);
+            setIsStartingRecreation(false);
 
             toast({
                 title: "Recreate Started",
@@ -439,6 +450,9 @@ export default function AuraProfile() {
                 className: "bg-[#F5F0E6] border-[#D4B76E] text-[#1A1A1A]",
             });
         } catch (error) {
+            setIsStartingRecreation(false);
+            setRecreateProgress(0);
+            setShowRecreateModal(true);
             setRecreateDraftError(error instanceof Error ? error.message : 'Failed to recreate Aura.');
         }
     };
@@ -493,6 +507,7 @@ export default function AuraProfile() {
 
                 if (payload.status === 'completed') {
                     clearInterval(interval);
+                    setIsStartingRecreation(false);
                     setRecreateJobId(null);
                     setRecreateProgress(100);
                     const completedAuraId = payload?.data?.auraId
@@ -516,6 +531,7 @@ export default function AuraProfile() {
                     });
                 } else if (payload.status === 'failed') {
                     clearInterval(interval);
+                    setIsStartingRecreation(false);
                     setRecreateJobId(null);
                     setRecreateProgress(0);
                     toast({
@@ -900,8 +916,8 @@ export default function AuraProfile() {
             )}
 
             <ProcessingModal
-                isOpen={!!recreateJobId}
-                progress={Math.min(recreateProgress, 100)}
+                isOpen={isRecreationInProgress}
+                progress={Math.min(displayedRecreateProgress, 100)}
                 estimatedTime={recreateEstimatedTime}
             />
         </div>
