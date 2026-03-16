@@ -16,7 +16,6 @@ import { TryOnResultModal } from '@/components/ai-tryon/TryOnResultModal';
 import { TryOnUpgradePopup } from '@/components/ai-tryon/TryOnUpgradePopup';
 import { tryOnWithVertex, generateMoreAngles } from '@/lib/api';
 import { FeedbackContextType } from '@/lib/api';
-import { FeedbackBottomSheet } from '@/components/feedback/FeedbackBottomSheet';
 import {
     getTryOnLimitSnapshot,
     getTryOnUsageSnapshot,
@@ -278,7 +277,6 @@ const LetAIDecidePage = () => {
                     referenceId: result.tryOnId ? String(result.tryOnId) : undefined,
                     label: selectedTryOnLabel,
                 });
-                setShowFeedbackSheet(true);
             } else {
                 throw new Error(result.message || 'Try-on failed');
             }
@@ -671,17 +669,16 @@ const LetAIDecidePage = () => {
                 garmentTitle={selectedTryOnLabel || undefined}
                 generatedImages={generatedImages}
                 onSelectImage={(img) => setResultImage(img)}
+                feedbackContext={
+                    feedbackContext?.type === 'VIRTUAL_TRYON'
+                        ? {
+                            referenceId: feedbackContext.referenceId,
+                            label: feedbackContext.label,
+                        }
+                        : null
+                }
                 userName={currentUserName}
             />
-
-            {feedbackContext && (
-                <FeedbackBottomSheet
-                    isOpen={showFeedbackSheet}
-                    context={feedbackContext}
-                    onClose={closeFeedbackSheet}
-                    mobilePlacement="above-actions"
-                />
-            )}
         </div>
     );
 };

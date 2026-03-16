@@ -14,7 +14,6 @@ import { TryOnUpgradePopup } from '@/components/ai-tryon/TryOnUpgradePopup';
 import { AuraPromptDialog } from '@/components/aura/AuraPromptDialog';
 import { tryOnWithVertex, generateMoreAngles, getAura, FeedbackContextType } from '@/lib/api';
 import collectionHeaderImage from "@/assets/collectionHeader.jpeg";
-import { FeedbackBottomSheet } from '@/components/feedback/FeedbackBottomSheet';
 import {
     getTryOnLimitSnapshot,
     getTryOnUsageSnapshot,
@@ -91,14 +90,6 @@ const CollectionPage = () => {
     const openUpgradePopup = (error?: { tryOnsUsed?: number; maxTryOns?: number }) => {
         setTryOnUsageSnapshot(getTryOnLimitSnapshot(error, user));
         setShowUpgradePopup(true);
-    };
-
-    const openVirtualTryOnFeedback = () => {
-        if (!feedbackContext || feedbackContext.type !== "VIRTUAL_TRYON") {
-            return;
-        }
-
-        setShowFeedbackSheet(true);
     };
 
     const handleUpgradeToPremium = () => {
@@ -675,18 +666,16 @@ const CollectionPage = () => {
                 garmentTitle={selectedTryOnLabel || undefined}
                 generatedImages={generatedImages}
                 onSelectImage={(img) => setResultImage(img)}
+                feedbackContext={
+                    feedbackContext?.type === 'VIRTUAL_TRYON'
+                        ? {
+                            referenceId: feedbackContext.referenceId,
+                            label: feedbackContext.label,
+                        }
+                        : null
+                }
                 userName={currentUserName}
-                onComplimentComplete={openVirtualTryOnFeedback}
             />
-
-            {feedbackContext && (
-                <FeedbackBottomSheet
-                    isOpen={showFeedbackSheet}
-                    context={feedbackContext}
-                    onClose={closeFeedbackSheet}
-                    mobilePlacement="above-actions"
-                />
-            )}
         </div>
     );
 };

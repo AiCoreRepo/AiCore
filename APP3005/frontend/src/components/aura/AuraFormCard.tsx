@@ -862,7 +862,7 @@ export const AuraFormCard = ({ onCreateAura, isProcessing, prefilledDob }: AuraF
                                             />
                                         </div>
 
-                                        <div className="sticky bottom-0 z-10 -mx-4 mt-6 bg-gradient-to-t from-[#fffdf8] via-[#fffdf8]/95 to-transparent px-4 pb-1 pt-4 sm:static sm:mx-0 sm:bg-none sm:px-0 sm:pb-0 sm:pt-0">
+                                        <div className="mt-6 rounded-[24px] border border-gold/15 bg-white/70 px-4 py-4 shadow-[0_14px_32px_rgba(201,165,95,0.08)] sm:mt-6 sm:border-0 sm:bg-transparent sm:px-0 sm:py-0 sm:shadow-none">
                                             {/* Create Aura Button */}
                                             <button
                                                 onClick={handleCreateAura}

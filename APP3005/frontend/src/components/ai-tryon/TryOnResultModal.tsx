@@ -1,9 +1,10 @@
-import { X, Download, Share2, Sparkles, ShoppingBag, CheckCircle2, Loader2 } from 'lucide-react';
+import { X, Download, Share2, Sparkles, ShoppingBag, CheckCircle2, Loader2, Star, AlertCircle, MessageSquareText } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AnimatedComplimentText } from '@/components/AnimatedComplimentText';
 import { LOADING_QUOTES } from './loading-quotes';
 import { getRandomCompliment, ComplimentMessage } from './compliment-messages';
+import { submitFeedback } from '@/lib/api';
 import {
     Carousel,
     CarouselApi,
@@ -28,6 +29,10 @@ interface TryOnResultModalProps {
     garmentTitle?: string;
     generatedImages?: string[];
     onSelectImage?: (image: string) => void;
+    feedbackContext?: {
+        referenceId?: string;
+        label?: string;
+    } | null;
     userName?: string;
     onComplimentComplete?: () => void;
 }
@@ -52,6 +57,7 @@ export function TryOnResultModal({
     garmentId,
     garmentTitle,
     generatedImages = [],
+    feedbackContext,
     userName,
     onComplimentComplete,
 }: TryOnResultModalProps) {
@@ -62,6 +68,13 @@ export function TryOnResultModal({
     const [hasShownCompliment, setHasShownCompliment] = useState(false);
     const [carouselApi, setCarouselApi] = useState<CarouselApi>();
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
+    const [showInlineFeedback, setShowInlineFeedback] = useState(false);
+    const [feedbackRating, setFeedbackRating] = useState(0);
+    const [feedbackComment, setFeedbackComment] = useState('');
+    const [showOptionalFeedbackNote, setShowOptionalFeedbackNote] = useState(false);
+    const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
+    const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
+    const [feedbackError, setFeedbackError] = useState('');
 
     // Progress State
     const [loadingProgress, setLoadingProgress] = useState(0);
@@ -90,6 +103,14 @@ export function TryOnResultModal({
         ? `How does ${displayGarmentTitle} look on me? Does it suit me?`
         : 'How does this look on me? Does it suit me?';
     const userInitial = displayUserName.charAt(0).toUpperCase();
+    const feedbackRequiresComment = feedbackRating > 0 && feedbackRating <= 3;
+    const showFeedbackCommentField =
+        feedbackRequiresComment ||
+        showOptionalFeedbackNote ||
+        feedbackComment.trim().length > 0;
+    const canSubmitFeedback =
+        feedbackRating > 0 &&
+        (!feedbackRequiresComment || feedbackComment.trim().length >= 4);
 
     const processSteps: ProcessStep[] = [
         { id: 1, label: 'Analyzing Image', icon: '🔍', status: 'pending' },
@@ -111,8 +132,15 @@ export function TryOnResultModal({
                 progressRef.current = 0;
             }
             setCurrentImageIndex(activeImageIndex);
+            setShowInlineFeedback(false);
+            setFeedbackRating(0);
+            setFeedbackComment('');
+            setShowOptionalFeedbackNote(false);
+            setFeedbackSubmitting(false);
+            setFeedbackSubmitted(false);
+            setFeedbackError('');
         }
-    }, [isOpen, activeImageIndex, loading, generatingAngles]);
+    }, [isOpen, activeImageIndex, loading, generatingAngles, feedbackContext?.referenceId]);
 
     useEffect(() => {
         if (!carouselApi || carouselImages.length === 0) {
@@ -267,6 +295,9 @@ export function TryOnResultModal({
         }
 
         hasTriggeredComplimentCompleteRef.current = true;
+        if (feedbackContext) {
+            setShowInlineFeedback(true);
+        }
         onComplimentComplete?.();
     };
 
@@ -319,6 +350,243 @@ export function TryOnResultModal({
         if (stepIndex < currentStep) return 'complete';
         if (stepIndex === currentStep) return 'active';
         return 'pending';
+    };
+
+    const feedbackReplyMessage =
+        feedbackRating >= 4
+            ? 'We are glad you liked the virtual try-on.'
+            : 'We are continuously improving the virtual try-on experience. Please tell us what felt off.';
+
+    const feedbackSubmittedMessage =
+        feedbackRating >= 4
+            ? 'Thanks for the rating. We are glad the virtual try-on worked well for you.'
+            : 'Thanks for the honest feedback. We are continuously improving the virtual try-on experience.';
+
+    const handleFeedbackSubmit = async () => {
+        if (!feedbackContext || feedbackSubmitted || feedbackSubmitting) {
+            return;
+        }
+
+        if (!canSubmitFeedback) {
+            if (feedbackRequiresComment) {
+                setFeedbackError('Please add a short note for 3 stars or below.');
+            }
+            return;
+        }
+
+        setFeedbackSubmitting(true);
+        setFeedbackError('');
+
+        try {
+            await submitFeedback({
+                context_type: 'VIRTUAL_TRYON',
+                context_reference_id: feedbackContext.referenceId,
+                context_label: feedbackContext.label || displayGarmentTitle,
+                rating: feedbackRating,
+                comment: feedbackComment.trim() || undefined,
+            });
+            setFeedbackSubmitted(true);
+        } catch (submitError) {
+            setFeedbackError(
+                submitError instanceof Error
+                    ? submitError.message
+                    : 'Failed to submit feedback',
+            );
+        } finally {
+            setFeedbackSubmitting(false);
+        }
+    };
+
+    const renderFeedbackConversation = (layout: 'default' | 'mobile' = 'default') => {
+        if (!feedbackContext || !showInlineFeedback || !resultImage || loading || error) {
+            return null;
+        }
+
+        const isMobileLayout = layout === 'mobile';
+
+        return (
+            <div className={`${isMobileLayout ? 'mt-3 space-y-3' : 'mt-4 space-y-4 md:mt-5'}`}>
+                <div className={`flex min-w-0 items-start ${isMobileLayout ? 'gap-2' : 'gap-3'}`}>
+                    <div
+                        className={`flex shrink-0 items-center justify-center ${isMobileLayout ? 'h-10 w-10 rounded-[18px]' : 'h-11 w-11 rounded-2xl'}`}
+                        style={{
+                            background: 'linear-gradient(135deg, #d1aa62 0%, #f2dfba 100%)',
+                            boxShadow: '0 8px 20px rgba(160, 123, 54, 0.18)',
+                        }}
+                    >
+                        <MessageSquareText className={`${isMobileLayout ? 'h-4 w-4' : 'h-5 w-5'} text-white`} />
+                    </div>
+
+                    <div
+                        className={`min-w-0 flex-1 ${isMobileLayout ? 'rounded-[20px] rounded-tl-md px-3.5 py-3.5' : 'rounded-[24px] rounded-tl-md px-4 py-4'}`}
+                        style={{
+                            background: 'rgba(255, 251, 244, 0.96)',
+                            border: '1px solid rgba(138, 105, 54, 0.12)',
+                            boxShadow: '0 10px 24px rgba(160, 123, 54, 0.08)',
+                        }}
+                    >
+                        <p className={`${isMobileLayout ? 'text-[10px] tracking-[0.13em]' : 'text-xs tracking-[0.16em]'} font-semibold uppercase text-[#8a6936]`}>
+                            AiVestire Fashion Expert
+                        </p>
+                        <p className={`${isMobileLayout ? 'mt-2 text-[13px] leading-5' : 'mt-2 text-sm leading-6'} text-[#5a4630]`}>
+                            How was your virtual try-on? Rate it below.
+                        </p>
+
+                        <div className={`mt-3 flex items-center ${isMobileLayout ? 'gap-1' : 'gap-1.5'}`}>
+                            {[1, 2, 3, 4, 5].map((value) => (
+                                <button
+                                    key={value}
+                                    type="button"
+                                    onClick={() => {
+                                        if (feedbackSubmitted || feedbackSubmitting) {
+                                            return;
+                                        }
+                                        setFeedbackRating(value);
+                                        setFeedbackError('');
+                                        if (value > 3) {
+                                            setShowOptionalFeedbackNote(false);
+                                        }
+                                    }}
+                                    className={`rounded-full transition ${feedbackSubmitted ? 'pointer-events-none' : 'hover:scale-105'} ${value <= feedbackRating ? 'text-[#D4AF37]' : 'text-[#CAB08A]/50'}`}
+                                    aria-label={`Rate ${value} stars`}
+                                    disabled={feedbackSubmitted || feedbackSubmitting}
+                                >
+                                    <Star className={`${isMobileLayout ? 'h-5 w-5' : 'h-6 w-6'} fill-current`} />
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+
+                {feedbackRating > 0 && (
+                    <>
+                        <div className={`flex min-w-0 items-start justify-end ${isMobileLayout ? 'gap-2' : 'gap-3'}`}>
+                            <div
+                                className={`min-w-0 ${isMobileLayout ? 'max-w-[calc(100%-3rem)] rounded-[20px] rounded-tr-md px-3 py-3' : 'max-w-[85%] rounded-[24px] rounded-tr-md px-4 py-3.5'}`}
+                                style={{
+                                    background: 'linear-gradient(135deg, #2f2416 0%, #4a3520 100%)',
+                                    boxShadow: '0 10px 24px rgba(47, 36, 22, 0.22)',
+                                }}
+                            >
+                                <p className={`${isMobileLayout ? 'text-[10px] tracking-[0.12em]' : 'text-xs tracking-[0.14em]'} font-semibold uppercase text-[#f2d7a5]`}>
+                                    {displayUserName}
+                                </p>
+                                <div className="mt-1 flex items-center gap-1">
+                                    {[1, 2, 3, 4, 5].map((value) => (
+                                        <Star
+                                            key={value}
+                                            className={`${isMobileLayout ? 'h-3.5 w-3.5' : 'h-4 w-4'} ${value <= feedbackRating ? 'fill-[#f2d7a5] text-[#f2d7a5]' : 'text-[#8f7652]'}`}
+                                        />
+                                    ))}
+                                    <span className={`${isMobileLayout ? 'ml-1 text-[11px]' : 'ml-1.5 text-xs'} text-[#fff8ec]`}>
+                                        {feedbackRating}/5
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div
+                                className={`flex shrink-0 items-center justify-center overflow-hidden ${isMobileLayout ? 'h-10 w-10 rounded-[18px]' : 'h-11 w-11 rounded-2xl'}`}
+                                style={{
+                                    background: 'linear-gradient(135deg, #e8c98b 0%, #f9f1df 100%)',
+                                    boxShadow: '0 8px 20px rgba(160, 123, 54, 0.16)',
+                                }}
+                            >
+                                {userPhoto ? (
+                                    <img src={userPhoto} alt={displayUserName} className="h-full w-full object-cover" />
+                                ) : (
+                                    <span className={`${isMobileLayout ? 'text-[13px]' : 'text-sm'} font-semibold text-[#6b4f26]`}>{userInitial}</span>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className={`flex min-w-0 items-start ${isMobileLayout ? 'gap-2' : 'gap-3'}`}>
+                            <div
+                                className={`flex shrink-0 items-center justify-center ${isMobileLayout ? 'h-10 w-10 rounded-[18px]' : 'h-11 w-11 rounded-2xl'}`}
+                                style={{
+                                    background: 'linear-gradient(135deg, #d1aa62 0%, #f2dfba 100%)',
+                                    boxShadow: '0 8px 20px rgba(160, 123, 54, 0.18)',
+                                }}
+                            >
+                                {feedbackSubmitted ? (
+                                    <CheckCircle2 className={`${isMobileLayout ? 'h-4 w-4' : 'h-5 w-5'} text-white`} />
+                                ) : (
+                                    <MessageSquareText className={`${isMobileLayout ? 'h-4 w-4' : 'h-5 w-5'} text-white`} />
+                                )}
+                            </div>
+
+                            <div
+                                className={`min-w-0 flex-1 ${isMobileLayout ? 'rounded-[20px] rounded-tl-md px-3.5 py-3.5' : 'rounded-[24px] rounded-tl-md px-4 py-4'}`}
+                                style={{
+                                    background: 'rgba(255, 251, 244, 0.96)',
+                                    border: '1px solid rgba(138, 105, 54, 0.12)',
+                                    boxShadow: '0 10px 24px rgba(160, 123, 54, 0.08)',
+                                }}
+                            >
+                                <p className={`${isMobileLayout ? 'text-[10px] tracking-[0.13em]' : 'text-xs tracking-[0.16em]'} font-semibold uppercase text-[#8a6936]`}>
+                                    AiVestire Fashion Expert
+                                </p>
+                                <p className={`${isMobileLayout ? 'mt-2 text-[13px] leading-5' : 'mt-2 text-sm leading-6'} text-[#2f2416]`}>
+                                    {feedbackSubmitted ? feedbackSubmittedMessage : feedbackReplyMessage}
+                                </p>
+
+                                {!feedbackSubmitted && (
+                                    <>
+                                        {!feedbackRequiresComment && !showFeedbackCommentField && (
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowOptionalFeedbackNote(true)}
+                                                className={`mt-3 rounded-full border border-[#D4B76E]/40 bg-white px-3 py-1.5 ${isMobileLayout ? 'text-[10px]' : 'text-xs'} font-semibold text-[#7A6240] transition hover:bg-[#FAF4E8]`}
+                                            >
+                                                Add a note
+                                            </button>
+                                        )}
+
+                                        {showFeedbackCommentField && (
+                                            <div className="mt-3">
+                                                <label className={`${isMobileLayout ? 'text-[10px]' : 'text-xs'} font-medium text-[#4A3F2E]`}>
+                                                    Note {feedbackRequiresComment ? '(required)' : '(optional)'}
+                                                </label>
+                                                <textarea
+                                                    value={feedbackComment}
+                                                    onChange={(event) => {
+                                                        setFeedbackComment(event.target.value);
+                                                        setFeedbackError('');
+                                                    }}
+                                                    rows={2}
+                                                    disabled={feedbackSubmitting}
+                                                    className={`mt-1 w-full resize-none rounded-xl border border-[#D4B76E]/50 bg-white px-3 py-2 ${isMobileLayout ? 'text-[12px]' : 'text-sm'} outline-none placeholder:text-[#B7A07D] focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/35`}
+                                                    placeholder={
+                                                        feedbackRequiresComment
+                                                            ? 'Tell us what can be better...'
+                                                            : 'Anything you loved or want improved?'
+                                                    }
+                                                />
+                                            </div>
+                                        )}
+
+                                        {feedbackError && (
+                                            <p className={`mt-3 flex items-center gap-1.5 ${isMobileLayout ? 'text-[10px]' : 'text-xs'} text-red-600`}>
+                                                <AlertCircle className="h-3.5 w-3.5" />
+                                                {feedbackError}
+                                            </p>
+                                        )}
+
+                                        <button
+                                            type="button"
+                                            onClick={handleFeedbackSubmit}
+                                            disabled={!canSubmitFeedback || feedbackSubmitting}
+                                            className={`mt-3 w-full rounded-xl bg-[#D4AF37] px-4 py-2.5 ${isMobileLayout ? 'text-[12px]' : 'text-sm'} font-semibold text-[#2B2015] transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50`}
+                                        >
+                                            {feedbackSubmitting ? 'Submitting...' : 'Submit feedback'}
+                                        </button>
+                                    </>
+                                )}
+                            </div>
+                        </div>
+                    </>
+                )}
+            </div>
+        );
     };
 
     const renderComplimentCard = (
@@ -464,6 +732,8 @@ export function TryOnResultModal({
                             {displayGarmentTitle} feels flattering, elegant, and well balanced on you.
                         </p>
                     </div>
+
+                    {renderFeedbackConversation(layout)}
                 </div>
             </div>
         );

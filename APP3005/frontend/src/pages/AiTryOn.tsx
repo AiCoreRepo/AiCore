@@ -21,7 +21,6 @@ import {
 } from '@/lib/api';
 import { Sparkles, AlertCircle, Images, Lock, Clock } from 'lucide-react';
 import '@/components/ai-tryon/ai-tryon-styles.css';
-import { FeedbackBottomSheet } from '@/components/feedback/FeedbackBottomSheet';
 import {
   getTryOnLimitSnapshot,
   getTryOnUsageSnapshot,
@@ -106,14 +105,6 @@ const AiTryOn = () => {
   const openUpgradePopup = (error?: { tryOnsUsed?: number; maxTryOns?: number }) => {
     setTryOnUsageSnapshot(getTryOnLimitSnapshot(error, user));
     setShowUpgradePopup(true);
-  };
-
-  const openVirtualTryOnFeedback = () => {
-    if (!feedbackContext || feedbackContext.type !== "VIRTUAL_TRYON") {
-      return;
-    }
-
-    setShowFeedbackSheet(true);
   };
 
   const handleUpgradeToPremium = () => {
@@ -583,8 +574,15 @@ const AiTryOn = () => {
         garmentTitle={currentProductId ? resolveProductLabel(currentProductId) : undefined}
         generatedImages={generatedImages}
         onSelectImage={(img) => setResultImage(img)}
+        feedbackContext={
+          feedbackContext?.type === 'VIRTUAL_TRYON'
+            ? {
+                referenceId: feedbackContext.referenceId,
+                label: feedbackContext.label,
+              }
+            : null
+        }
         userName={currentUserName}
-        onComplimentComplete={openVirtualTryOnFeedback}
       />
 
       {/* Gallery Modal */}
@@ -594,14 +592,6 @@ const AiTryOn = () => {
         tryOns={tryOnHistory}
       />
 
-      {feedbackContext && (
-        <FeedbackBottomSheet
-          isOpen={showFeedbackSheet}
-          context={feedbackContext}
-          onClose={closeFeedbackSheet}
-          mobilePlacement="above-actions"
-        />
-      )}
     </div>
   );
 };
