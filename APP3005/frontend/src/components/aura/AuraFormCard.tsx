@@ -74,7 +74,7 @@ const mapBodyShape = (aiValue: string | null | undefined): string => {
 type Step = "upload" | "confirm";
 
 const PARTIAL_BODY_TOAST_MESSAGE =
-    "We couldn’t detect your body shape because the uploaded photo doesn’t show your full body. Please upload a full-length photo with your whole frame visible.";
+    "We couldn’t fully detect your body shape from this photo. Please fill in the missing details manually below.";
 
 const REQUIRED_ATTRIBUTE_MESSAGES: Record<RequiredBodyAttribute, string> = {
     bodyShape: "Select your body shape.",
@@ -210,7 +210,6 @@ export const AuraFormCard = ({ onCreateAura, isProcessing, prefilledDob }: AuraF
     const [dobInput, setDobInput] = useState<string>(formatDobForInput(initialDobValue));
     const [dobError, setDobError] = useState<string>("");
     const [showDobDialog, setShowDobDialog] = useState(false);
-    const [showPartialBodyDialog, setShowPartialBodyDialog] = useState(false);
     const [attributeErrors, setAttributeErrors] = useState<Partial<Record<RequiredBodyAttribute, string>>>({});
 
     // AI Analysis state
@@ -258,7 +257,6 @@ export const AuraFormCard = ({ onCreateAura, isProcessing, prefilledDob }: AuraF
         // Reset analysis state for new photo
         setAnalysisResult(null);
         setAnalysisError(null);
-        setShowPartialBodyDialog(false);
         setAttributeErrors({});
 
         // Auto-populate age range and default gender.
@@ -277,7 +275,6 @@ export const AuraFormCard = ({ onCreateAura, isProcessing, prefilledDob }: AuraF
         setPhotoPreview(null);
         setAnalysisResult(null);
         setAnalysisError(null);
-        setShowPartialBodyDialog(false);
         setAttributeErrors({});
         setAttributes({ gender: "female" });
         setCurrentStep("upload");
@@ -318,7 +315,6 @@ export const AuraFormCard = ({ onCreateAura, isProcessing, prefilledDob }: AuraF
 
         setIsAnalyzing(true);
         setAnalysisError(null);
-        setShowPartialBodyDialog(false);
 
         // Failsafe timeout - if analysis takes more than 35 seconds, force proceed
         const failsafeTimeout = setTimeout(() => {
@@ -348,7 +344,6 @@ export const AuraFormCard = ({ onCreateAura, isProcessing, prefilledDob }: AuraF
 
                 if (!result.fullBody) {
                     setAnalysisError(PARTIAL_BODY_TOAST_MESSAGE);
-                    setShowPartialBodyDialog(true);
                     console.log('⚠️ Partial body photo uploaded, body shape left for manual entry');
                 } else {
                     console.log('✅ AI detected:', result.skinToneLabel, result.bodyShape);
@@ -380,11 +375,6 @@ export const AuraFormCard = ({ onCreateAura, isProcessing, prefilledDob }: AuraF
 
     const handleBackToUpload = () => {
         setCurrentStep("upload");
-    };
-
-    const handleRetryWithFullBodyPhoto = () => {
-        setShowPartialBodyDialog(false);
-        handlePhotoRemove();
     };
 
     const handleCreateAura = () => {
@@ -460,24 +450,7 @@ export const AuraFormCard = ({ onCreateAura, isProcessing, prefilledDob }: AuraF
         navigate("/");
     };
 
-    const isFormValid = photoFile !== null;
-    const missingRequiredAttributeErrors = getRequiredAttributeErrors(attributes);
-    const missingRequiredAttributeLabels = (Object.keys(missingRequiredAttributeErrors) as RequiredBodyAttribute[])
-        .map((field) => {
-            switch (field) {
-                case "bodyShape":
-                    return "Body shape";
-                case "bodySize":
-                    return "Body size";
-                case "skinTone":
-                    return "Skin tone";
-            }
-        });
-    const hasAllRequiredAttributes = missingRequiredAttributeLabels.length === 0;
-    const displayedAttributeErrors =
-        Object.keys(attributeErrors).length > 0
-            ? attributeErrors
-            : missingRequiredAttributeErrors;
+    const hasAttributeErrors = Object.keys(attributeErrors).length > 0;
 
     return (
         <div className="w-full lg:w-1/2 flex flex-col bg-gradient-to-br from-cream via-ivory to-cream overflow-hidden">
@@ -859,7 +832,7 @@ export const AuraFormCard = ({ onCreateAura, isProcessing, prefilledDob }: AuraF
                                                     <AlertCircle className="w-5 h-5 text-amber-600" />
                                                     <span className="text-sm font-semibold text-amber-700">
                                                         {analysisResult?.success && !analysisResult?.fullBody
-                                                            ? "Full-body photo needed"
+                                                            ? "Manual input needed"
                                                             : "Manual Entry Required"}
                                                     </span>
                                                 </div>
@@ -869,13 +842,13 @@ export const AuraFormCard = ({ onCreateAura, isProcessing, prefilledDob }: AuraF
                                             </div>
                                         )}
 
-                                        {!hasAllRequiredAttributes && (
+                                        {hasAttributeErrors && (
                                             <div className="mb-5 rounded-2xl border border-rose-200 bg-rose-50/70 px-4 py-3 sm:mb-6">
                                                 <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-rose-700">
                                                     Complete required fields
                                                 </p>
                                                 <p className="mt-1 text-sm leading-6 text-rose-700/90">
-                                                    Add {missingRequiredAttributeLabels.join(", ")} before creating your Aura.
+                                                    Add body shape, body size, and skin tone before creating your Aura.
                                                 </p>
                                             </div>
                                         )}
@@ -885,7 +858,7 @@ export const AuraFormCard = ({ onCreateAura, isProcessing, prefilledDob }: AuraF
                                             <BodyAttributesForm
                                                 attributes={attributes}
                                                 onChange={handleAttributesChange}
-                                                errors={displayedAttributeErrors}
+                                                errors={attributeErrors}
                                             />
                                         </div>
 
@@ -893,7 +866,7 @@ export const AuraFormCard = ({ onCreateAura, isProcessing, prefilledDob }: AuraF
                                             {/* Create Aura Button */}
                                             <button
                                                 onClick={handleCreateAura}
-                                                disabled={isProcessing || !hasAllRequiredAttributes}
+                                                disabled={isProcessing}
                                                 className="group relative w-full overflow-hidden rounded-2xl transition-all duration-300 disabled:cursor-not-allowed disabled:opacity-50"
                                             >
                                                 <div className={`absolute inset-0 bg-gradient-to-r from-gold via-[#D4B76E] to-gold transition-all duration-300 ${!isProcessing ? 'opacity-100' : 'opacity-0'}`}></div>
@@ -928,9 +901,7 @@ export const AuraFormCard = ({ onCreateAura, isProcessing, prefilledDob }: AuraF
                                             {/* Helper Text */}
                                             <div className="mt-4 text-center sm:mt-6">
                                                 <p className="text-xs text-charcoal/50">
-                                                    {hasAllRequiredAttributes
-                                                        ? "⏱️ Takes approximately 20 seconds to generate your personalized Aura"
-                                                        : "Finish body shape, body size, and skin tone to continue."}
+                                                    ⏱️ Takes approximately 20 seconds to generate your personalized Aura
                                                 </p>
                                             </div>
                                         </div>
@@ -980,53 +951,6 @@ export const AuraFormCard = ({ onCreateAura, isProcessing, prefilledDob }: AuraF
                         >
                             Save DOB
                         </Button>
-                    </div>
-                </DialogContent>
-            </Dialog>
-
-            <Dialog open={showPartialBodyDialog} onOpenChange={setShowPartialBodyDialog}>
-                <DialogContent className="max-w-[92vw] overflow-hidden rounded-[28px] border-gold/30 bg-[linear-gradient(160deg,_#fffdf8_0%,_#f8f2e6_58%,_#f1dcc0_100%)] p-0 shadow-[0_24px_60px_rgba(70,52,26,0.2)] sm:max-w-md">
-                    <div className="p-5 sm:p-6">
-                        <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-100/80 text-amber-700 shadow-[0_10px_24px_rgba(201,165,92,0.18)]">
-                            <AlertCircle className="h-6 w-6" />
-                        </div>
-
-                        <DialogHeader className="space-y-2 text-left">
-                            <DialogTitle className="text-xl font-serif text-charcoal">
-                                Full-body photo needed
-                            </DialogTitle>
-                            <DialogDescription className="text-sm leading-6 text-charcoal/70">
-                                We could not detect your body shape because the uploaded photo only shows part of your body.
-                                Upload a full-length photo with your whole frame visible for better results.
-                            </DialogDescription>
-                        </DialogHeader>
-
-                        <div className="mt-4 rounded-2xl border border-amber-200/80 bg-white/60 px-4 py-3">
-                            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-700">
-                                Best result
-                            </p>
-                            <p className="mt-1 text-sm leading-6 text-charcoal/70">
-                                Stand upright and keep your head, torso, and legs fully inside the frame.
-                            </p>
-                        </div>
-
-                        <div className="mt-5 flex flex-col-reverse gap-2.5 sm:flex-row sm:justify-end">
-                            <Button
-                                type="button"
-                                variant="outline"
-                                onClick={() => setShowPartialBodyDialog(false)}
-                                className="w-full border-charcoal/15 bg-white/70 text-charcoal hover:bg-white sm:w-auto"
-                            >
-                                Continue manually
-                            </Button>
-                            <Button
-                                type="button"
-                                onClick={handleRetryWithFullBodyPhoto}
-                                className="w-full bg-luxury-gold text-luxury-black hover:bg-luxury-gold/90 sm:w-auto"
-                            >
-                                Upload another photo
-                            </Button>
-                        </div>
                     </div>
                 </DialogContent>
             </Dialog>

@@ -52,7 +52,6 @@ export function TryOnResultModal({
     garmentId,
     garmentTitle,
     generatedImages = [],
-    onSelectImage,
     userName,
     onComplimentComplete,
 }: TryOnResultModalProps) {
@@ -84,6 +83,7 @@ export function TryOnResultModal({
     const activeImageIndex = resultImage
         ? Math.max(carouselImages.indexOf(resultImage), 0)
         : 0;
+    const activeDisplayImage = carouselImages[currentImageIndex] || resultImage;
     const isProcessingState = loading || generatingAngles;
     const showMobileActionBar = Boolean(resultImage) && !loading && !generatingAngles && !error;
     const userPrompt = garmentTitle
@@ -120,15 +120,13 @@ export function TryOnResultModal({
         }
 
         const syncFromCarousel = () => {
-            const nextIndex = carouselApi.selectedScrollSnap();
+            const nextIndex = Math.max(
+                0,
+                Math.min(carouselApi.selectedScrollSnap(), carouselImages.length - 1),
+            );
             setCurrentImageIndex(nextIndex);
-            const nextImage = carouselImages[nextIndex];
-            if (nextImage && nextImage !== resultImage) {
-                onSelectImage?.(nextImage);
-            }
         };
 
-        syncFromCarousel();
         carouselApi.on('select', syncFromCarousel);
         carouselApi.on('reInit', syncFromCarousel);
 
@@ -136,7 +134,7 @@ export function TryOnResultModal({
             carouselApi.off('select', syncFromCarousel);
             carouselApi.off('reInit', syncFromCarousel);
         };
-    }, [carouselApi, carouselImages, onSelectImage, resultImage]);
+    }, [carouselApi, carouselImages.length]);
 
     useEffect(() => {
         if (!carouselApi || carouselImages.length === 0) {
@@ -145,9 +143,13 @@ export function TryOnResultModal({
 
         const nextIndex = Math.min(activeImageIndex, carouselImages.length - 1);
         setCurrentImageIndex(nextIndex);
-        if (carouselApi.selectedScrollSnap() !== nextIndex) {
-            carouselApi.scrollTo(nextIndex);
-        }
+        const frameId = window.requestAnimationFrame(() => {
+            if (carouselApi.selectedScrollSnap() !== nextIndex) {
+                carouselApi.scrollTo(nextIndex, true);
+            }
+        });
+
+        return () => window.cancelAnimationFrame(frameId);
     }, [activeImageIndex, carouselApi, carouselImages.length]);
 
     // Rotate quotes every 3 seconds during loading
@@ -285,9 +287,9 @@ export function TryOnResultModal({
     if (!isOpen) return null;
 
     const handleDownload = () => {
-        if (!resultImage) return;
+        if (!activeDisplayImage) return;
         const link = document.createElement('a');
-        link.href = resultImage;
+        link.href = activeDisplayImage;
         link.download = `ai-tryon-${Date.now()}.jpg`;
         document.body.appendChild(link);
         link.click();
@@ -986,7 +988,7 @@ export function TryOnResultModal({
                 )}
 
                 {/* Lightbox */}
-                {isLightboxOpen && resultImage && (
+                {isLightboxOpen && activeDisplayImage && (
                     <div
                         className="fixed inset-0 z-[100] flex items-center justify-center p-4"
                         style={{
@@ -1009,7 +1011,7 @@ export function TryOnResultModal({
 
                         <div className="relative w-full h-full flex items-center justify-center p-4" onClick={(e) => e.stopPropagation()}>
                             <img
-                                src={resultImage}
+                                src={activeDisplayImage}
                                 alt="Try-On Result - Full Size"
                                 className="max-w-[92vw] max-h-[92vh] w-auto h-auto object-contain rounded-3xl modal-appear"
                                 style={{
