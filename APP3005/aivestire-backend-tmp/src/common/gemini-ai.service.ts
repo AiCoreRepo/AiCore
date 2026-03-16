@@ -10,6 +10,7 @@ export interface AvatarGenerationRequest {
     skinTone: string;
     gender: string;
     bodyShape: string;
+    bodySize: string;
     ageRange: string;
     hairStyle: string;
   };
@@ -159,6 +160,7 @@ export class GeminiAIService {
       skinTone,
       gender,
       bodyShape,
+      bodySize,
       ageRange,
       hairStyle,
     } = attributes;
@@ -184,6 +186,12 @@ If the person is wearing pants, jeans, trousers, a skirt, or a dress, the garmen
 - Copy the person's clothing exactly as worn. Do not change the outfit.
 - Preserve the same body identity while only correcting the pose and framing.`;
 
+    const expressionSection = `[EXPRESSION — NON-NEGOTIABLE]
+- The final portrait must show a happy, warm, natural smile.
+- The expression should feel pleasant, confident, and fashion-editorial appropriate: relaxed eyes, relaxed cheeks, and a clearly smiling mouth.
+- If the source photo has a neutral, serious, blank, or tense expression, change it to a gentle smile while preserving the same identity and natural facial proportions.
+- Keep the smile tasteful and realistic. Do not generate an exaggerated grin, laughing face, open-mouth laugh, or distorted teeth.`;
+
     const userAttributeLines: string[] = [];
 
     if (gender && gender !== 'unspecified') {
@@ -202,6 +210,11 @@ If the person is wearing pants, jeans, trousers, a skirt, or a dress, the garmen
     if (bodyShape && bodyShape !== 'average') {
       userAttributeLines.push(
         `- Body shape: ${formatAttr(bodyShape)} silhouette`,
+      );
+    }
+    if (bodySize) {
+      userAttributeLines.push(
+        `- Body size: ${formatAttr(bodySize)} — match the overall fit and proportions`,
       );
     }
     if (height) {
@@ -231,7 +244,7 @@ If the person is wearing pants, jeans, trousers, a skirt, or a dress, the garmen
 - Output style: hyper-realistic, sharp detail, premium fashion photo, natural anatomy.`;
 
     const hardNegativesSection = `[HARD NEGATIVES — NEVER GENERATE]
-wide stance | legs apart | one leg forward | split stance | walking pose | contrapposto | hip shift | bent knees | bent elbows | arms away from body | one arm forward | raised arm | hand on hip | crossed arms | leg gap | visible crotch gap | trouser gap | pants separation | fabric gap between legs | shortened hair | tied-back hair | altered face shape | different skin tone | cropped feet | partial body | nude lower body | bare legs as missing lower-wear completion | underwear | bikini bottom | mini shorts | hot pants | revealing shorts`;
+wide stance | legs apart | one leg forward | split stance | walking pose | contrapposto | hip shift | bent knees | bent elbows | arms away from body | one arm forward | raised arm | hand on hip | crossed arms | leg gap | visible crotch gap | trouser gap | pants separation | fabric gap between legs | shortened hair | tied-back hair | altered face shape | different skin tone | cropped feet | partial body | nude lower body | bare legs as missing lower-wear completion | underwear | bikini bottom | mini shorts | hot pants | revealing shorts | sad expression | angry expression | blank expression | frown | exaggerated grin | open-mouth laugh`;
 
     const finalSelfCheckSection = `[FINAL VALIDATION BEFORE OUTPUT]
 Before returning the image, internally verify all of these are true:
@@ -239,10 +252,11 @@ Before returning the image, internally verify all of these are true:
 2. The legs are straight and fully touching with absolutely no gap anywhere from hip to feet.
 3. The arms are straight, vertical, and resting beside the outer thighs.
 4. The face, hair, skin tone, and outfit still match the source person exactly.
-5. If any part of the lower body was reconstructed, the final lower wear is modest, full-length, and suitable for a decent fashion portrait.
+5. The final face has a happy, natural, clearly smiling expression.
+6. If any part of the lower body was reconstructed, the final lower wear is modest, full-length, and suitable for a decent fashion portrait.
 If any check fails, correct the image so all checks pass before outputting it.`;
 
-    const sections = [taskSection, poseSection, identitySection];
+    const sections = [taskSection, poseSection, identitySection, expressionSection];
 
     if (userAttributeLines.length > 0) {
       sections.push(

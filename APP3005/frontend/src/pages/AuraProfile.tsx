@@ -38,6 +38,13 @@ interface AttributeValues {
 }
 
 type RecreateMode = "attributes-only" | "new-photo";
+type RequiredAuraAttribute = "bodyShape" | "bodySize" | "skinTone";
+
+const REQUIRED_AURA_ATTRIBUTE_MESSAGES: Record<RequiredAuraAttribute, string> = {
+    bodyShape: "Select a body shape.",
+    bodySize: "Select a body size.",
+    skinTone: "Select a skin tone.",
+};
 
 interface FeedbackContext {
   type: FeedbackContextType;
@@ -71,6 +78,8 @@ export default function AuraProfile() {
     const [recreateJobId, setRecreateJobId] = useState<string | null>(null);
     const [recreateProgress, setRecreateProgress] = useState(0);
     const [isStartingRecreation, setIsStartingRecreation] = useState(false);
+    const [showEditValidation, setShowEditValidation] = useState(false);
+    const [showRecreateValidation, setShowRecreateValidation] = useState(false);
     const navigate = useNavigate();
     const location = useLocation();
     const [showFeedbackSheet, setShowFeedbackSheet] = useState(false);
@@ -268,6 +277,18 @@ export default function AuraProfile() {
     };
 
     const handleSave = async () => {
+        const missingRequiredAttributes = getRequiredAttributeErrors(attributes);
+        if (Object.keys(missingRequiredAttributes).length > 0) {
+            setShowEditValidation(true);
+            toast({
+                variant: "destructive",
+                title: "Required Fields Missing",
+                description: "Body shape, body size, and skin tone are required.",
+                duration: 3500,
+            });
+            return;
+        }
+
         setIsSaving(true);
         try {
             const token = localStorage.getItem('access_token');
@@ -297,6 +318,7 @@ export default function AuraProfile() {
             setAura(updatedAura);
             setOriginalAttributes(attributes);
             setIsEditing(false);
+            setShowEditValidation(false);
 
             // Show success toast
             toast({
@@ -323,6 +345,7 @@ export default function AuraProfile() {
     const handleCancel = () => {
         setAttributes(originalAttributes);
         setIsEditing(false);
+        setShowEditValidation(false);
     };
 
     const handleRecreateAttributeChange = (key: keyof AttributeValues, value: string) => {
@@ -339,6 +362,7 @@ export default function AuraProfile() {
         setRecreatePhoto(null);
         setRecreatePhotoPreview(null);
         setRecreateDraftError("");
+        setShowRecreateValidation(false);
         setShowRecreateModal(true);
     };
 
@@ -347,6 +371,19 @@ export default function AuraProfile() {
         setRecreatePhoto(null);
         setRecreatePhotoPreview(null);
         setRecreateDraftError("");
+        setShowRecreateValidation(false);
+    };
+
+    const getRequiredAttributeErrors = (values: AttributeValues) => {
+        const nextErrors: Partial<Record<RequiredAuraAttribute, string>> = {};
+
+        (Object.keys(REQUIRED_AURA_ATTRIBUTE_MESSAGES) as RequiredAuraAttribute[]).forEach((field) => {
+            if (!values[field]) {
+                nextErrors[field] = REQUIRED_AURA_ATTRIBUTE_MESSAGES[field];
+            }
+        });
+
+        return nextErrors;
     };
 
     const handleRecreatePhotoChange = (event: ChangeEvent<HTMLInputElement>) => {
@@ -376,6 +413,13 @@ export default function AuraProfile() {
         if (isRecreateDisabled) return;
         if (recreateMode === "new-photo" && !recreatePhoto) {
             setRecreateDraftError("Upload a new photo to use this recreation option.");
+            return;
+        }
+
+        const missingRequiredAttributes = getRequiredAttributeErrors(recreateAttributes);
+        if (Object.keys(missingRequiredAttributes).length > 0) {
+            setShowRecreateValidation(true);
+            setRecreateDraftError("Body shape, body size, and skin tone are required.");
             return;
         }
 
@@ -560,6 +604,10 @@ export default function AuraProfile() {
     }
 
     const remainingRecreations = Math.max(0, maxRecreationAttempts - recreateUsed);
+    const editRequiredAttributeErrors = getRequiredAttributeErrors(attributes);
+    const recreateRequiredAttributeErrors = getRequiredAttributeErrors(recreateAttributes);
+    const showEditMissingFields = showEditValidation && Object.keys(editRequiredAttributeErrors).length > 0;
+    const showRecreateMissingFields = showRecreateValidation && Object.keys(recreateRequiredAttributeErrors).length > 0;
 
     if (!aura) {
         return (
@@ -620,6 +668,17 @@ export default function AuraProfile() {
                     </div>
 
                     <div className="attributes-grid">
+                        {isEditing && (
+                            <div className="rounded-2xl border border-gold/25 bg-white/70 px-4 py-3 shadow-[0_12px_28px_rgba(201,165,95,0.08)]">
+                                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#8A6936]">
+                                    Required For Your Aura
+                                </p>
+                                <p className="mt-1 text-sm text-charcoal/70">
+                                    Body shape, body size, and skin tone must stay filled.
+                                </p>
+                            </div>
+                        )}
+
                         {/* Body Shape */}
                         <EditableAttributeCard
                             label="BODY SHAPE"
@@ -628,6 +687,9 @@ export default function AuraProfile() {
                             onChange={(value) => handleAttributeChange('bodyShape', value)}
                             type="select"
                             options={BODY_SHAPE_OPTIONS}
+                            required
+                            hasError={showEditMissingFields && Boolean(editRequiredAttributeErrors.bodyShape)}
+                            helperText={showEditMissingFields ? editRequiredAttributeErrors.bodyShape : undefined}
                         />
 
                         {/* Skin Tone */}
@@ -638,6 +700,9 @@ export default function AuraProfile() {
                             onChange={(value) => handleAttributeChange('skinTone', value)}
                             type="select"
                             options={SKIN_TONE_OPTIONS}
+                            required
+                            hasError={showEditMissingFields && Boolean(editRequiredAttributeErrors.skinTone)}
+                            helperText={showEditMissingFields ? editRequiredAttributeErrors.skinTone : undefined}
                         />
 
                         {/* Body Size */}
@@ -648,6 +713,9 @@ export default function AuraProfile() {
                             onChange={(value) => handleAttributeChange('bodySize', value)}
                             type="select"
                             options={BODY_SIZE_OPTIONS}
+                            required
+                            hasError={showEditMissingFields && Boolean(editRequiredAttributeErrors.bodySize)}
+                            helperText={showEditMissingFields ? editRequiredAttributeErrors.bodySize : undefined}
                         />
 
                         <EditableAttributeCard
@@ -838,6 +906,15 @@ export default function AuraProfile() {
                             </div>
                         )}
 
+                        <div className="rounded-2xl border border-gold/25 bg-white/70 px-4 py-3 shadow-[0_12px_28px_rgba(201,165,95,0.08)]">
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#8A6936]">
+                                Required For Recreation
+                            </p>
+                            <p className="mt-1 text-sm text-charcoal/70">
+                                Keep body shape, body size, and skin tone filled before starting a recreation.
+                            </p>
+                        </div>
+
                         <div className="recreate-attributes-wrap">
                             <EditableAttributeCard
                                 label="HEIGHT"
@@ -854,6 +931,9 @@ export default function AuraProfile() {
                                 onChange={(value) => handleRecreateAttributeChange("bodyShape", value)}
                                 type="select"
                                 options={BODY_SHAPE_OPTIONS}
+                                required
+                                hasError={showRecreateMissingFields && Boolean(recreateRequiredAttributeErrors.bodyShape)}
+                                helperText={showRecreateMissingFields ? recreateRequiredAttributeErrors.bodyShape : undefined}
                             />
                             <EditableAttributeCard
                                 label="BODY SIZE"
@@ -862,6 +942,9 @@ export default function AuraProfile() {
                                 onChange={(value) => handleRecreateAttributeChange("bodySize", value)}
                                 type="select"
                                 options={BODY_SIZE_OPTIONS}
+                                required
+                                hasError={showRecreateMissingFields && Boolean(recreateRequiredAttributeErrors.bodySize)}
+                                helperText={showRecreateMissingFields ? recreateRequiredAttributeErrors.bodySize : undefined}
                             />
                             <EditableAttributeCard
                                 label="SKIN TONE"
@@ -870,6 +953,9 @@ export default function AuraProfile() {
                                 onChange={(value) => handleRecreateAttributeChange("skinTone", value)}
                                 type="select"
                                 options={SKIN_TONE_OPTIONS}
+                                required
+                                hasError={showRecreateMissingFields && Boolean(recreateRequiredAttributeErrors.skinTone)}
+                                helperText={showRecreateMissingFields ? recreateRequiredAttributeErrors.skinTone : undefined}
                             />
                             <EditableAttributeCard
                                 label="GENDER"

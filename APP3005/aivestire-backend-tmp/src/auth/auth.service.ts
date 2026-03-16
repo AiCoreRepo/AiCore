@@ -13,7 +13,7 @@ import {
   ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
-import type { Response } from 'express';
+import type { Request, Response } from 'express';
 import { PrismaService } from '../prisma/prisma.service';
 import { UserRole, TryOnPermissionStatus } from '@prisma/client';
 import { RegisterDto } from './dto/register.dto';
@@ -25,6 +25,7 @@ import {
   REFRESH_TOKEN_COOKIE_OPTIONS,
   JWT_ACCESS_TOKEN_EXPIRES_IN,
 } from '../common/constants';
+import { getEffectiveTryOnLimit } from './utils/try-on-limit.util';
 
 // Dynamic import for bcrypt to avoid require and type issues
 let bcryptPromise: Promise<typeof import('bcrypt')> | null = null;
@@ -257,7 +258,7 @@ export class AuthService {
     return { message: 'Logged out' };
   }
 
-  async getProfile(user_id: string) {
+  async getProfile(user_id: string, request?: Request) {
     const user = await this.prisma.user.findUnique({
       where: { user_id },
       select: {
@@ -283,6 +284,11 @@ export class AuthService {
       throw new UnauthorizedException('User not found');
     }
 
+    const effectiveTryOnLimit = getEffectiveTryOnLimit(
+      user.max_try_ons,
+      request,
+    );
+
     // If the user is a creator, return their creator profile details
     if (user.role === UserRole.CREATOR && user.creatorProfile) {
       return {
@@ -294,7 +300,7 @@ export class AuthService {
         try_on_permission: user.try_on_permission,
         store_name: user.creatorProfile.store_name,
         try_ons_used: user.try_ons_used,
-        max_try_ons: user.max_try_ons,
+        max_try_ons: effectiveTryOnLimit,
         avatar_regenerations_used: user.avatar_regenerations_used,
         max_avatar_regenerations: user.max_avatar_regenerations,
         // Add other creator-specific fields you might need
@@ -310,7 +316,7 @@ export class AuthService {
       needs_dob_collection: !user.date_of_birth && !user.password_hash,
       try_on_permission: user.try_on_permission,
       try_ons_used: user.try_ons_used,
-      max_try_ons: user.max_try_ons,
+      max_try_ons: effectiveTryOnLimit,
       avatar_regenerations_used: user.avatar_regenerations_used,
       max_avatar_regenerations: user.max_avatar_regenerations,
     };

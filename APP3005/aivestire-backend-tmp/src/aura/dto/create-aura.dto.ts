@@ -1,4 +1,4 @@
-import { IsOptional, IsNumber, IsString, Min, Max } from 'class-validator';
+import { IsOptional, IsNumber, IsString, Min, Max, IsNotEmpty } from 'class-validator';
 import { Transform } from 'class-transformer';
 
 export class CreateAuraDto {
@@ -16,25 +16,25 @@ export class CreateAuraDto {
   @Max(200)
   weight?: number;
 
-  @IsOptional()
   @IsString()
-  skinTone?: string;
+  @IsNotEmpty()
+  skinTone: string;
 
   @IsOptional()
   @IsString()
   gender?: string;
 
-  @IsOptional()
   @IsString()
-  bodyShape?: string;
+  @IsNotEmpty()
+  bodyShape: string;
 
   @IsOptional()
   @IsString()
   bodyType?: string; // Added new field
 
-  @IsOptional()
   @IsString()
-  bodySize?: string; // Added new field for body size
+  @IsNotEmpty()
+  bodySize: string; // Added new field for body size
 
   @IsOptional()
   @IsString()

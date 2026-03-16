@@ -15,6 +15,7 @@ describe('GeminiAIService prompt building', () => {
       skinTone: 'medium',
       gender: 'female',
       bodyShape: 'hourglass',
+      bodySize: 'medium',
       ageRange: '25_35',
       hairStyle: 'long',
     });
@@ -40,6 +41,7 @@ describe('GeminiAIService prompt building', () => {
       skinTone: 'medium',
       gender: 'female',
       bodyShape: 'hourglass',
+      bodySize: 'medium',
       ageRange: '25_35',
       hairStyle: 'long',
     });
@@ -48,6 +50,31 @@ describe('GeminiAIService prompt building', () => {
     expect(prompt).toContain('tasteful, modest, full-length lower wear');
     expect(prompt).toContain('Never leave the lower body nude, bare, underwear-only');
     expect(prompt).toContain('mini shorts | hot pants | revealing shorts');
+    expect(prompt).toContain('Body size: medium');
     expect(prompt).toContain('the final lower wear is modest, full-length, and suitable for a decent fashion portrait');
+  });
+
+  it('requires a happy natural smile in the generated avatar', () => {
+    const configService = {
+      get: jest.fn().mockReturnValue(undefined),
+    } as unknown as ConfigService;
+
+    const service = new GeminiAIService(configService);
+
+    const prompt = (service as any).buildAvatarPrompt({
+      height: 170,
+      weight: 60,
+      skinTone: 'medium',
+      gender: 'female',
+      bodyShape: 'hourglass',
+      bodySize: 'medium',
+      ageRange: '25_35',
+      hairStyle: 'long',
+    });
+
+    expect(prompt).toContain('The final portrait must show a happy, warm, natural smile');
+    expect(prompt).toContain('If the source photo has a neutral, serious, blank, or tense expression');
+    expect(prompt).toContain('sad expression | angry expression | blank expression | frown');
+    expect(prompt).toContain('The final face has a happy, natural, clearly smiling expression');
   });
 });

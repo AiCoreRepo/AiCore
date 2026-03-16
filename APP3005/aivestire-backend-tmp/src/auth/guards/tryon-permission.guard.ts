@@ -6,6 +6,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { getEffectiveTryOnLimit } from '../utils/try-on-limit.util';
 
 @Injectable()
 export class TryOnPermissionGuard implements CanActivate {
@@ -35,10 +36,10 @@ export class TryOnPermissionGuard implements CanActivate {
       throw new ForbiddenException('User account not found');
     }
 
-    const effectiveTryOnLimit =
-      typeof dbUser.max_try_ons === 'number' && dbUser.max_try_ons > 0
-        ? dbUser.max_try_ons
-        : 3;
+    const effectiveTryOnLimit = getEffectiveTryOnLimit(
+      dbUser.max_try_ons,
+      request,
+    );
 
     if (dbUser.try_ons_used >= effectiveTryOnLimit) {
       throw new ForbiddenException(

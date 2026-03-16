@@ -18,6 +18,7 @@ export interface AuraJobData {
     skinTone: string;
     gender: string;
     bodyShape: string;
+    bodySize: string;
     ageRange: string;
     hairStyle: string;
   };

@@ -115,9 +115,10 @@ export class AuraService {
         attributes: {
           height: attributes.height || 170,
           weight: attributes.weight || 70,
-          skinTone: attributes.skinTone || 'medium',
+          skinTone: attributes.skinTone,
           gender: attributes.gender || 'unspecified',
-          bodyShape: attributes.bodyShape || 'average',
+          bodyShape: attributes.bodyShape,
+          bodySize: attributes.bodySize,
           ageRange: attributes.ageRange || '25-35',
           hairStyle: attributes.hairStyle || 'short',
         },
@@ -265,6 +266,11 @@ export class AuraService {
             attributes.bodyShape,
             existingAura.body_shape,
             'average',
+          ),
+          bodySize: this.getAuraAttributeValue(
+            attributes.bodySize,
+            existingAura.body_size,
+            'medium',
           ),
           ageRange: this.getAuraAttributeValue(
             attributes.ageRange,

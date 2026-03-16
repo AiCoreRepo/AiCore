@@ -13,6 +13,9 @@ interface EditableAttributeCardProps {
     type?: 'text' | 'number' | 'select';
     options?: string[] | Option[];
     unit?: string;
+    required?: boolean;
+    hasError?: boolean;
+    helperText?: string;
 }
 
 export const EditableAttributeCard: React.FC<EditableAttributeCardProps> = ({
@@ -23,6 +26,9 @@ export const EditableAttributeCard: React.FC<EditableAttributeCardProps> = ({
     type = 'text',
     options = [],
     unit = '',
+    required = false,
+    hasError = false,
+    helperText,
 }) => {
     // Helper to get display text for a value when not editing
     const getDisplayValue = () => {
@@ -40,14 +46,19 @@ export const EditableAttributeCard: React.FC<EditableAttributeCardProps> = ({
     };
 
     return (
-        <div className="editable-attribute-card">
-            <div className="attribute-label">{label}</div>
+        <div className={`editable-attribute-card ${hasError ? 'editable-attribute-card-error' : ''}`}>
+            <div className="attribute-label-row">
+                <div className="attribute-label">{label}</div>
+                {required && isEditing && (
+                    <span className="attribute-required-pill">Required</span>
+                )}
+            </div>
             {isEditing ? (
                 type === 'select' ? (
                     <select
                         value={value}
                         onChange={(e) => onChange(e.target.value)}
-                        className="attribute-input attribute-select"
+                        className={`attribute-input attribute-select ${hasError ? 'attribute-input-error' : ''}`}
                     >
                         <option value="">Select {label}</option>
                         {options.map((option) => {
@@ -67,7 +78,7 @@ export const EditableAttributeCard: React.FC<EditableAttributeCardProps> = ({
                             type={type}
                             value={value}
                             onChange={(e) => onChange(e.target.value)}
-                            className="attribute-input"
+                            className={`attribute-input ${hasError ? 'attribute-input-error' : ''}`}
                             placeholder={`Enter ${label.toLowerCase()}`}
                         />
                         {unit && <span className="attribute-unit">{unit}</span>}
@@ -78,6 +89,9 @@ export const EditableAttributeCard: React.FC<EditableAttributeCardProps> = ({
                     {getDisplayValue()}
                     {unit && value && ` ${unit}`}
                 </div>
+            )}
+            {isEditing && helperText && (
+                <p className="attribute-helper-text">{helperText}</p>
             )}
         </div>
     );

@@ -21,6 +21,8 @@ interface BodyAttributes {
     ageRange?: string;
 }
 
+type RequiredBodyAttribute = "bodyShape" | "bodySize" | "skinTone";
+
 interface AuraFormCardProps {
     onCreateAura: (photoFile: File, attributes: BodyAttributes) => void;
     isProcessing: boolean;
@@ -73,6 +75,12 @@ type Step = "upload" | "confirm";
 
 const PARTIAL_BODY_TOAST_MESSAGE =
     "We couldn’t detect your body shape because the uploaded photo doesn’t show your full body. Please upload a full-length photo with your whole frame visible.";
+
+const REQUIRED_ATTRIBUTE_MESSAGES: Record<RequiredBodyAttribute, string> = {
+    bodyShape: "Select your body shape.",
+    bodySize: "Select your body size.",
+    skinTone: "Select your skin tone.",
+};
 
 const formatDobForInput = (value?: string): string => {
     if (!value) return "";
@@ -203,6 +211,7 @@ export const AuraFormCard = ({ onCreateAura, isProcessing, prefilledDob }: AuraF
     const [dobError, setDobError] = useState<string>("");
     const [showDobDialog, setShowDobDialog] = useState(false);
     const [showPartialBodyDialog, setShowPartialBodyDialog] = useState(false);
+    const [attributeErrors, setAttributeErrors] = useState<Partial<Record<RequiredBodyAttribute, string>>>({});
 
     // AI Analysis state
     const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -250,6 +259,7 @@ export const AuraFormCard = ({ onCreateAura, isProcessing, prefilledDob }: AuraF
         setAnalysisResult(null);
         setAnalysisError(null);
         setShowPartialBodyDialog(false);
+        setAttributeErrors({});
 
         // Auto-populate age range and default gender.
         const calculatedRange = calculateAgeRangeFromDob(dob);
@@ -268,8 +278,38 @@ export const AuraFormCard = ({ onCreateAura, isProcessing, prefilledDob }: AuraF
         setAnalysisResult(null);
         setAnalysisError(null);
         setShowPartialBodyDialog(false);
+        setAttributeErrors({});
         setAttributes({ gender: "female" });
         setCurrentStep("upload");
+    };
+
+    const getRequiredAttributeErrors = (values: BodyAttributes) => {
+        const nextErrors: Partial<Record<RequiredBodyAttribute, string>> = {};
+
+        (Object.keys(REQUIRED_ATTRIBUTE_MESSAGES) as RequiredBodyAttribute[]).forEach((field) => {
+            if (!values[field]) {
+                nextErrors[field] = REQUIRED_ATTRIBUTE_MESSAGES[field];
+            }
+        });
+
+        return nextErrors;
+    };
+
+    const handleAttributesChange = (nextAttributes: BodyAttributes) => {
+        setAttributes(nextAttributes);
+        setAttributeErrors((prev) => {
+            if (Object.keys(prev).length === 0) {
+                return prev;
+            }
+
+            const nextErrors = { ...prev };
+            (Object.keys(nextErrors) as RequiredBodyAttribute[]).forEach((field) => {
+                if (nextAttributes[field]) {
+                    delete nextErrors[field];
+                }
+            });
+            return nextErrors;
+        });
     };
 
     // Proceed to Step 2 - analyze first if possible
@@ -350,6 +390,12 @@ export const AuraFormCard = ({ onCreateAura, isProcessing, prefilledDob }: AuraF
     const handleCreateAura = () => {
         if (!photoFile) return;
 
+        const missingRequiredAttributeErrors = getRequiredAttributeErrors(attributes);
+        if (Object.keys(missingRequiredAttributeErrors).length > 0) {
+            setAttributeErrors(missingRequiredAttributeErrors);
+            return;
+        }
+
         const effectiveDob = dob || prefilledDob || (user?.email ? getStoredDob(user.email) : "");
 
         if (requiresDobCollection && !effectiveDob) {
@@ -415,6 +461,23 @@ export const AuraFormCard = ({ onCreateAura, isProcessing, prefilledDob }: AuraF
     };
 
     const isFormValid = photoFile !== null;
+    const missingRequiredAttributeErrors = getRequiredAttributeErrors(attributes);
+    const missingRequiredAttributeLabels = (Object.keys(missingRequiredAttributeErrors) as RequiredBodyAttribute[])
+        .map((field) => {
+            switch (field) {
+                case "bodyShape":
+                    return "Body shape";
+                case "bodySize":
+                    return "Body size";
+                case "skinTone":
+                    return "Skin tone";
+            }
+        });
+    const hasAllRequiredAttributes = missingRequiredAttributeLabels.length === 0;
+    const displayedAttributeErrors =
+        Object.keys(attributeErrors).length > 0
+            ? attributeErrors
+            : missingRequiredAttributeErrors;
 
     return (
         <div className="w-full lg:w-1/2 flex flex-col bg-gradient-to-br from-cream via-ivory to-cream overflow-hidden">
@@ -806,11 +869,23 @@ export const AuraFormCard = ({ onCreateAura, isProcessing, prefilledDob }: AuraF
                                             </div>
                                         )}
 
+                                        {!hasAllRequiredAttributes && (
+                                            <div className="mb-5 rounded-2xl border border-rose-200 bg-rose-50/70 px-4 py-3 sm:mb-6">
+                                                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-rose-700">
+                                                    Complete required fields
+                                                </p>
+                                                <p className="mt-1 text-sm leading-6 text-rose-700/90">
+                                                    Add {missingRequiredAttributeLabels.join(", ")} before creating your Aura.
+                                                </p>
+                                            </div>
+                                        )}
+
                                         {/* Body Attributes Form */}
                                         <div className="mb-5 sm:mb-6">
                                             <BodyAttributesForm
                                                 attributes={attributes}
-                                                onChange={setAttributes}
+                                                onChange={handleAttributesChange}
+                                                errors={displayedAttributeErrors}
                                             />
                                         </div>
 
@@ -818,7 +893,7 @@ export const AuraFormCard = ({ onCreateAura, isProcessing, prefilledDob }: AuraF
                                             {/* Create Aura Button */}
                                             <button
                                                 onClick={handleCreateAura}
-                                                disabled={isProcessing}
+                                                disabled={isProcessing || !hasAllRequiredAttributes}
                                                 className="group relative w-full overflow-hidden rounded-2xl transition-all duration-300 disabled:cursor-not-allowed disabled:opacity-50"
                                             >
                                                 <div className={`absolute inset-0 bg-gradient-to-r from-gold via-[#D4B76E] to-gold transition-all duration-300 ${!isProcessing ? 'opacity-100' : 'opacity-0'}`}></div>
@@ -853,7 +928,9 @@ export const AuraFormCard = ({ onCreateAura, isProcessing, prefilledDob }: AuraF
                                             {/* Helper Text */}
                                             <div className="mt-4 text-center sm:mt-6">
                                                 <p className="text-xs text-charcoal/50">
-                                                    ⏱️ Takes approximately 20 seconds to generate your personalized Aura
+                                                    {hasAllRequiredAttributes
+                                                        ? "⏱️ Takes approximately 20 seconds to generate your personalized Aura"
+                                                        : "Finish body shape, body size, and skin tone to continue."}
                                                 </p>
                                             </div>
                                         </div>

@@ -4,7 +4,14 @@ import { useNavigate } from 'react-router-dom';
 import { AnimatedComplimentText } from '@/components/AnimatedComplimentText';
 import { LOADING_QUOTES } from './loading-quotes';
 import { getRandomCompliment, ComplimentMessage } from './compliment-messages';
-import { ImageCompareSlider } from './ImageCompareSlider';
+import {
+    Carousel,
+    CarouselApi,
+    CarouselContent,
+    CarouselItem,
+    CarouselNext,
+    CarouselPrevious,
+} from '@/components/ui/carousel';
 
 interface TryOnResultModalProps {
     isOpen: boolean;
@@ -36,7 +43,6 @@ export function TryOnResultModal({
     isOpen,
     onClose,
     resultImage,
-    comparisonImage,
     loading,
     error,
     onGenerateMoreAngles,
@@ -55,7 +61,8 @@ export function TryOnResultModal({
     const [isLightboxOpen, setIsLightboxOpen] = useState(false);
     const [currentCompliment, setCurrentCompliment] = useState<ComplimentMessage | null>(null);
     const [hasShownCompliment, setHasShownCompliment] = useState(false);
-    const [viewMode, setViewMode] = useState<'single' | 'compare'>('single');
+    const [carouselApi, setCarouselApi] = useState<CarouselApi>();
+    const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
     // Progress State
     const [loadingProgress, setLoadingProgress] = useState(0);
@@ -68,9 +75,17 @@ export function TryOnResultModal({
     const navigate = useNavigate();
     const displayUserName = userName?.trim() || 'You';
     const displayGarmentTitle = garmentTitle?.trim() || 'this look';
-    const hasMultipleGeneratedImages = generatedImages.length > 1;
-    const canCompareAngle =
-        Boolean(comparisonImage) && Boolean(resultImage) && comparisonImage !== resultImage;
+    const carouselImages = generatedImages.length > 0
+        ? generatedImages
+        : resultImage
+            ? [resultImage]
+            : [];
+    const hasMultipleGeneratedImages = carouselImages.length > 1;
+    const activeImageIndex = resultImage
+        ? Math.max(carouselImages.indexOf(resultImage), 0)
+        : 0;
+    const isProcessingState = loading || generatingAngles;
+    const showMobileActionBar = Boolean(resultImage) && !loading && !generatingAngles && !error;
     const userPrompt = garmentTitle
         ? `How does ${displayGarmentTitle} look on me? Does it suit me?`
         : 'How does this look on me? Does it suit me?';
@@ -95,17 +110,45 @@ export function TryOnResultModal({
                 setCurrentStep(0);
                 progressRef.current = 0;
             }
+            setCurrentImageIndex(activeImageIndex);
         }
-    }, [isOpen]);
+    }, [isOpen, activeImageIndex, loading, generatingAngles]);
 
     useEffect(() => {
-        if (!resultImage) {
-            setViewMode('single');
+        if (!carouselApi || carouselImages.length === 0) {
             return;
         }
 
-        setViewMode(canCompareAngle ? 'compare' : 'single');
-    }, [canCompareAngle, resultImage]);
+        const syncFromCarousel = () => {
+            const nextIndex = carouselApi.selectedScrollSnap();
+            setCurrentImageIndex(nextIndex);
+            const nextImage = carouselImages[nextIndex];
+            if (nextImage && nextImage !== resultImage) {
+                onSelectImage?.(nextImage);
+            }
+        };
+
+        syncFromCarousel();
+        carouselApi.on('select', syncFromCarousel);
+        carouselApi.on('reInit', syncFromCarousel);
+
+        return () => {
+            carouselApi.off('select', syncFromCarousel);
+            carouselApi.off('reInit', syncFromCarousel);
+        };
+    }, [carouselApi, carouselImages, onSelectImage, resultImage]);
+
+    useEffect(() => {
+        if (!carouselApi || carouselImages.length === 0) {
+            return;
+        }
+
+        const nextIndex = Math.min(activeImageIndex, carouselImages.length - 1);
+        setCurrentImageIndex(nextIndex);
+        if (carouselApi.selectedScrollSnap() !== nextIndex) {
+            carouselApi.scrollTo(nextIndex);
+        }
+    }, [activeImageIndex, carouselApi, carouselImages.length]);
 
     // Rotate quotes every 3 seconds during loading
     useEffect(() => {
@@ -616,44 +659,46 @@ export function TryOnResultModal({
                     {/* Center - Result Image Area */}
                     <div className="relative flex flex-col gap-4 md:flex-1 md:overflow-hidden">
                         {/* Image Display */}
-                        <div className="relative flex min-h-[36vh] items-center justify-center overflow-hidden rounded-[26px] sm:min-h-[44vh] md:min-h-0 md:flex-1 md:rounded-3xl" style={{
+                        <div className={`relative flex items-center justify-center overflow-hidden rounded-[26px] md:min-h-0 md:flex-1 md:rounded-3xl ${
+                            isProcessingState ? 'min-h-[58vh] sm:min-h-[48vh]' : 'min-h-[36vh] sm:min-h-[44vh]'
+                        }`} style={{
                             background: 'linear-gradient(135deg, #f0ebe4 0%, #e8e3dc 50%, #f0ebe4 100%)',
                             boxShadow: 'inset 0 2px 16px rgba(0, 0, 0, 0.06)'
                         }}>
                             {/* Loading State - Game-Like Queue Animation (Compact Version) */}
                             {(loading || generatingAngles) && (
-                                <div className="absolute inset-0 flex flex-col items-center justify-center p-6 z-20 slide-up" style={{
+                                <div className="absolute inset-0 z-20 flex flex-col items-center justify-start overflow-y-auto px-4 py-5 pb-8 sm:justify-center sm:p-6 slide-up" style={{
                                     background: 'linear-gradient(135deg, #fcfaf7 0%, #f7f5f2 100%)',
                                     backdropFilter: 'blur(24px)',
                                 }}>
                                     {/* Animated Icon - Smaller */}
-                                    <div className="relative mb-5">
-                                        <div className="w-16 h-16 rounded-full flex items-center justify-center" style={{
+                                    <div className="relative mb-4 mt-1 sm:mb-5 sm:mt-0">
+                                        <div className="flex h-14 w-14 items-center justify-center rounded-full sm:h-16 sm:w-16" style={{
                                             background: 'linear-gradient(135deg, #c9a55c 0%, #d4b896 100%)',
                                             boxShadow: '0 8px 24px rgba(201, 165, 92, 0.35)',
                                             animation: 'pulse 2s ease-in-out infinite',
                                         }}>
-                                            <Sparkles className="w-8 h-8 text-white" />
+                                            <Sparkles className="h-7 w-7 text-white sm:h-8 sm:w-8" />
                                         </div>
                                     </div>
 
                                     {/* Title - Smaller */}
-                                    <h3 className="mb-1 text-lg font-bold font-serif bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent sm:text-xl md:text-2xl">
+                                    <h3 className="mb-1 text-center text-lg font-bold font-serif bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent sm:text-xl md:text-2xl">
                                         {generatingAngles ? 'Generating New Angle' : 'Creating Your Look'}
                                     </h3>
-                                    <p className="mb-6 max-w-md text-center text-sm text-gray-500">
+                                    <p className="mb-5 max-w-md text-center text-sm text-gray-500 sm:mb-6">
                                         {LOADING_QUOTES[currentQuoteIndex]}
                                     </p>
 
                                     {/* Process Steps - Compact Grid */}
-                                    <div className="w-full max-w-xl mb-6">
-                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3">
+                                    <div className="mb-5 w-full max-w-xl sm:mb-6">
+                                        <div className="grid grid-cols-2 gap-2 md:grid-cols-4 md:gap-3">
                                             {processSteps.map((step, idx) => {
                                                 const status = getStepStatus(idx);
                                                 return (
                                                     <div
                                                         key={step.id}
-                                                        className="flex flex-col items-center gap-1.5 p-3 rounded-xl transition-all duration-500"
+                                                        className="flex flex-col items-center gap-1.5 rounded-xl p-2.5 transition-all duration-500 sm:p-3"
                                                         style={{
                                                             background: status === 'complete' ? 'linear-gradient(135deg, #c9a55c 0%, #d4b896 100%)' :
                                                                 status === 'active' ? 'linear-gradient(135deg, rgba(201, 165, 92, 0.15) 0%, rgba(212, 184, 150, 0.15) 100%)' :
@@ -686,7 +731,7 @@ export function TryOnResultModal({
 
                                     {/* Progress Bar - Compact */}
                                     <div className="w-full max-w-lg">
-                                        <div className="flex items-center justify-between mb-1.5">
+                                        <div className="mb-1.5 flex items-center justify-between">
                                             <span className="text-xs font-semibold text-gray-600">Progress</span>
                                             <span className="text-xs font-bold text-[#c9a55c]">
                                                 {/* Safety: If loading but progress high, show 0 to prevent flash */}
@@ -710,7 +755,7 @@ export function TryOnResultModal({
 
                                     {/* Queue Info */}
                                     {generatingAngles && (
-                                        <div className="mt-6 px-6 py-3 rounded-xl slide-up" style={{
+                                        <div className="mt-5 rounded-xl px-5 py-3 slide-up sm:mt-6 sm:px-6" style={{
                                             background: 'rgba(201, 165, 92, 0.08)',
                                             border: '1px solid rgba(201, 165, 92, 0.2)',
                                         }}>
@@ -720,7 +765,7 @@ export function TryOnResultModal({
                                         </div>
                                     )}
 
-                                    <p className="mt-4 max-w-lg text-center text-[11px] leading-5 text-gray-400">
+                                    <p className="mt-4 max-w-lg px-1 text-center text-[11px] leading-5 text-gray-400">
                                         AI-generated previews may occasionally make mistakes.
                                     </p>
                                 </div>
@@ -752,38 +797,54 @@ export function TryOnResultModal({
                             {/* Result Image */}
                             {resultImage && !loading && !error && (
                                 <>
-                                    {canCompareAngle && comparisonImage && (
-                                        <div className="absolute left-2.5 right-2.5 top-2.5 z-10 flex flex-col items-stretch gap-2 sm:left-3 sm:right-3 sm:top-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3 md:left-5 md:right-5 md:top-5">
-                                            <span className="self-start rounded-full bg-[rgba(44,36,22,0.68)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-white backdrop-blur">
-                                                Compare the new angle
+                                    {hasMultipleGeneratedImages && (
+                                        <div className="absolute left-2.5 right-2.5 top-2.5 z-10 flex items-center justify-between gap-2 sm:left-3 sm:right-3 sm:top-3 md:left-5 md:right-5 md:top-5">
+                                            <span className="rounded-full bg-[rgba(44,36,22,0.68)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-white backdrop-blur">
+                                                Swipe to view generated angles
                                             </span>
-
-                                            <div className="flex items-center self-end rounded-full border border-white/60 bg-white/90 p-1 shadow-[0_10px_22px_rgba(28,21,14,0.12)] backdrop-blur sm:self-auto">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setViewMode('single')}
-                                                    className={`rounded-full px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] transition ${viewMode === 'single' ? 'bg-[#2f2416] text-white shadow-[0_8px_18px_rgba(47,36,22,0.2)]' : 'text-[#6f5a42]'}`}
-                                                >
-                                                    Preview
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setViewMode('compare')}
-                                                    className={`rounded-full px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] transition ${viewMode === 'compare' ? 'bg-[#D4AF37] text-[#2f2416] shadow-[0_8px_18px_rgba(212,175,55,0.22)]' : 'text-[#6f5a42]'}`}
-                                                >
-                                                    Compare
-                                                </button>
-                                            </div>
+                                            <span className="rounded-full border border-white/60 bg-white/90 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#6f5a42] shadow-[0_10px_22px_rgba(28,21,14,0.12)] backdrop-blur">
+                                                {currentImageIndex + 1} / {carouselImages.length}
+                                            </span>
                                         </div>
                                     )}
 
-                                    {viewMode === 'compare' && canCompareAngle && comparisonImage ? (
+                                    {hasMultipleGeneratedImages ? (
                                         <div className="h-full w-full p-3 sm:p-4 md:p-6">
-                                            <ImageCompareSlider
-                                                beforeImage={comparisonImage}
-                                                afterImage={resultImage}
-                                                className={imageRevealed ? 'modal-appear' : ''}
-                                            />
+                                            <Carousel
+                                                setApi={setCarouselApi}
+                                                opts={{ loop: true, align: 'start' }}
+                                                className="h-full w-full"
+                                            >
+                                                <CarouselContent className="h-full">
+                                                    {carouselImages.map((image, index) => (
+                                                        <CarouselItem key={`${image}-${index}`} className="h-full">
+                                                            <button
+                                                                type="button"
+                                                                className="group flex h-full w-full items-center justify-center rounded-2xl p-0"
+                                                                onClick={() => setIsLightboxOpen(true)}
+                                                                title="Tap to view full size"
+                                                            >
+                                                                <img
+                                                                    src={image}
+                                                                    alt={`Generated angle ${index + 1}`}
+                                                                    className={`h-full w-full rounded-2xl object-contain transition-all duration-500 group-hover:scale-[1.02] ${imageRevealed ? 'modal-appear' : ''}`}
+                                                                    style={{
+                                                                        boxShadow: '0 16px 48px rgba(0, 0, 0, 0.12)',
+                                                                        maxWidth: '100%',
+                                                                        maxHeight: '100%',
+                                                                    }}
+                                                                />
+                                                            </button>
+                                                        </CarouselItem>
+                                                    ))}
+                                                </CarouselContent>
+                                                <CarouselPrevious
+                                                    className="left-2 top-1/2 h-9 w-9 -translate-y-1/2 border-white/60 bg-white/92 text-[#2f2416] shadow-[0_12px_28px_rgba(28,21,14,0.12)] hover:bg-white md:left-3"
+                                                />
+                                                <CarouselNext
+                                                    className="right-2 top-1/2 h-9 w-9 -translate-y-1/2 border-white/60 bg-white/92 text-[#2f2416] shadow-[0_12px_28px_rgba(28,21,14,0.12)] hover:bg-white md:right-3"
+                                                />
+                                            </Carousel>
                                         </div>
                                     ) : (
                                         <div
@@ -808,52 +869,6 @@ export function TryOnResultModal({
                         </div>
 
                         {renderComplimentCard("w-full flex-shrink-0 md:hidden", "mobile")}
-
-                        {!loading && !generatingAngles && hasMultipleGeneratedImages && (
-                            <div
-                                className="rounded-[20px] border border-white/70 bg-white/88 p-2.5 shadow-[0_12px_32px_rgba(28,21,14,0.08)] md:hidden"
-                                style={{
-                                    backdropFilter: 'blur(14px)',
-                                }}
-                            >
-                                <div className="mb-2 flex items-center justify-between gap-2">
-                                    <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#8a6936]">
-                                        Generated Angles
-                                    </p>
-                                    <span className="text-[10px] font-medium text-[#9d8660]">
-                                        {generatedImages.length} views
-                                    </span>
-                                </div>
-
-                                <div className="-mx-1 flex snap-x snap-mandatory gap-2 overflow-x-auto px-1 pb-1">
-                                    {generatedImages.map((img, idx) => (
-                                        <button
-                                            key={idx}
-                                            onClick={() => onSelectImage?.(img)}
-                                            className={`relative aspect-[3/4] w-20 flex-none snap-start overflow-hidden rounded-2xl transition-all duration-300 ${
-                                                img === resultImage
-                                                    ? 'scale-[1.02] ring-2 ring-[#c9a55c] ring-offset-2 ring-offset-[#f7f4ef]'
-                                                    : 'border border-[rgba(138,105,54,0.14)] opacity-80'
-                                            }`}
-                                        >
-                                            <img
-                                                src={img}
-                                                alt={`Generated angle ${idx + 1}`}
-                                                className="h-full w-full object-cover"
-                                            />
-                                            <span
-                                                className="absolute bottom-1 left-1 rounded-full px-1.5 py-0.5 text-[9px] font-semibold text-white"
-                                                style={{
-                                                    background: 'rgba(44, 36, 22, 0.72)',
-                                                }}
-                                            >
-                                                {idx + 1}
-                                            </span>
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
 
                         {renderComplimentCard("hidden md:block xl:hidden w-full max-w-4xl self-center flex-shrink-0")}
                     </div>
@@ -921,74 +936,54 @@ export function TryOnResultModal({
                             <span>SHOP</span>
                         </button>
                         </div>
-
-
-                        {/* Gallery Grid - Right Sidebar */}
-                        {!loading && !generatingAngles && hasMultipleGeneratedImages && (
-                            <div className="mt-2 p-3 rounded-2xl bg-white/50 border border-white/60">
-                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 text-center">Generated Angles</p>
-                                <div className="grid grid-cols-3 gap-2">
-                                    {generatedImages.map((img, idx) => (
-                                        <button
-                                            key={idx}
-                                            onClick={() => onSelectImage?.(img)}
-                                            className={`relative aspect-[3/4] w-full rounded-lg overflow-hidden transition-all duration-300 ${img === resultImage
-                                                ? 'ring-2 ring-[#c9a55c] ring-offset-1 shadow-md scale-105 z-10'
-                                                : 'opacity-70 hover:opacity-100 hover:scale-105 border border-gray-200'
-                                                }`}
-                                        >
-                                            <img src={img} alt={`Angle ${idx + 1}`} className="w-full h-full object-cover" />
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
                     </div>
                 </div>
 
-                <div
-                    className="absolute inset-x-2.5 bottom-2.5 z-10 rounded-[20px] border border-white/70 bg-white/92 p-2 shadow-[0_18px_48px_rgba(0,0,0,0.14)] backdrop-blur md:hidden"
-                    style={{
-                        boxShadow: '0 18px 48px rgba(28, 21, 14, 0.16)',
-                    }}
-                >
-                    <div className="grid grid-cols-3 gap-2">
-                        <button
-                            onClick={handleDownload}
-                            disabled={!resultImage || loading}
-                            className="flex flex-col items-center justify-center gap-1 rounded-2xl px-2 py-2.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#2c2c2c] transition active:scale-95 disabled:opacity-40"
-                            style={{
-                                background: 'linear-gradient(135deg, #2c2c2c 0%, #1a1a1a 100%)',
-                                color: '#ffffff',
-                            }}
-                        >
-                            <Download className="h-5 w-5" />
-                            <span>Download</span>
-                        </button>
+                {showMobileActionBar && (
+                    <div
+                        className="absolute inset-x-2.5 bottom-2.5 z-10 rounded-[20px] border border-white/70 bg-white/92 p-2 shadow-[0_18px_48px_rgba(0,0,0,0.14)] backdrop-blur md:hidden"
+                        style={{
+                            boxShadow: '0 18px 48px rgba(28, 21, 14, 0.16)',
+                        }}
+                    >
+                        <div className="grid grid-cols-3 gap-2">
+                            <button
+                                onClick={handleDownload}
+                                disabled={!resultImage || loading}
+                                className="flex flex-col items-center justify-center gap-1 rounded-2xl px-2 py-2.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#2c2c2c] transition active:scale-95 disabled:opacity-40"
+                                style={{
+                                    background: 'linear-gradient(135deg, #2c2c2c 0%, #1a1a1a 100%)',
+                                    color: '#ffffff',
+                                }}
+                            >
+                                <Download className="h-5 w-5" />
+                                <span>Download</span>
+                            </button>
 
-                        <button
-                            onClick={handleShare}
-                            disabled={!resultImage || loading}
-                            className="flex flex-col items-center justify-center gap-1 rounded-2xl border border-[rgba(0,0,0,0.08)] bg-white px-2 py-2.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#2c2c2c] transition active:scale-95 disabled:opacity-40"
-                        >
-                            <Share2 className="h-5 w-5" />
-                            <span>Share</span>
-                        </button>
+                            <button
+                                onClick={handleShare}
+                                disabled={!resultImage || loading}
+                                className="flex flex-col items-center justify-center gap-1 rounded-2xl border border-[rgba(0,0,0,0.08)] bg-white px-2 py-2.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#2c2c2c] transition active:scale-95 disabled:opacity-40"
+                            >
+                                <Share2 className="h-5 w-5" />
+                                <span>Share</span>
+                            </button>
 
-                        <button
-                            onClick={onGenerateMoreAngles}
-                            disabled={generatingAngles || !resultImage || loading || !onGenerateMoreAngles}
-                            className="flex flex-col items-center justify-center gap-1 rounded-2xl border border-[rgba(0,0,0,0.08)] bg-white px-2 py-2.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#2c2c2c] transition active:scale-95 disabled:opacity-40"
-                        >
-                            {generatingAngles ? (
-                                <Loader2 className="h-5 w-5 animate-spin" />
-                            ) : (
-                                <Sparkles className="h-5 w-5" />
-                            )}
-                            <span>{generatingAngles ? 'Working' : 'New Angle'}</span>
-                        </button>
+                            <button
+                                onClick={onGenerateMoreAngles}
+                                disabled={generatingAngles || !resultImage || loading || !onGenerateMoreAngles}
+                                className="flex flex-col items-center justify-center gap-1 rounded-2xl border border-[rgba(0,0,0,0.08)] bg-white px-2 py-2.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#2c2c2c] transition active:scale-95 disabled:opacity-40"
+                            >
+                                {generatingAngles ? (
+                                    <Loader2 className="h-5 w-5 animate-spin" />
+                                ) : (
+                                    <Sparkles className="h-5 w-5" />
+                                )}
+                                <span>{generatingAngles ? 'Working' : 'New Angle'}</span>
+                            </button>
+                        </div>
                     </div>
-                </div>
+                )}
 
                 {/* Lightbox */}
                 {isLightboxOpen && resultImage && (
