@@ -41,7 +41,7 @@ import {
 } from '../dto/body-analyzer.dto';
 import { AIProvider } from '../enums/ai-provider.enum';
 import { DirectVertexTryOnService } from '../services/providers/direct-vertex-tryon.service';
-// import { GeminiTryOnService } from '../services/providers/gemini-tryon.service';
+import { DirectGeminiTryOnService } from '../services/providers/direct-gemini-tryon.service';
 import { BodyAnalyzerService } from '../services/body-analyzer.service';
 import { TryOn3DService } from '../services/tryon-3d.service';
 import { AuraGuard } from '../../common/guards/aura.guard';
@@ -49,6 +49,7 @@ import { CurrentAura } from '../../common/decorators/aura.decorator';
 import type { Aura } from '@prisma/client';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { TryOnPermissionGuard } from '../../auth/guards/tryon-permission.guard';
+import _ from 'lodash';
 
 @ApiTags('AI Try-On')
 @Controller('v1/tryon')
@@ -56,7 +57,7 @@ export class TryOnController {
   private readonly logger = new Logger(TryOnController.name);
 
   constructor(
-    // private readonly geminiService: GeminiTryOnService,
+    private readonly directGeminiService: DirectGeminiTryOnService,
     private readonly directVertexService: DirectVertexTryOnService,
     private readonly bodyAnalyzerService: BodyAnalyzerService,
     private readonly tryOn3DService: TryOn3DService,
@@ -101,43 +102,40 @@ export class TryOnController {
 
   /**
    * Virtual try-on using Gemini AI
-   * @deprecated Try on is done only by vertex
    */
-  /*
-    @Post('gemini')
-    @HttpCode(HttpStatus.OK)
-    @ApiOperation({
-        summary: 'Virtual try-on using Gemini AI',
-        description:
-            'Process virtual try-on using Google Gemini AI. Accepts avatar and clothing images as base64 or URLs.',
-    })
-    @ApiResponse({
-        status: 200,
-        description: 'Try-on completed successfully',
-        type: TryOnResponseDto,
-    })
-    @ApiResponse({
-        status: 400,
-        description: 'Invalid request or image validation failed',
-        type: TryOnErrorResponseDto,
-    })
-    @ApiResponse({
-        status: 500,
-        description: 'Internal server error',
-        type: TryOnErrorResponseDto,
-    })
-    @UseGuards(JwtAuthGuard, TryOnPermissionGuard)
-    async tryOnWithGemini(
-        @Body() request: TryOnRequestDto,
-    ): Promise<TryOnResponseDto> {
-        this.logger.log('Processing try-on request with Gemini AI');
-        return this.geminiService.processTryOn(
-            request.avatarImage,
-            request.clothingImage,
-            request.additionalParams,
-        );
-    }
-    */
+  @Post('gemini')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Virtual try-on using Gemini AI',
+    description:
+      'Process virtual try-on using Google Gemini AI. Accepts avatar and clothing images as base64 or URLs.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Try-on completed successfully',
+    type: TryOnResponseDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid request or image validation failed',
+    type: TryOnErrorResponseDto,
+  })
+  @ApiResponse({
+    status: 500,
+    description: 'Internal server error',
+    type: TryOnErrorResponseDto,
+  })
+  @UseGuards(JwtAuthGuard)
+  async tryOnWithGemini(
+    @Body() request: TryOnRequestDto,
+  ): Promise<TryOnResponseDto> {
+    this.logger.log('Processing try-on request with Gemini AI (direct)');
+    return this.directGeminiService.processTryOn(
+      request.avatarImage,
+      request.clothingImage,
+      request.additionalParams,
+    );
+  }
 
   /**
    * Auto-select best available provider
@@ -260,18 +258,22 @@ export class TryOnController {
     }
 
     // Convert files to base64
-    const avatarBase64 = `data:${files.avatarImage[0].mimetype};base64,${files.avatarImage[0].buffer.toString('base64')}`;
-    const clothingBase64 = `data:${files.clothingImage[0].mimetype};base64,${files.clothingImage[0].buffer.toString('base64')}`;
+    const avatarFile = _.head(files.avatarImage);
+    const clothingFile = _.head(files.clothingImage);
+
+    if (!avatarFile || !clothingFile) {
+      throw new Error('Both avatarImage and clothingImage files are required');
+    }
+
+    const avatarBase64 = `data:${avatarFile.mimetype};base64,${avatarFile.buffer.toString('base64')}`;
+    const clothingBase64 = `data:${clothingFile.mimetype};base64,${clothingFile.buffer.toString('base64')}`;
 
     // Select service based on provider
-    // const provider = body.provider || AIProvider.GEMINI_AI;
-    // const service =
-    //     provider === AIProvider.VERTEX_AI
-    //         ? this.directVertexService
-    //         : this.geminiService;
-
-    // Force to use Direct Vertex
-    const service = this.directVertexService;
+    const provider = body.provider ?? AIProvider.VERTEX_AI;
+    const service =
+      provider === AIProvider.GEMINI_AI
+        ? this.directGeminiService
+        : this.directVertexService;
 
     return service.processTryOn(
       avatarBase64,
@@ -425,19 +427,18 @@ export class TryOnController {
     type: HealthCheckResponseDto,
   })
   async healthCheck(): Promise<HealthCheckResponseDto> {
-    // const geminiStatus = this.geminiService.getConfigurationStatus();
+    const geminiStatus = this.directGeminiService.getConfigurationStatus();
     const vertexStatus = this.directVertexService.getConfigurationStatus();
 
-    // const geminiAvailable = await this.geminiService.isAvailable();
-    const geminiAvailable = false;
+    const geminiAvailable = await this.directGeminiService.isAvailable();
     const vertexAvailable = await this.directVertexService.isAvailable();
 
     return {
       healthy: geminiAvailable || vertexAvailable,
       geminiAI: {
         available: geminiAvailable,
-        configured: false, // geminiStatus.configured,
-        message: 'Gemini try-on disabled. Using Vertex.', // geminiStatus.message,
+        configured: geminiStatus.configured,
+        message: geminiStatus.message,
       },
       vertexAI: {
         available: vertexAvailable,

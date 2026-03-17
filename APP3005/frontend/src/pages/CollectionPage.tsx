@@ -12,7 +12,7 @@ import { TryOnInterstitialModal } from "@/components/TryOnInterstitialModal";
 import { TryOnResultModal } from '@/components/ai-tryon/TryOnResultModal';
 import { TryOnUpgradePopup } from '@/components/ai-tryon/TryOnUpgradePopup';
 import { AuraPromptDialog } from '@/components/aura/AuraPromptDialog';
-import { tryOnWithVertex, generateMoreAngles, getAura, FeedbackContextType } from '@/lib/api';
+import { tryOnWithGemini, tryOnWithVertex, generateMoreAngles, getAura, FeedbackContextType } from '@/lib/api';
 import collectionHeaderImage from "@/assets/collectionHeader.jpeg";
 import {
     getTryOnLimitSnapshot,
@@ -21,11 +21,33 @@ import {
     TRY_ON_PREMIUM_UPGRADE_URL,
     type TryOnUsageSnapshot,
 } from '@/lib/try-on-limit';
+import _ from 'lodash';
+import type { PublicProduct } from '@/hooks/useInfinitePublicProducts';
 
 const categories = ["All", "Dresses", "Outerwear", "Accessories", "Tops", "Bottoms"];
 const sizes = ["XS", "S", "M", "L", "XL", "XXL"];
 const colorOptions = ["Black", "White", "Beige", "Gold", "Navy", "Red", "Brown", "Gray"];
 const sortOptions = ["Price: Low to High", "Price: High to Low", "Newest", "Most Popular"];
+
+const TRYON_PROVIDER = {
+    VERTEX: 'vertex',
+    GEMINI: 'gemini',
+} as const;
+
+type TryOnProvider = (typeof TRYON_PROVIDER)[keyof typeof TRYON_PROVIDER];
+
+const getProductImageUrl = (product: PublicProduct): string | null => {
+    const primaryImage = _.find(product.images, (image) => image.is_primary);
+    const fallbackImage = primaryImage ?? _.head(product.images);
+    return fallbackImage?.url ?? product.thumbnail ?? null;
+};
+
+type TryOnResult = {
+    success: boolean;
+    resultImage?: string;
+    message?: string;
+    tryOnId?: string | number;
+};
 
 const CollectionPage = () => {
     const navigate = useNavigate();
@@ -44,8 +66,9 @@ const CollectionPage = () => {
     const [sortBy, setSortBy] = useState("Price: Low to High");
     const [showFilters, setShowFilters] = useState(false);
 
-    const [selectedTryOnProduct, setSelectedTryOnProduct] = useState<string | null>(null);
+    const [selectedTryOnProduct, setSelectedTryOnProduct] = useState<PublicProduct | null>(null);
     const [isTryOnModalOpen, setIsTryOnModalOpen] = useState(false);
+    const [selectedTryOnProvider, setSelectedTryOnProvider] = useState<TryOnProvider>(TRYON_PROVIDER.VERTEX);
 
     // AI Try-On State
     const [aura, setAura] = useState<any>(null);
@@ -70,7 +93,7 @@ const CollectionPage = () => {
     const [selectedTryOnLabel, setSelectedTryOnLabel] = useState<string>('');
 
     const resolveProductLabel = (productId: string) => {
-        const product = filteredProducts.find((item: any) => item.product_id === productId);
+        const product = _.find(filteredProducts, (item) => item.product_id === productId);
         return product?.title || product?.name || productId;
     };
     const currentUserName = user?.store_name || user?.email?.split('@')[0] || 'You';
@@ -193,7 +216,10 @@ const CollectionPage = () => {
         selectedColors.length +
         (priceRange[0] !== 0 || priceRange[1] !== 5000 ? 1 : 0);
 
-    const handleTryOn = async (productId: string) => {
+    const handleTryOn = async (
+        product: PublicProduct,
+        provider: TryOnProvider = TRYON_PROVIDER.VERTEX,
+    ) => {
         const token = localStorage.getItem('access_token');
         if (!token) {
             navigate('/user-login');
@@ -213,8 +239,9 @@ const CollectionPage = () => {
 
         // OPTIMIZATION: Check local aura state first for instant response
         if (aura) {
-            setSelectedTryOnProduct(productId);
-            setSelectedTryOnLabel(resolveProductLabel(productId));
+            setSelectedTryOnProduct(product);
+            setSelectedTryOnProvider(provider);
+            setSelectedTryOnLabel(resolveProductLabel(product.product_id));
             setIsTryOnModalOpen(true);
             return;
         }
@@ -222,7 +249,9 @@ const CollectionPage = () => {
         // Fallback to network check if local state isn't ready
         const hasValidAura = await auraGate(navigate, '/aura-dashboard');
         if (hasValidAura) {
-            setSelectedTryOnProduct(productId);
+            setSelectedTryOnProduct(product);
+            setSelectedTryOnProvider(provider);
+            setSelectedTryOnLabel(resolveProductLabel(product.product_id));
             setIsTryOnModalOpen(true);
         }
     };
@@ -230,11 +259,14 @@ const CollectionPage = () => {
     const handleConfirmTryOn = () => {
         if (selectedTryOnProduct) {
             setIsTryOnModalOpen(false);
-            executeTryOn(selectedTryOnProduct);
+            executeTryOn(selectedTryOnProduct, selectedTryOnProvider);
         }
     };
 
-    const executeTryOn = async (productId: string) => {
+    const executeTryOn = async (
+        product: PublicProduct,
+        provider: TryOnProvider,
+    ) => {
         if (!user) return; // Aura check handled by gate, but need user context
 
         try {
@@ -250,11 +282,26 @@ const CollectionPage = () => {
 
             // Use aura.user_id if available, otherwise fallback to user.user_id (though aura is preferred)
             const userId = aura?.user_id || user.user_id;
+            let result: TryOnResult;
 
-            const result = await tryOnWithVertex({
-                userId: userId,
-                clothingItemId: productId,
-            });
+            if (provider === TRYON_PROVIDER.GEMINI) {
+                const avatarImage = aura?.model_url || aura?.image_url;
+                const clothingImage = getProductImageUrl(product);
+
+                if (!avatarImage || !clothingImage) {
+                    throw new Error('Try-on requires both avatar and clothing images');
+                }
+
+                result = await tryOnWithGemini({
+                    avatarImage,
+                    clothingImage,
+                });
+            } else {
+                result = await tryOnWithVertex({
+                    userId: userId,
+                    clothingItemId: product.product_id,
+                });
+            }
 
             if (result.success && result.resultImage) {
                 const imageData = result.resultImage.startsWith('data:')
@@ -271,7 +318,7 @@ const CollectionPage = () => {
                 setFeedbackContext({
                     type: "VIRTUAL_TRYON",
                     referenceId: result.tryOnId ? String(result.tryOnId) : undefined,
-                    label: selectedTryOnLabel || resolveProductLabel(productId),
+                    label: selectedTryOnLabel || resolveProductLabel(product.product_id),
                 });
             } else {
                 throw new Error(result.message || 'Try-on failed');
@@ -319,7 +366,7 @@ const CollectionPage = () => {
             setGeneratingAngles(true);
             const result = await generateMoreAngles({
                 userId: aura?.user_id || user.user_id,
-                productId: selectedTryOnProduct,
+                productId: selectedTryOnProduct.product_id,
                 previousImageUrl: originalTryOnImage || resultImage,
             });
 
@@ -598,7 +645,18 @@ const CollectionPage = () => {
                                     <ProductCard
                                         key={product.product_id}
                                         product={product}
-                                        onTryOn={() => handleTryOn(product.product_id)}
+                                        onTryOn={() =>
+                                            handleTryOn(
+                                                product,
+                                                TRYON_PROVIDER.VERTEX,
+                                            )
+                                        }
+                                        onTryOnGemini={() =>
+                                            handleTryOn(
+                                                product,
+                                                TRYON_PROVIDER.GEMINI,
+                                            )
+                                        }
                                     />
                                 ))}
                             </div>
@@ -662,7 +720,7 @@ const CollectionPage = () => {
                 onGenerateMoreAngles={handleGenerateMoreAngles}
                 generatingAngles={generatingAngles}
                 userPhoto={aura?.image_url}
-                garmentId={selectedTryOnProduct || undefined}
+                garmentId={selectedTryOnProduct?.product_id}
                 garmentTitle={selectedTryOnLabel || undefined}
                 generatedImages={generatedImages}
                 onSelectImage={(img) => setResultImage(img)}

@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { PrismaModule } from '../prisma/prisma.module';
-// import { GeminiTryOnService } from './services/providers/gemini-tryon.service';
+import { DirectGeminiTryOnService } from './services/providers/direct-gemini-tryon.service';
 import { DirectVertexTryOnService } from './services/providers/direct-vertex-tryon.service';
 import { ImageValidatorService } from './services/common/image-validator.service';
 import { BodyAnalyzerService } from './services/body-analyzer.service';
@@ -15,7 +15,7 @@ import { ImageOptimizerService } from '../common/image-optimizer.service';
   imports: [ConfigModule, PrismaModule],
   controllers: [TryOnController],
   providers: [
-    // GeminiTryOnService,
+    DirectGeminiTryOnService,
     DirectVertexTryOnService,
     ImageValidatorService,
     BodyAnalyzerService,
@@ -25,7 +25,7 @@ import { ImageOptimizerService } from '../common/image-optimizer.service';
     ImageOptimizerService,
   ],
   exports: [
-    // GeminiTryOnService,
+    DirectGeminiTryOnService,
     DirectVertexTryOnService,
     BodyAnalyzerService,
     TryOn3DService,

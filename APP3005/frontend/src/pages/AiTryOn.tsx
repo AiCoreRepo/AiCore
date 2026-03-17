@@ -28,6 +28,8 @@ import {
   TRY_ON_PREMIUM_UPGRADE_URL,
   type TryOnUsageSnapshot,
 } from '@/lib/try-on-limit';
+import _ from 'lodash';
+import type { PublicProduct } from '@/hooks/usePublicProducts';
 
 interface AuraData {
   aura_id: string;
@@ -44,6 +46,40 @@ interface AuraData {
   beard: string | null;
   extra_attributes: any;
 }
+
+interface ProductImage {
+  url: string;
+  is_primary?: boolean;
+  order_index?: number;
+}
+
+type TryOnProduct = PublicProduct & {
+  images?: ProductImage[];
+  thumbnail?: string | null;
+};
+
+type TryOnResult = {
+  success: boolean;
+  resultImage?: string;
+  message?: string;
+  tryOnId?: string | number;
+};
+
+const TRYON_PROVIDER = {
+  VERTEX: 'vertex',
+  GEMINI: 'gemini',
+} as const;
+
+type TryOnProvider = (typeof TRYON_PROVIDER)[keyof typeof TRYON_PROVIDER];
+
+const getProductImageUrl = (product: TryOnProduct): string | null => {
+  const primaryImage = _.find(product.images, (image) => image.is_primary);
+  const fallbackImage = primaryImage ?? _.head(product.images);
+  return fallbackImage?.url ?? product.thumbnail ?? null;
+};
+
+const getAvatarImageUrl = (aura: AuraData | null): string | null =>
+  aura?.model_url || aura?.image_url || null;
 
 const AiTryOn = () => {
   const navigate = useNavigate();
@@ -85,7 +121,7 @@ const AiTryOn = () => {
   const { data: productsData, isLoading: productsLoading, error: productsError } = usePublicProducts(1);
 
   const resolveProductLabel = (productId: string) => {
-    const product = productsData?.products?.find((item: any) => item.product_id === productId);
+    const product = _.find(productsData?.products, (item) => item.product_id === productId);
     return product?.title || product?.name || productId;
   };
   const currentUserName = user?.store_name || user?.email?.split('@')[0] || 'You';
@@ -155,12 +191,14 @@ const AiTryOn = () => {
 
 
 
-  const handleTryOn = async (productId: string, provider: 'gemini' | 'vertex' = 'vertex') => {
+  const handleTryOn = async (
+    productId: string,
+    provider: TryOnProvider = TRYON_PROVIDER.VERTEX,
+  ) => {
     if (!hasFreeTryOnsRemaining) {
       openUpgradePopup();
       return;
     }
-
     if (!aura) {
       setShowAuraPopup(true);
       return;
@@ -180,12 +218,30 @@ const AiTryOn = () => {
       setShowFeedbackSheet(false);
       setShowResultModal(true);
 
-      const tryOnFunction = provider === 'gemini' ? tryOnWithGemini : tryOnWithVertex;
+      let result: TryOnResult;
 
-      const result = await tryOnFunction({
-        userId: aura.user_id,
-        clothingItemId: productId,
-      });
+      if (provider === TRYON_PROVIDER.GEMINI) {
+        const product = _.find(
+          productsData?.products,
+          (item) => item.product_id === productId,
+        ) as TryOnProduct | undefined;
+        const avatarImage = getAvatarImageUrl(aura);
+        const clothingImage = product ? getProductImageUrl(product) : null;
+
+        if (!avatarImage || !clothingImage) {
+          throw new Error('Try-on requires both avatar and clothing images');
+        }
+
+        result = await tryOnWithGemini({
+          avatarImage,
+          clothingImage,
+        });
+      } else {
+        result = await tryOnWithVertex({
+          userId: aura.user_id,
+          clothingItemId: productId,
+        });
+      }
 
       if (result.success && result.resultImage) {
         // Ensure the image has the data URI prefix
@@ -229,7 +285,7 @@ const AiTryOn = () => {
 
     const productId = pendingAutoTryOnProductId;
     setPendingAutoTryOnProductId(null);
-    handleTryOn(productId, 'vertex');
+    handleTryOn(productId, TRYON_PROVIDER.VERTEX);
 
     // Clear one-time navigation state so auto-try doesn't trigger again on remount.
     navigate(location.pathname, { replace: true });
@@ -514,7 +570,18 @@ const AiTryOn = () => {
                                 <ClothingItemCard
                                   key={product.product_id}
                                   product={product}
-                                  onTryOn={() => handleTryOn(product.product_id, 'vertex')}
+                                  onTryOn={() =>
+                                    handleTryOn(
+                                      product.product_id,
+                                      TRYON_PROVIDER.VERTEX,
+                                    )
+                                  }
+                                  onTryOnGemini={() =>
+                                    handleTryOn(
+                                      product.product_id,
+                                      TRYON_PROVIDER.GEMINI,
+                                    )
+                                  }
                                   loading={selectedProduct === product.product_id && tryOnLoading}
                                 />
                               ))}

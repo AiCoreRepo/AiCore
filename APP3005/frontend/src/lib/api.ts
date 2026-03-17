@@ -719,8 +719,8 @@ export async function getAura() {
 
 // Try-on with Gemini AI (fallbacks to Vertex endpoint since Gemini 3D route is disabled)
 export async function tryOnWithGemini(data: {
-  userId: string;
-  clothingItemId: string;
+  avatarImage: string;
+  clothingImage: string;
   additionalParams?: Record<string, unknown>;
 }) {
   const token = localStorage.getItem('access_token');
@@ -728,7 +728,7 @@ export async function tryOnWithGemini(data: {
     throw new Error('Please login to use AI Try-On');
   }
 
-  const res = await fetch(`${BASE_URL}/v1/tryon/3d/vertex`, {
+  const res = await fetch(`${BASE_URL}/v1/tryon/gemini`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

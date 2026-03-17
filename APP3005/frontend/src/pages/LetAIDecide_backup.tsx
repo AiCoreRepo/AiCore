@@ -11,6 +11,8 @@ import { usePublicProducts } from '@/hooks/usePublicProducts';
 import { getAura, tryOnWithGemini, tryOnWithVertex, generateMoreAngles, getTryOnHistory } from '@/lib/api';
 import { Sparkles, AlertCircle, Images } from 'lucide-react';
 import '@/components/ai-tryon/ai-tryon-styles.css';
+import _ from 'lodash';
+import type { PublicProduct } from '@/hooks/usePublicProducts';
 
 interface AuraData {
   aura_id: string;
@@ -27,6 +29,33 @@ interface AuraData {
   beard: string | null;
   extra_attributes: any;
 }
+
+interface ProductImage {
+  url: string;
+  is_primary?: boolean;
+  order_index?: number;
+}
+
+type TryOnProduct = PublicProduct & {
+  images?: ProductImage[];
+  thumbnail?: string | null;
+};
+
+const TRYON_PROVIDER = {
+  VERTEX: 'vertex',
+  GEMINI: 'gemini',
+} as const;
+
+type TryOnProvider = (typeof TRYON_PROVIDER)[keyof typeof TRYON_PROVIDER];
+
+const getProductImageUrl = (product: TryOnProduct): string | null => {
+  const primaryImage = _.find(product.images, (image) => image.is_primary);
+  const fallbackImage = primaryImage ?? _.head(product.images);
+  return fallbackImage?.url ?? product.thumbnail ?? null;
+};
+
+const getAvatarImageUrl = (aura: AuraData | null): string | null =>
+  aura?.model_url || aura?.image_url || null;
 
 const AiTryOn = () => {
   const navigate = useNavigate();
@@ -77,7 +106,10 @@ const AiTryOn = () => {
     navigate('/collection');
   };
 
-  const handleTryOn = async (productId: string, provider: 'gemini' | 'vertex' = 'vertex') => {
+  const handleTryOn = async (
+    productId: string,
+    provider: TryOnProvider = TRYON_PROVIDER.VERTEX,
+  ) => {
     if (!aura) {
       setShowAuraPrompt(true);
       return;
@@ -90,12 +122,30 @@ const AiTryOn = () => {
       setTryOnError(null);
       setShowResultModal(true);
 
-      const tryOnFunction = provider === 'gemini' ? tryOnWithGemini : tryOnWithVertex;
+      let result: { success: boolean; resultImage?: string; message?: string };
 
-      const result = await tryOnFunction({
-        userId: aura.user_id,
-        clothingItemId: productId,
-      });
+      if (provider === TRYON_PROVIDER.GEMINI) {
+        const product = _.find(
+          productsData?.products,
+          (item) => item.product_id === productId,
+        ) as TryOnProduct | undefined;
+        const avatarImage = getAvatarImageUrl(aura);
+        const clothingImage = product ? getProductImageUrl(product) : null;
+
+        if (!avatarImage || !clothingImage) {
+          throw new Error('Try-on requires both avatar and clothing images');
+        }
+
+        result = await tryOnWithGemini({
+          avatarImage,
+          clothingImage,
+        });
+      } else {
+        result = await tryOnWithVertex({
+          userId: aura.user_id,
+          clothingItemId: productId,
+        });
+      }
 
       if (result.success && result.resultImage) {
         // Ensure the image has the data URI prefix
@@ -268,8 +318,18 @@ const AiTryOn = () => {
                           <ClothingItemCard
                             key={product.product_id}
                             product={product}
-                            onTryOnGemini={() => handleTryOn(product.product_id, 'gemini')}
-                            onTryOnVertex={() => handleTryOn(product.product_id, 'vertex')}
+                            onTryOn={() =>
+                              handleTryOn(
+                                product.product_id,
+                                TRYON_PROVIDER.VERTEX,
+                              )
+                            }
+                            onTryOnGemini={() =>
+                              handleTryOn(
+                                product.product_id,
+                                TRYON_PROVIDER.GEMINI,
+                              )
+                            }
                             loading={selectedProduct === product.product_id && tryOnLoading}
                           />
                         ))}

@@ -1,4 +1,5 @@
-import { Zap } from 'lucide-react';
+import { Sparkles, Zap } from 'lucide-react';
+import _ from 'lodash';
 import { useState } from 'react';
 import { ProductDetailsModal } from '@/components/collection/ProductDetailsModal';
 
@@ -18,17 +19,22 @@ interface Product {
 interface ClothingItemCardProps {
     product: Product;
     onTryOn: () => void;
+    onTryOnGemini?: () => void;
     loading?: boolean;
 }
 
-export function ClothingItemCard({ product, onTryOn, loading = false }: ClothingItemCardProps) {
+export function ClothingItemCard({
+    product,
+    onTryOn,
+    onTryOnGemini,
+    loading = false,
+}: ClothingItemCardProps) {
     const [imageLoaded, setImageLoaded] = useState(false);
     const [showDetails, setShowDetails] = useState(false);
 
-    // Safely get the primary image - handle both array and undefined cases
-    // Get image source - API returns 'thumbnail', but we support 'images' array for forward compatibility
-    // Use 'any' type cast for images to handle potential API mismatch gracefully
-    const imageUrl = product.thumbnail || (product.images && product.images.length > 0 ? (product.images.find((img: any) => img.is_primary)?.url || product.images[0].url) : null);
+    const primaryImage = _.find(product.images, (image) => image.is_primary);
+    const fallbackImage = primaryImage ?? _.head(product.images);
+    const imageUrl = fallbackImage?.url ?? product.thumbnail ?? null;
 
     const price = (product.price_cents / 100).toFixed(2);
 
@@ -90,24 +96,45 @@ export function ClothingItemCard({ product, onTryOn, loading = false }: Clothing
                     </div>
 
                     <div className="mt-auto">
-                        {/* Vestire Try On Button */}
-                        <button
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                onTryOn();
-                            }}
-                            disabled={loading}
-                            className="flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-[10px] font-medium uppercase tracking-[0.16em] transition-all duration-300 hover:shadow-gold/20 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 sm:py-3 sm:tracking-widest"
-                            style={{
-                                background: '#D4AF37',
-                                color: '#FFFFFF',
-                                boxShadow: '0 4px 15px rgba(212, 175, 55, 0.2)',
-                            }}
+                        <div
+                            className={`grid gap-2 ${onTryOnGemini ? 'grid-cols-2' : 'grid-cols-1'}`}
                         >
-                            <Zap className="w-3.5 h-3.5 fill-white" />
-                            <span className="sm:hidden">{loading ? 'Working...' : 'Try On'}</span>
-                            <span className="hidden sm:inline">{loading ? 'Processing...' : 'Vestire Try On'}</span>
-                        </button>
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onTryOn();
+                                }}
+                                disabled={loading}
+                                className="py-2 px-3 rounded-lg font-semibold text-[9.5px] tracking-[0.2em] uppercase transition-all duration-300 hover:shadow-gold/30 hover:-translate-y-0.5 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
+                                style={{
+                                    background: 'linear-gradient(135deg, #C7A238 0%, #B38C2E 100%)',
+                                    color: '#0f0f0f',
+                                    boxShadow: '0 6px 14px rgba(179, 140, 46, 0.25)',
+                                }}
+                            >
+                                <Zap className="w-3 h-3 fill-[#0f0f0f]" />
+                                {loading ? 'Processing...' : 'Vertex Try On'}
+                            </button>
+                            {onTryOnGemini && (
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        onTryOnGemini();
+                                    }}
+                                    disabled={loading}
+                                    className="py-2 px-3 rounded-lg font-semibold text-[9.5px] tracking-[0.2em] uppercase transition-all duration-300 hover:shadow-gold/20 hover:-translate-y-0.5 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
+                                    style={{
+                                        background: 'rgba(18, 18, 18, 0.92)',
+                                        color: '#f5f5f5',
+                                        boxShadow: '0 6px 14px rgba(0, 0, 0, 0.3)',
+                                        border: '1px solid rgba(212, 175, 55, 0.45)',
+                                    }}
+                                >
+                                    <Sparkles className="w-3 h-3 text-luxury-gold" />
+                                    {loading ? 'Processing...' : 'Gemini Try On'}
+                                </button>
+                            )}
+                        </div>
                     </div>
                 </div>
 
@@ -137,6 +164,7 @@ export function ClothingItemCard({ product, onTryOn, loading = false }: Clothing
                 onClose={() => setShowDetails(false)}
                 product={product}
                 onTryOn={onTryOn}
+                onTryOnGemini={onTryOnGemini}
             />
         </>
     );

@@ -54,33 +54,53 @@ export const PNG_COMPRESSION_LEVEL = 6;
 export const WEBP_QUALITY = 90;
 
 // AI Model Prompts
-export const VERTEX_AI_TRYON_PROMPT = `Generate a realistic virtual try-on image where the person in the avatar image is wearing the clothing item from the product image. 
-Maintain the person's pose, body proportions, and facial features exactly as they appear. 
-Ensure the clothing fits naturally and realistically on the person's body, adapting to their shape and posture. 
-Preserve the original style, color, texture, and all details of the clothing item. 
-The output should be photorealistic, seamless, and look like a professional product photograph. 
-Pay special attention to lighting consistency, shadows, and fabric draping for maximum realism.`;
+// export const VERTEX_AI_TRYON_PROMPT = `Generate a realistic virtual try-on image where the person in the avatar image is wearing the clothing item from the product image. 
+// Maintain the person's pose, body proportions, and facial features exactly as they appear. 
+// Ensure the clothing fits naturally and realistically on the person's body, adapting to their shape and posture. 
+// Preserve the original style, color, texture, and all details of the clothing item. 
+// The output should be photorealistic, seamless, and look like a professional product photograph. 
+// Pay special attention to lighting consistency, shadows, and fabric draping for maximum realism.`;
 
-export const GEMINI_AI_TRYON_PROMPT = `You are an expert virtual try-on system with advanced understanding of fashion, body proportions, and photorealistic image composition.
+export const GEMINI_AI_TRYON_PROMPT = `You are a world-class virtual try-on system. 
 
-TASK: Create a photorealistic composite image where the person from the avatar image is wearing the clothing item from the product image.
+GOAL:
+Generate ONE photorealistic output image where the PERSON in the avatar image is wearing the CLOTHING item from the product image.
 
-CRITICAL REQUIREMENTS:
-1. IDENTITY PRESERVATION: Maintain the person's exact facial features, skin tone, hair, and overall appearance
-2. BODY ACCURACY: Preserve the person's body shape, proportions, pose, and stance
-3. CLOTHING FIDELITY: Accurately represent the clothing's color, texture, pattern, style, and all design details
-4. REALISTIC FIT: Ensure the clothing fits naturally on the person's body with proper draping and fabric physics
-5. LIGHTING CONSISTENCY: Match lighting, shadows, and highlights between the person and clothing for seamless integration
-6. PROFESSIONAL QUALITY: Output should be indistinguishable from a professional fashion photograph
+INPUT ORDER:
+1) First image = the avatar/person.
+2) Second image = the clothing item.
 
-TECHNICAL SPECIFICATIONS:
-- Maintain high resolution and image quality
-- Ensure proper perspective and scale
-- Create realistic fabric wrinkles and folds
-- Add appropriate shadows and reflections
-- Blend edges seamlessly for natural integration
+IDENTITY & BODY (MUST PRESERVE):
+- Keep the exact face, skin tone, hair, and identity from the avatar.
+- Keep the same body proportions, pose, and posture from the avatar.
+- Do NOT alter facial features or body shape.
+- Do NOT use the clothing model's face, head, skin, or body.
 
-OUTPUT: A single, high-quality, photorealistic image of the person wearing the clothing item.`;
+CLOTHING FIDELITY (MUST MATCH):
+- Copy the clothing item exactly: color, texture, pattern, fabric, silhouette, neckline, sleeves, and all design details.
+- Do NOT invent new designs or change branding/logo placement.
+- Keep the clothing item realistic in size and scale relative to the body.
+- If the clothing image contains a model, ignore that model completely (only use the garment).
+
+REALISM & PHOTOGRAPHY:
+- Ensure natural fit and drape; add realistic wrinkles and folds.
+- Match lighting, shadows, and highlights so the clothing blends seamlessly.
+- Preserve the original background from the avatar image (do not replace).
+- Avoid artifacts, warping, or unnatural edges around the garment.
+- Keep the full person visible (head-to-toe) and preserve the avatar's original framing.
+- Do not crop, zoom, or cut off any body parts.
+
+OUTPUT:
+- Return a single high-resolution, photorealistic image of the avatar wearing the clothing item.
+- Do NOT return the input images or side-by-side comparisons.`;
+
+export const GEMINI_AI_TRYON_PROMPT_STRICT_SUFFIX = `
+
+STRICT OUTPUT RULES:
+- Return ONLY the final try-on image.
+- NEVER return or repeat any input image.
+- NEVER output collages, panels, or multiple images in one frame.
+- If unsure, still generate a new try-on image that preserves the avatar identity.`;
 
 // Error Messages
 export const ERROR_MESSAGES = {
@@ -121,3 +141,32 @@ export const CONFIG_KEYS = {
 export const DEFAULT_VERTEX_MODEL = 'imagegeneration@006';
 export const DEFAULT_GEMINI_MODEL = 'gemini-1.5-pro';
 export const DEFAULT_VERTEX_LOCATION = 'us-central1';
+
+// Direct Gemini Try-On Defaults
+export const GEMINI_TRYON_CONFIG = {
+  DEFAULT_MODEL: 'gemini-3.1-flash-image-preview',
+  DEFAULT_MIME_TYPE: 'image/jpeg',
+} as const;
+
+export const GEMINI_TRYON_OUTPUT_VALIDATION = {
+  MAX_LANDSCAPE_RATIO: 1.2,
+  OUTPUT_MATCH_RETRY_LIMIT: 3,
+} as const;
+
+export const GEMINI_CLOTHING_MODEL_MASK = {
+  ENABLED_BY_DEFAULT: true,
+  TOP_REGION_RATIO: 0.18,
+  BLUR_SIGMA: 12,
+} as const;
+
+export const GEMINI_TRYON_ERROR_MESSAGES = {
+  MISSING_API_KEY: 'Gemini API key is not configured',
+  REQUEST_FAILED: 'Gemini try-on request failed',
+  INVALID_RESPONSE: 'Gemini try-on returned an invalid response',
+  NO_IMAGE_DATA: 'Gemini try-on response did not include image data',
+  REQUEST_TIMEOUT: 'Gemini try-on request timed out',
+  OUTPUT_MATCHES_INPUT: 'Gemini try-on output matched an input image',
+  OUTPUT_MATCH_RETRY_FAILED: 'Gemini try-on output did not change after retries',
+  OUTPUT_NOT_GENERATED:
+    'Gemini did not generate a new try-on image. Please try again with a different clothing image.',
+} as const;

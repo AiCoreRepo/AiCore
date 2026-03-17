@@ -173,9 +173,18 @@ export abstract class BaseTryOnService {
         lastError = error;
         this.logger.warn(`Try-on attempt ${attempt} failed: ${error.message}`);
 
-        // Don't retry on validation errors
+        // Retry timeouts and processing failures; other TryOnException types should not retry
         if (error instanceof TryOnException) {
-          throw error;
+          if (
+            error.errorCode === TryOnErrorCode.TIMEOUT_ERROR ||
+            error.errorCode === TryOnErrorCode.PROCESSING_FAILED
+          ) {
+            this.logger.warn(
+              `Retrying after timeout (attempt ${attempt}/${MAX_RETRIES})`,
+            );
+          } else {
+            throw error;
+          }
         }
 
         // Wait before retrying (except on last attempt)
