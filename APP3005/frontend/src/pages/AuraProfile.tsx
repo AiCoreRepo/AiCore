@@ -619,11 +619,6 @@ export default function AuraProfile() {
         );
     }
 
-    const tryOnCropPreviewUrl =
-        aura.tryon_model_url && aura.tryon_model_url !== aura.model_url
-            ? aura.tryon_model_url
-            : null;
-
     return (
         <div className="aura-profile-page">
             {/* Simple header text - no bar */}
@@ -794,6 +789,7 @@ export default function AuraProfile() {
                 {/* Right Panel - Avatar Display */}
                 <div className="avatar-panel">
                     <AvatarDisplay imageUrl={aura.model_url || aura.image_url} userName={avatarUserName} />
+                    {/*
                     {tryOnCropPreviewUrl && (
                         <div className="tryon-crop-preview">
                             <div className="tryon-crop-copy">
@@ -812,6 +808,7 @@ export default function AuraProfile() {
                             </div>
                         </div>
                     )}
+                    */}
                 </div>
             </div>
 

@@ -4,7 +4,6 @@ import type bull from 'bull';
 import { PrismaService } from '../prisma/prisma.service';
 import { CloudinaryService } from '../common/cloudinary.service';
 import { GeminiAIService } from '../common/gemini-ai.service';
-import { ImageOptimizerService } from '../common/image-optimizer.service';
 import { AuraJobData } from './aura-queue.service';
 import { AuraStatus } from '@prisma/client';
 import { QUEUE_NAMES, JOB_NAMES } from '../common/constants/queue.constants';
@@ -16,7 +15,6 @@ export class AuraProcessor {
     private readonly prisma: PrismaService,
     private readonly cloudinary: CloudinaryService,
     private readonly geminiAI: GeminiAIService,
-    private readonly imageOptimizer: ImageOptimizerService,
   ) {
     console.log(
       '✅ [AuraProcessor] Processor initialized for queue:',
@@ -45,7 +43,6 @@ export class AuraProcessor {
       let finalAvatarUrl: string;
       let tryOnAvatarUrl: string;
       let avatarMetadata: any;
-      let tryOnCropSource: string;
 
       if (imageGeneration.success && imageGeneration.imageBase64) {
         // Generated image - upload to Cloudinary
@@ -64,7 +61,6 @@ export class AuraProcessor {
           'avatars',
         );
         finalAvatarUrl = avatarUpload.secureUrl;
-        tryOnCropSource = base64Image;
         console.log(`✅ [Aura Processor] Generated avatar uploaded`);
 
         avatarMetadata = {
@@ -77,7 +73,6 @@ export class AuraProcessor {
         await job.progress(50);
         console.log(`ℹ️  [Aura Processor] Using original image`);
         finalAvatarUrl = imageUrl;
-        tryOnCropSource = imageUrl;
 
         avatarMetadata = {
           type: 'original',
@@ -86,6 +81,10 @@ export class AuraProcessor {
         };
       }
 
+      // Direct try-on now uses the full avatar URL instead of a cropped try-on variant.
+      tryOnAvatarUrl = finalAvatarUrl;
+
+      /*
       try {
         console.log(`✂️ [Aura Processor] Creating try-on crop without footwear...`);
         const croppedAvatarBase64 =
@@ -110,6 +109,7 @@ export class AuraProcessor {
         );
         tryOnAvatarUrl = finalAvatarUrl;
       }
+      */
 
       await job.progress(70);
 
@@ -123,22 +123,14 @@ export class AuraProcessor {
           status: AuraStatus.READY,
           model_url: finalAvatarUrl,
           tryon_model_url: tryOnAvatarUrl,
-          generated_avatar_urls: Array.from(
-            new Set([finalAvatarUrl, tryOnAvatarUrl]),
-          ),
-          attributes: {
-            ...avatarMetadata,
-            tryOnCrop: {
-              url: tryOnAvatarUrl,
-              cropBottomPercent: 12,
-            },
-          },
+          generated_avatar_urls: [finalAvatarUrl],
+          attributes: avatarMetadata,
         },
       });
 
       console.log(`✅ [Aura Processor] Avatar ready: ${auraId}`);
       console.log(`   - URL: ${updatedAura.model_url}`);
-      console.log(`   - Try-on crop URL: ${updatedAura.tryon_model_url}`);
+      console.log(`   - Try-on avatar URL: ${updatedAura.tryon_model_url}`);
       console.log(`   - Status: ${updatedAura.status}\n`);
 
       await job.progress(100);

@@ -41,6 +41,7 @@ interface AuraData {
   skin_tone: string;
   gender: string;
   body_shape: string;
+  body_size?: string;
   age_range: string;
   hair_style: string;
   beard: string | null;
@@ -80,6 +81,26 @@ const getProductImageUrl = (product: TryOnProduct): string | null => {
 
 const getAvatarImageUrl = (aura: AuraData | null): string | null =>
   aura?.model_url || aura?.image_url || null;
+
+const buildGeminiTryOnAdditionalParams = (aura: AuraData | null) => ({
+  aura_attributes: aura
+    ? {
+        height_cm: aura.height_cm,
+        weight_kg: aura.weight_kg,
+        skin_tone: aura.skin_tone,
+        gender: aura.gender,
+        body_shape: aura.body_shape,
+        body_size: aura.body_size,
+        age_range: aura.age_range,
+        hair_style: aura.hair_style,
+        beard: aura.beard,
+        ...(aura.extra_attributes && typeof aura.extra_attributes === 'object'
+          ? aura.extra_attributes
+          : {}),
+      }
+    : undefined,
+  maskClothingModel: false,
+});
 
 const AiTryOn = () => {
   const navigate = useNavigate();
@@ -235,6 +256,7 @@ const AiTryOn = () => {
         result = await tryOnWithGemini({
           avatarImage,
           clothingImage,
+          additionalParams: buildGeminiTryOnAdditionalParams(aura),
         });
       } else {
         result = await tryOnWithVertex({

@@ -5,11 +5,13 @@ import {
   BadRequestException,
   HttpException,
 } from '@nestjs/common';
+import type { Request } from 'express';
 import { PrismaService } from '../prisma/prisma.service';
 import { CloudinaryService } from '../common/cloudinary.service';
 import { AuraQueueService } from './aura-queue.service';
 import { CreateAuraDto } from './dto/create-aura.dto';
 import { AuraStatus, Prisma } from '@prisma/client';
+import { getEffectiveAvatarRecreationLimit } from '../auth/utils/try-on-limit.util';
 
 @Injectable()
 export class AuraService {
@@ -39,15 +41,9 @@ export class AuraService {
 
   private getMaxRecreationAttempts(
     maxAttemptsFromUser: number | null | undefined,
+    request?: Request,
   ): number {
-    if (
-      typeof maxAttemptsFromUser !== 'number' ||
-      !Number.isFinite(maxAttemptsFromUser)
-    ) {
-      return 0;
-    }
-
-    return Math.max(0, Math.floor(maxAttemptsFromUser));
+    return getEffectiveAvatarRecreationLimit(maxAttemptsFromUser, request);
   }
 
   private getRecreationLimitMessage(maxAttempts: number): string {
@@ -113,8 +109,8 @@ export class AuraService {
         userId: aura.user_id,
         imageUrl: aura.image_url || '',
         attributes: {
-          height: attributes.height || 170,
-          weight: attributes.weight || 70,
+          height: attributes.height ?? 170,
+          weight: attributes.weight ?? 70,
           skinTone: attributes.skinTone,
           gender: attributes.gender || 'unspecified',
           bodyShape: attributes.bodyShape,
@@ -150,6 +146,7 @@ export class AuraService {
     userId: string,
     file: Express.Multer.File | undefined,
     attributes: CreateAuraDto,
+    request?: Request,
   ) {
     const existingAura = await this.prisma.aura.findUnique({
       where: { user_id: userId },
@@ -175,6 +172,7 @@ export class AuraService {
 
     const maxRecreationAttempts = this.getMaxRecreationAttempts(
       user.max_avatar_regenerations,
+      request,
     );
 
     if (user.avatar_regenerations_used >= maxRecreationAttempts) {

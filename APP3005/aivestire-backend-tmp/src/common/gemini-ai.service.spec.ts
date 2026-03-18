@@ -2,79 +2,149 @@ import { ConfigService } from '@nestjs/config';
 import { GeminiAIService } from './gemini-ai.service';
 
 describe('GeminiAIService prompt building', () => {
-  it('locks the avatar pose to joined straight legs and straight arms', () => {
+  const createService = () => {
     const configService = {
       get: jest.fn().mockReturnValue(undefined),
     } as unknown as ConfigService;
 
-    const service = new GeminiAIService(configService);
+    return new GeminiAIService(configService);
+  };
 
-    const prompt = (service as any).buildAvatarPrompt({
-      height: 170,
-      weight: 60,
-      skinTone: 'medium',
-      gender: 'female',
-      bodyShape: 'hourglass',
-      bodySize: 'medium',
-      ageRange: '25_35',
-      hairStyle: 'long',
+  it('builds a structured two-image try-on prompt for avatar generation', () => {
+    const service = createService();
+
+    const prompt = JSON.parse(
+      (service as any).buildAvatarPrompt({
+        height: 175,
+        weight: 68,
+        skinTone: 'medium',
+        gender: 'female',
+        bodyShape: 'athletic',
+        bodySize: 'medium',
+        ageRange: '25_35',
+        hairStyle: 'long_wavy',
+      }),
+    );
+
+    expect(prompt.role).toBe('virtual try-on assistant');
+    expect(prompt.inputs).toEqual({
+      image_1: 'person',
+      image_2: 'clothing',
     });
-
-    expect(prompt).toContain('Both legs are straight, vertical, and fully joined together from upper thigh to feet');
-    expect(prompt).toContain('There must be zero visible gap anywhere between the legs from hip to toe');
-    expect(prompt).toContain('Both arms hang straight down vertically at the sides of the body');
-    expect(prompt).toContain('If the source image pose conflicts with these requirements');
-    expect(prompt).toContain('bent elbows');
-    expect(prompt).toContain('The full body is visible from head to toe');
+    expect(prompt.instructions.identity).toContain(
+      "Preserve the person's exact face features, skin tone, hairline, hairstyle, hair length, hair volume, hair texture, and body type exactly.",
+    );
+    expect(prompt.instructions.identity).toContain(
+      'expand the canvas and reconstruct the missing framing so the complete head and full hair silhouette are visible naturally',
+    );
+    expect(prompt.instructions.identity).toContain(
+      'height is authoritative',
+    );
+    expect(prompt.instructions.clothing).toContain(
+      'Apply ONLY the garment from Image 2 faithfully.',
+    );
+    expect(prompt.instructions.clothing).toContain(
+      'not to the mannequin or model proportions seen in Image 2',
+    );
+    expect(prompt.instructions.output).toContain(
+      'Full body (head to toe)',
+    );
+    expect(prompt.instructions.output).toContain(
+      'full head visible with all hair fully in frame',
+    );
+    expect(prompt.instructions.output).toContain(
+      'generous headroom above the hair',
+    );
+    expect(prompt.instructions.output).toContain(
+      'visible side margin around the hair silhouette',
+    );
+    expect(prompt.instructions.output).toContain(
+      'happy closed-mouth smile',
+    );
+    expect(prompt.instructions.output).toContain(
+      'no visible teeth',
+    );
   });
 
-  it('forces modest full-length lower wear when the lower body must be reconstructed', () => {
-    const configService = {
-      get: jest.fn().mockReturnValue(undefined),
-    } as unknown as ConfigService;
+  it('maps aura attributes into person_attributes for full-body reconstruction', () => {
+    const service = createService();
 
-    const service = new GeminiAIService(configService);
+    const prompt = JSON.parse(
+      (service as any).buildAvatarPrompt({
+        height: 175,
+        weight: 68,
+        skinTone: 'medium',
+        gender: 'female',
+        bodyShape: 'athletic',
+        bodySize: 'medium',
+        ageRange: '25_35',
+        hairStyle: 'long_wavy',
+      }),
+    );
 
-    const prompt = (service as any).buildAvatarPrompt({
-      height: 170,
-      weight: 60,
-      skinTone: 'medium',
+    expect(prompt.person_attributes).toEqual({
+      height: `5'9"`,
+      height_cm: 175,
+      body_shape: 'athletic',
+      skin_tone: 'medium',
+      age: 25,
       gender: 'female',
-      bodyShape: 'hourglass',
-      bodySize: 'medium',
-      ageRange: '25_35',
-      hairStyle: 'long',
+      body_size: 'medium',
+      weight_kg: 68,
+      hair_style: 'long wavy',
     });
-
-    expect(prompt).toContain('If the lower body is missing, cropped, occluded, or impossible to infer from the source image');
-    expect(prompt).toContain('tasteful, modest, full-length lower wear');
-    expect(prompt).toContain('Never leave the lower body nude, bare, underwear-only');
-    expect(prompt).toContain('mini shorts | hot pants | revealing shorts');
-    expect(prompt).toContain('Body size: medium');
-    expect(prompt).toContain('the final lower wear is modest, full-length, and suitable for a decent fashion portrait');
   });
 
-  it('requires a happy natural smile in the generated avatar', () => {
-    const configService = {
-      get: jest.fn().mockReturnValue(undefined),
-    } as unknown as ConfigService;
+  it('keeps the new accessory and carry-over constraints intact', () => {
+    const service = createService();
 
-    const service = new GeminiAIService(configService);
+    const prompt = JSON.parse(
+      (service as any).buildAvatarPrompt({
+        height: 165,
+        weight: 55,
+        skinTone: 'light_medium',
+        gender: 'female',
+        bodyShape: 'hourglass',
+        bodySize: 'small',
+        ageRange: '18_24',
+        hairStyle: 'straight',
+      }),
+    );
 
-    const prompt = (service as any).buildAvatarPrompt({
-      height: 170,
-      weight: 60,
-      skinTone: 'medium',
-      gender: 'female',
-      bodyShape: 'hourglass',
-      bodySize: 'medium',
-      ageRange: '25_35',
-      hairStyle: 'long',
-    });
-
-    expect(prompt).toContain('The final portrait must show a happy, warm, natural smile');
-    expect(prompt).toContain('If the source photo has a neutral, serious, blank, or tense expression');
-    expect(prompt).toContain('sad expression | angry expression | blank expression | frown');
-    expect(prompt).toContain('The final face has a happy, natural, clearly smiling expression');
+    expect(prompt.constraints).toContain('Do NOT crop the output');
+    expect(prompt.constraints).toContain(
+      'Do NOT crop, trim, cut off, or hide any part of the hair, head, or forehead',
+    );
+    expect(prompt.constraints).toContain(
+      'Do NOT let the hair, head, or forehead touch the top or side edges of the image',
+    );
+    expect(prompt.constraints).toContain(
+      'Do NOT zoom in so tightly that the full hair silhouette is not visible',
+    );
+    expect(prompt.constraints).toContain(
+      'Do NOT change face shape, eye shape, nose, lips, jawline, or hairline',
+    );
+    expect(prompt.constraints).toContain(
+      'Do NOT shorten, restyle, flatten, tie back, or simplify the hair',
+    );
+    expect(prompt.constraints).toContain(
+      'Do NOT use the mannequin or clothing-model height, leg length, or body proportions from Image 2',
+    );
+    expect(prompt.constraints).toContain(
+      'Do NOT let Image 2 override the height specified in person_attributes',
+    );
+    expect(prompt.constraints).toContain('Do NOT show teeth in the smile');
+    expect(prompt.constraints).toContain(
+      'Do NOT carry over any ornaments, jewelry, rings, necklaces, earrings, or accessories from Image 1',
+    );
+    expect(prompt.constraints).toContain(
+      'Do NOT carry over any bags, purses, handbags, or carried items from Image 1',
+    );
+    expect(prompt.constraints).toContain(
+      'Do NOT carry over any hats, caps, sunglasses, or headwear from Image 1',
+    );
+    expect(prompt.constraints).toContain(
+      'ONLY the clothing garment from Image 2 should appear on the final avatar',
+    );
   });
 });

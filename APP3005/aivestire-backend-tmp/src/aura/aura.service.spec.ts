@@ -1,4 +1,5 @@
 import { ConflictException } from '@nestjs/common';
+import type { Request } from 'express';
 import { AuraStatus } from '@prisma/client';
 import { AuraService } from './aura.service';
 
@@ -67,9 +68,12 @@ describe('AuraService', () => {
       avatar_regenerations_used: 1,
       max_avatar_regenerations: 2,
     });
+    const request = {
+      headers: { origin: 'https://aivestire.com' },
+    } as Request;
 
     await expect(
-      service.recreateAura('user-1', undefined, {}),
+      service.recreateAura('user-1', undefined, {}, request),
     ).resolves.toMatchObject({
       aura_id: existingAura.aura_id,
       status: AuraStatus.PENDING,
@@ -97,14 +101,50 @@ describe('AuraService', () => {
       avatar_regenerations_used: 2,
       max_avatar_regenerations: 2,
     });
+    const request = {
+      headers: { origin: 'https://aivestire.com' },
+    } as Request;
 
     await expect(
-      service.recreateAura('user-1', undefined, {}),
+      service.recreateAura('user-1', undefined, {}, request),
     ).rejects.toEqual(
       new ConflictException('You have reached your Aura recreation limit of 2.'),
     );
 
     expect(tx.user.updateMany).not.toHaveBeenCalled();
     expect(auraQueue.addAuraGenerationJob).not.toHaveBeenCalled();
+  });
+
+  it('raises recreation credits to 200 on localhost', async () => {
+    const { service, auraQueue, tx } = createService({
+      avatar_regenerations_used: 150,
+      max_avatar_regenerations: 2,
+    });
+    const request = {
+      headers: { origin: 'http://localhost:8080' },
+    } as Request;
+
+    await expect(
+      service.recreateAura('user-1', undefined, {}, request),
+    ).resolves.toMatchObject({
+      aura_id: existingAura.aura_id,
+      status: AuraStatus.PENDING,
+      job_id: '42',
+    });
+
+    expect(tx.user.updateMany).toHaveBeenCalledWith({
+      where: {
+        user_id: 'user-1',
+        avatar_regenerations_used: {
+          lt: 200,
+        },
+      },
+      data: {
+        avatar_regenerations_used: {
+          increment: 1,
+        },
+      },
+    });
+    expect(auraQueue.addAuraGenerationJob).toHaveBeenCalled();
   });
 });

@@ -12,7 +12,9 @@ import {
   Param,
   HttpCode,
   HttpStatus,
+  Req,
 } from '@nestjs/common';
+import type { Request } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -69,6 +71,7 @@ export class AuraController {
     @CurrentUser('user_id') userId: string,
     @UploadedFile() file: Express.Multer.File | undefined,
     @Body() recreateAuraDto: CreateAuraDto,
+    @Req() req: Request,
   ) {
     if (file) {
       const allowedMimeTypes = [
@@ -89,7 +92,7 @@ export class AuraController {
       }
     }
 
-    return this.auraService.recreateAura(userId, file, recreateAuraDto);
+    return this.auraService.recreateAura(userId, file, recreateAuraDto, req);
   }
 
   @Get('status')

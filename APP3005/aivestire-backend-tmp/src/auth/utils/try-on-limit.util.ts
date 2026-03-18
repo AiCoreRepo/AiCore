@@ -1,9 +1,13 @@
 import type { Request } from 'express';
 
 export const DEFAULT_TRY_ON_LIMIT = 3;
-export const UAT_TRY_ON_LIMIT = 50;
+export const DEFAULT_AVATAR_RECREATION_LIMIT = 2;
+export const NON_PROD_TRY_ON_LIMIT = 200;
+export const NON_PROD_AVATAR_RECREATION_LIMIT = 200;
+export const UAT_TRY_ON_LIMIT = NON_PROD_TRY_ON_LIMIT;
 
 const UAT_AIVESTIRE_HOST = 'uat.aivestire.com';
+const LOCAL_AIVESTIRE_HOSTS = new Set(['localhost', '127.0.0.1']);
 
 function getHeaderValues(value: string | string[] | undefined): string[] {
   if (!value) {
@@ -53,6 +57,27 @@ export function isUatAivestireRequest(request?: Request): boolean {
   });
 }
 
+export function isNonProdAivestireRequest(request?: Request): boolean {
+  if (!request) {
+    return process.env.NODE_ENV !== 'production';
+  }
+
+  const candidates = [
+    ...getHeaderValues(request.headers.origin),
+    ...getHeaderValues(request.headers.referer),
+    ...getHeaderValues(request.headers.host),
+    ...getHeaderValues(request.headers['x-forwarded-host']),
+  ];
+
+  return candidates.some((candidate) => {
+    const hostname = normalizeHostname(candidate);
+    return (
+      hostname === UAT_AIVESTIRE_HOST ||
+      (hostname ? LOCAL_AIVESTIRE_HOSTS.has(hostname) : false)
+    );
+  });
+}
+
 export function getEffectiveTryOnLimit(
   maxTryOns: number | null | undefined,
   request?: Request,
@@ -62,8 +87,24 @@ export function getEffectiveTryOnLimit(
       ? maxTryOns
       : DEFAULT_TRY_ON_LIMIT;
 
-  if (isUatAivestireRequest(request)) {
-    return Math.max(storedLimit, UAT_TRY_ON_LIMIT);
+  if (isNonProdAivestireRequest(request)) {
+    return Math.max(storedLimit, NON_PROD_TRY_ON_LIMIT);
+  }
+
+  return storedLimit;
+}
+
+export function getEffectiveAvatarRecreationLimit(
+  maxAvatarRegenerations: number | null | undefined,
+  request?: Request,
+): number {
+  const storedLimit =
+    typeof maxAvatarRegenerations === 'number' && maxAvatarRegenerations > 0
+      ? maxAvatarRegenerations
+      : DEFAULT_AVATAR_RECREATION_LIMIT;
+
+  if (isNonProdAivestireRequest(request)) {
+    return Math.max(storedLimit, NON_PROD_AVATAR_RECREATION_LIMIT);
   }
 
   return storedLimit;

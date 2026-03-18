@@ -12,10 +12,10 @@ import {
   TimeoutException,
 } from '../../exceptions/tryon.exceptions';
 import {
+  buildGeminiTryOnPrompt,
   CONFIG_KEYS,
   ERROR_MESSAGES,
   GEMINI_AI_TIMEOUT,
-  GEMINI_AI_TRYON_PROMPT,
   GEMINI_AI_TRYON_PROMPT_STRICT_SUFFIX,
   GEMINI_TRYON_CONFIG,
   GEMINI_CLOTHING_MODEL_MASK,
@@ -196,7 +196,10 @@ export class DirectGeminiTryOnService extends BaseTryOnService {
     if (_.isString(promptOverride) && promptOverride.trim()) {
       return promptOverride;
     }
-    return GEMINI_AI_TRYON_PROMPT;
+
+    return buildGeminiTryOnPrompt(
+      _.get(additionalParams, 'aura_attributes'),
+    );
   }
 
   private getOutputMimeType(additionalParams?: Record<string, any>): string {

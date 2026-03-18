@@ -25,7 +25,10 @@ import {
   REFRESH_TOKEN_COOKIE_OPTIONS,
   JWT_ACCESS_TOKEN_EXPIRES_IN,
 } from '../common/constants';
-import { getEffectiveTryOnLimit } from './utils/try-on-limit.util';
+import {
+  getEffectiveAvatarRecreationLimit,
+  getEffectiveTryOnLimit,
+} from './utils/try-on-limit.util';
 
 // Dynamic import for bcrypt to avoid require and type issues
 let bcryptPromise: Promise<typeof import('bcrypt')> | null = null;
@@ -288,6 +291,10 @@ export class AuthService {
       user.max_try_ons,
       request,
     );
+    const effectiveAvatarRecreationLimit = getEffectiveAvatarRecreationLimit(
+      user.max_avatar_regenerations,
+      request,
+    );
 
     // If the user is a creator, return their creator profile details
     if (user.role === UserRole.CREATOR && user.creatorProfile) {
@@ -302,7 +309,7 @@ export class AuthService {
         try_ons_used: user.try_ons_used,
         max_try_ons: effectiveTryOnLimit,
         avatar_regenerations_used: user.avatar_regenerations_used,
-        max_avatar_regenerations: user.max_avatar_regenerations,
+        max_avatar_regenerations: effectiveAvatarRecreationLimit,
         // Add other creator-specific fields you might need
       };
     }
@@ -318,7 +325,7 @@ export class AuthService {
       try_ons_used: user.try_ons_used,
       max_try_ons: effectiveTryOnLimit,
       avatar_regenerations_used: user.avatar_regenerations_used,
-      max_avatar_regenerations: user.max_avatar_regenerations,
+      max_avatar_regenerations: effectiveAvatarRecreationLimit,
     };
   }
 

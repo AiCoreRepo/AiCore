@@ -54,45 +54,111 @@ export const PNG_COMPRESSION_LEVEL = 6;
 export const WEBP_QUALITY = 90;
 
 // AI Model Prompts
-// export const VERTEX_AI_TRYON_PROMPT = `Generate a realistic virtual try-on image where the person in the avatar image is wearing the clothing item from the product image. 
-// Maintain the person's pose, body proportions, and facial features exactly as they appear. 
-// Ensure the clothing fits naturally and realistically on the person's body, adapting to their shape and posture. 
-// Preserve the original style, color, texture, and all details of the clothing item. 
-// The output should be photorealistic, seamless, and look like a professional product photograph. 
-// Pay special attention to lighting consistency, shadows, and fabric draping for maximum realism.`;
+export interface GeminiTryOnPromptAttributes {
+  height_cm?: number;
+  weight_kg?: number;
+  skin_tone?: string;
+  gender?: string;
+  body_shape?: string;
+  body_size?: string;
+  age_range?: string;
+  hair_style?: string;
+}
 
-export const GEMINI_AI_TRYON_PROMPT = `You are a world-class virtual try-on system. 
+const formatGeminiPromptAttr = (value: string) => value.replace(/_/g, ' ');
 
-GOAL:
-Generate ONE photorealistic output image where the PERSON in the avatar image is wearing the CLOTHING item from the product image.
+const convertCmToFeetInches = (heightCm: number): string => {
+  const totalInches = Math.round(heightCm / 2.54);
+  const feet = Math.floor(totalInches / 12);
+  const inches = totalInches % 12;
 
-INPUT ORDER:
-1) First image = the avatar/person.
-2) Second image = the clothing item.
+  return `${feet}'${inches}"`;
+};
 
-IDENTITY & BODY (MUST PRESERVE):
-- Keep the exact face, skin tone, hair, and identity from the avatar.
-- Keep the same body proportions, pose, and posture from the avatar.
-- Do NOT alter facial features or body shape.
-- Do NOT use the clothing model's face, head, skin, or body.
+const extractRepresentativeAge = (ageRange?: string): number | undefined => {
+  if (!ageRange) {
+    return undefined;
+  }
 
-CLOTHING FIDELITY (MUST MATCH):
-- Copy the clothing item exactly: color, texture, pattern, fabric, silhouette, neckline, sleeves, and all design details.
-- Do NOT invent new designs or change branding/logo placement.
-- Keep the clothing item realistic in size and scale relative to the body.
-- If the clothing image contains a model, ignore that model completely (only use the garment).
+  const matches = ageRange.match(/\d+/g);
+  if (!matches || matches.length === 0) {
+    return undefined;
+  }
 
-REALISM & PHOTOGRAPHY:
-- Ensure natural fit and drape; add realistic wrinkles and folds.
-- Match lighting, shadows, and highlights so the clothing blends seamlessly.
-- Preserve the original background from the avatar image (do not replace).
-- Avoid artifacts, warping, or unnatural edges around the garment.
-- Keep the full person visible (head-to-toe) and preserve the avatar's original framing.
-- Do not crop, zoom, or cut off any body parts.
+  return Number(matches[0]);
+};
 
-OUTPUT:
-- Return a single high-resolution, photorealistic image of the avatar wearing the clothing item.
-- Do NOT return the input images or side-by-side comparisons.`;
+export function buildGeminiTryOnPrompt(
+  attributes?: GeminiTryOnPromptAttributes,
+): string {
+  const age = extractRepresentativeAge(attributes?.age_range);
+
+  const prompt = {
+    role: 'virtual try-on assistant',
+    inputs: {
+      image_1: 'avatar person who must remain the same person in the final output',
+      image_2: 'garment image that must be worn by image_1 in the final output',
+    },
+    person_attributes: {
+      ...(attributes?.height_cm
+        ? {
+            height: convertCmToFeetInches(attributes.height_cm),
+            height_cm: attributes.height_cm,
+          }
+        : {}),
+      ...(attributes?.body_shape
+        ? { body_shape: formatGeminiPromptAttr(attributes.body_shape) }
+        : {}),
+      ...(attributes?.skin_tone
+        ? { skin_tone: formatGeminiPromptAttr(attributes.skin_tone) }
+        : {}),
+      ...(age !== undefined ? { age } : {}),
+      ...(attributes?.gender
+        ? { gender: formatGeminiPromptAttr(attributes.gender) }
+        : {}),
+      ...(attributes?.body_size
+        ? { body_size: formatGeminiPromptAttr(attributes.body_size) }
+        : {}),
+      ...(attributes?.weight_kg ? { weight_kg: attributes.weight_kg } : {}),
+      ...(attributes?.hair_style
+        ? { hair_style: formatGeminiPromptAttr(attributes.hair_style) }
+        : {}),
+    },
+    instructions: {
+      identity:
+        "Image 1 is the avatar person. Preserve that person's exact face features, skin tone, hairline, hairstyle, hair length, hair volume, hair texture, body type, and overall identity exactly. The final result must clearly be the same person from Image 1, not a new person, not the clothing model, and not a blended identity. Keep the same identity from Image 1 without beautifying, reshaping, or simplifying the face or hair. If the source image is cropped, zoomed, or half-body, expand the canvas and reconstruct the missing framing so the complete head, full hair silhouette, and full body are visible naturally. If height is provided in person_attributes, that height is authoritative and must override any apparent proportions from Image 1 or Image 2.",
+      clothing:
+        "Image 2 is the garment image. Apply the complete visible fashion look from Image 2 faithfully and make the person in Image 1 actually wear it. The garment and allowed styling details from Image 2 must appear naturally worn on the body of Image 1, not floating, not pasted on, and not shown as a separate reference. Keep all garment colors, patterns, textures, trims, embroidery, silhouette, neckline, sleeves, and design details intact. Shoes, ornaments, jewelry, accessories, embellishments, layering, and extra styling details visible in Image 2 are allowed and should remain in the final try-on. Scale and fit the entire look to the real person described in person_attributes, not to the mannequin or model proportions seen in Image 2.",
+      output:
+        'Full body (head to toe), full head visible with all hair fully in frame, generous headroom above the hair, visible side margin around the hair silhouette, confident standing pose, happy closed-mouth smile, no visible teeth, clean studio background, soft lighting, photorealistic quality.',
+    },
+    constraints: [
+      'Do NOT crop the output',
+      'Do NOT crop, trim, cut off, or hide any part of the hair, head, or forehead',
+      'Do NOT let the hair, head, or forehead touch the top or side edges of the image',
+      'Do NOT zoom in so tightly that the full hair silhouette is not visible',
+      'Do NOT distort or change the face',
+      'Do NOT change face shape, eye shape, nose, lips, jawline, or hairline',
+      'Do NOT shorten, restyle, flatten, tie back, or simplify the hair',
+      'Do NOT alter ethnicity or body type',
+      'Do NOT confuse the role of Image 1 and Image 2',
+      'Do NOT make Image 2 the person identity',
+      'Do NOT make Image 1 look like the clothing model from Image 2',
+      'Do NOT change the person into someone else or blend the identity with Image 2',
+      'Do NOT use the clothing model face, head, skin, or body from Image 2',
+      'Do NOT use the mannequin or clothing-model height, leg length, or body proportions from Image 2',
+      'Do NOT let Image 2 override the height specified in person_attributes',
+      'Do NOT show teeth in the smile',
+      'Image 1 must be the wearer and Image 2 must be the worn garment source',
+      'Do NOT leave the clothing as a separate product shot, overlay, collage, or unworn reference',
+      'Do NOT carry over shoes, ornaments, jewelry, bags, or accessories from Image 1 unless they are also visible in Image 2',
+      'Do NOT invent new garments, shoes, ornaments, jewelry, or accessories that are not visible in Image 2',
+      'Shoes, ornaments, jewelry, accessories, and extra styling details visible in Image 2 are allowed in the final try-on',
+    ],
+  };
+
+  return JSON.stringify(prompt, null, 2);
+}
 
 export const GEMINI_AI_TRYON_PROMPT_STRICT_SUFFIX = `
 
@@ -139,7 +205,7 @@ export const CONFIG_KEYS = {
 
 // Default Model Names (can be overridden via environment variables)
 export const DEFAULT_VERTEX_MODEL = 'imagegeneration@006';
-export const DEFAULT_GEMINI_MODEL = 'gemini-1.5-pro';
+export const DEFAULT_GEMINI_MODEL = 'gemini-3.1-flash-image-preview';
 export const DEFAULT_VERTEX_LOCATION = 'us-central1';
 
 // Direct Gemini Try-On Defaults
@@ -154,7 +220,7 @@ export const GEMINI_TRYON_OUTPUT_VALIDATION = {
 } as const;
 
 export const GEMINI_CLOTHING_MODEL_MASK = {
-  ENABLED_BY_DEFAULT: true,
+  ENABLED_BY_DEFAULT: false,
   TOP_REGION_RATIO: 0.18,
   BLUR_SIGMA: 12,
 } as const;

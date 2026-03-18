@@ -1,7 +1,7 @@
 import type { ApiError } from '@/lib/api';
 
 export const DEFAULT_TRY_ON_LIMIT = 3;
-export const UAT_TRY_ON_LIMIT = 50;
+export const UAT_TRY_ON_LIMIT = 200;
 export const TRY_ON_LIMIT_REACHED_CODE = 'TRY_ON_LIMIT_REACHED';
 export const TRY_ON_PREMIUM_UPGRADE_URL =
   'mailto:support@aivestire.com?subject=Premium%20Try-On%20Upgrade';
@@ -11,7 +11,9 @@ function isUatAivestireHost(): boolean {
     return false;
   }
 
-  return window.location.hostname === 'uat.aivestire.com';
+  return window.location.hostname === 'uat.aivestire.com'
+    || window.location.hostname === 'localhost'
+    || window.location.hostname === '127.0.0.1';
 }
 
 interface TryOnUserUsage {

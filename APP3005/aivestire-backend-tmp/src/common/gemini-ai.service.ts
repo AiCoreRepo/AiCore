@@ -2,6 +2,14 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
+const GEMINI_REFERENCE_TRYON_IMAGE_URL =
+  'https://res.cloudinary.com/dgbmqarp0/image/upload/v1773814263/Pasted_image_28_d0kt0b.png';
+
+interface GeminiInlineImage {
+  mimeType: string;
+  data: string;
+}
+
 export interface AvatarGenerationRequest {
   imageUrl: string;
   attributes: {
@@ -35,7 +43,7 @@ export class GeminiAIService {
       this.genAI = new GoogleGenerativeAI(apiKey);
       // Use Gemini 2.5 Flash Image (Nano Banana) for image generation
       this.imageModel = this.genAI.getGenerativeModel({
-        model: 'gemini-3-pro-image-preview',
+        model: 'gemini-3.1-flash-image-preview',
         generationConfig: {
           temperature: 0.2,
         } as any,
@@ -65,17 +73,25 @@ export class GeminiAIService {
       );
 
       console.log('📥 [GeminiAI] Fetching source image...');
-      const imageBase64 = await this.fetchImageAsBase64(request.imageUrl);
+      const sourceImage = await this.fetchImageAsInlineData(request.imageUrl);
       console.log(
-        `✅ [GeminiAI] Source image fetched: ${imageBase64.length} chars`,
+        `✅ [GeminiAI] Source image fetched: ${sourceImage.data.length} chars`,
+      );
+
+      console.log('📥 [GeminiAI] Fetching reference try-on clothing image...');
+      const clothingImage = await this.fetchImageAsInlineData(
+        GEMINI_REFERENCE_TRYON_IMAGE_URL,
+      );
+      console.log(
+        `✅ [GeminiAI] Reference clothing image fetched: ${clothingImage.data.length} chars`,
       );
 
       const { attributes } = request;
       const prompt = this.buildAvatarPrompt(attributes);
 
       console.log(
-        ' [GeminiAI] Has user attributes:',
-        prompt.includes('[USER ATTRIBUTES — OVERRIDE PHOTO WHERE DIFFERENT]'),
+        ' [GeminiAI] Has structured person attributes:',
+        prompt.includes('"person_attributes"'),
       );
       console.log(
         ' [GeminiAI] Generated prompt:',
@@ -96,8 +112,14 @@ export class GeminiAIService {
       const apiPromise = this.imageModel.generateContent([
         {
           inlineData: {
-            mimeType: 'image/jpeg',
-            data: imageBase64,
+            mimeType: sourceImage.mimeType,
+            data: sourceImage.data,
+          },
+        },
+        {
+          inlineData: {
+            mimeType: clothingImage.mimeType,
+            data: clothingImage.data,
           },
         },
         { text: prompt },
@@ -145,10 +167,30 @@ export class GeminiAIService {
     }
   }
 
-  private async fetchImageAsBase64(url: string): Promise<string> {
+  private async fetchImageAsInlineData(url: string): Promise<GeminiInlineImage> {
+    if (url.startsWith('data:')) {
+      const [header, data] = url.split(',', 2);
+      const mimeType = header.match(/^data:(.*?);base64$/)?.[1] || 'image/jpeg';
+
+      return {
+        mimeType,
+        data,
+      };
+    }
+
     const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(
+        `Failed to fetch Gemini image input: ${url} (${response.status})`,
+      );
+    }
+    const mimeType = response.headers.get('content-type') || 'image/jpeg';
     const buffer = Buffer.from(await response.arrayBuffer());
-    return buffer.toString('base64');
+
+    return {
+      mimeType,
+      data: buffer.toString('base64'),
+    };
   }
 
   private buildAvatarPrompt(
@@ -166,111 +208,74 @@ export class GeminiAIService {
     } = attributes;
 
     const formatAttr = (value: string) => value.replace(/_/g, ' ');
+    const age = this.extractRepresentativeAge(ageRange);
 
-    const taskSection = `[TASK]
-Edit the provided source photo into a single hyper-realistic full-body studio portrait of the exact same person.
-This is an identity-preserving image edit, not a redesign and not a new character.
-The output must show the full body from top of head to tips of toes.`;
+    const prompt = {
+      role: 'virtual try-on assistant',
+      inputs: {
+        image_1: 'person',
+        image_2: 'clothing',
+      },
+      person_attributes: {
+        ...(height ? { height: this.convertCmToFeetInches(height) } : {}),
+        ...(height ? { height_cm: height } : {}),
+        ...(bodyShape ? { body_shape: formatAttr(bodyShape) } : {}),
+        ...(skinTone ? { skin_tone: formatAttr(skinTone) } : {}),
+        ...(age !== undefined ? { age } : {}),
+        ...(gender ? { gender: formatAttr(gender) } : {}),
+        ...(bodySize ? { body_size: formatAttr(bodySize) } : {}),
+        ...(weight ? { weight_kg: weight } : {}),
+        ...(hairStyle ? { hair_style: formatAttr(hairStyle) } : {}),
+      },
+      instructions: {
+        identity:
+          "Preserve the person's exact face features, skin tone, hairline, hairstyle, hair length, hair volume, hair texture, and body type exactly. Keep the same identity from Image 1 without beautifying, reshaping, or simplifying the face or hair. If the source image is cropped, zoomed, or half-body, expand the canvas and reconstruct the missing framing so the complete head and full hair silhouette are visible naturally. Use the provided person_attributes to reconstruct the full body naturally if only a selfie or half-body is given. If height is provided in person_attributes, that height is authoritative and must override any apparent proportions from Image 1 or Image 2.",
+        clothing:
+          "Apply ONLY the garment from Image 2 faithfully. Keep all colors, patterns, textures, and details intact. Make it look naturally worn on the person's body. Scale and fit the garment to the real person described in person_attributes, not to the mannequin or model proportions seen in Image 2.",
+        output:
+          'Full body (head to toe), full head visible with all hair fully in frame, generous headroom above the hair, visible side margin around the hair silhouette, confident standing pose, happy closed-mouth smile, no visible teeth, clean studio background, soft lighting, photorealistic quality.',
+      },
+      constraints: [
+        'Do NOT crop the output',
+        'Do NOT crop, trim, cut off, or hide any part of the hair, head, or forehead',
+        'Do NOT let the hair, head, or forehead touch the top or side edges of the image',
+        'Do NOT zoom in so tightly that the full hair silhouette is not visible',
+        'Do NOT distort or change the face',
+        'Do NOT change face shape, eye shape, nose, lips, jawline, or hairline',
+        'Do NOT shorten, restyle, flatten, tie back, or simplify the hair',
+        'Do NOT alter ethnicity or body type',
+        'Do NOT use the mannequin or clothing-model height, leg length, or body proportions from Image 2',
+        'Do NOT let Image 2 override the height specified in person_attributes',
+        'Do NOT show teeth in the smile',
+        'Do NOT add extra clothing or accessories',
+        'Do NOT carry over any ornaments, jewelry, rings, necklaces, earrings, or accessories from Image 1',
+        'Do NOT carry over any bags, purses, handbags, or carried items from Image 1',
+        'Do NOT carry over any hats, caps, sunglasses, or headwear from Image 1',
+        'ONLY the clothing garment from Image 2 should appear on the final avatar',
+      ],
+    };
 
-    const poseSection = `[NON-NEGOTIABLE POSE]
-The person stands perfectly upright, centered, fully front-facing, and fully symmetrical.
-Both legs are straight, vertical, and fully joined together from upper thigh to feet: inner thighs touching, knees touching, calves touching, ankles touching, and feet touching. There must be zero visible gap anywhere between the legs from hip to toe.
-Both arms hang straight down vertically at the sides of the body. Elbows are fully straight, shoulders are neutral, forearms are straight, wrists are beside the outer thighs, and hands rest naturally next to the thighs.
-The body weight is evenly balanced on both feet. No walking pose, no step forward, no contrapposto, no hip shift, no bent knees, no bent elbows, no arm lift, no hand on hip, no crossed arms.
-If the source image pose conflicts with these requirements, keep the same identity and clothing but change the pose to this exact straight joined-leg and straight-arm pose.
-If the person is wearing pants, jeans, trousers, a skirt, or a dress, the garment must follow the closed-leg pose. The fabric between the legs must be rendered closed and flat with no crotch gap or separation.`;
+    return JSON.stringify(prompt, null, 2);
+  }
 
-    const identitySection = `[IDENTITY PRESERVATION — NON-NEGOTIABLE]
-- Copy the person's exact face: bone structure, eye shape, nose, lips, skin tone. Do not idealise or alter facial geometry.
-- Copy the person's exact hair: length, volume, texture, color, and silhouette. Do not shorten, trim, tuck, pin back, or reduce hair in any way.
-- Copy the person's clothing exactly as worn. Do not change the outfit.
-- Preserve the same body identity while only correcting the pose and framing.`;
+  private convertCmToFeetInches(heightCm: number): string {
+    const totalInches = Math.round(heightCm / 2.54);
+    const feet = Math.floor(totalInches / 12);
+    const inches = totalInches % 12;
 
-    const expressionSection = `[EXPRESSION — NON-NEGOTIABLE]
-- The final portrait must show a happy, warm, natural smile.
-- The expression should feel pleasant, confident, and fashion-editorial appropriate: relaxed eyes, relaxed cheeks, and a clearly smiling mouth.
-- If the source photo has a neutral, serious, blank, or tense expression, change it to a gentle smile while preserving the same identity and natural facial proportions.
-- Keep the smile tasteful and realistic. Do not generate an exaggerated grin, laughing face, open-mouth laugh, or distorted teeth.`;
+    return `${feet}'${inches}"`;
+  }
 
-    const userAttributeLines: string[] = [];
-
-    if (gender && gender !== 'unspecified') {
-      userAttributeLines.push(`- Gender: clearly ${formatAttr(gender)}`);
-    }
-    if (ageRange) {
-      userAttributeLines.push(
-        `- Age appearance: ${formatAttr(ageRange)} — reflect in face and body`,
-      );
-    }
-    if (skinTone) {
-      userAttributeLines.push(
-        `- Skin tone: ${formatAttr(skinTone)} — match exactly, do not lighten or darken`,
-      );
-    }
-    if (bodyShape && bodyShape !== 'average') {
-      userAttributeLines.push(
-        `- Body shape: ${formatAttr(bodyShape)} silhouette`,
-      );
-    }
-    if (bodySize) {
-      userAttributeLines.push(
-        `- Body size: ${formatAttr(bodySize)} — match the overall fit and proportions`,
-      );
-    }
-    if (height) {
-      userAttributeLines.push(
-        `- Height: ~${height} cm — use appropriate body proportions`,
-      );
-    }
-    if (weight) {
-      userAttributeLines.push(
-        `- Weight: ~${weight} kg — reflect realistic build`,
-      );
-    }
-    if (hairStyle) {
-      userAttributeLines.push(
-        `- Hair style: ${formatAttr(hairStyle)} — apply this style while keeping the hair length and volume from the source photo intact`,
-      );
+  private extractRepresentativeAge(ageRange: string): number | undefined {
+    if (!ageRange) {
+      return undefined;
     }
 
-    const generationRulesSection = `[GENERATION RULES]
-- If the source photo is cropped, partial, seated, angled, or not full body, extend or reconstruct it into a complete full-body image in the exact pose above.
-- If the lower body is missing, cropped, occluded, or impossible to infer from the source image, complete it with tasteful, modest, full-length lower wear that matches the visible upper outfit and reads as a premium studio portrait.
-- Default missing lower wear to elegant full-length trousers, straight pants, churidar, leggings, or an ankle-length skirt when appropriate for the visible top. Keep the result conservative and fashion-appropriate.
-- Never leave the lower body nude, bare, underwear-only, bikini-bottom-like, mini-short, hot-short, or revealing. Do not generate exposed upper thighs as the main lower-body completion.
-- Keep the person centered with enough space to clearly show the entire silhouette from head to toe.
-- Add matching neutral footwear only if the original feet or shoes are missing.
-- Background: clean neutral studio backdrop with soft even fashion lighting.
-- Output style: hyper-realistic, sharp detail, premium fashion photo, natural anatomy.`;
-
-    const hardNegativesSection = `[HARD NEGATIVES — NEVER GENERATE]
-wide stance | legs apart | one leg forward | split stance | walking pose | contrapposto | hip shift | bent knees | bent elbows | arms away from body | one arm forward | raised arm | hand on hip | crossed arms | leg gap | visible crotch gap | trouser gap | pants separation | fabric gap between legs | shortened hair | tied-back hair | altered face shape | different skin tone | cropped feet | partial body | nude lower body | bare legs as missing lower-wear completion | underwear | bikini bottom | mini shorts | hot pants | revealing shorts | sad expression | angry expression | blank expression | frown | exaggerated grin | open-mouth laugh`;
-
-    const finalSelfCheckSection = `[FINAL VALIDATION BEFORE OUTPUT]
-Before returning the image, internally verify all of these are true:
-1. The full body is visible from head to toe.
-2. The legs are straight and fully touching with absolutely no gap anywhere from hip to feet.
-3. The arms are straight, vertical, and resting beside the outer thighs.
-4. The face, hair, skin tone, and outfit still match the source person exactly.
-5. The final face has a happy, natural, clearly smiling expression.
-6. If any part of the lower body was reconstructed, the final lower wear is modest, full-length, and suitable for a decent fashion portrait.
-If any check fails, correct the image so all checks pass before outputting it.`;
-
-    const sections = [taskSection, poseSection, identitySection, expressionSection];
-
-    if (userAttributeLines.length > 0) {
-      sections.push(
-        `[USER ATTRIBUTES — OVERRIDE PHOTO WHERE DIFFERENT]
-${userAttributeLines.join('\n')}`,
-      );
+    const matches = ageRange.match(/\d+/g);
+    if (!matches || matches.length === 0) {
+      return undefined;
     }
 
-    sections.push(
-      generationRulesSection,
-      hardNegativesSection,
-      finalSelfCheckSection,
-    );
-
-    return sections.join('\n\n');
+    return Number(matches[0]);
   }
 }

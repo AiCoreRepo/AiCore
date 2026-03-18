@@ -42,6 +42,26 @@ const getProductImageUrl = (product: PublicProduct): string | null => {
     return fallbackImage?.url ?? product.thumbnail ?? null;
 };
 
+const buildGeminiTryOnAdditionalParams = (aura: any) => ({
+    aura_attributes: aura
+        ? {
+            height_cm: aura.height_cm,
+            weight_kg: aura.weight_kg,
+            skin_tone: aura.skin_tone,
+            gender: aura.gender,
+            body_shape: aura.body_shape,
+            body_size: aura.body_size,
+            age_range: aura.age_range,
+            hair_style: aura.hair_style,
+            beard: aura.beard,
+            ...(aura.extra_attributes && typeof aura.extra_attributes === 'object'
+                ? aura.extra_attributes
+                : {}),
+        }
+        : undefined,
+    maskClothingModel: false,
+});
+
 type TryOnResult = {
     success: boolean;
     resultImage?: string;
@@ -295,6 +315,7 @@ const CollectionPage = () => {
                 result = await tryOnWithGemini({
                     avatarImage,
                     clothingImage,
+                    additionalParams: buildGeminiTryOnAdditionalParams(aura),
                 });
             } else {
                 result = await tryOnWithVertex({
