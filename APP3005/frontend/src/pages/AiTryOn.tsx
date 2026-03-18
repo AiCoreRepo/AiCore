@@ -626,7 +626,7 @@ const AiTryOn = () => {
         isOpen={showLoginPopup}
         onClose={() => {
           setShowLoginPopup(false);
-          navigate('/');
+          navigate(-1);
         }}
         type="login"
         onAction={() => navigate('/user-login')}
