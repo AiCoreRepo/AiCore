@@ -104,6 +104,9 @@ export class AngleGenerationService {
       this.logger.log(
         `📦 Using full resolution image for angle generation: ${imageSizeKB} KB`,
       );
+      this.logger.log(
+        '📸 Using the original virtual try-on image as the single reference to preserve face identity and outfit continuity',
+      );
 
       // Generate prompt
       const prompt = generateAnglePrompt(targetAngle, cachedMetadata);
@@ -139,6 +142,7 @@ export class AngleGenerationService {
           modelId: GEMINI_MODEL_ID,
           fullResolutionUsed: true,
           imageSizeKB,
+          referenceStrategy: 'single_original_tryon_image',
         },
       };
     } catch (error) {

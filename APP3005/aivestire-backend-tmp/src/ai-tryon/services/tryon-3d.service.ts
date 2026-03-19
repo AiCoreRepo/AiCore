@@ -2,7 +2,6 @@ import { Injectable, Logger, HttpException, HttpStatus } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
 import { DirectVertexTryOnService } from './providers/direct-vertex-tryon.service';
-// import { GeminiTryOnService } from './providers/gemini-tryon.service';
 import {
   CloudinaryService,
   CloudinaryMetadata,
@@ -25,7 +24,6 @@ export class TryOn3DService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly directVertexService: DirectVertexTryOnService,
-    // private readonly geminiService: GeminiTryOnService,
 
     private readonly configService: ConfigService,
     private readonly cloudinaryService: CloudinaryService,
@@ -276,6 +274,18 @@ export class TryOn3DService {
       clothingImageUrl,
       enhancedParams,
     );
+
+    const vertexReturnedAvatar = await this.imageOptimizer.areImagesVisuallySimilar(
+      result.resultImage,
+      tryOnAvatarUrl,
+    );
+
+    if (vertexReturnedAvatar) {
+      throw new HttpException(
+        'Initial try-on did not apply the outfit. The generated image matched the avatar too closely.',
+        HttpStatus.BAD_GATEWAY,
+      );
+    }
 
     // Save result to database
     const tryOn = await this.saveTryOnResult(

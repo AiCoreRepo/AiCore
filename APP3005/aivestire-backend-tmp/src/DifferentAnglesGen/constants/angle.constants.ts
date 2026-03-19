@@ -6,7 +6,7 @@ export const ANGLE_SEQUENCE: AngleType[] = [
   AngleType.BACK, // Index 2
 ];
 
-export const GEMINI_MODEL_ID = 'gemini-2.5-flash-image';
+export const GEMINI_MODEL_ID = 'gemini-3.1-flash-image-preview';
 
 export const GENERATION_TIMEOUT = 120000; // 120 seconds
 

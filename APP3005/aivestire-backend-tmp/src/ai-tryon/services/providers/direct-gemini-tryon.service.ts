@@ -1,7 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { createHash } from 'crypto';
 import _ from 'lodash';
 import { BaseTryOnService } from '../common/base-tryon.service';
 import { ImageValidatorService } from '../common/image-validator.service';
@@ -19,7 +18,6 @@ import {
   GEMINI_AI_TRYON_PROMPT_STRICT_SUFFIX,
   GEMINI_TRYON_CONFIG,
   GEMINI_CLOTHING_MODEL_MASK,
-  GEMINI_TRYON_OUTPUT_VALIDATION,
   GEMINI_TRYON_ERROR_MESSAGES,
 } from '../../constants/tryon.constants';
 import {
@@ -110,12 +108,12 @@ export class DirectGeminiTryOnService extends BaseTryOnService {
     const prompt = this.buildPrompt(additionalParams);
 
     try {
-      const primaryImage = await this.generateTryOnWithRetries({
+      const primaryImage = await this.generateTryOnWithModel(
+        this.modelId,
+        prompt,
         avatarData,
         clothingData,
-        originalClothingData,
-        prompt,
-      });
+      );
       const outputMimeType = this.getOutputMimeType(additionalParams);
 
       this.logger.log('✅ DIRECT GEMINI AI - Try-on completed successfully');
@@ -190,16 +188,26 @@ export class DirectGeminiTryOnService extends BaseTryOnService {
     return !!this.apiKey;
   }
 
+  protected async performTryOnWithRetry(
+    avatarBase64: string,
+    clothingBase64: string,
+    additionalParams?: Record<string, any>,
+  ): Promise<string> {
+    this.logger.debug('Gemini try-on uses a single generation attempt');
+    return this.performTryOn(avatarBase64, clothingBase64, additionalParams);
+  }
 
   private buildPrompt(additionalParams?: Record<string, any>): string {
-    const promptOverride = _.get(additionalParams, ADDITIONAL_PARAM_KEYS.PROMPT);
-    if (_.isString(promptOverride) && promptOverride.trim()) {
-      return promptOverride;
-    }
-
-    return buildGeminiTryOnPrompt(
-      _.get(additionalParams, 'aura_attributes'),
+    const promptOverride = _.get(
+      additionalParams,
+      ADDITIONAL_PARAM_KEYS.PROMPT,
     );
+    const basePrompt =
+      _.isString(promptOverride) && promptOverride.trim()
+        ? promptOverride.trim()
+        : buildGeminiTryOnPrompt(_.get(additionalParams, 'aura_attributes'));
+
+    return `${basePrompt}${GEMINI_AI_TRYON_PROMPT_STRICT_SUFFIX}`;
   }
 
   private getOutputMimeType(additionalParams?: Record<string, any>): string {
@@ -215,68 +223,7 @@ export class DirectGeminiTryOnService extends BaseTryOnService {
     return GEMINI_TRYON_CONFIG.DEFAULT_MIME_TYPE;
   }
 
-  private buildStrictPrompt(prompt: string): string {
-    return `${prompt}${GEMINI_AI_TRYON_PROMPT_STRICT_SUFFIX}`;
-  }
-
-  private async generateTryOnWithRetries(params: {
-    avatarData: GeminiInlineData;
-    clothingData: GeminiInlineData;
-    originalClothingData: GeminiInlineData;
-    prompt: string;
-  }): Promise<string> {
-    const { avatarData, clothingData, originalClothingData, prompt } = params;
-    const maxAttempts = GEMINI_TRYON_OUTPUT_VALIDATION.OUTPUT_MATCH_RETRY_LIMIT;
-
-    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-      const promptToUse =
-        attempt === 0 ? prompt : this.buildStrictPrompt(prompt);
-      const clothingToUse =
-        attempt === 0 ? clothingData : originalClothingData;
-
-      try {
-        const imageBase64 = await this.generateTryOnWithModel(
-          this.modelId,
-          promptToUse,
-          avatarData,
-          clothingToUse,
-        );
-
-        this.assertOutputIsNotInput(imageBase64, [
-          avatarData.data,
-          originalClothingData.data,
-          clothingData.data,
-        ]);
-
-        return imageBase64;
-      } catch (error) {
-        if (!this.isOutputMatchError(error)) {
-          throw error;
-        }
-      }
-    }
-
-    throw new AIServiceException(
-      TryOnErrorCode.PROCESSING_FAILED,
-      GEMINI_TRYON_ERROR_MESSAGES.OUTPUT_NOT_GENERATED,
-      500,
-      { attempts: maxAttempts, model: this.modelId },
-    );
-  }
-
-  private isOutputMatchError(error: unknown): boolean {
-    if (error instanceof Error) {
-      return error.message === GEMINI_TRYON_ERROR_MESSAGES.OUTPUT_MATCHES_INPUT;
-    }
-    return false;
-  }
-
-
-  private extractTryOnImage(
-    response: GeminiResponse,
-    avatarBase64: string,
-    clothingBase64: string,
-  ): string {
+  private extractTryOnImage(response: GeminiResponse): string {
     if (!response || !response.candidates) {
       throw new AIServiceException(
         TryOnErrorCode.PROCESSING_FAILED,
@@ -307,26 +254,10 @@ export class DirectGeminiTryOnService extends BaseTryOnService {
       );
     }
 
-    const avatarHash = this.hashBase64(avatarBase64);
-    const clothingHash = this.hashBase64(clothingBase64);
-
-    const nonInputImages = _.filter(imageDataList, (data) => {
-      const imageHash = this.hashBase64(data);
-      return imageHash !== avatarHash && imageHash !== clothingHash;
-    });
-
-    if (!nonInputImages.length) {
-      throw new Error(GEMINI_TRYON_ERROR_MESSAGES.OUTPUT_MATCHES_INPUT);
-    }
-
-    const [bestImage] = _.orderBy(nonInputImages, (data) => data.length, [
+    const [bestImage] = _.orderBy(imageDataList, (data) => data.length, [
       'desc',
     ]);
-    return bestImage || nonInputImages[0];
-  }
-
-  private hashBase64(base64Data: string): string {
-    return createHash('sha256').update(base64Data).digest('hex');
+    return bestImage || imageDataList[0];
   }
 
   private async generateTryOnWithModel(
@@ -345,19 +276,22 @@ export class DirectGeminiTryOnService extends BaseTryOnService {
 
     const model = this.genAI.getGenerativeModel({
       model: modelId,
+      generationConfig: {
+        temperature: 0.2,
+      } as any,
     });
 
     const generationPromise = model.generateContent([
       {
         inlineData: {
-          data: avatarData.data,
-          mimeType: avatarData.mimeType,
+          data: clothingData.data,
+          mimeType: clothingData.mimeType,
         },
       },
       {
         inlineData: {
-          data: clothingData.data,
-          mimeType: clothingData.mimeType,
+          data: avatarData.data,
+          mimeType: avatarData.mimeType,
         },
       },
       { text: prompt },
@@ -366,54 +300,8 @@ export class DirectGeminiTryOnService extends BaseTryOnService {
     const result = await this.withTimeout(generationPromise, GEMINI_AI_TIMEOUT);
     const response = (result as GeminiGenerateResult).response;
 
-    const imageBase64 = this.extractTryOnImage(
-      response,
-      avatarData.data,
-      clothingData.data,
-    );
-
-    await this.assertOutputLooksLikeTryOn(imageBase64);
+    const imageBase64 = this.extractTryOnImage(response);
     return imageBase64;
-  }
-
-  private async assertOutputLooksLikeTryOn(
-    outputBase64: string,
-  ): Promise<void> {
-    try {
-      const { default: sharp } = await import('sharp');
-      const buffer = Buffer.from(outputBase64, 'base64');
-      const metadata = await sharp(buffer).metadata();
-
-      if (!metadata.width || !metadata.height) {
-        return;
-      }
-
-      const ratio = metadata.width / metadata.height;
-      if (ratio > GEMINI_TRYON_OUTPUT_VALIDATION.MAX_LANDSCAPE_RATIO) {
-        throw new Error(GEMINI_TRYON_ERROR_MESSAGES.OUTPUT_MATCHES_INPUT);
-      }
-    } catch (error) {
-      if (
-        error instanceof Error &&
-        error.message === GEMINI_TRYON_ERROR_MESSAGES.OUTPUT_MATCHES_INPUT
-      ) {
-        throw error;
-      }
-    }
-  }
-
-  private assertOutputIsNotInput(
-    outputBase64: string,
-    comparisonImages: string[],
-  ): void {
-    const outputHash = this.hashBase64(outputBase64);
-    const comparisonHashes = _.map(comparisonImages, (image) =>
-      this.hashBase64(image),
-    );
-
-    if (_.some(comparisonHashes, (hash) => hash === outputHash)) {
-      throw new Error(GEMINI_TRYON_ERROR_MESSAGES.OUTPUT_MATCHES_INPUT);
-    }
   }
 
   private async maskClothingModel(
@@ -426,7 +314,9 @@ export class DirectGeminiTryOnService extends BaseTryOnService {
     );
 
     if (_.isBoolean(maskOverride)) {
-      return maskOverride ? this.applyTopRegionBlur(clothingData) : clothingData;
+      return maskOverride
+        ? this.applyTopRegionBlur(clothingData)
+        : clothingData;
     }
 
     if (!GEMINI_CLOTHING_MODEL_MASK.ENABLED_BY_DEFAULT) {
@@ -485,5 +375,4 @@ export class DirectGeminiTryOnService extends BaseTryOnService {
       return clothingData;
     }
   }
-
 }

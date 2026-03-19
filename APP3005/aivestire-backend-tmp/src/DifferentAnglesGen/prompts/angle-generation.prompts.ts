@@ -13,13 +13,23 @@ export function generateAnglePrompt(
   cachedMetadata?: Record<string, any>,
 ): string {
   const angleInstruction = ANGLE_DEFINITIONS[angle];
+  const sourceDimensions =
+    cachedMetadata?.width && cachedMetadata?.height
+      ? ` Original reference dimensions: ${cachedMetadata.width}x${cachedMetadata.height}.`
+      : '';
 
-  // SIMPLE PROMPT - FACE-FIRST approach since model preserves clothes well
-  // Background: If input has plain/white bg, generate nice fashion studio background
-  // If input already has styled bg, preserve it
   const prompt = `FULL BODY FASHION PHOTOGRAPHY.
-    
-This photo shows a specific person. Generate a ${angleInstruction} of THIS EXACT PERSON.
+
+REFERENCE RULES (CRITICAL):
+- The provided image is the ORIGINAL virtual try-on result and the ONLY reference image for this request.
+- This single input already contains the correct face and the correct outfit together.
+- Use this exact input image directly as the source of truth for face identity, hair, body proportions, outfit continuity, and fit.
+- Maintain the EXACT same person identity from this input image in the final output.
+- Do NOT replace the face with a new face, beautified face, mannequin face, model face, or blended face.
+- Do NOT reinterpret the outfit from a mannequin, catalog image, or separate clothing reference.
+- Do NOT crop, zoom, trim, or reframe the input reference. Keep the final output full-body and uncropped.${sourceDimensions}
+
+Generate a ${angleInstruction} of THIS EXACT PERSON.
 
 FACE REQUIREMENTS (CRITICAL):
 - Copy the EXACT face from the input image (for side/angle views, ensure the profile matches perfectly)
@@ -32,6 +42,13 @@ PRESERVE EXACTLY:
 - Same hair color and style (visualize how it looks from ${angleInstruction})
 - Same clothes with exact colors and patterns.
 - Full body visible, no zoom. Shoes must be visible.
+- Keep the same garment fit, drape, styling, and proportions already present in the original try-on image.
+
+FRAMING REQUIREMENTS (CRITICAL):
+- Use the original full-body try-on composition as the baseline framing.
+- Do NOT crop the head, hair, face, shoulders, hands, feet, or shoes.
+- Do NOT zoom in or create a half-body or three-quarter crop.
+- Keep the person fully visible from head to toe.
 
 BACKGROUND INSTRUCTIONS (CRITICAL consistency):
 - GENERATE A PLAIN, ATTRACTIVE STUDIO BACKGROUND.
@@ -40,7 +57,7 @@ BACKGROUND INSTRUCTIONS (CRITICAL consistency):
 - CONSISTENCY: This background must be used for ALL angles. Do not change lighting or color.
 - Do NOT generate complex scenes, streets, or busy patterns. Keep it CLEAN and PLAIN.
 
-CAMERA: Rotate strictly to ${angleInstruction}. Person identity and clothes stay EXACTLY the same.`;
+CAMERA: Rotate strictly to ${angleInstruction}. Person identity and clothes stay EXACTLY the same. The original virtual try-on image remains the only identity reference throughout generation.`;
 
   return prompt;
 }

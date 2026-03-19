@@ -146,7 +146,7 @@ export const ProfileSidebarSlide: React.FC = () => {
                     <p className="text-sm font-bold text-[#1F1F1F]">{userName}</p>
                     <p className="text-xs text-[#999999] truncate">{userEmail}</p>
                     {hasAuraPhoto && (
-                        <p className="text-[9px] font-semibold text-[#C9A55C] mt-1 tracking-widest uppercase">✦ Aura Active</p>
+                        <p className="text-[9px] font-semibold text-[#C9A55C] mt-1 tracking-widest uppercase">Aura Active</p>
                     )}
                 </div>
 

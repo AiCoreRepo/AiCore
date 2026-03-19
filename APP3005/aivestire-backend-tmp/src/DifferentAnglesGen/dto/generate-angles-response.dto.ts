@@ -41,7 +41,8 @@ export class GenerateAnglesResponseDto {
     example: {
       cachingUsed: true,
       sessionKey: 'user123_product456',
-      modelId: 'gemini-2.5-flash-image',
+      modelId: 'gemini-3.1-flash-image-preview',
+      referenceStrategy: 'single_original_tryon_image',
     },
   })
   metadata: {
@@ -50,6 +51,7 @@ export class GenerateAnglesResponseDto {
     modelId: string;
     fullResolutionUsed?: boolean;
     imageSizeKB?: number;
+    referenceStrategy?: 'single_original_tryon_image';
   };
 
   @ApiProperty({

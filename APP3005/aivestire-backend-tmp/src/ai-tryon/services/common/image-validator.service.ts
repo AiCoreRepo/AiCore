@@ -106,10 +106,7 @@ export class ImageValidatorService {
   private isImageUrl(data: string): boolean {
     try {
       const url = new URL(data);
-      return (
-        (url.protocol === 'http:' || url.protocol === 'https:') &&
-        /\.(jpg|jpeg|png|webp)$/i.test(url.pathname)
-      );
+      return url.protocol === 'http:' || url.protocol === 'https:';
     } catch {
       return false;
     }
@@ -191,7 +188,15 @@ export class ImageValidatorService {
    * Get MIME type from URL extension
    */
   private getMimeTypeFromUrl(url: string): string {
-    const extension = url.split('.').pop()?.toLowerCase();
+    let extension: string | undefined;
+
+    try {
+      const parsedUrl = new URL(url);
+      extension = parsedUrl.pathname.split('.').pop()?.toLowerCase();
+    } catch {
+      extension = url.split('.').pop()?.toLowerCase();
+    }
+
     switch (extension) {
       case 'jpg':
       case 'jpeg':

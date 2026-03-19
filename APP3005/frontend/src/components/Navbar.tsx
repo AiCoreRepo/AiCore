@@ -351,14 +351,14 @@ export const Navbar = () => {
                                     className="px-4 py-3 text-charcoal font-medium tracking-wide rounded-2xl hover:bg-gold/20 transition-all duration-300 border border-transparent hover:border-gold/30 block"
                                     onClick={() => setIsMobileMenuOpen(false)}
                                 >
-                                    🛍️ Cart
+                                    Cart
                                 </Link>
                                 <Link
                                     to="/wishlist"
                                     className="px-4 py-3 text-charcoal font-medium tracking-wide rounded-2xl hover:bg-gold/20 transition-all duration-300 border border-transparent hover:border-gold/30 block"
                                     onClick={() => setIsMobileMenuOpen(false)}
                                 >
-                                    💖 Wishlist
+                                    Wishlist
                                 </Link>
 
                                 {/* Logged In User Specific Links */}
@@ -370,7 +370,7 @@ export const Navbar = () => {
                                             className="px-4 py-3 text-charcoal font-medium tracking-wide rounded-2xl hover:bg-gold/20 transition-all duration-300 border border-transparent hover:border-gold/30 block"
                                             onClick={() => setIsMobileMenuOpen(false)}
                                         >
-                                            📦 My Orders
+                                            My Orders
                                         </Link>
                                         {hasAura ? (
                                             <Link
@@ -378,7 +378,7 @@ export const Navbar = () => {
                                                 className="px-4 py-3 text-charcoal font-medium tracking-wide rounded-2xl hover:bg-gold/20 transition-all duration-300 border border-transparent hover:border-gold/30 block"
                                                 onClick={() => setIsMobileMenuOpen(false)}
                                             >
-                                                ✨ Aura Profile
+                                                Aura Profile
                                             </Link>
                                         ) : (
                                             <Link
@@ -386,7 +386,7 @@ export const Navbar = () => {
                                                 className="px-4 py-3 text-charcoal font-medium tracking-wide rounded-2xl hover:bg-gold/20 transition-all duration-300 border border-transparent hover:border-gold/30 block"
                                                 onClick={() => setIsMobileMenuOpen(false)}
                                             >
-                                                ✨ Create Aura
+                                                Create Aura
                                             </Link>
                                         )}
                                         <button
@@ -396,7 +396,7 @@ export const Navbar = () => {
                                             }}
                                             className="w-full text-left px-4 py-3 text-red-600 font-medium tracking-wide rounded-2xl hover:bg-red-50 transition-all duration-300 border border-transparent"
                                         >
-                                            🚪 Logout
+                                            Logout
                                         </button>
                                     </>
                                 )}

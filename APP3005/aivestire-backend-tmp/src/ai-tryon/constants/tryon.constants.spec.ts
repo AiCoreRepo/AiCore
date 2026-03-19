@@ -4,84 +4,65 @@ import {
 } from './tryon.constants';
 
 describe('buildGeminiTryOnPrompt', () => {
-  it('builds the same structured prompt style used by Gemini avatar generation', () => {
-    const prompt = JSON.parse(
-      buildGeminiTryOnPrompt({
-        height_cm: 175,
-        weight_kg: 68,
-        skin_tone: 'medium',
-        gender: 'female',
-        body_shape: 'athletic',
-        body_size: 'medium',
-        age_range: '25_35',
-        hair_style: 'long_wavy',
-      }),
-    );
-
-    expect(prompt.role).toBe('virtual try-on assistant');
-    expect(prompt.inputs).toEqual({
-      image_1: 'avatar person who must remain the same person in the final output',
-      image_2: 'garment image that must be worn by image_1 in the final output',
-    });
-    expect(prompt.person_attributes).toEqual({
-      height: `5'9"`,
+  it('builds a direct Gemini image-edit prompt with dynamic aura attributes', () => {
+    const prompt = buildGeminiTryOnPrompt({
       height_cm: 175,
-      body_shape: 'athletic',
-      skin_tone: 'medium',
-      age: 25,
-      gender: 'female',
-      body_size: 'medium',
       weight_kg: 68,
-      hair_style: 'long wavy',
+      skin_tone: 'medium',
+      gender: 'female',
+      body_shape: 'athletic',
+      body_size: 'medium',
+      age_range: '25_35',
+      hair_style: 'long_wavy',
     });
+
+    expect(prompt).toContain(
+      'Create exactly one new photorealistic virtual try-on image.',
+    );
+    expect(prompt).toContain(
+      'The first image is the garment or outfit reference.',
+    );
+    expect(prompt).toContain(
+      'The second image is the real person/avatar whose identity must remain unchanged in the final result.',
+    );
+    expect(prompt).toContain(`- Height: 175 cm (5'9")`);
+    expect(prompt).toContain('- Body shape: athletic');
+    expect(prompt).toContain('- Body size: medium');
+    expect(prompt).toContain('- Weight: 68 kg');
+    expect(prompt).toContain('- Skin tone: medium');
+    expect(prompt).toContain('- Gender: female');
+    expect(prompt).toContain('- Approximate age: 25');
+    expect(prompt).toContain('- Hair style: long wavy');
   });
 
   it('forces the same person identity and requires the garment to be actually worn', () => {
-    const prompt = JSON.parse(buildGeminiTryOnPrompt());
+    const prompt = buildGeminiTryOnPrompt();
 
-    expect(prompt.instructions.identity).toContain(
-      'Image 1 is the avatar person',
+    expect(prompt).toContain(
+      'Take the garment from the first image and make the person from the second image actually wear it.',
     );
-    expect(prompt.instructions.identity).toContain(
-      'The final result must clearly be the same person from Image 1',
+    expect(prompt).toContain(
+      'Preserve the exact same face, skin tone, hairline, hairstyle, hair length, hair volume, hair texture, and body proportions of the second image.',
     );
-    expect(prompt.instructions.clothing).toContain(
-      'Image 2 is the garment image',
+    expect(prompt).toContain(
+      'Do not replace, beautify, reshape, or blend the second-image face or body with the clothing-model or mannequin identity from the first image.',
     );
-    expect(prompt.instructions.clothing).toContain(
-      'make the person in Image 1 actually wear it',
+    expect(prompt).toContain(
+      'The clothing must look naturally worn by the second-image person, not pasted on, floating, overlaid, or shown as a separate product shot.',
     );
-    expect(prompt.instructions.clothing).toContain(
-      'not floating, not pasted on, and not shown as a separate reference',
+    expect(prompt).toContain(
+      'The final image must clearly show that the second-image person is wearing the first-image garment.',
     );
-    expect(prompt.constraints).toContain(
-      'Do NOT confuse the role of Image 1 and Image 2',
-    );
-    expect(prompt.constraints).toContain(
-      'Do NOT make Image 2 the person identity',
-    );
-    expect(prompt.constraints).toContain(
-      'Image 1 must be the wearer and Image 2 must be the worn garment source',
-    );
-    expect(prompt.constraints).toContain(
-      'Do NOT change the person into someone else or blend the identity with Image 2',
-    );
-    expect(prompt.constraints).toContain(
-      'Do NOT leave the clothing as a separate product shot, overlay, collage, or unworn reference',
+    expect(prompt).toContain(
+      'Do not return the second image with only tiny edits while leaving the original outfit in place.',
     );
   });
 
   it('allows shoes and accessories from the garment image in the final try-on', () => {
-    const prompt = JSON.parse(buildGeminiTryOnPrompt());
+    const prompt = buildGeminiTryOnPrompt();
 
-    expect(prompt.instructions.clothing).toContain(
-      'Shoes, ornaments, jewelry, accessories, embellishments, layering, and extra styling details visible in Image 2 are allowed',
-    );
-    expect(prompt.constraints).toContain(
-      'Shoes, ornaments, jewelry, accessories, and extra styling details visible in Image 2 are allowed in the final try-on',
-    );
-    expect(prompt.constraints).toContain(
-      'Do NOT carry over shoes, ornaments, jewelry, bags, or accessories from Image 1 unless they are also visible in Image 2',
+    expect(prompt).toContain(
+      'Keep garment colors, prints, textures, trims, embroidery, silhouette, neckline, sleeves, layering, shoes, jewelry, and accessories that are visible in the first image.',
     );
   });
 

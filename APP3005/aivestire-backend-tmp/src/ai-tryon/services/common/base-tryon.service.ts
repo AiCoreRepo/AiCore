@@ -227,8 +227,9 @@ export abstract class BaseTryOnService {
     promise: Promise<T>,
     timeoutMs: number = DEFAULT_TIMEOUT,
   ): Promise<T> {
+    let timeoutHandle: NodeJS.Timeout | undefined;
     const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => {
+      timeoutHandle = setTimeout(() => {
         reject(
           new TimeoutException(`Operation timed out after ${timeoutMs}ms`, {
             timeoutMs,
@@ -237,7 +238,13 @@ export abstract class BaseTryOnService {
       }, timeoutMs);
     });
 
-    return Promise.race([promise, timeoutPromise]);
+    try {
+      return await Promise.race([promise, timeoutPromise]);
+    } finally {
+      if (timeoutHandle) {
+        clearTimeout(timeoutHandle);
+      }
+    }
   }
 
   /**

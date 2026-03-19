@@ -174,6 +174,70 @@ export class ImageOptimizerService {
   }
 
   /**
+   * Compare two images after normalizing them to a small RGB buffer.
+   * Returns a similarity score between 0 and 1, where 1 means visually identical.
+   */
+  async calculateVisualSimilarity(
+    firstImage: string,
+    secondImage: string,
+    size: number = 64,
+  ): Promise<number> {
+    try {
+      const [firstBuffer, secondBuffer] = await Promise.all([
+        this.loadImageBuffer(firstImage),
+        this.loadImageBuffer(secondImage),
+      ]);
+
+      const normalize = async (buffer: Buffer) =>
+        sharp(buffer)
+          .resize(size, size, { fit: 'fill' })
+          .removeAlpha()
+          .raw()
+          .toBuffer();
+
+      const [firstRaw, secondRaw] = await Promise.all([
+        normalize(firstBuffer),
+        normalize(secondBuffer),
+      ]);
+
+      if (firstRaw.length !== secondRaw.length || firstRaw.length === 0) {
+        return 0;
+      }
+
+      let totalDiff = 0;
+      for (let index = 0; index < firstRaw.length; index += 1) {
+        totalDiff += Math.abs(firstRaw[index] - secondRaw[index]);
+      }
+
+      const maxDiff = firstRaw.length * 255;
+      const similarity = 1 - totalDiff / maxDiff;
+      return Math.max(0, Math.min(1, similarity));
+    } catch (error) {
+      this.logger.warn(
+        `Failed to calculate visual similarity: ${error.message}`,
+      );
+      return 0;
+    }
+  }
+
+  async areImagesVisuallySimilar(
+    firstImage: string,
+    secondImage: string,
+    threshold: number = 0.985,
+  ): Promise<boolean> {
+    const similarity = await this.calculateVisualSimilarity(
+      firstImage,
+      secondImage,
+    );
+
+    this.logger.log(
+      `🧮 Visual similarity score: ${similarity.toFixed(4)} (threshold: ${threshold})`,
+    );
+
+    return similarity >= threshold;
+  }
+
+  /**
    * Extract metadata from an image
    * @param base64Image - Base64 encoded image
    * @returns Image metadata including dimensions, format, and size

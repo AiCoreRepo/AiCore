@@ -119,7 +119,7 @@ export const UserProfileSidebar: React.FC = () => {
 
                     {hasAuraPhoto && (
                         <p className="text-[10px] font-semibold text-[#C9A55C] mt-1 tracking-widest uppercase">
-                            ✦ Aura Active
+                            Aura Active
                         </p>
                     )}
                 </div>
