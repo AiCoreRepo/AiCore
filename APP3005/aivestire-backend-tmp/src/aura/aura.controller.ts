@@ -112,6 +112,15 @@ export class AuraController {
     return this.auraService.getAuraByUserId(userId);
   }
 
+  @Patch('avatars/:avatarId/select')
+  @UseGuards(JwtAuthGuard)
+  async selectAvatarForTryOns(
+    @CurrentUser('user_id') userId: string,
+    @Param('avatarId') avatarId: string,
+  ) {
+    return this.auraService.selectAvatarForTryOns(userId, avatarId);
+  }
+
   @Patch()
   @UseGuards(JwtAuthGuard)
   async updateAura(

@@ -8,13 +8,53 @@ describe('AuraService', () => {
     aura_id: 'aura-1',
     user_id: 'user-1',
     image_url: 'https://example.com/original.png',
+    model_url: 'https://example.com/avatar-2.png',
+    tryon_model_url: 'https://example.com/avatar-2-tryon.png',
     height_cm: 170,
     weight_kg: 70,
     skin_tone: 'medium',
     gender: 'female',
     body_shape: 'hourglass',
+    body_size: 'medium',
     age_range: '25-35',
     hair_style: 'long',
+    generated_avatar_urls: [
+      'https://example.com/avatar-1.png',
+      'https://example.com/avatar-2.png',
+    ],
+    attributes: {
+      selected_avatar_id: 'avatar-2',
+      avatar_history: [
+        {
+          avatar_id: 'avatar-1',
+          model_url: 'https://example.com/avatar-1.png',
+          tryon_model_url: 'https://example.com/avatar-1-tryon.png',
+          source: 'creation',
+          generation_type: 'generated',
+          created_at: '2026-03-17T08:00:00.000Z',
+          attributes: {
+            body_shape: 'hourglass',
+            body_size: 'medium',
+            skin_tone: 'medium',
+          },
+        },
+        {
+          avatar_id: 'avatar-2',
+          model_url: 'https://example.com/avatar-2.png',
+          tryon_model_url: 'https://example.com/avatar-2-tryon.png',
+          source: 'recreation',
+          generation_type: 'generated',
+          created_at: '2026-03-18T08:00:00.000Z',
+          attributes: {
+            body_shape: 'hourglass',
+            body_size: 'medium',
+            skin_tone: 'medium',
+          },
+        },
+      ],
+    },
+    created_at: new Date('2026-03-17T08:00:00.000Z'),
+    updated_at: new Date('2026-03-18T08:00:00.000Z'),
   };
 
   const createService = (user: {
@@ -24,6 +64,10 @@ describe('AuraService', () => {
     const prisma = {
       aura: {
         findUnique: jest.fn().mockResolvedValue(existingAura),
+        update: jest.fn().mockImplementation(async ({ data }: any) => ({
+          ...existingAura,
+          ...data,
+        })),
       },
       user: {
         findUnique: jest.fn().mockResolvedValue(user),
@@ -56,7 +100,11 @@ describe('AuraService', () => {
     );
 
     return {
-      service: new AuraService(prisma as any, cloudinary as any, auraQueue as any),
+      service: new AuraService(
+        prisma as any,
+        cloudinary as any,
+        auraQueue as any,
+      ),
       prisma,
       auraQueue,
       tx,
@@ -108,7 +156,9 @@ describe('AuraService', () => {
     await expect(
       service.recreateAura('user-1', undefined, {}, request),
     ).rejects.toEqual(
-      new ConflictException('You have reached your Aura recreation limit of 2.'),
+      new ConflictException(
+        'You have reached your Aura recreation limit of 2.',
+      ),
     );
 
     expect(tx.user.updateMany).not.toHaveBeenCalled();
@@ -146,5 +196,27 @@ describe('AuraService', () => {
       },
     });
     expect(auraQueue.addAuraGenerationJob).toHaveBeenCalled();
+  });
+
+  it('switches the selected avatar used for try-ons', async () => {
+    const { service, prisma } = createService({
+      avatar_regenerations_used: 0,
+      max_avatar_regenerations: 2,
+    });
+
+    const result = await service.selectAvatarForTryOns('user-1', 'avatar-1');
+
+    expect(prisma.aura.update).toHaveBeenCalledWith({
+      where: { user_id: 'user-1' },
+      data: expect.objectContaining({
+        model_url: 'https://example.com/avatar-1.png',
+        tryon_model_url: 'https://example.com/avatar-1-tryon.png',
+      }),
+    });
+    expect(result).toMatchObject({
+      selected_avatar_id: 'avatar-1',
+      model_url: 'https://example.com/avatar-1.png',
+      tryon_model_url: 'https://example.com/avatar-1-tryon.png',
+    });
   });
 });

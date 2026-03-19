@@ -10,8 +10,14 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CloudinaryService } from '../common/cloudinary.service';
 import { AuraQueueService } from './aura-queue.service';
 import { CreateAuraDto } from './dto/create-aura.dto';
-import { AuraStatus, Prisma } from '@prisma/client';
+import { AuraStatus } from '@prisma/client';
 import { getEffectiveAvatarRecreationLimit } from '../auth/utils/try-on-limit.util';
+import {
+  buildAuraAttributesMetadata,
+  collectAuraAvatarHistoryImageUrls,
+  getAuraAttributeSnapshotFromRecord,
+  normalizeAuraAvatarHistory,
+} from './aura-avatar-history.util';
 
 @Injectable()
 export class AuraService {
@@ -56,6 +62,36 @@ export class AuraService {
     }
 
     return `You have reached your Aura recreation limit of ${maxAttempts}.`;
+  }
+
+  private formatAuraResponse(aura: Record<string, any> | null) {
+    if (!aura) {
+      return null;
+    }
+
+    const { avatarHistory, selectedAvatar, selectedAvatarId } =
+      normalizeAuraAvatarHistory({
+        attributesJson: aura.attributes,
+        modelUrl: aura.model_url,
+        tryOnModelUrl: aura.tryon_model_url,
+        generatedAvatarUrls: aura.generated_avatar_urls,
+        createdAt: aura.created_at,
+        updatedAt: aura.updated_at,
+        currentAttributes: getAuraAttributeSnapshotFromRecord(aura),
+      });
+
+    return {
+      ...aura,
+      model_url: selectedAvatar?.model_url || aura.model_url,
+      tryon_model_url:
+        selectedAvatar?.tryon_model_url ||
+        aura.tryon_model_url ||
+        selectedAvatar?.model_url ||
+        aura.model_url,
+      selected_avatar_id: selectedAvatarId,
+      selected_avatar: selectedAvatar,
+      avatar_history: avatarHistory,
+    };
   }
 
   async createAura(
@@ -108,6 +144,7 @@ export class AuraService {
         auraId: aura.aura_id,
         userId: aura.user_id,
         imageUrl: aura.image_url || '',
+        generationSource: 'creation',
         attributes: {
           height: attributes.height ?? 170,
           weight: attributes.weight ?? 70,
@@ -239,6 +276,7 @@ export class AuraService {
         auraId: existingAura.aura_id,
         userId,
         imageUrl: sourceImageUrl,
+        generationSource: 'recreation',
         attributes: {
           height: this.getAuraAttributeNumber(
             attributes.height,
@@ -300,9 +338,58 @@ export class AuraService {
   }
 
   async getAuraByUserId(userId: string) {
-    return this.prisma.aura.findUnique({
+    const aura = await this.prisma.aura.findUnique({
       where: { user_id: userId },
     });
+
+    return this.formatAuraResponse(aura);
+  }
+
+  async selectAvatarForTryOns(userId: string, avatarId: string) {
+    const aura = await this.prisma.aura.findUnique({
+      where: { user_id: userId },
+    });
+
+    if (!aura) {
+      throw new ConflictException(
+        'No Aura found for this user. Please create one first.',
+      );
+    }
+
+    const { avatarHistory } = normalizeAuraAvatarHistory({
+      attributesJson: aura.attributes,
+      modelUrl: aura.model_url,
+      tryOnModelUrl: aura.tryon_model_url,
+      generatedAvatarUrls: aura.generated_avatar_urls,
+      createdAt: aura.created_at,
+      updatedAt: aura.updated_at,
+      currentAttributes: getAuraAttributeSnapshotFromRecord(aura),
+    });
+
+    const selectedAvatar = avatarHistory.find(
+      (avatar) => avatar.avatar_id === avatarId,
+    );
+
+    if (!selectedAvatar) {
+      throw new BadRequestException(
+        'Selected avatar was not found for this Aura profile.',
+      );
+    }
+
+    const updatedAura = await this.prisma.aura.update({
+      where: { user_id: userId },
+      data: {
+        model_url: selectedAvatar.model_url,
+        tryon_model_url: selectedAvatar.tryon_model_url,
+        attributes: buildAuraAttributesMetadata(
+          aura.attributes,
+          avatarHistory,
+          selectedAvatar,
+        ) as any,
+      },
+    });
+
+    return this.formatAuraResponse(updatedAura);
   }
 
   async hasAura(userId: string) {
@@ -354,7 +441,7 @@ export class AuraService {
         },
       });
 
-      return updatedAura;
+      return this.formatAuraResponse(updatedAura);
     } catch (error) {
       console.error('Error updating Aura:', error);
       throw new InternalServerErrorException(
@@ -376,6 +463,15 @@ export class AuraService {
     try {
       // Delete images from Cloudinary
       const imagesToDelete = new Set<string>();
+      const { avatarHistory } = normalizeAuraAvatarHistory({
+        attributesJson: existingAura.attributes,
+        modelUrl: existingAura.model_url,
+        tryOnModelUrl: existingAura.tryon_model_url,
+        generatedAvatarUrls: existingAura.generated_avatar_urls,
+        createdAt: existingAura.created_at,
+        updatedAt: existingAura.updated_at,
+        currentAttributes: getAuraAttributeSnapshotFromRecord(existingAura),
+      });
 
       // Add original image URL
       if (existingAura.image_url) {
@@ -397,7 +493,13 @@ export class AuraService {
         existingAura.generated_avatar_urls &&
         existingAura.generated_avatar_urls.length > 0
       ) {
-        existingAura.generated_avatar_urls.forEach((url) => imagesToDelete.add(url));
+        existingAura.generated_avatar_urls.forEach((url) =>
+          imagesToDelete.add(url),
+        );
+      }
+
+      for (const imageUrl of collectAuraAvatarHistoryImageUrls(avatarHistory)) {
+        imagesToDelete.add(imageUrl);
       }
 
       // Delete all images from Cloudinary

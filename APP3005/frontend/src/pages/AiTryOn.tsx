@@ -1,15 +1,15 @@
-import { useEffect, useRef, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
-import { useAuth } from '@/context/AuthContext';
-import { Navbar } from '@/components/Navbar';
-import { Footer } from '@/components/Footer';
-import { AuraDisplayCard } from '@/components/ai-tryon/AuraDisplayCard';
-import { ClothingItemCard } from '@/components/ai-tryon/ClothingItemCard';
-import { TryOnResultModal } from '@/components/ai-tryon/TryOnResultModal';
-import { TryOnGalleryModal } from '@/components/ai-tryon/TryOnGalleryModal';
-import { TryOnUpgradePopup } from '@/components/ai-tryon/TryOnUpgradePopup';
-import { AuthPopup } from '@/components/AuthPopup';
-import { usePublicProducts } from '@/hooks/usePublicProducts';
+import { useEffect, useRef, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { useAuth } from "@/context/AuthContext";
+import { Navbar } from "@/components/Navbar";
+import { Footer } from "@/components/Footer";
+import { AuraDisplayCard } from "@/components/ai-tryon/AuraDisplayCard";
+import { ClothingItemCard } from "@/components/ai-tryon/ClothingItemCard";
+import { TryOnResultModal } from "@/components/ai-tryon/TryOnResultModal";
+import { TryOnGalleryModal } from "@/components/ai-tryon/TryOnGalleryModal";
+import { TryOnUpgradePopup } from "@/components/ai-tryon/TryOnUpgradePopup";
+import { AuthPopup } from "@/components/AuthPopup";
+import { usePublicProducts } from "@/hooks/usePublicProducts";
 import {
   getAura,
   tryOnWithGemini,
@@ -18,24 +18,25 @@ import {
   getTryOnHistory,
   requestTryOnAccess,
   FeedbackContextType,
-} from '@/lib/api';
-import { Sparkles, AlertCircle, Images, Lock, Clock } from 'lucide-react';
-import '@/components/ai-tryon/ai-tryon-styles.css';
+} from "@/lib/api";
+import { Sparkles, AlertCircle, Images, Lock, Clock } from "lucide-react";
+import "@/components/ai-tryon/ai-tryon-styles.css";
 import {
   getTryOnLimitSnapshot,
   getTryOnUsageSnapshot,
   isTryOnLimitError,
   TRY_ON_PREMIUM_UPGRADE_URL,
   type TryOnUsageSnapshot,
-} from '@/lib/try-on-limit';
-import _ from 'lodash';
-import type { PublicProduct } from '@/hooks/usePublicProducts';
+} from "@/lib/try-on-limit";
+import _ from "lodash";
+import type { PublicProduct } from "@/hooks/usePublicProducts";
 
 interface AuraData {
   aura_id: string;
   user_id: string;
   image_url: string | null;
   model_url: string | null;
+  tryon_model_url?: string | null;
   height_cm: number;
   weight_kg: number;
   skin_tone: string;
@@ -67,8 +68,8 @@ type TryOnResult = {
 };
 
 const TRYON_PROVIDER = {
-  VERTEX: 'vertex',
-  GEMINI: 'gemini',
+  VERTEX: "vertex",
+  GEMINI: "gemini",
 } as const;
 
 type TryOnProvider = (typeof TRYON_PROVIDER)[keyof typeof TRYON_PROVIDER];
@@ -80,7 +81,7 @@ const getProductImageUrl = (product: TryOnProduct): string | null => {
 };
 
 const getAvatarImageUrl = (aura: AuraData | null): string | null =>
-  aura?.model_url || aura?.image_url || null;
+  aura?.tryon_model_url || aura?.model_url || aura?.image_url || null;
 
 const buildGeminiTryOnAdditionalParams = (aura: AuraData | null) => ({
   aura_attributes: aura
@@ -94,7 +95,7 @@ const buildGeminiTryOnAdditionalParams = (aura: AuraData | null) => ({
         age_range: aura.age_range,
         hair_style: aura.hair_style,
         beard: aura.beard,
-        ...(aura.extra_attributes && typeof aura.extra_attributes === 'object'
+        ...(aura.extra_attributes && typeof aura.extra_attributes === "object"
           ? aura.extra_attributes
           : {}),
       }
@@ -115,7 +116,9 @@ const AiTryOn = () => {
   const [tryOnLoading, setTryOnLoading] = useState(false);
   const [showResultModal, setShowResultModal] = useState(false);
   const [resultImage, setResultImage] = useState<string | null>(null);
-  const [originalTryOnImage, setOriginalTryOnImage] = useState<string | null>(null); // Stores the FIRST try-on result for face consistency
+  const [originalTryOnImage, setOriginalTryOnImage] = useState<string | null>(
+    null,
+  ); // Stores the FIRST try-on result for face consistency
   const [tryOnError, setTryOnError] = useState<string | null>(null);
   const [generatingAngles, setGeneratingAngles] = useState(false);
   const [showGallery, setShowGallery] = useState(false);
@@ -125,30 +128,42 @@ const AiTryOn = () => {
   const [generatedImages, setGeneratedImages] = useState<string[]>([]);
   const [showFeedbackSheet, setShowFeedbackSheet] = useState(false);
   const [showUpgradePopup, setShowUpgradePopup] = useState(false);
-  const [tryOnUsageSnapshot, setTryOnUsageSnapshot] = useState<TryOnUsageSnapshot>(
-    getTryOnUsageSnapshot(user)
-  );
+  const [tryOnUsageSnapshot, setTryOnUsageSnapshot] =
+    useState<TryOnUsageSnapshot>(getTryOnUsageSnapshot(user));
   const [feedbackContext, setFeedbackContext] = useState<{
     type: FeedbackContextType;
     referenceId?: string;
     label?: string;
   } | null>(null);
-  const feedbackCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [pendingAutoTryOnProductId, setPendingAutoTryOnProductId] = useState<string | null>(
-    (location.state as { autoTryOnProductId?: string } | null)?.autoTryOnProductId || null
+  const feedbackCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+  const [pendingAutoTryOnProductId, setPendingAutoTryOnProductId] = useState<
+    string | null
+  >(
+    (location.state as { autoTryOnProductId?: string } | null)
+      ?.autoTryOnProductId || null,
   );
 
   // Fetch products
-  const { data: productsData, isLoading: productsLoading, error: productsError } = usePublicProducts(1);
+  const {
+    data: productsData,
+    isLoading: productsLoading,
+    error: productsError,
+  } = usePublicProducts(1);
 
   const resolveProductLabel = (productId: string) => {
-    const product = _.find(productsData?.products, (item) => item.product_id === productId);
+    const product = _.find(
+      productsData?.products,
+      (item) => item.product_id === productId,
+    );
     return product?.title || product?.name || productId;
   };
-  const currentUserName = user?.store_name || user?.email?.split('@')[0] || 'You';
+  const currentUserName =
+    user?.store_name || user?.email?.split("@")[0] || "You";
   const currentTryOnUsage = getTryOnUsageSnapshot(user);
   const hasFreeTryOnsRemaining =
-    user?.role === 'ADMIN' || currentTryOnUsage.remainingTryOns > 0;
+    user?.role === "ADMIN" || currentTryOnUsage.remainingTryOns > 0;
 
   const closeFeedbackSheet = () => {
     if (feedbackCloseTimerRef.current) {
@@ -159,7 +174,10 @@ const AiTryOn = () => {
     setFeedbackContext(null);
   };
 
-  const openUpgradePopup = (error?: { tryOnsUsed?: number; maxTryOns?: number }) => {
+  const openUpgradePopup = (error?: {
+    tryOnsUsed?: number;
+    maxTryOns?: number;
+  }) => {
     setTryOnUsageSnapshot(getTryOnLimitSnapshot(error, user));
     setShowUpgradePopup(true);
   };
@@ -175,7 +193,7 @@ const AiTryOn = () => {
 
     // Check if user is logged in
     if (!user) {
-      console.log('❌ User not logged in, showing popup');
+      console.log("❌ User not logged in, showing popup");
       setShowLoginPopup(true);
       return;
     }
@@ -202,15 +220,13 @@ const AiTryOn = () => {
       const auraData = await getAura();
       setAura(auraData);
     } catch (error: any) {
-      console.error('Error fetching Aura:', error);
+      console.error("Error fetching Aura:", error);
       // User doesn't have Aura, show popup
       setShowAuraPopup(true);
     } finally {
       setLoadingAura(false);
     }
   };
-
-
 
   const handleTryOn = async (
     productId: string,
@@ -250,7 +266,7 @@ const AiTryOn = () => {
         const clothingImage = product ? getProductImageUrl(product) : null;
 
         if (!avatarImage || !clothingImage) {
-          throw new Error('Try-on requires both avatar and clothing images');
+          throw new Error("Try-on requires both avatar and clothing images");
         }
 
         result = await tryOnWithGemini({
@@ -267,7 +283,7 @@ const AiTryOn = () => {
 
       if (result.success && result.resultImage) {
         // Ensure the image has the data URI prefix
-        const imageData = result.resultImage.startsWith('data:')
+        const imageData = result.resultImage.startsWith("data:")
           ? result.resultImage
           : `data:image/jpeg;base64,${result.resultImage}`;
         setResultImage(imageData);
@@ -285,17 +301,19 @@ const AiTryOn = () => {
         // Refresh user data to update try-on count
         fetchUser();
       } else {
-        throw new Error(result.message || 'Try-on failed');
+        throw new Error(result.message || "Try-on failed");
       }
     } catch (error: any) {
-      console.error('Try-on error:', error);
+      console.error("Try-on error:", error);
       if (isTryOnLimitError(error)) {
         setShowResultModal(false);
         setTryOnError(null);
         openUpgradePopup(error);
         return;
       }
-      setTryOnError(error.message || 'Failed to process try-on. Please try again.');
+      setTryOnError(
+        error.message || "Failed to process try-on. Please try again.",
+      );
     } finally {
       setTryOnLoading(false);
       setSelectedProduct(null);
@@ -311,7 +329,13 @@ const AiTryOn = () => {
 
     // Clear one-time navigation state so auto-try doesn't trigger again on remount.
     navigate(location.pathname, { replace: true });
-  }, [aura, pendingAutoTryOnProductId, tryOnLoading, navigate, location.pathname]);
+  }, [
+    aura,
+    pendingAutoTryOnProductId,
+    tryOnLoading,
+    navigate,
+    location.pathname,
+  ]);
 
   const handleGenerateMoreAngles = async () => {
     if (!aura || !resultImage) return;
@@ -333,23 +357,25 @@ const AiTryOn = () => {
       });
 
       if (result.success && result.resultImage) {
-        const imageData = result.resultImage.startsWith('data:')
+        const imageData = result.resultImage.startsWith("data:")
           ? result.resultImage
           : `data:image/jpeg;base64,${result.resultImage}`;
         setResultImage(imageData);
-        setGeneratedImages(prev => [...prev, imageData]);
+        setGeneratedImages((prev) => [...prev, imageData]);
         // Refresh user data to update try-on count
         fetchUser();
       } else {
-        throw new Error(result.message || 'Failed to generate more angles');
+        throw new Error(result.message || "Failed to generate more angles");
       }
     } catch (error: any) {
-      console.error('Generate angles error:', error);
+      console.error("Generate angles error:", error);
       if (isTryOnLimitError(error)) {
         openUpgradePopup(error);
         return;
       }
-      setTryOnError(error.message || 'Failed to generate more angles. Please try again.');
+      setTryOnError(
+        error.message || "Failed to generate more angles. Please try again.",
+      );
     } finally {
       setGeneratingAngles(false);
     }
@@ -362,8 +388,8 @@ const AiTryOn = () => {
       setRequestSuccess(true);
       // Optional: re-fetch user profile if it's cached in context
     } catch (error: any) {
-      console.error('Request access error:', error);
-      alert(error.message || 'Failed to request access');
+      console.error("Request access error:", error);
+      alert(error.message || "Failed to request access");
     } finally {
       setRequestingAccess(false);
     }
@@ -393,7 +419,7 @@ const AiTryOn = () => {
     <div
       className="min-h-screen"
       style={{
-        background: '#F5F0E6',
+        background: "#F5F0E6",
       }}
     >
       <Navbar />
@@ -420,22 +446,22 @@ const AiTryOn = () => {
               <div className="flex shrink-0">
                 <button
                   onClick={() => {
-                    console.log('Gallery button clicked!');
+                    console.log("Gallery button clicked!");
                     getTryOnHistory()
                       .then((history) => {
-                        console.log('Got history:', history);
+                        console.log("Got history:", history);
                         setTryOnHistory(history.tryOns || []);
                         setShowGallery(true);
                       })
                       .catch((error) => {
-                        console.error('Failed to load gallery:', error);
-                        alert('Failed to load gallery: ' + error.message);
+                        console.error("Failed to load gallery:", error);
+                        alert("Failed to load gallery: " + error.message);
                       });
                   }}
                   className="group flex w-full items-center justify-center gap-2 rounded-xl px-6 py-3 text-xs font-medium uppercase tracking-[0.2em] transition-all duration-300 hover:shadow-gold/10 active:scale-[0.98] sm:w-auto sm:px-7"
                   style={{
-                    background: '#D4AF37',
-                    color: '#FFFFFF',
+                    background: "#D4AF37",
+                    color: "#FFFFFF",
                   }}
                 >
                   <Images className="w-4 h-4 group-hover:scale-110 transition-transform" />
@@ -453,7 +479,9 @@ const AiTryOn = () => {
             {loadingAura && (
               <div className="py-16 text-center md:py-20">
                 <div className="inline-block animate-spin rounded-full h-12 w-12 border-2 border-luxury-gold border-t-transparent mb-6" />
-                <p className="text-xs uppercase tracking-[0.2em] text-neutral-400 font-medium italic">Summoning your digital twin...</p>
+                <p className="text-xs uppercase tracking-[0.2em] text-neutral-400 font-medium italic">
+                  Summoning your digital twin...
+                </p>
               </div>
             )}
 
@@ -473,26 +501,32 @@ const AiTryOn = () => {
                 {/* Right Content - Clothing Grid (9/12) */}
                 <div className="lg:col-span-9">
                   {/* BYPASSED: Admin approval check - All users can now access try-on */}
-                  {false && user?.role !== 'ADMIN' && user?.try_on_permission !== 'APPROVED' ? (
+                  {false &&
+                  user?.role !== "ADMIN" &&
+                  user?.try_on_permission !== "APPROVED" ? (
                     <div
                       className="p-16 rounded-[40px] text-center flex flex-col items-center justify-center gap-8 shadow-sm"
                       style={{
-                        background: '#FFFFFF',
-                        border: '1px solid rgba(212, 175, 55, 0.15)',
+                        background: "#FFFFFF",
+                        border: "1px solid rgba(212, 175, 55, 0.15)",
                       }}
                     >
-                      {user?.try_on_permission === 'PENDING' || requestSuccess ? (
+                      {user?.try_on_permission === "PENDING" ||
+                      requestSuccess ? (
                         <>
                           <div className="w-24 h-24 rounded-full bg-[#F8F4EC] flex items-center justify-center mb-2">
                             <Clock className="w-10 h-10 text-luxury-gold animate-pulse" />
                           </div>
-                          <h2 className="text-4xl font-serif text-luxury-black">Access Under Review</h2>
+                          <h2 className="text-4xl font-serif text-luxury-black">
+                            Access Under Review
+                          </h2>
                           <p className="text-charcoal/60 max-w-md mx-auto">
-                            Your request to use Virtual Try-On is being reviewed by our team.
-                            We will notify you once you have been granted access.
+                            Your request to use Virtual Try-On is being reviewed
+                            by our team. We will notify you once you have been
+                            granted access.
                           </p>
                           <button
-                            onClick={() => navigate('/collection')}
+                            onClick={() => navigate("/collection")}
                             className="px-10 py-3.5 rounded-xl font-medium text-xs tracking-widest uppercase border border-luxury-gold text-luxury-gold hover:bg-luxury-gold/5 transition-all"
                           >
                             Browse Collection
@@ -503,20 +537,25 @@ const AiTryOn = () => {
                           <div className="w-24 h-24 rounded-full bg-[#F8F4EC] flex items-center justify-center mb-2">
                             <Lock className="w-10 h-10 text-luxury-gold" />
                           </div>
-                          <h2 className="text-4xl font-serif text-luxury-black">Access Required</h2>
+                          <h2 className="text-4xl font-serif text-luxury-black">
+                            Access Required
+                          </h2>
                           <p className="text-charcoal/60 max-w-md mx-auto">
-                            Virtual Try-On is currently restricted to approved users during this phase.
-                            Request access now to try on outfits with your AI avatar.
+                            Virtual Try-On is currently restricted to approved
+                            users during this phase. Request access now to try
+                            on outfits with your AI avatar.
                           </p>
                           <button
                             onClick={handleRequestAccess}
                             disabled={requestingAccess}
                             className="px-12 py-4 rounded-xl font-medium text-xs tracking-[0.2em] uppercase text-white transition-all shadow-lg hover:shadow-gold/20 active:scale-[0.98]"
                             style={{
-                              background: '#D4AF37',
+                              background: "#D4AF37",
                             }}
                           >
-                            {requestingAccess ? 'Requesting...' : 'Request Try-On Access'}
+                            {requestingAccess
+                              ? "Requesting..."
+                              : "Request Try-On Access"}
                           </button>
                         </>
                       )}
@@ -527,7 +566,9 @@ const AiTryOn = () => {
                       {productsLoading && (
                         <div className="py-20 text-center md:py-24">
                           <div className="inline-block animate-spin rounded-full h-10 w-10 border-2 border-luxury-gold border-t-transparent mb-6" />
-                          <p className="text-xs uppercase tracking-widest text-neutral-400 italic">Curating your selection...</p>
+                          <p className="text-xs uppercase tracking-widest text-neutral-400 italic">
+                            Curating your selection...
+                          </p>
                         </div>
                       )}
 
@@ -536,80 +577,107 @@ const AiTryOn = () => {
                         <div
                           className="p-8 rounded-2xl text-center"
                           style={{
-                            background: 'rgba(239, 68, 68, 0.05)',
-                            border: '1px solid rgba(239, 68, 68, 0.2)',
+                            background: "rgba(239, 68, 68, 0.05)",
+                            border: "1px solid rgba(239, 68, 68, 0.2)",
                           }}
                         >
                           <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
                           <p className="text-charcoal font-medium">
-                            Failed to load clothing items. Please try again later.
+                            Failed to load clothing items. Please try again
+                            later.
                           </p>
                         </div>
                       )}
 
                       {/* Products Grid */}
-                      {!productsLoading && !productsError && productsData?.products && (
-                        <>
-                          <div className="mb-6 flex flex-col gap-3 border-b border-neutral-100 pb-4 sm:mb-8 sm:flex-row sm:items-end sm:justify-between sm:pb-5">
-                            <div>
-                              <h2 className="text-2xl md:text-3xl font-serif text-luxury-black italic mb-1">
-                                Select Your Masterpiece
-                              </h2>
-                              <p className="text-[11px] uppercase tracking-[0.2em] text-neutral-400 font-medium">
-                                {productsData.products.filter((p: any) => {
+                      {!productsLoading &&
+                        !productsError &&
+                        productsData?.products && (
+                          <>
+                            <div className="mb-6 flex flex-col gap-3 border-b border-neutral-100 pb-4 sm:mb-8 sm:flex-row sm:items-end sm:justify-between sm:pb-5">
+                              <div>
+                                <h2 className="text-2xl md:text-3xl font-serif text-luxury-black italic mb-1">
+                                  Select Your Masterpiece
+                                </h2>
+                                <p className="text-[11px] uppercase tracking-[0.2em] text-neutral-400 font-medium">
+                                  {
+                                    productsData.products.filter((p: any) => {
+                                      // Age filter: Only show models 40 or younger (or if age not specified)
+                                      const age = p.metadata?.model_age;
+                                      if (age && age > 40) return false;
+
+                                      // Description filter: Must have a description
+                                      if (
+                                        !p.description ||
+                                        p.description.trim() === ""
+                                      )
+                                        return false;
+
+                                      // Quality filter: Remove "Bad quality" items
+                                      if (
+                                        p.title
+                                          .toLowerCase()
+                                          .includes("bad quality")
+                                      )
+                                        return false;
+
+                                      return true;
+                                    }).length
+                                  }{" "}
+                                  Designs Curated for Your Aura
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 gap-4 min-[560px]:grid-cols-2 sm:gap-6 lg:grid-cols-3 xl:grid-cols-4">
+                              {productsData.products
+                                .filter((product: any) => {
                                   // Age filter: Only show models 40 or younger (or if age not specified)
-                                  const age = p.metadata?.model_age;
+                                  const age = product.metadata?.model_age;
                                   if (age && age > 40) return false;
 
                                   // Description filter: Must have a description
-                                  if (!p.description || p.description.trim() === '') return false;
+                                  if (
+                                    !product.description ||
+                                    product.description.trim() === ""
+                                  )
+                                    return false;
 
                                   // Quality filter: Remove "Bad quality" items
-                                  if (p.title.toLowerCase().includes('bad quality')) return false;
+                                  if (
+                                    product.title
+                                      .toLowerCase()
+                                      .includes("bad quality")
+                                  )
+                                    return false;
 
                                   return true;
-                                }).length} Designs Curated for Your Aura
-                              </p>
+                                })
+                                .map((product: any) => (
+                                  <ClothingItemCard
+                                    key={product.product_id}
+                                    product={product}
+                                    onTryOn={() =>
+                                      handleTryOn(
+                                        product.product_id,
+                                        TRYON_PROVIDER.VERTEX,
+                                      )
+                                    }
+                                    onTryOnGemini={() =>
+                                      handleTryOn(
+                                        product.product_id,
+                                        TRYON_PROVIDER.GEMINI,
+                                      )
+                                    }
+                                    loading={
+                                      selectedProduct === product.product_id &&
+                                      tryOnLoading
+                                    }
+                                  />
+                                ))}
                             </div>
-                          </div>
-
-                          <div className="grid grid-cols-1 gap-4 min-[560px]:grid-cols-2 sm:gap-6 lg:grid-cols-3 xl:grid-cols-4">
-                            {productsData.products
-                              .filter((product: any) => {
-                                // Age filter: Only show models 40 or younger (or if age not specified)
-                                const age = product.metadata?.model_age;
-                                if (age && age > 40) return false;
-
-                                // Description filter: Must have a description
-                                if (!product.description || product.description.trim() === '') return false;
-
-                                // Quality filter: Remove "Bad quality" items
-                                if (product.title.toLowerCase().includes('bad quality')) return false;
-
-                                return true;
-                              })
-                              .map((product: any) => (
-                                <ClothingItemCard
-                                  key={product.product_id}
-                                  product={product}
-                                  onTryOn={() =>
-                                    handleTryOn(
-                                      product.product_id,
-                                      TRYON_PROVIDER.VERTEX,
-                                    )
-                                  }
-                                  onTryOnGemini={() =>
-                                    handleTryOn(
-                                      product.product_id,
-                                      TRYON_PROVIDER.GEMINI,
-                                    )
-                                  }
-                                  loading={selectedProduct === product.product_id && tryOnLoading}
-                                />
-                              ))}
-                          </div>
-                        </>
-                      )}
+                          </>
+                        )}
                     </>
                   )}
                 </div>
@@ -629,15 +697,15 @@ const AiTryOn = () => {
           navigate(-1);
         }}
         type="login"
-        onAction={() => navigate('/user-login')}
+        onAction={() => navigate("/user-login")}
       />
 
       {/* Aura Popup */}
       <AuthPopup
         isOpen={showAuraPopup}
-        onClose={() => navigate('/collection')}
+        onClose={() => navigate("/collection")}
         type="aura"
-        onAction={() => navigate('/aura-dashboard')}
+        onAction={() => navigate("/aura-dashboard")}
       />
 
       <TryOnUpgradePopup
@@ -660,11 +728,13 @@ const AiTryOn = () => {
         generatingAngles={generatingAngles}
         userPhoto={aura?.image_url}
         garmentId={currentProductId || undefined}
-        garmentTitle={currentProductId ? resolveProductLabel(currentProductId) : undefined}
+        garmentTitle={
+          currentProductId ? resolveProductLabel(currentProductId) : undefined
+        }
         generatedImages={generatedImages}
         onSelectImage={(img) => setResultImage(img)}
         feedbackContext={
-          feedbackContext?.type === 'VIRTUAL_TRYON'
+          feedbackContext?.type === "VIRTUAL_TRYON"
             ? {
                 referenceId: feedbackContext.referenceId,
                 label: feedbackContext.label,
@@ -680,7 +750,6 @@ const AiTryOn = () => {
         onClose={() => setShowGallery(false)}
         tryOns={tryOnHistory}
       />
-
     </div>
   );
 };

@@ -227,11 +227,7 @@ export class TryOn3DService {
       `🔵 VERTEX AI - Using Vertex AI for initial try-on (no background)`,
     );
 
-    const tryOnAvatarUrl = aura.model_url;
-
-    /*
     const tryOnAvatarUrl = aura.tryon_model_url || aura.model_url;
-    */
 
     // Validate that avatar has been generated
     if (!tryOnAvatarUrl) {
@@ -275,10 +271,11 @@ export class TryOn3DService {
       enhancedParams,
     );
 
-    const vertexReturnedAvatar = await this.imageOptimizer.areImagesVisuallySimilar(
-      result.resultImage,
-      tryOnAvatarUrl,
-    );
+    const vertexReturnedAvatar =
+      await this.imageOptimizer.areImagesVisuallySimilar(
+        result.resultImage,
+        tryOnAvatarUrl,
+      );
 
     if (vertexReturnedAvatar) {
       throw new HttpException(

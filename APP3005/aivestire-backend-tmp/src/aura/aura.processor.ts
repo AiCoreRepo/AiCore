@@ -7,6 +7,12 @@ import { GeminiAIService } from '../common/gemini-ai.service';
 import { AuraJobData } from './aura-queue.service';
 import { AuraStatus } from '@prisma/client';
 import { QUEUE_NAMES, JOB_NAMES } from '../common/constants/queue.constants';
+import {
+  buildAuraAttributesMetadata,
+  createAuraAvatarHistoryEntry,
+  getAuraAttributeSnapshotFromRecord,
+  normalizeAuraAvatarHistory,
+} from './aura-avatar-history.util';
 
 @Injectable()
 @Processor(QUEUE_NAMES.AURA_GENERATION)
@@ -24,7 +30,7 @@ export class AuraProcessor {
 
   @Process(JOB_NAMES.GENERATE_AVATARS)
   async handleAuraGeneration(job: bull.Job<AuraJobData>) {
-    const { auraId, userId, imageUrl, attributes } = job.data;
+    const { auraId, userId, imageUrl, attributes, generationSource } = job.data;
 
     try {
       console.log(
@@ -117,14 +123,62 @@ export class AuraProcessor {
       console.log(`💾 [Aura Processor] Updating database...`);
       await job.progress(90);
 
+      const existingAura = await this.prisma.aura.findUnique({
+        where: { aura_id: auraId },
+      });
+      const currentAuraAttributes = existingAura
+        ? getAuraAttributeSnapshotFromRecord(existingAura)
+        : {
+            height_cm: attributes.height,
+            weight_kg: attributes.weight,
+            skin_tone: attributes.skinTone,
+            gender: attributes.gender,
+            body_shape: attributes.bodyShape,
+            body_size: attributes.bodySize,
+            age_range: attributes.ageRange,
+            hair_style: attributes.hairStyle,
+          };
+      const { avatarHistory } = normalizeAuraAvatarHistory({
+        attributesJson: existingAura?.attributes,
+        modelUrl: existingAura?.model_url,
+        tryOnModelUrl: existingAura?.tryon_model_url,
+        generatedAvatarUrls: existingAura?.generated_avatar_urls,
+        createdAt: existingAura?.created_at,
+        updatedAt: existingAura?.updated_at,
+        currentAttributes: currentAuraAttributes,
+      });
+      const currentAvatar = createAuraAvatarHistoryEntry({
+        modelUrl: finalAvatarUrl,
+        tryOnModelUrl: tryOnAvatarUrl,
+        source:
+          generationSource === 'recreation' || avatarHistory.length > 0
+            ? 'recreation'
+            : 'creation',
+        generationType:
+          avatarMetadata.type === 'original' ? 'original' : 'generated',
+        createdAt: avatarMetadata.generatedAt || avatarMetadata.processedAt,
+        attributes: currentAuraAttributes,
+      });
+      const updatedAvatarHistory = [...avatarHistory, currentAvatar];
+      const generatedAvatarUrls = Array.from(
+        new Set([
+          ...(existingAura?.generated_avatar_urls ?? []),
+          finalAvatarUrl,
+        ]),
+      );
+
       const updatedAura = await this.prisma.aura.update({
         where: { aura_id: auraId },
         data: {
           status: AuraStatus.READY,
           model_url: finalAvatarUrl,
           tryon_model_url: tryOnAvatarUrl,
-          generated_avatar_urls: [finalAvatarUrl],
-          attributes: avatarMetadata,
+          generated_avatar_urls: generatedAvatarUrls,
+          attributes: buildAuraAttributesMetadata(
+            existingAura?.attributes,
+            updatedAvatarHistory,
+            currentAvatar,
+          ) as any,
         },
       });
 
@@ -139,6 +193,7 @@ export class AuraProcessor {
         success: true,
         auraId,
         avatar: {
+          avatarId: currentAvatar.avatar_id,
           url: finalAvatarUrl,
           tryOnUrl: tryOnAvatarUrl,
           type: avatarMetadata.type,

@@ -12,6 +12,7 @@ export interface AuraJobData {
   auraId: string;
   userId: string;
   imageUrl: string;
+  generationSource?: 'creation' | 'recreation';
   attributes: {
     height: number;
     weight: number;
