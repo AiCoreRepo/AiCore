@@ -144,7 +144,10 @@ const AuraDashboard = () => {
       };
 
       navigate("/aura-profile", {
-        state: feedbackContext ? { feedbackContext } : undefined,
+        state: {
+          ...(feedbackContext ? { feedbackContext } : {}),
+          hideAuraLibrary: true,
+        },
       });
     }, 1000);
   }

@@ -1,4 +1,4 @@
-import { ChangeEvent, useCallback, useEffect, useState } from "react";
+import { ChangeEvent, useCallback, useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast"; // Import toast hook
 import { EditableAttributeCard } from "@/components/aura/EditableAttributeCard";
@@ -125,6 +125,9 @@ export default function AuraProfile() {
   const [showFeedbackSheet, setShowFeedbackSheet] = useState(false);
   const [feedbackContext, setFeedbackContext] =
     useState<FeedbackContext | null>(null);
+  const [hideAuraLibrary, setHideAuraLibrary] = useState(false);
+  const [pendingAvatarScroll, setPendingAvatarScroll] = useState(false);
+  const avatarPanelRef = useRef<HTMLDivElement | null>(null);
   const { toast } = useToast();
   const displayedRecreateProgress = recreateJobId
     ? recreateProgress
@@ -362,17 +365,49 @@ export default function AuraProfile() {
   useEffect(() => {
     const state = location.state as {
       feedbackContext?: FeedbackContext;
+      hideAuraLibrary?: boolean;
     } | null;
     const incomingContext = state?.feedbackContext;
+    const shouldHideAuraLibrary = Boolean(state?.hideAuraLibrary);
 
-    if (!incomingContext?.type) {
+    if (shouldHideAuraLibrary) {
+      setHideAuraLibrary(true);
+      setPendingAvatarScroll(true);
+    }
+
+    if (!incomingContext?.type && !shouldHideAuraLibrary) {
       return;
     }
 
-    setFeedbackContext(incomingContext);
-    setShowFeedbackSheet(true);
+    if (incomingContext?.type) {
+      setFeedbackContext(incomingContext);
+      setShowFeedbackSheet(true);
+    }
     navigate(location.pathname, { replace: true, state: null });
   }, [location.state, location.pathname, navigate]);
+
+  useEffect(() => {
+    if (!pendingAvatarScroll || loading || !aura) {
+      return;
+    }
+
+    const shouldAutoScroll =
+      typeof window !== "undefined" &&
+      window.matchMedia("(max-width: 1024px)").matches;
+
+    if (!shouldAutoScroll) {
+      setPendingAvatarScroll(false);
+      return;
+    }
+
+    requestAnimationFrame(() => {
+      avatarPanelRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+      setPendingAvatarScroll(false);
+    });
+  }, [pendingAvatarScroll, loading, aura]);
 
   const closeFeedbackSheet = () => {
     setShowFeedbackSheet(false);
@@ -726,6 +761,7 @@ export default function AuraProfile() {
               ? String(payload.result.auraId)
               : latestAuraId;
           fetchAura();
+          setPendingAvatarScroll(true);
           setRecreateUsed((prev) => Math.min(prev + 1, maxRecreationAttempts));
           setFeedbackContext({
             type: "AVATAR_RECREATION",
@@ -993,13 +1029,14 @@ export default function AuraProfile() {
         </div>
 
         {/* Right Panel - Avatar Display */}
-        <div className="avatar-panel">
+        <div ref={avatarPanelRef} className="avatar-panel">
           <AvatarDisplay
             imageUrl={activeAvatarImageUrl}
             userName={avatarUserName}
           />
 
-          <div className="mt-8 rounded-[32px] border border-[#E6D8BA] bg-white/85 p-5 shadow-[0_24px_60px_rgba(143,110,47,0.12)] md:p-6">
+          {!hideAuraLibrary && (
+            <div className="mt-8 rounded-[32px] border border-[#E6D8BA] bg-white/85 p-5 shadow-[0_24px_60px_rgba(143,110,47,0.12)] md:p-6">
             <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
               <div>
                 <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#8A6936]">
@@ -1149,7 +1186,8 @@ export default function AuraProfile() {
                 each recreation.
               </div>
             )}
-          </div>
+            </div>
+          )}
         </div>
       </div>
 
