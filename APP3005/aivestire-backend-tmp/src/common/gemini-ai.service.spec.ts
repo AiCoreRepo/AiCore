@@ -37,18 +37,17 @@ describe('GeminiAIService prompt building', () => {
     expect(prompt.instructions.identity).toContain(
       'expand the canvas and reconstruct the missing framing so the complete head and full hair silhouette are visible naturally',
     );
-    expect(prompt.instructions.identity).toContain(
-      'height is authoritative',
+    expect(prompt.instructions.identity).toContain('height is authoritative');
+    expect(prompt.instructions.clothing).toContain(
+      'Apply ONLY the full visible outfit from Image 2 faithfully.',
     );
     expect(prompt.instructions.clothing).toContain(
-      'Apply ONLY the garment from Image 2 faithfully.',
+      'Make the person from Image 1 actually wear the Image 2 outfit naturally on their body.',
     );
     expect(prompt.instructions.clothing).toContain(
       'not to the mannequin or model proportions seen in Image 2',
     );
-    expect(prompt.instructions.output).toContain(
-      'Full body (head to toe)',
-    );
+    expect(prompt.instructions.output).toContain('Full body (head to toe)');
     expect(prompt.instructions.output).toContain(
       'full head visible with all hair fully in frame',
     );
@@ -58,11 +57,10 @@ describe('GeminiAIService prompt building', () => {
     expect(prompt.instructions.output).toContain(
       'visible side margin around the hair silhouette',
     );
+    expect(prompt.instructions.output).toContain('happy closed-mouth smile');
+    expect(prompt.instructions.output).toContain('no visible teeth');
     expect(prompt.instructions.output).toContain(
-      'happy closed-mouth smile',
-    );
-    expect(prompt.instructions.output).toContain(
-      'no visible teeth',
+      'the person from Image 1 is wearing the full outfit from Image 2',
     );
   });
 
@@ -113,6 +111,17 @@ describe('GeminiAIService prompt building', () => {
 
     expect(prompt.constraints).toContain('Do NOT crop the output');
     expect(prompt.constraints).toContain(
+      'Return exactly one newly generated avatar image',
+    );
+    expect(prompt.constraints).toContain('Do NOT return Image 1 unchanged');
+    expect(prompt.constraints).toContain('Do NOT return Image 2 unchanged');
+    expect(prompt.constraints).toContain(
+      'Do NOT leave the original outfit from Image 1 in place with only tiny edits',
+    );
+    expect(prompt.constraints).toContain(
+      'Do NOT create a collage, side-by-side panel, before/after layout, product board, or multiple people',
+    );
+    expect(prompt.constraints).toContain(
       'Do NOT crop, trim, cut off, or hide any part of the hair, head, or forehead',
     );
     expect(prompt.constraints).toContain(
@@ -144,7 +153,7 @@ describe('GeminiAIService prompt building', () => {
       'Do NOT carry over any hats, caps, sunglasses, or headwear from Image 1',
     );
     expect(prompt.constraints).toContain(
-      'ONLY the clothing garment from Image 2 should appear on the final avatar',
+      'ONLY the full visible outfit from Image 2 should appear on the final avatar',
     );
   });
 });

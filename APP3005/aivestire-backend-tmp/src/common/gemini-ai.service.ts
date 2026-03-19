@@ -167,7 +167,9 @@ export class GeminiAIService {
     }
   }
 
-  private async fetchImageAsInlineData(url: string): Promise<GeminiInlineImage> {
+  private async fetchImageAsInlineData(
+    url: string,
+  ): Promise<GeminiInlineImage> {
     if (url.startsWith('data:')) {
       const [header, data] = url.split(',', 2);
       const mimeType = header.match(/^data:(.*?);base64$/)?.[1] || 'image/jpeg';
@@ -231,15 +233,20 @@ export class GeminiAIService {
         identity:
           "Preserve the person's exact face features, skin tone, hairline, hairstyle, hair length, hair volume, hair texture, and body type exactly. Keep the same identity from Image 1 without beautifying, reshaping, or simplifying the face or hair. If the source image is cropped, zoomed, or half-body, expand the canvas and reconstruct the missing framing so the complete head and full hair silhouette are visible naturally. Use the provided person_attributes to reconstruct the full body naturally if only a selfie or half-body is given. If height is provided in person_attributes, that height is authoritative and must override any apparent proportions from Image 1 or Image 2.",
         clothing:
-          "Apply ONLY the garment from Image 2 faithfully. Keep all colors, patterns, textures, and details intact. Make it look naturally worn on the person's body. Scale and fit the garment to the real person described in person_attributes, not to the mannequin or model proportions seen in Image 2.",
+          'Apply ONLY the full visible outfit from Image 2 faithfully. Keep all colors, patterns, textures, trims, embroidery, silhouette, neckline, sleeves, layering, shoes, jewelry, and accessories that are visible in Image 2 intact. Make the person from Image 1 actually wear the Image 2 outfit naturally on their body. The clothing must look worn by the person, not pasted on, floating, overlaid, or shown as a separate product shot. Scale and fit the outfit to the real person described in person_attributes, not to the mannequin or model proportions seen in Image 2.',
         output:
-          'Full body (head to toe), full head visible with all hair fully in frame, generous headroom above the hair, visible side margin around the hair silhouette, confident standing pose, happy closed-mouth smile, no visible teeth, clean studio background, soft lighting, photorealistic quality.',
+          'Full body (head to toe), full head visible with all hair fully in frame, generous headroom above the hair, visible side margin around the hair silhouette, confident standing pose, happy closed-mouth smile, no visible teeth, clean studio background, soft lighting, photorealistic quality. The final image must clearly show that the person from Image 1 is wearing the full outfit from Image 2.',
       },
       constraints: [
+        'Return exactly one newly generated avatar image',
         'Do NOT crop the output',
         'Do NOT crop, trim, cut off, or hide any part of the hair, head, or forehead',
         'Do NOT let the hair, head, or forehead touch the top or side edges of the image',
         'Do NOT zoom in so tightly that the full hair silhouette is not visible',
+        'Do NOT return Image 1 unchanged',
+        'Do NOT return Image 2 unchanged',
+        'Do NOT leave the original outfit from Image 1 in place with only tiny edits',
+        'Do NOT create a collage, side-by-side panel, before/after layout, product board, or multiple people',
         'Do NOT distort or change the face',
         'Do NOT change face shape, eye shape, nose, lips, jawline, or hairline',
         'Do NOT shorten, restyle, flatten, tie back, or simplify the hair',
@@ -247,11 +254,10 @@ export class GeminiAIService {
         'Do NOT use the mannequin or clothing-model height, leg length, or body proportions from Image 2',
         'Do NOT let Image 2 override the height specified in person_attributes',
         'Do NOT show teeth in the smile',
-        'Do NOT add extra clothing or accessories',
         'Do NOT carry over any ornaments, jewelry, rings, necklaces, earrings, or accessories from Image 1',
         'Do NOT carry over any bags, purses, handbags, or carried items from Image 1',
         'Do NOT carry over any hats, caps, sunglasses, or headwear from Image 1',
-        'ONLY the clothing garment from Image 2 should appear on the final avatar',
+        'ONLY the full visible outfit from Image 2 should appear on the final avatar',
       ],
     };
 
