@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AlertCircle, MessageSquareText, Star, X } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { FeedbackContextType, submitFeedback } from "@/lib/api";
 
 interface FeedbackContext {
@@ -36,6 +37,7 @@ export const FeedbackBottomSheet = ({
   const [error, setError] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isMobile = useIsMobile();
 
   const isAvatarFeedback =
     context.type === "AVATAR_CREATION" || context.type === "AVATAR_RECREATION";
@@ -116,7 +118,7 @@ export const FeedbackBottomSheet = ({
     setRating(value);
     setError("");
 
-    if (isAvatarFeedback && value > 0) {
+    if (isAvatarFeedback && value > 0 && !isMobile) {
       setShowOptionalComment(true);
     }
   };
@@ -124,6 +126,8 @@ export const FeedbackBottomSheet = ({
   if (!isOpen) {
     return null;
   }
+
+  const autoShowAvatarComment = isAvatarFeedback && rating > 0 && !isMobile;
 
   const helperMessage = isVirtualTryOnFeedback
     ? isPositiveRating
@@ -134,7 +138,9 @@ export const FeedbackBottomSheet = ({
     : rating === 0
       ? "Rate your Aura first. A quick note helps us improve the next result."
       : isPositiveRating
-        ? "Your note box is ready. Add a quick message if you want, then submit and we will save it right away."
+        ? autoShowAvatarComment
+          ? "Your note box is ready. Add a quick message if you want, then submit and we will save it right away."
+          : "Add a quick note if you want, or submit now. We will save your rating right away."
         : "Tell us what felt off. We will work on it and keep improving the result for you.";
 
   const submittedMessage = isVirtualTryOnFeedback
@@ -145,7 +151,7 @@ export const FeedbackBottomSheet = ({
       ? "Feedback received. Glad we helped you. We are continuously working to improve your experience."
       : "Feedback received. We will work on this and keep improving until the result feels right for you.";
   const showCommentField =
-    (isAvatarFeedback && rating > 0) ||
+    autoShowAvatarComment ||
     requiresComment ||
     showOptionalComment ||
     comment.trim().length > 0 ||
@@ -225,9 +231,9 @@ export const FeedbackBottomSheet = ({
           <textarea
             value={comment}
             onChange={(event) => setComment(event.target.value)}
-            rows={3}
+            rows={isMobile ? 2 : 3}
             disabled={submitted}
-            className="min-h-[88px] w-full resize-none rounded-xl border border-[#D4B76E]/50 bg-white px-2.5 py-2 text-[12px] outline-none placeholder:text-[#B7A07D] focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/35 sm:px-3 sm:py-2.5 sm:text-sm"
+            className="min-h-[68px] w-full resize-none rounded-xl border border-[#D4B76E]/50 bg-white px-2.5 py-2 text-[12px] outline-none placeholder:text-[#B7A07D] focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/35 sm:min-h-[88px] sm:px-3 sm:py-2.5 sm:text-sm"
             placeholder={
               requiresComment
                 ? "Tell us what can be better..."
