@@ -8,7 +8,7 @@ import { useSidebar } from "@/context/SidebarContext";
 
 const WardrobePage: React.FC = () => {
     const { user } = useAuth();
-    const { sidebarWidth } = useSidebar();
+    const { sidebarWidth, isMobile } = useSidebar();
 
     const navLinks = [
         { label: "Dashboard", icon: <LayoutDashboard size={20} />, href: "/creator-dashboard" },
@@ -29,10 +29,13 @@ const WardrobePage: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen flex" style={{ background: LuxeColors.background }}>
+        <div className="min-h-screen flex overflow-x-hidden" style={{ background: LuxeColors.background }}>
             <LuxeSidebar user={sidebarUser} navLinks={navLinks} />
-            <div className="flex-1 dashboard-theme transition-all duration-300 ease-in-out" style={{ marginLeft: sidebarWidth }}>
-                <div className="min-h-screen dashboard-gradient p-8">
+            <div
+                className="flex-1 dashboard-theme min-w-0 transition-all duration-300 ease-in-out"
+                style={{ marginLeft: isMobile ? "0px" : sidebarWidth }}
+            >
+                <div className="min-h-screen dashboard-gradient px-4 py-5 sm:px-6 sm:py-6 lg:p-8">
                     <WardrobeContent />
                 </div>
             </div>

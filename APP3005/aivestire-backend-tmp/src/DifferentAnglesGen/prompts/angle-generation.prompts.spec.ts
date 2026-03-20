@@ -25,5 +25,14 @@ describe('generateAnglePrompt', () => {
     expect(prompt).toContain('Do NOT crop, zoom, trim, or reframe the input reference.');
     expect(prompt).toContain('Original reference dimensions: 1024x1536.');
     expect(prompt).toContain('Keep the person fully visible from head to toe.');
+    expect(prompt).toContain(
+      'Maintain natural human anatomy and realistic proportions, including a correct head-to-body ratio, centered neck placement, aligned shoulders, and proportional torso, arms, hands, legs, and feet.',
+    );
+    expect(prompt).toContain(
+      'Do NOT stretch, squeeze, elongate, shrink, warp, or tilt the face, head, neck, shoulders, torso, arms, hands, hips, legs, or feet.',
+    );
+    expect(prompt).toContain(
+      'Do NOT generate an oversized face, undersized face, floating face, mismatched face-to-body scale, merged limbs, duplicated limbs, or broken anatomy.',
+    );
   });
 });

@@ -40,7 +40,7 @@ export const FeedbackBottomSheet = ({
   const isAvatarFeedback =
     context.type === "AVATAR_CREATION" || context.type === "AVATAR_RECREATION";
   const isVirtualTryOnFeedback = context.type === "VIRTUAL_TRYON";
-  const isLowAvatarRating = isAvatarFeedback && rating > 0 && rating <= 2;
+  const isPositiveRating = rating >= 4;
   const requiresComment = rating > 0 && rating <= 3;
   const canSubmit = rating > 0 && (!requiresComment || comment.trim().length >= 4);
 
@@ -104,11 +104,20 @@ export const FeedbackBottomSheet = ({
       if (closeTimerRef.current) {
         clearTimeout(closeTimerRef.current);
       }
-      closeTimerRef.current = setTimeout(() => onClose(), 2000);
+      closeTimerRef.current = setTimeout(() => onClose(), 3200);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save feedback");
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleRatingSelect = (value: number) => {
+    setRating(value);
+    setError("");
+
+    if (isAvatarFeedback && value > 0) {
+      setShowOptionalComment(true);
     }
   };
 
@@ -117,31 +126,42 @@ export const FeedbackBottomSheet = ({
   }
 
   const helperMessage = isVirtualTryOnFeedback
-    ? rating >= 4
+    ? isPositiveRating
       ? "We are glad you liked the virtual try-on. Want to add a quick note before you submit?"
       : requiresComment
         ? "We are continuously improving the virtual try-on experience. Please tell us what felt off."
         : "How was your virtual try-on? Give it a quick rating."
-    : isLowAvatarRating
-      ? "Sorry for that. We continuously work to improve our model."
-      : "Share your experience. 3 stars or below always asks for a short note.";
+    : rating === 0
+      ? "Rate your Aura first. A quick note helps us improve the next result."
+      : isPositiveRating
+        ? "Your note box is ready. Add a quick message if you want, then submit and we will save it right away."
+        : "Tell us what felt off. We will work on it and keep improving the result for you.";
 
   const submittedMessage = isVirtualTryOnFeedback
-    ? rating >= 4
+    ? isPositiveRating
       ? "We are glad the virtual try-on worked well for you."
       : "Thanks for the honest feedback. We are continuously improving the virtual try-on experience."
-    : isLowAvatarRating
-      ? "We are sorry."
-      : "Thanks for your feedback. We are continuously improving to make your experience better.";
+    : isPositiveRating
+      ? "Feedback received. Glad we helped you. We are continuously working to improve your experience."
+      : "Feedback received. We will work on this and keep improving until the result feels right for you.";
   const showCommentField =
-    requiresComment || showOptionalComment || comment.trim().length > 0 || submitted;
+    (isAvatarFeedback && rating > 0) ||
+    requiresComment ||
+    showOptionalComment ||
+    comment.trim().length > 0 ||
+    submitted;
   const mobilePlacementClass =
     mobilePlacement === "above-actions" ? "bottom-[5.75rem] right-2" : "bottom-2 right-2";
-  const showMobileHelper = submitted || error || requiresComment || isVirtualTryOnFeedback;
+  const showMobileHelper =
+    submitted ||
+    error ||
+    requiresComment ||
+    isVirtualTryOnFeedback ||
+    (isAvatarFeedback && rating > 0);
 
   return (
     <div
-      className={`fixed z-50 w-[min(calc(100vw-1rem),220px)] rounded-[18px] border border-[#D4B76E]/40 bg-white/95 p-2.5 shadow-2xl backdrop-blur ${mobilePlacementClass} sm:bottom-4 sm:right-4 sm:w-[min(92vw,380px)] sm:max-w-none sm:rounded-2xl sm:p-4`}
+      className={`fixed z-50 max-h-[calc(100dvh-1rem)] w-[min(calc(100vw-1rem),340px)] overflow-y-auto rounded-[18px] border border-[#D4B76E]/40 bg-white/95 p-2.5 shadow-2xl backdrop-blur ${mobilePlacementClass} sm:bottom-4 sm:right-4 sm:w-[min(92vw,380px)] sm:max-w-none sm:rounded-2xl sm:p-4`}
       style={{
         background:
           "linear-gradient(135deg, rgba(255,255,255,0.95), rgba(248,243,235,0.98))",
@@ -187,7 +207,7 @@ export const FeedbackBottomSheet = ({
           <button
             key={value}
             type="button"
-            onClick={() => setRating(value)}
+            onClick={() => handleRatingSelect(value)}
             className={`rounded-full p-1 transition ${submitted ? "pointer-events-none" : ""} ${value <= rating ? "text-[#D4AF37]" : "text-[#CAB08A]/50"} hover:text-[#D4AF37]`}
             aria-label={`Rate ${value} stars`}
             disabled={submitted}
@@ -205,10 +225,16 @@ export const FeedbackBottomSheet = ({
           <textarea
             value={comment}
             onChange={(event) => setComment(event.target.value)}
-            rows={1}
+            rows={3}
             disabled={submitted}
-            className="w-full resize-none rounded-xl border border-[#D4B76E]/50 bg-white px-2.5 py-1.5 text-[12px] outline-none placeholder:text-[#B7A07D] focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/35 sm:px-3 sm:py-2 sm:text-sm"
-            placeholder={requiresComment ? "Tell us what can be better..." : isVirtualTryOnFeedback ? "Anything you loved or want improved?" : "Anything we can improve?"}
+            className="min-h-[88px] w-full resize-none rounded-xl border border-[#D4B76E]/50 bg-white px-2.5 py-2 text-[12px] outline-none placeholder:text-[#B7A07D] focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/35 sm:px-3 sm:py-2.5 sm:text-sm"
+            placeholder={
+              requiresComment
+                ? "Tell us what can be better..."
+                : isVirtualTryOnFeedback
+                  ? "Anything you loved or want improved?"
+                  : "Share anything you liked or want us to improve..."
+            }
           />
         </>
       )}

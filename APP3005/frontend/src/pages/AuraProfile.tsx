@@ -1108,7 +1108,7 @@ export default function AuraProfile() {
                         <img
                           src={avatarItem.model_url}
                           alt="Generated Aura avatar"
-                          className="h-[240px] w-full object-cover object-top"
+                          className="h-[240px] w-full object-contain object-center"
                         />
                         <div className="absolute left-3 top-3 flex flex-wrap gap-2">
                           <span className="rounded-full bg-white/90 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#7A5A2A] shadow-sm">
@@ -1265,7 +1265,7 @@ export default function AuraProfile() {
                     <img
                       src={recreatePhotoPreview}
                       alt="Selected photo preview"
-                      className="w-full h-full object-cover object-top"
+                      className="w-full h-full object-contain object-center bg-[#F5EDDD]"
                     />
                   ) : (
                     <div className="recreate-photo-placeholder">
@@ -1284,7 +1284,7 @@ export default function AuraProfile() {
                   <img
                     src={aura.image_url}
                     alt="Current source photo"
-                    className="w-full h-full object-cover object-top"
+                    className="w-full h-full object-contain object-center bg-[#F5EDDD]"
                   />
                 </div>
               </div>

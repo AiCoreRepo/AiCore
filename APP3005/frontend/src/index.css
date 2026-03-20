@@ -139,10 +139,22 @@
 
     html {
         scroll-behavior: smooth;
+        -webkit-text-size-adjust: 100%;
+        text-size-adjust: 100%;
+        width: 100%;
+        overflow-x: hidden;
     }
 
     body {
         @apply bg-background text-foreground font-sans antialiased;
+        width: 100%;
+        overflow-x: hidden;
+    }
+
+    #root {
+        min-height: 100%;
+        width: 100%;
+        overflow-x: hidden;
     }
 
     h1,

@@ -8,7 +8,7 @@ import { useSidebar } from "@/context/SidebarContext";
 
 const AnalyticsPage: React.FC = () => {
     const { user } = useAuth();
-    const { sidebarWidth } = useSidebar();
+    const { sidebarWidth, isMobile } = useSidebar();
 
     const navLinks = [
         { label: "Dashboard", icon: <LayoutDashboard size={20} />, href: "/creator-dashboard" },
@@ -29,10 +29,13 @@ const AnalyticsPage: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen flex" style={{ background: LuxeColors.background }}>
+        <div className="min-h-screen flex overflow-x-hidden" style={{ background: LuxeColors.background }}>
             <LuxeSidebar user={sidebarUser} navLinks={navLinks} />
-            <div className="flex-1 dashboard-theme transition-all duration-300 ease-in-out" style={{ marginLeft: sidebarWidth }}>
-                <div className="min-h-screen dashboard-gradient flex flex-col items-center justify-center p-8 text-center relative overflow-hidden">
+            <div
+                className="flex-1 dashboard-theme min-w-0 transition-all duration-300 ease-in-out"
+                style={{ marginLeft: isMobile ? "0px" : sidebarWidth }}
+            >
+                <div className="min-h-screen dashboard-gradient relative flex flex-col items-center justify-center overflow-hidden px-4 py-8 text-center sm:px-6 lg:p-8">
 
                     {/* Decorative Background Elements */}
                     <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-luxury-gold/5 rounded-full blur-3xl pointer-events-none" />

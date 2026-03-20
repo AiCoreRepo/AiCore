@@ -89,6 +89,11 @@ export function TryOnResultModal({
   const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
   const [feedbackError, setFeedbackError] = useState("");
   const [hasCompletedUserPrompt, setHasCompletedUserPrompt] = useState(false);
+  const wasOpenRef = useRef(false);
+  const previousLoadingRef = useRef(false);
+  const feedbackRevealTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
 
   // Progress State
   const [loadingProgress, setLoadingProgress] = useState(0);
@@ -135,19 +140,23 @@ export function TryOnResultModal({
     { id: 4, label: "Finalizing", icon: "🎨", status: "pending" },
   ];
 
-  // Reset state when modal opens
+  // Reset the conversation only for a fresh try-on, not for angle generation.
   useEffect(() => {
-    if (isOpen) {
+    const openedNow = isOpen && !wasOpenRef.current;
+    const startedFreshTryOn = isOpen && loading && !previousLoadingRef.current;
+
+    if (openedNow || startedFreshTryOn) {
+      if (feedbackRevealTimerRef.current) {
+        clearTimeout(feedbackRevealTimerRef.current);
+        feedbackRevealTimerRef.current = null;
+      }
       setHasShownCompliment(false);
       setCurrentCompliment(null);
       setImageRevealed(false);
       hasTriggeredComplimentCompleteRef.current = false;
-      if (!loading && !generatingAngles) {
-        setLoadingProgress(0);
-        setCurrentStep(0);
-        progressRef.current = 0;
-      }
-      setCurrentImageIndex(activeImageIndex);
+      setLoadingProgress(0);
+      setCurrentStep(0);
+      progressRef.current = 0;
       setShowInlineFeedback(false);
       setFeedbackRating(0);
       setFeedbackComment("");
@@ -156,14 +165,24 @@ export function TryOnResultModal({
       setFeedbackSubmitted(false);
       setFeedbackError("");
       setHasCompletedUserPrompt(false);
+      setCurrentImageIndex(activeImageIndex);
     }
+
+    wasOpenRef.current = isOpen;
+    previousLoadingRef.current = loading;
   }, [
-    isOpen,
     activeImageIndex,
+    isOpen,
     loading,
-    generatingAngles,
-    feedbackContext?.referenceId,
   ]);
+
+  useEffect(() => {
+    return () => {
+      if (feedbackRevealTimerRef.current) {
+        clearTimeout(feedbackRevealTimerRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     setHasCompletedUserPrompt(false);
@@ -321,7 +340,13 @@ export function TryOnResultModal({
 
     hasTriggeredComplimentCompleteRef.current = true;
     if (feedbackContext) {
-      setShowInlineFeedback(true);
+      if (feedbackRevealTimerRef.current) {
+        clearTimeout(feedbackRevealTimerRef.current);
+      }
+      feedbackRevealTimerRef.current = setTimeout(() => {
+        setShowInlineFeedback(true);
+        feedbackRevealTimerRef.current = null;
+      }, 550);
     }
     onComplimentComplete?.();
   };
@@ -441,7 +466,7 @@ export function TryOnResultModal({
 
     return (
       <div
-        className={`${isMobileLayout ? "mt-3 space-y-3" : "mt-4 space-y-4 md:mt-5"}`}
+        className={`${isMobileLayout ? "mt-3 space-y-3" : "mt-4 space-y-4 md:mt-5"} slide-up`}
       >
         <div
           className={`flex min-w-0 items-start ${isMobileLayout ? "gap-2" : "gap-3"}`}

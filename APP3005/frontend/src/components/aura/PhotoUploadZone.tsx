@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useDropzone } from "react-dropzone";
-import { Upload, X, Image as ImageIcon, Info, CheckCircle2, AlertTriangle, Camera, FileImage } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { Upload, X, Image as ImageIcon, Info, AlertTriangle, Camera, FileImage } from "lucide-react";
 import {
     Dialog,
     DialogContent,
@@ -26,7 +25,7 @@ export const PhotoUploadZone = ({ onPhotoSelect, photoPreview, onRemove }: Photo
     const [instructionsConfirmed, setInstructionsConfirmed] = useState(false);
     const [sizeErrorFile, setSizeErrorFile] = useState<{ name: string; sizeMB: string } | null>(null);
 
-    const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
+    const { getRootProps, getInputProps, isDragActive, open, inputRef } = useDropzone({
         accept: { "image/*": [] },
         maxFiles: 1,
         noClick: true,   // we control click ourselves
@@ -51,19 +50,27 @@ export const PhotoUploadZone = ({ onPhotoSelect, photoPreview, onRemove }: Photo
         },
     });
 
+    const openFilePicker = () => {
+        if (inputRef.current) {
+            inputRef.current.value = "";
+        }
+        open();
+    };
+
     // Click handler: show instructions first; after confirmed, open picker directly
     const handleUploadAreaClick = () => {
         if (instructionsConfirmed) {
-            open();
+            openFilePicker();
         } else {
             setShowInstructionsDialog(true);
         }
     };
 
-    // User has read & acknowledged — just close dialog; they click the zone to pick
+    // User has read & acknowledged — open the picker immediately from the same gesture
     const handleConfirmInstructions = () => {
         setInstructionsConfirmed(true);
         setShowInstructionsDialog(false);
+        openFilePicker();
     };
 
     // Also reset confirmed when photo is removed (handled by parent via onRemove)
@@ -76,85 +83,101 @@ export const PhotoUploadZone = ({ onPhotoSelect, photoPreview, onRemove }: Photo
         <div className="w-full">
             {/* ── Upload Instructions Dialog ── */}
             <Dialog open={showInstructionsDialog} onOpenChange={setShowInstructionsDialog}>
-                <DialogContent className="max-w-md w-full rounded-3xl border-2 border-gold/30 bg-gradient-to-br from-white via-cream/60 to-gold/5 p-0 overflow-hidden shadow-2xl">
-                    <DialogHeader className="px-6 pt-6 pb-0">
-                        <div className="flex items-center gap-3 mb-1">
-                            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gold/10 border border-gold/20">
-                                <Camera className="h-5 w-5 text-gold" />
-                            </div>
-                            <DialogTitle className="text-xl font-serif text-charcoal">
-                                Photo Guidelines
-                            </DialogTitle>
-                        </div>
-                        <DialogDescription className="text-sm text-charcoal/55 mt-1">
-                            Follow these tips for the best avatar result
-                        </DialogDescription>
-                    </DialogHeader>
-
-                    <div className="px-6 py-5 space-y-3">
-                        {/* Size limit — highlighted */}
-                        <div className="flex items-start gap-3 rounded-2xl bg-amber-50/70 border border-amber-200/80 px-4 py-3.5">
-                            <FileImage className="h-5 w-5 text-amber-500 flex-shrink-0 mt-0.5" />
-                            <div>
-                                <p className="text-sm font-semibold text-amber-800">File size limit: {MAX_FILE_SIZE_MB} MB</p>
-                                <p className="text-xs text-amber-700/80 mt-0.5">
-                                    Images larger than {MAX_FILE_SIZE_MB} MB cannot be uploaded. Compress your photo if needed.
-                                </p>
-                            </div>
-                        </div>
-
-                        {/* Good practices */}
-                        <div className="space-y-2">
-                            {[
-                                {
-                                    icon: <CheckCircle2 className="h-4 w-4 text-emerald-500 flex-shrink-0 mt-0.5" />,
-                                    text: "Full-body photo — head to toe, standing upright",
-                                },
-                                {
-                                    icon: <CheckCircle2 className="h-4 w-4 text-emerald-500 flex-shrink-0 mt-0.5" />,
-                                    text: "Well-lit, clear background — natural daylight works best",
-                                },
-                                {
-                                    icon: <CheckCircle2 className="h-4 w-4 text-emerald-500 flex-shrink-0 mt-0.5" />,
-                                    text: "Supported formats: JPG, PNG, WEBP, HEIC",
-                                },
-                                {
-                                    icon: <X className="h-4 w-4 text-red-400 flex-shrink-0 mt-0.5" />,
-                                    text: "Avoid heavy filters, blurry, or heavily cropped photos",
-                                },
-                            ].map((item, i) => (
-                                <div key={i} className="flex items-start gap-2.5 rounded-xl bg-white/70 border border-gold/10 px-3.5 py-2.5">
-                                    {item.icon}
-                                    <p className="text-xs text-charcoal/70 leading-relaxed">{item.text}</p>
+                <DialogContent className="w-[calc(100vw-1.5rem)] max-w-lg overflow-hidden rounded-[28px] border border-gold/25 bg-gradient-to-br from-white via-[#fffaf0] to-[#f8eed8] p-0 shadow-2xl [&>button]:hidden">
+                    <div className="max-h-[min(82vh,720px)] overflow-y-auto">
+                        <DialogHeader className="border-b border-gold/10 px-5 pb-4 pt-5 text-left sm:px-6 sm:pb-5 sm:pt-6">
+                            <div className="flex items-start justify-between gap-4">
+                                <div className="flex min-w-0 items-start gap-3">
+                                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-gold/20 bg-gold/10">
+                                        <Camera className="h-5 w-5 text-gold" />
+                                    </div>
+                                    <div className="min-w-0">
+                                        <DialogTitle className="font-serif text-[1.35rem] leading-tight text-charcoal sm:text-2xl">
+                                            Before you upload
+                                        </DialogTitle>
+                                        <DialogDescription className="mt-1 text-sm leading-relaxed text-charcoal/60">
+                                            A quick check helps us create a better avatar from your photo.
+                                        </DialogDescription>
+                                    </div>
                                 </div>
-                            ))}
+
+                                <DialogClose asChild>
+                                    <button
+                                        type="button"
+                                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-gold/15 bg-white/80 text-charcoal/70 transition-colors hover:bg-white hover:text-charcoal"
+                                    >
+                                        <X className="h-4 w-4" />
+                                        <span className="sr-only">Close</span>
+                                    </button>
+                                </DialogClose>
+                            </div>
+                        </DialogHeader>
+
+                        <div className="space-y-4 px-5 py-5 sm:px-6 sm:py-6">
+                            <div className="grid gap-3">
+                                {[
+                                    "Full body is preferred so we can read your body shape better. A selfie or half-body photo still works.",
+                                    "Use a clear, well-lit photo with a simple background if possible.",
+                                    "Avoid black-and-white filters, blur, heavy edits, and very tight crops.",
+                                ].map((text, index) => (
+                                    <div
+                                        key={text}
+                                        className="flex items-start gap-3 rounded-2xl border border-gold/12 bg-white/75 px-4 py-3.5 shadow-[0_8px_24px_rgba(201,165,95,0.08)]"
+                                    >
+                                        <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-[11px] font-bold text-emerald-600">
+                                            {index + 1}
+                                        </div>
+                                        <p className="text-sm leading-6 text-charcoal/75">{text}</p>
+                                    </div>
+                                ))}
+                            </div>
+
+                            <div className="grid gap-3 sm:grid-cols-2">
+                                <div className="flex items-start gap-3 rounded-2xl border border-amber-200/70 bg-amber-50/80 px-4 py-3.5">
+                                    <FileImage className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+                                    <div>
+                                        <p className="text-sm font-semibold text-amber-900">Up to {MAX_FILE_SIZE_MB} MB</p>
+                                        <p className="mt-1 text-xs leading-5 text-amber-800/80">
+                                            Bigger files will not upload. Compress first if needed.
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="flex items-start gap-3 rounded-2xl border border-sky-100 bg-sky-50/80 px-4 py-3.5">
+                                    <Info className="mt-0.5 h-5 w-5 shrink-0 text-sky-500" />
+                                    <div>
+                                        <p className="text-sm font-semibold text-sky-900">Formats we accept</p>
+                                        <p className="mt-1 text-xs leading-5 text-sky-800/80">
+                                            JPG, PNG, WEBP, and HEIC
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="rounded-2xl border border-gold/12 bg-white/70 px-4 py-3 text-xs leading-5 text-charcoal/60">
+                                Your photo is only used to create your avatar, and you can remove it anytime.
+                            </div>
                         </div>
 
-                        {/* Privacy note */}
-                        <div className="flex items-center gap-2 rounded-xl bg-blue-50/60 border border-blue-100 px-3.5 py-2.5">
-                            <Info className="h-4 w-4 text-blue-400 flex-shrink-0" />
-                            <p className="text-xs text-blue-700/80 leading-relaxed">
-                                Your photo is used only to create your avatar and can be deleted anytime.
-                            </p>
+                        <div className="border-t border-gold/10 px-5 pb-5 pt-4 sm:px-6 sm:pb-6">
+                            <div className="grid gap-3 sm:grid-cols-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowInstructionsDialog(false)}
+                                    className="rounded-2xl border border-gold/25 px-4 py-3 text-sm font-semibold text-charcoal/65 transition-all hover:border-gold/45 hover:bg-white/70 hover:text-charcoal"
+                                >
+                                    Not now
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={handleConfirmInstructions}
+                                    className="rounded-2xl bg-gradient-to-r from-gold via-amber-400 to-gold px-4 py-3 text-sm font-bold text-charcoal shadow-md transition-all hover:scale-[1.01] active:scale-[0.99]"
+                                    style={{ boxShadow: '0 8px 20px rgba(201, 165, 95, 0.28)' }}
+                                >
+                                    Choose photo
+                                </button>
+                            </div>
                         </div>
-                    </div>
-
-                    <div className="px-6 pb-6 flex gap-3">
-                        <button
-                            type="button"
-                            onClick={() => setShowInstructionsDialog(false)}
-                            className="flex-1 rounded-2xl border-2 border-gold/30 px-4 py-2.5 text-sm font-semibold text-charcoal/60 transition-all hover:border-gold/50 hover:text-charcoal"
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            type="button"
-                            onClick={handleConfirmInstructions}
-                            className="flex-1 rounded-2xl bg-gradient-to-r from-gold via-amber-400 to-gold px-4 py-2.5 text-sm font-bold text-charcoal shadow-md transition-all hover:scale-[1.02] active:scale-[0.98]"
-                            style={{ boxShadow: '0 4px 16px rgba(201,165,95,0.35)' }}
-                        >
-                            Got it, Upload Photo
-                        </button>
                     </div>
                 </DialogContent>
             </Dialog>
@@ -212,7 +235,7 @@ export const PhotoUploadZone = ({ onPhotoSelect, photoPreview, onRemove }: Photo
                         </button>
                         <button
                             type="button"
-                            onClick={() => { setSizeErrorFile(null); open(); }}
+                            onClick={() => { setSizeErrorFile(null); openFilePicker(); }}
                             className="flex-1 rounded-2xl bg-gradient-to-r from-gold via-amber-400 to-gold px-4 py-2.5 text-sm font-bold text-charcoal shadow-md transition-all hover:scale-[1.02] active:scale-[0.98]"
                             style={{ boxShadow: '0 4px 16px rgba(201,165,95,0.35)' }}
                         >
@@ -227,22 +250,22 @@ export const PhotoUploadZone = ({ onPhotoSelect, photoPreview, onRemove }: Photo
                 <div
                     {...getRootProps()}
                     onClick={handleUploadAreaClick}
-                    className="relative group h-[190px] cursor-pointer sm:h-[220px]"
+                    className="group relative h-[198px] cursor-pointer touch-manipulation select-none sm:h-[228px]"
                 >
                     <input {...getInputProps()} />
 
                     <div className={`
-                        relative h-full overflow-hidden rounded-[22px] sm:rounded-2xl
+                        relative h-full overflow-hidden rounded-[24px] sm:rounded-[26px]
                         border-2 border-dashed
                         transition-all duration-500 ease-out
                         ${isDragActive
-                            ? 'scale-[1.02] border-gold/60'
-                            : 'hover:scale-[1.01] border-gold/40'
+                            ? 'scale-[1.01] border-gold/60'
+                            : 'hover:scale-[1.005] border-gold/40'
                         }
                     `}>
                         {/* Inner Glass Container */}
                         <div className={`
-                                h-full w-full rounded-[22px] sm:rounded-2xl
+                                h-full w-full rounded-[24px] sm:rounded-[26px]
                                 bg-gradient-to-br from-cream/30 via-ivory/25 to-cream/40
                                 backdrop-blur-md
                                 border border-gold/30
@@ -259,26 +282,24 @@ export const PhotoUploadZone = ({ onPhotoSelect, photoPreview, onRemove }: Photo
                             </div>
 
                             {/* Content */}
-                            <div className="relative z-10 flex h-full flex-col items-center justify-center px-4 py-6 sm:px-6 sm:py-8">
+                            <div className="relative z-10 flex h-full flex-col items-center justify-center gap-3 px-4 py-6 sm:px-6 sm:py-8">
                                 {/* Upload Icon */}
                                 <div className={`
-                                    mb-4 flex h-11 w-11 items-center justify-center rounded-lg sm:h-12 sm:w-12
-                                    bg-gold/5
-                                    border border-gold/15
+                                    flex h-14 w-14 items-center justify-center rounded-2xl border border-gold/15 bg-white/80 p-0.5 shadow-[0_10px_30px_rgba(201,165,95,0.12)] sm:h-16 sm:w-16
                                     transition-all duration-300
-                                    ${isDragActive ? 'bg-gold/15 border-gold/30 scale-105' : ''}
+                                    ${isDragActive ? 'bg-gold/15 border-gold/30 scale-[1.03]' : 'group-hover:-translate-y-0.5'}
                                 `}>
-                                    <Upload className={`h-5 w-5 ${isDragActive ? 'text-gold' : 'text-gold/40'} transition-colors`} />
+                                    <Upload className={`h-6 w-6 shrink-0 sm:h-7 sm:w-7 ${isDragActive ? 'text-gold' : 'text-gold/55'} transition-colors`} />
                                 </div>
 
-                                <h3 className="mb-1 text-[15px] font-medium text-charcoal sm:text-base">
+                                <h3 className="text-center text-[15px] font-semibold text-charcoal sm:text-base">
                                     {isDragActive ? "Drop your photo here" : "Upload your photo"}
                                 </h3>
-                                <p className="mb-4 text-xs text-charcoal/40 sm:mb-5">Tap or click to browse</p>
+                                <p className="text-center text-xs text-charcoal/45">Tap or click to browse</p>
 
                                 {/* Instruction Box */}
                                 <div className={`
-                                    w-full rounded-lg px-3.5 py-3 sm:px-4
+                                    w-full max-w-sm rounded-2xl px-4 py-3.5
                                     bg-cream/15
                                     border border-gold/15
                                     transition-all duration-300
@@ -287,11 +308,11 @@ export const PhotoUploadZone = ({ onPhotoSelect, photoPreview, onRemove }: Photo
                                     <div className="flex items-start gap-2">
                                         <span className="text-base flex-shrink-0">📸</span>
                                         <div className="flex-1">
-                                            <p className="text-xs leading-relaxed text-charcoal/65">
-                                                Full-body photo, standing upright ·{" "}
-                                                <span className="text-gold font-medium">Max {MAX_FILE_SIZE_MB} MB</span>
+                                            <p className="text-xs leading-relaxed text-charcoal/65 sm:text-[13px]">
+                                                Full body is best, but selfie or half body also works.{" "}
+                                                <span className="font-medium text-gold">Max {MAX_FILE_SIZE_MB} MB</span>
                                             </p>
-                                            <p className="mt-1 text-xs leading-relaxed text-charcoal/45">
+                                            <p className="mt-1 text-xs leading-relaxed text-charcoal/45 sm:text-[13px]">
                                                 Click to see photo guidelines before uploading
                                             </p>
                                         </div>

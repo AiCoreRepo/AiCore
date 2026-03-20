@@ -38,6 +38,9 @@ describe('GeminiAIService prompt building', () => {
       'expand the canvas and reconstruct the missing framing so the complete head and full hair silhouette are visible naturally',
     );
     expect(prompt.instructions.identity).toContain('height is authoritative');
+    expect(prompt.instructions.identity).toContain(
+      'Maintain natural human anatomy and realistic proportions throughout',
+    );
     expect(prompt.instructions.clothing).toContain(
       'Apply ONLY the full visible outfit from Image 2 faithfully.',
     );
@@ -61,6 +64,9 @@ describe('GeminiAIService prompt building', () => {
     expect(prompt.instructions.output).toContain('no visible teeth');
     expect(prompt.instructions.output).toContain(
       'the person from Image 1 is wearing the full outfit from Image 2',
+    );
+    expect(prompt.instructions.output).toContain(
+      'proportionally balanced full-body portrait',
     );
   });
 
@@ -132,6 +138,15 @@ describe('GeminiAIService prompt building', () => {
     );
     expect(prompt.constraints).toContain(
       'Do NOT change face shape, eye shape, nose, lips, jawline, or hairline',
+    );
+    expect(prompt.constraints).toContain(
+      'Do NOT stretch, squeeze, elongate, shrink, warp, or tilt the face, head, neck, shoulders, torso, arms, hands, hips, legs, or feet',
+    );
+    expect(prompt.constraints).toContain(
+      'Do NOT generate an oversized face, undersized face, floating face, or mismatched face-to-body scale',
+    );
+    expect(prompt.constraints).toContain(
+      'Do NOT generate unnatural anatomy, broken limb proportions, merged limbs, duplicated limbs, or misaligned shoulders',
     );
     expect(prompt.constraints).toContain(
       'Do NOT shorten, restyle, flatten, tie back, or simplify the hair',

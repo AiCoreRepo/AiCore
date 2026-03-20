@@ -9,6 +9,18 @@ interface SidebarContextType {
 
 const SidebarContext = createContext<SidebarContextType | undefined>(undefined);
 
+const getIsMobileViewport = () =>
+    typeof window !== 'undefined' ? window.innerWidth < 768 : false;
+
+const getStoredDesktopCollapsed = () => {
+    if (typeof window === 'undefined') {
+        return false;
+    }
+
+    const saved = localStorage.getItem('sidebarCollapsed');
+    return saved === 'true';
+};
+
 export const useSidebar = () => {
     const context = useContext(SidebarContext);
     if (!context) {
@@ -18,21 +30,20 @@ export const useSidebar = () => {
 };
 
 export const SidebarProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const [isMobile, setIsMobile] = useState(false);
-    const [isCollapsed, setIsCollapsed] = useState(() => {
-        if (typeof window !== 'undefined') {
-            const saved = localStorage.getItem('sidebarCollapsed');
-            return saved === 'true';
-        }
-        return false;
-    });
+    const [isMobile, setIsMobile] = useState(getIsMobileViewport);
+    const [isCollapsed, setIsCollapsed] = useState(() =>
+        getIsMobileViewport() ? true : getStoredDesktopCollapsed()
+    );
 
     useEffect(() => {
         const checkMobile = () => {
-            const mobile = window.innerWidth < 768;
+            const mobile = getIsMobileViewport();
             setIsMobile(mobile);
+
             if (mobile) {
                 setIsCollapsed(true);
+            } else {
+                setIsCollapsed(getStoredDesktopCollapsed());
             }
         };
 
@@ -42,8 +53,10 @@ export const SidebarProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }, []);
 
     useEffect(() => {
-        localStorage.setItem('sidebarCollapsed', String(isCollapsed));
-    }, [isCollapsed]);
+        if (!isMobile) {
+            localStorage.setItem('sidebarCollapsed', String(isCollapsed));
+        }
+    }, [isCollapsed, isMobile]);
 
     const toggleSidebar = () => {
         setIsCollapsed((prev) => !prev);

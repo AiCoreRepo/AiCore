@@ -60,11 +60,11 @@ export const AuraSuccessState = ({ avatarUrl, onViewDetails }: AuraSuccessStateP
                     transition={{ delay: 0.6 }}
                     className="flex justify-center"
                 >
-                    <div className="relative rounded-xl overflow-hidden border-2 border-gold max-w-xs">
+                    <div className="relative w-full max-w-xs overflow-hidden rounded-[24px] border-2 border-gold bg-[#F5EDDD] shadow-[0_18px_48px_rgba(201,165,95,0.2)] aspect-[2/3]">
                         <img
                             src={avatarUrl}
                             alt="Your Aura Avatar"
-                            className="w-full h-auto aspect-[3/4] object-cover"
+                            className="h-full w-full object-contain object-center"
                         />
                     </div>
                 </motion.div>

@@ -231,11 +231,11 @@ export class GeminiAIService {
       },
       instructions: {
         identity:
-          "Preserve the person's exact face features, skin tone, hairline, hairstyle, hair length, hair volume, hair texture, and body type exactly. Keep the same identity from Image 1 without beautifying, reshaping, or simplifying the face or hair. If the source image is cropped, zoomed, or half-body, expand the canvas and reconstruct the missing framing so the complete head and full hair silhouette are visible naturally. Use the provided person_attributes to reconstruct the full body naturally if only a selfie or half-body is given. If height is provided in person_attributes, that height is authoritative and must override any apparent proportions from Image 1 or Image 2.",
+          "Preserve the person's exact face features, skin tone, hairline, hairstyle, hair length, hair volume, hair texture, and body type exactly. Keep the same identity from Image 1 without beautifying, reshaping, or simplifying the face or hair. If the source image is cropped, zoomed, or half-body, expand the canvas and reconstruct the missing framing so the complete head and full hair silhouette are visible naturally. Use the provided person_attributes to reconstruct the full body naturally if only a selfie or half-body is given. If height is provided in person_attributes, that height is authoritative and must override any apparent proportions from Image 1 or Image 2. Maintain natural human anatomy and realistic proportions throughout, including a correct head-to-body ratio, centered neck placement, aligned shoulders, and proportional torso, arms, hands, legs, and feet.",
         clothing:
           'Apply ONLY the full visible outfit from Image 2 faithfully. Keep all colors, patterns, textures, trims, embroidery, silhouette, neckline, sleeves, layering, shoes, jewelry, and accessories that are visible in Image 2 intact. Make the person from Image 1 actually wear the Image 2 outfit naturally on their body. The clothing must look worn by the person, not pasted on, floating, overlaid, or shown as a separate product shot. Scale and fit the outfit to the real person described in person_attributes, not to the mannequin or model proportions seen in Image 2.',
         output:
-          'Full body (head to toe), full head visible with all hair fully in frame, generous headroom above the hair, visible side margin around the hair silhouette, confident standing pose, happy closed-mouth smile, no visible teeth, clean studio background, soft lighting, photorealistic quality. The final image must clearly show that the person from Image 1 is wearing the full outfit from Image 2.',
+          'Full body (head to toe), full head visible with all hair fully in frame, generous headroom above the hair, visible side margin around the hair silhouette, confident standing pose, happy closed-mouth smile, no visible teeth, clean studio background, soft lighting, photorealistic quality, and a proportionally balanced full-body portrait. The final image must clearly show that the person from Image 1 is wearing the full outfit from Image 2.',
       },
       constraints: [
         'Return exactly one newly generated avatar image',
@@ -249,6 +249,9 @@ export class GeminiAIService {
         'Do NOT create a collage, side-by-side panel, before/after layout, product board, or multiple people',
         'Do NOT distort or change the face',
         'Do NOT change face shape, eye shape, nose, lips, jawline, or hairline',
+        'Do NOT stretch, squeeze, elongate, shrink, warp, or tilt the face, head, neck, shoulders, torso, arms, hands, hips, legs, or feet',
+        'Do NOT generate an oversized face, undersized face, floating face, or mismatched face-to-body scale',
+        'Do NOT generate unnatural anatomy, broken limb proportions, merged limbs, duplicated limbs, or misaligned shoulders',
         'Do NOT shorten, restyle, flatten, tie back, or simplify the hair',
         'Do NOT alter ethnicity or body type',
         'Do NOT use the mannequin or clothing-model height, leg length, or body proportions from Image 2',

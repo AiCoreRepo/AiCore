@@ -162,6 +162,7 @@ export function buildGeminiTryOnPrompt(
     '- Do not replace, beautify, reshape, or blend the second-image face or body with the clothing-model or mannequin identity from the first image.',
     '- If the second image is cropped or not full body, extend the framing naturally so the same person remains visible head to toe.',
     '- If height is provided in the second-image person profile, use it as the fit reference for body proportions.',
+    '- Maintain natural human anatomy and realistic proportions, including a correct head-to-body ratio, centered neck placement, aligned shoulders, and proportional torso, arms, hands, legs, and feet.',
     'Garment requirements:',
     '- Transfer the full visible outfit from the first image onto the second-image person.',
     '- Keep garment colors, prints, textures, trims, embroidery, silhouette, neckline, sleeves, layering, shoes, jewelry, and accessories that are visible in the first image.',
@@ -178,6 +179,8 @@ export function buildGeminiTryOnPrompt(
     '- Do not create a collage, side-by-side panel, before/after layout, or multiple people.',
     '- Do not crop the head, hair, forehead, arms, hands, legs, or feet.',
     '- Do not invent a different outfit from the one visible in the first image.',
+    '- Do not stretch, squeeze, elongate, shrink, warp, or tilt the face, head, neck, shoulders, torso, arms, hands, hips, legs, or feet.',
+    '- Do not generate an oversized face, undersized face, floating face, mismatched face-to-body scale, merged limbs, duplicated limbs, or broken anatomy.',
   ].join('\n');
 }
 

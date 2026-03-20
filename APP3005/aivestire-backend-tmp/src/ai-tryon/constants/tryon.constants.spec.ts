@@ -48,6 +48,9 @@ describe('buildGeminiTryOnPrompt', () => {
       'Do not replace, beautify, reshape, or blend the second-image face or body with the clothing-model or mannequin identity from the first image.',
     );
     expect(prompt).toContain(
+      'Maintain natural human anatomy and realistic proportions, including a correct head-to-body ratio, centered neck placement, aligned shoulders, and proportional torso, arms, hands, legs, and feet.',
+    );
+    expect(prompt).toContain(
       'The clothing must look naturally worn by the second-image person, not pasted on, floating, overlaid, or shown as a separate product shot.',
     );
     expect(prompt).toContain(
@@ -55,6 +58,12 @@ describe('buildGeminiTryOnPrompt', () => {
     );
     expect(prompt).toContain(
       'Do not return the second image with only tiny edits while leaving the original outfit in place.',
+    );
+    expect(prompt).toContain(
+      'Do not stretch, squeeze, elongate, shrink, warp, or tilt the face, head, neck, shoulders, torso, arms, hands, hips, legs, or feet.',
+    );
+    expect(prompt).toContain(
+      'Do not generate an oversized face, undersized face, floating face, mismatched face-to-body scale, merged limbs, duplicated limbs, or broken anatomy.',
     );
   });
 
