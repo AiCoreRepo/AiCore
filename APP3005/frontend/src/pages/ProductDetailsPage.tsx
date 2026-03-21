@@ -173,6 +173,22 @@ const ProductDetailsPage = () => {
             state: {
                 autoTryOnProductId: product.product_id,
                 autoTryOnProvider: provider,
+                autoTryOnProduct: {
+                    product_id: product.product_id,
+                    title: product.title,
+                    description: product.description || "",
+                    price_cents: product.price_cents,
+                    currency: product.currency,
+                    thumbnail: product.thumbnail,
+                    images: productImages,
+                    category: product.category,
+                    is_featured: product.is_featured,
+                    likes: product.likes,
+                    reviews: product.reviews,
+                    views: product.views,
+                    creator: product.creator,
+                    metadata: product.metadata,
+                },
             },
         });
     };

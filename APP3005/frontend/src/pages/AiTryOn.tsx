@@ -12,6 +12,7 @@ import { AuthPopup } from "@/components/AuthPopup";
 import { usePublicProducts } from "@/hooks/usePublicProducts";
 import {
   getAura,
+  getProductById,
   tryOnWithGemini,
   tryOnWithVertex,
   generateMoreAngles,
@@ -76,6 +77,7 @@ type TryOnResult = {
 type AutoTryOnNavigationState = {
   autoTryOnProductId?: string;
   autoTryOnProvider?: TryOnProvider;
+  autoTryOnProduct?: TryOnProduct;
 };
 
 const getProductImageUrl = (product: TryOnProduct): string | null => {
@@ -110,6 +112,7 @@ const buildGeminiTryOnAdditionalParams = (aura: AuraData | null) => ({
 const AiTryOn = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const navigationState = location.state as AutoTryOnNavigationState | null;
   const { user, loading: authLoading, fetchUser } = useAuth();
   const showMultipleTryOnProviders = shouldShowMultipleTryOnProviders();
   const defaultTryOnProvider = getDefaultTryOnProvider();
@@ -146,15 +149,13 @@ const AiTryOn = () => {
   );
   const [pendingAutoTryOnProductId, setPendingAutoTryOnProductId] = useState<
     string | null
-  >(
-    (location.state as AutoTryOnNavigationState | null)
-      ?.autoTryOnProductId || null,
-  );
+  >(navigationState?.autoTryOnProductId || null);
   const [pendingAutoTryOnProvider, setPendingAutoTryOnProvider] =
     useState<TryOnProvider>(
-      (location.state as AutoTryOnNavigationState | null)
-        ?.autoTryOnProvider || defaultTryOnProvider,
+      navigationState?.autoTryOnProvider || defaultTryOnProvider,
     );
+  const [pendingAutoTryOnProduct, setPendingAutoTryOnProduct] =
+    useState<TryOnProduct | null>(navigationState?.autoTryOnProduct || null);
 
   // Fetch products
   const {
@@ -242,6 +243,7 @@ const AiTryOn = () => {
   const handleTryOn = async (
     productId: string,
     provider: TryOnProvider = defaultTryOnProvider,
+    sourceProduct?: TryOnProduct | null,
   ) => {
     if (!hasFreeTryOnsRemaining) {
       openUpgradePopup();
@@ -258,7 +260,7 @@ const AiTryOn = () => {
         feedbackCloseTimerRef.current = null;
       }
 
-      const productLabel = resolveProductLabel(productId);
+      const fallbackProductLabel = sourceProduct?.title || resolveProductLabel(productId);
       setSelectedProduct(productId);
       setCurrentProductId(productId); // Store productId for angle generation
       setTryOnLoading(true);
@@ -267,12 +269,18 @@ const AiTryOn = () => {
       setShowResultModal(true);
 
       let result: TryOnResult;
+      let resolvedProductLabel = fallbackProductLabel;
 
       if (provider === TRYON_PROVIDER.GEMINI) {
-        const product = _.find(
-          productsData?.products,
-          (item) => item.product_id === productId,
-        ) as TryOnProduct | undefined;
+        const product =
+          sourceProduct?.product_id === productId
+            ? sourceProduct
+            : ((_.find(
+                productsData?.products,
+                (item) => item.product_id === productId,
+              ) as TryOnProduct | undefined) ??
+              ((await getProductById(productId)) as TryOnProduct));
+        resolvedProductLabel = product?.title || fallbackProductLabel;
         const avatarImage = getAvatarImageUrl(aura);
         const clothingImage = product ? getProductImageUrl(product) : null;
 
@@ -307,7 +315,7 @@ const AiTryOn = () => {
         setFeedbackContext({
           type: "VIRTUAL_TRYON",
           referenceId: result.tryOnId ? String(result.tryOnId) : undefined,
-          label: productLabel,
+          label: resolvedProductLabel,
         });
         // Refresh user data to update try-on count
         fetchUser();
@@ -336,9 +344,11 @@ const AiTryOn = () => {
 
     const productId = pendingAutoTryOnProductId;
     const provider = pendingAutoTryOnProvider;
+    const sourceProduct = pendingAutoTryOnProduct;
     setPendingAutoTryOnProductId(null);
     setPendingAutoTryOnProvider(defaultTryOnProvider);
-    handleTryOn(productId, provider);
+    setPendingAutoTryOnProduct(null);
+    handleTryOn(productId, provider, sourceProduct);
 
     // Clear one-time navigation state so auto-try doesn't trigger again on remount.
     navigate(location.pathname, { replace: true });
@@ -346,6 +356,7 @@ const AiTryOn = () => {
     aura,
     pendingAutoTryOnProductId,
     pendingAutoTryOnProvider,
+    pendingAutoTryOnProduct,
     tryOnLoading,
     defaultTryOnProvider,
     navigate,
