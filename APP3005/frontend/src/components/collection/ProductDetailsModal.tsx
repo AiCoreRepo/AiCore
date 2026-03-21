@@ -31,6 +31,8 @@ interface ProductDetailsModalProps {
     };
     onTryOn?: () => void;
     onTryOnGemini?: () => void;
+    primaryTryOnLabel?: string;
+    secondaryTryOnLabel?: string;
 }
 
 export const ProductDetailsModal = ({
@@ -39,6 +41,8 @@ export const ProductDetailsModal = ({
     product,
     onTryOn,
     onTryOnGemini,
+    primaryTryOnLabel,
+    secondaryTryOnLabel,
 }: ProductDetailsModalProps) => {
     const { toast } = useToast();
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -106,6 +110,9 @@ export const ProductDetailsModal = ({
 
     // Calculate average rating (mock)
     const averageRating = 4.5;
+    const resolvedPrimaryTryOnLabel =
+        primaryTryOnLabel ?? (onTryOnGemini ? 'Vertex Try On' : 'Try On');
+    const resolvedSecondaryTryOnLabel = secondaryTryOnLabel ?? 'Gemini Try On';
 
     if (!isOpen) return null;
 
@@ -303,7 +310,7 @@ export const ProductDetailsModal = ({
                                             color: '#1a1a1a',
                                         }}
                                     >
-                                        Vestire Try On
+                                        {resolvedPrimaryTryOnLabel}
                                     </button>
                                     {onTryOnGemini && (
                                         <button
@@ -317,7 +324,7 @@ export const ProductDetailsModal = ({
                                                 color: '#1a1a1a',
                                             }}
                                         >
-                                            Gemini Try On
+                                            {resolvedSecondaryTryOnLabel}
                                         </button>
                                     )}
                                 </div>

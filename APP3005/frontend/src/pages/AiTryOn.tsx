@@ -28,6 +28,12 @@ import {
   TRY_ON_PREMIUM_UPGRADE_URL,
   type TryOnUsageSnapshot,
 } from "@/lib/try-on-limit";
+import {
+  TRYON_PROVIDER,
+  getDefaultTryOnProvider,
+  shouldShowMultipleTryOnProviders,
+  type TryOnProvider,
+} from "@/lib/try-on-environment";
 import _ from "lodash";
 import type { PublicProduct } from "@/hooks/usePublicProducts";
 
@@ -67,12 +73,10 @@ type TryOnResult = {
   tryOnId?: string | number;
 };
 
-const TRYON_PROVIDER = {
-  VERTEX: "vertex",
-  GEMINI: "gemini",
-} as const;
-
-type TryOnProvider = (typeof TRYON_PROVIDER)[keyof typeof TRYON_PROVIDER];
+type AutoTryOnNavigationState = {
+  autoTryOnProductId?: string;
+  autoTryOnProvider?: TryOnProvider;
+};
 
 const getProductImageUrl = (product: TryOnProduct): string | null => {
   const primaryImage = _.find(product.images, (image) => image.is_primary);
@@ -107,6 +111,8 @@ const AiTryOn = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, loading: authLoading, fetchUser } = useAuth();
+  const showMultipleTryOnProviders = shouldShowMultipleTryOnProviders();
+  const defaultTryOnProvider = getDefaultTryOnProvider();
   const [aura, setAura] = useState<AuraData | null>(null);
   const [loadingAura, setLoadingAura] = useState(true);
   const [showLoginPopup, setShowLoginPopup] = useState(false);
@@ -141,9 +147,14 @@ const AiTryOn = () => {
   const [pendingAutoTryOnProductId, setPendingAutoTryOnProductId] = useState<
     string | null
   >(
-    (location.state as { autoTryOnProductId?: string } | null)
+    (location.state as AutoTryOnNavigationState | null)
       ?.autoTryOnProductId || null,
   );
+  const [pendingAutoTryOnProvider, setPendingAutoTryOnProvider] =
+    useState<TryOnProvider>(
+      (location.state as AutoTryOnNavigationState | null)
+        ?.autoTryOnProvider || defaultTryOnProvider,
+    );
 
   // Fetch products
   const {
@@ -230,7 +241,7 @@ const AiTryOn = () => {
 
   const handleTryOn = async (
     productId: string,
-    provider: TryOnProvider = TRYON_PROVIDER.VERTEX,
+    provider: TryOnProvider = defaultTryOnProvider,
   ) => {
     if (!hasFreeTryOnsRemaining) {
       openUpgradePopup();
@@ -324,15 +335,19 @@ const AiTryOn = () => {
     if (!aura || !pendingAutoTryOnProductId || tryOnLoading) return;
 
     const productId = pendingAutoTryOnProductId;
+    const provider = pendingAutoTryOnProvider;
     setPendingAutoTryOnProductId(null);
-    handleTryOn(productId, TRYON_PROVIDER.VERTEX);
+    setPendingAutoTryOnProvider(defaultTryOnProvider);
+    handleTryOn(productId, provider);
 
     // Clear one-time navigation state so auto-try doesn't trigger again on remount.
     navigate(location.pathname, { replace: true });
   }, [
     aura,
     pendingAutoTryOnProductId,
+    pendingAutoTryOnProvider,
     tryOnLoading,
+    defaultTryOnProvider,
     navigate,
     location.pathname,
   ]);
@@ -660,14 +675,17 @@ const AiTryOn = () => {
                                     onTryOn={() =>
                                       handleTryOn(
                                         product.product_id,
-                                        TRYON_PROVIDER.VERTEX,
+                                        defaultTryOnProvider,
                                       )
                                     }
-                                    onTryOnGemini={() =>
-                                      handleTryOn(
-                                        product.product_id,
-                                        TRYON_PROVIDER.GEMINI,
-                                      )
+                                    onTryOnGemini={
+                                      showMultipleTryOnProviders
+                                        ? () =>
+                                            handleTryOn(
+                                              product.product_id,
+                                              TRYON_PROVIDER.GEMINI,
+                                            )
+                                        : undefined
                                     }
                                     loading={
                                       selectedProduct === product.product_id &&

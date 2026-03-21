@@ -21,6 +21,8 @@ interface ClothingItemCardProps {
     onTryOn: () => void;
     onTryOnGemini?: () => void;
     loading?: boolean;
+    primaryTryOnLabel?: string;
+    secondaryTryOnLabel?: string;
 }
 
 export function ClothingItemCard({
@@ -28,6 +30,8 @@ export function ClothingItemCard({
     onTryOn,
     onTryOnGemini,
     loading = false,
+    primaryTryOnLabel,
+    secondaryTryOnLabel,
 }: ClothingItemCardProps) {
     const [imageLoaded, setImageLoaded] = useState(false);
     const [showDetails, setShowDetails] = useState(false);
@@ -37,6 +41,9 @@ export function ClothingItemCard({
     const imageUrl = fallbackImage?.url ?? product.thumbnail ?? null;
 
     const price = (product.price_cents / 100).toFixed(2);
+    const resolvedPrimaryTryOnLabel =
+        primaryTryOnLabel ?? (onTryOnGemini ? 'Vertex Try On' : 'Try On');
+    const resolvedSecondaryTryOnLabel = secondaryTryOnLabel ?? 'Gemini Try On';
 
     return (
         <>
@@ -113,7 +120,7 @@ export function ClothingItemCard({
                                 }}
                             >
                                 <Zap className="w-3 h-3 fill-[#0f0f0f]" />
-                                {loading ? 'Processing...' : 'Vertex Try On'}
+                                {loading ? 'Processing...' : resolvedPrimaryTryOnLabel}
                             </button>
                             {onTryOnGemini && (
                                 <button
@@ -131,7 +138,7 @@ export function ClothingItemCard({
                                     }}
                                 >
                                     <Sparkles className="w-3 h-3 text-luxury-gold" />
-                                    {loading ? 'Processing...' : 'Gemini Try On'}
+                                    {loading ? 'Processing...' : resolvedSecondaryTryOnLabel}
                                 </button>
                             )}
                         </div>
@@ -165,6 +172,8 @@ export function ClothingItemCard({
                 product={product}
                 onTryOn={onTryOn}
                 onTryOnGemini={onTryOnGemini}
+                primaryTryOnLabel={resolvedPrimaryTryOnLabel}
+                secondaryTryOnLabel={resolvedSecondaryTryOnLabel}
             />
         </>
     );

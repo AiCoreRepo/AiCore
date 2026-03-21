@@ -21,6 +21,12 @@ import {
     TRY_ON_PREMIUM_UPGRADE_URL,
     type TryOnUsageSnapshot,
 } from '@/lib/try-on-limit';
+import {
+    TRYON_PROVIDER,
+    getDefaultTryOnProvider,
+    shouldShowMultipleTryOnProviders,
+    type TryOnProvider,
+} from '@/lib/try-on-environment';
 import _ from 'lodash';
 import type { PublicProduct } from '@/hooks/useInfinitePublicProducts';
 
@@ -28,13 +34,6 @@ const categories = ["All", "Dresses", "Outerwear", "Accessories", "Tops", "Botto
 const sizes = ["XS", "S", "M", "L", "XL", "XXL"];
 const colorOptions = ["Black", "White", "Beige", "Gold", "Navy", "Red", "Brown", "Gray"];
 const sortOptions = ["Price: Low to High", "Price: High to Low", "Newest", "Most Popular"];
-
-const TRYON_PROVIDER = {
-    VERTEX: 'vertex',
-    GEMINI: 'gemini',
-} as const;
-
-type TryOnProvider = (typeof TRYON_PROVIDER)[keyof typeof TRYON_PROVIDER];
 
 const getProductImageUrl = (product: PublicProduct): string | null => {
     const primaryImage = _.find(product.images, (image) => image.is_primary);
@@ -73,6 +72,8 @@ const CollectionPage = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const { user, fetchUser } = useAuth();
+    const showMultipleTryOnProviders = shouldShowMultipleTryOnProviders();
+    const defaultTryOnProvider = getDefaultTryOnProvider();
 
     // Aura Welcome Modal State
     const [showAuraWelcomeModal, setShowAuraWelcomeModal] = useState(false);
@@ -88,7 +89,7 @@ const CollectionPage = () => {
 
     const [selectedTryOnProduct, setSelectedTryOnProduct] = useState<PublicProduct | null>(null);
     const [isTryOnModalOpen, setIsTryOnModalOpen] = useState(false);
-    const [selectedTryOnProvider, setSelectedTryOnProvider] = useState<TryOnProvider>(TRYON_PROVIDER.VERTEX);
+    const [selectedTryOnProvider, setSelectedTryOnProvider] = useState<TryOnProvider>(defaultTryOnProvider);
 
     // AI Try-On State
     const [aura, setAura] = useState<any>(null);
@@ -238,7 +239,7 @@ const CollectionPage = () => {
 
     const handleTryOn = async (
         product: PublicProduct,
-        provider: TryOnProvider = TRYON_PROVIDER.VERTEX,
+        provider: TryOnProvider = defaultTryOnProvider,
     ) => {
         const token = localStorage.getItem('access_token');
         if (!token) {
@@ -669,14 +670,17 @@ const CollectionPage = () => {
                                         onTryOn={() =>
                                             handleTryOn(
                                                 product,
-                                                TRYON_PROVIDER.VERTEX,
+                                                defaultTryOnProvider,
                                             )
                                         }
-                                        onTryOnGemini={() =>
-                                            handleTryOn(
-                                                product,
-                                                TRYON_PROVIDER.GEMINI,
-                                            )
+                                        onTryOnGemini={
+                                            showMultipleTryOnProviders
+                                                ? () =>
+                                                    handleTryOn(
+                                                        product,
+                                                        TRYON_PROVIDER.GEMINI,
+                                                    )
+                                                : undefined
                                         }
                                     />
                                 ))}
