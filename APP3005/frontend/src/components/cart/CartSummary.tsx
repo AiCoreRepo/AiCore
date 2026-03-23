@@ -162,7 +162,7 @@ export const CartSummary = () => {
             {/* Security Badge */}
             <div className="mt-4 text-center">
                 <p className="text-xs text-gray-500">
-                    🔒 Secure checkout powered by Stripe
+                    🔒 Secure checkout powered by Razorpay
                 </p>
             </div>
         </div>

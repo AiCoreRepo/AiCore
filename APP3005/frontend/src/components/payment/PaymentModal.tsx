@@ -140,112 +140,44 @@ const UpiPanel = ({ onPay, loading }: { onPay: (method: string) => void; loading
 // CARD PANEL
 // ─────────────────────────────────────────────────────────────────────────────
 const CardPanel = ({ onPay, loading }: { onPay: (method: string) => void; loading: boolean }) => {
-    const [card, setCard] = useState({ number: '', expiry: '', cvv: '', name: '' });
-    const [focused, setFocused] = useState('');
-
-    const formatCard = (v: string) => v.replace(/\D/g, '').slice(0, 16).replace(/(.{4})/g, '$1 ').trim();
-    const formatExpiry = (v: string) => {
-        const d = v.replace(/\D/g, '').slice(0, 4);
-        return d.length > 2 ? `${d.slice(0, 2)}/${d.slice(2)}` : d;
-    };
-
-    const isVisa = card.number.startsWith('4');
-    const isMC = ['5', '2'].includes(card.number[0]);
-    const isRuPay = card.number.startsWith('6');
-
     return (
         <div className="space-y-4">
-            {/* Card preview */}
-            <motion.div
-                className="relative h-44 rounded-2xl overflow-hidden p-5 flex flex-col justify-between"
-                style={{
-                    background: `linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)`,
-                    boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
-                }}
-                animate={{ rotateY: focused === 'cvv' ? 180 : 0 }}
-                transition={{ duration: 0.4 }}
+            <div
+                className="rounded-2xl border p-5"
+                style={{ backgroundColor: GOLD_BG, borderColor: GOLD_BORDER }}
             >
-                {/* Shimmer overlay */}
-                <div className="absolute inset-0 opacity-10"
-                    style={{ background: 'repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(255,255,255,0.05) 10px, rgba(255,255,255,0.05) 20px)' }}
-                />
-
-                <div className="flex justify-between items-start relative z-10">
-                    <div className="w-10 h-7 rounded-md bg-gradient-to-br from-yellow-300 to-yellow-500 opacity-80" />
-                    <div className="text-white/60 text-xs font-bold tracking-widest">
-                        {isVisa ? 'VISA' : isMC ? 'MASTERCARD' : isRuPay ? 'RUPAY' : ''}
-                    </div>
-                </div>
-
-                <div className="relative z-10">
-                    <p className="text-white/40 text-xs mb-1 tracking-widest">CARD NUMBER</p>
-                    <p className="text-white font-mono text-lg tracking-[0.2em]">
-                        {card.number || '•••• •••• •••• ••••'}
-                    </p>
-                </div>
-
-                <div className="flex justify-between relative z-10">
-                    <div>
-                        <p className="text-white/40 text-[10px] tracking-widest">CARD HOLDER</p>
-                        <p className="text-white text-sm font-medium uppercase tracking-wider">
-                            {card.name || 'YOUR NAME'}
-                        </p>
+                <div className="mb-3 flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white">
+                        <Lock className="h-5 w-5" style={{ color: GOLD }} />
                     </div>
                     <div>
-                        <p className="text-white/40 text-[10px] tracking-widest">EXPIRES</p>
-                        <p className="text-white text-sm font-medium">{card.expiry || 'MM/YY'}</p>
+                        <p className="text-sm font-semibold text-gray-800">Secure card checkout</p>
+                        <p className="text-xs text-gray-500">Visa, Mastercard, RuPay and more</p>
                     </div>
                 </div>
-            </motion.div>
-
-            {/* Inputs */}
-            <div className="space-y-3">
-                <input
-                    type="text"
-                    placeholder="Card Number"
-                    value={card.number}
-                    onChange={e => setCard(p => ({ ...p, number: formatCard(e.target.value) }))}
-                    onFocus={() => setFocused('number')}
-                    onBlur={() => setFocused('')}
-                    className="w-full px-4 py-3 rounded-xl border-2 text-sm outline-none bg-gray-50 focus:bg-white transition-all font-mono tracking-widest"
-                    style={{ borderColor: focused === 'number' ? GOLD : '#E5E7EB' }}
-                />
-                <div className="grid grid-cols-2 gap-3">
-                    <input
-                        type="text"
-                        placeholder="MM/YY"
-                        value={card.expiry}
-                        onChange={e => setCard(p => ({ ...p, expiry: formatExpiry(e.target.value) }))}
-                        onFocus={() => setFocused('expiry')}
-                        onBlur={() => setFocused('')}
-                        className="w-full px-4 py-3 rounded-xl border-2 text-sm outline-none bg-gray-50 focus:bg-white transition-all"
-                        style={{ borderColor: focused === 'expiry' ? GOLD : '#E5E7EB' }}
-                    />
-                    <input
-                        type="password"
-                        placeholder="CVV"
-                        maxLength={4}
-                        value={card.cvv}
-                        onChange={e => setCard(p => ({ ...p, cvv: e.target.value.replace(/\D/g, '').slice(0, 4) }))}
-                        onFocus={() => setFocused('cvv')}
-                        onBlur={() => setFocused('')}
-                        className="w-full px-4 py-3 rounded-xl border-2 text-sm outline-none bg-gray-50 focus:bg-white transition-all"
-                        style={{ borderColor: focused === 'cvv' ? GOLD : '#E5E7EB' }}
-                    />
-                </div>
-                <input
-                    type="text"
-                    placeholder="Name on Card"
-                    value={card.name}
-                    onChange={e => setCard(p => ({ ...p, name: e.target.value.toUpperCase() }))}
-                    onFocus={() => setFocused('name')}
-                    onBlur={() => setFocused('')}
-                    className="w-full px-4 py-3 rounded-xl border-2 text-sm outline-none bg-gray-50 focus:bg-white transition-all uppercase tracking-wider"
-                    style={{ borderColor: focused === 'name' ? GOLD : '#E5E7EB' }}
-                />
+                <p className="text-sm leading-6 text-gray-600">
+                    Card details are entered on Razorpay&apos;s hosted checkout so sensitive card
+                    data does not stay on the AiVestire interface.
+                </p>
             </div>
 
-            <PayButton onClick={() => onPay('card')} loading={loading} label="Pay Securely" icon={<Lock className="w-4 h-4" />} />
+            <div className="grid grid-cols-3 gap-2">
+                {['Visa', 'Mastercard', 'RuPay'].map((brand) => (
+                    <div
+                        key={brand}
+                        className="rounded-xl border border-gray-200 bg-white px-3 py-3 text-center text-xs font-semibold text-gray-600"
+                    >
+                        {brand}
+                    </div>
+                ))}
+            </div>
+
+            <PayButton
+                onClick={() => onPay('card')}
+                loading={loading}
+                label="Continue to Razorpay"
+                icon={<Lock className="w-4 h-4" />}
+            />
         </div>
     );
 };
@@ -384,9 +316,9 @@ const CodPanel = ({ onPay, loading, amountPaise }: { onPay: () => void; loading:
         <div className="space-y-3">
             {[
                 { icon: '📦', text: 'Order will be dispatched after confirmation' },
-                { icon: '🚚', text: 'Delivery in 5–7 business days' },
+                { icon: '🚚', text: 'Delivery timeline shown at checkout or order confirmation' },
                 { icon: '💵', text: '₹10 handling fee included in total' },
-                { icon: '🔄', text: 'Easy returns within 7 days' },
+                { icon: '🔄', text: 'Returns and refunds as per policy review' },
             ].map(item => (
                 <div key={item.text} className="flex items-center gap-3 text-sm text-gray-600">
                     <span className="text-base">{item.icon}</span>

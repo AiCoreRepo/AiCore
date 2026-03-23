@@ -382,7 +382,7 @@ export const MyOrdersPage = () => {
                                                                 <svg className="w-3.5 h-3.5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                                                                 </svg>
-                                                                Estimated {order.return_status && order.replace_status ? 'Return & Replacement' : order.return_status ? 'Return' : 'Replacement'}: Within 7 days
+                                                                {order.return_status && order.replace_status ? 'Return & Replacement' : order.return_status ? 'Return' : 'Replacement'} timeline: Subject to policy review and verification
                                                             </div>
                                                         </div>
                                                     )}

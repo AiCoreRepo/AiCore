@@ -8,8 +8,8 @@ const socialLinks = [
     {
         name: "Email",
         icon: Mail,
-        href: "mailto:Support@aivesitire.com",
-        label: "Support@aivesitire.com",
+        href: "mailto:support@aivestire.com",
+        label: "support@aivestire.com",
     },
 ];
 
@@ -22,7 +22,7 @@ export const Footer = () => {
                     {/* Logo & Tagline */}
                     <div className="text-center md:text-left">
                         <a href="/" className="font-serif text-xl font-semibold inline-block mb-2">
-                            <span className="text-[#D4AF37]">Aivesitire</span> AI Fashiontech LLP
+                            <span className="text-[#D4AF37]">AiVestire</span> AI Fashiontech LLP
                         </a>
                         <p className="text-ivory/60 text-sm">
                             Where AI meets haute couture
@@ -46,16 +46,19 @@ export const Footer = () => {
 
                     {/* Quick Links */}
                     <div className="flex flex-wrap justify-center md:justify-end gap-x-6 gap-y-2 text-sm text-ivory/60">
+                        <Link to="/contact-us" className="hover:text-[#D4AF37] transition-colors duration-300">Contact Us</Link>
                         <Link to="/privacy-policy" className="hover:text-[#D4AF37] transition-colors duration-300">Privacy Policy</Link>
                         <Link to="/terms-conditions" className="hover:text-[#D4AF37] transition-colors duration-300">Terms & Conditions</Link>
                         <Link to="/refund-policy" className="hover:text-[#D4AF37] transition-colors duration-300">Refund Policy</Link>
+                        <Link to="/return-policy" className="hover:text-[#D4AF37] transition-colors duration-300">Return Policy</Link>
+                        <Link to="/shipping-policy" className="hover:text-[#D4AF37] transition-colors duration-300">Shipping Policy</Link>
                     </div>
                 </div>
 
                 {/* Copyright */}
                 <div className="text-center mt-6 pt-6 border-t border-ivory/10">
                     <p className="text-sm text-ivory/40">
-                        © 2026 Aivesitire AI Fashiontech LLP. All rights reserved.
+                        © 2026 AiVestire AI Fashiontech LLP. All rights reserved.
                     </p>
                 </div>
             </div>

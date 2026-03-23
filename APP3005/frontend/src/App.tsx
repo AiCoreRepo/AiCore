@@ -52,6 +52,9 @@ import ProductDetailsPage from "./pages/ProductDetailsPage";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsCondition from "./pages/TermsCondition";
 import RefundPolicy from "./pages/RefundPolicy";
+import ReturnPolicy from "./pages/ReturnPolicy";
+import ShippingPolicy from "./pages/ShippingPolicy";
+import ContactUs from "./pages/ContactUs";
 import { MyOrdersPage } from "./features/orders";
 import { OrderTrackingPage } from "./features/orders/OrderTrackingPage";
 import { OrderDetailPage } from "./features/orders/OrderDetailPage";
@@ -180,6 +183,9 @@ const App = () => (
                       <Route path="/privacy-policy" element={<PrivacyPolicy />} />
                       <Route path="/terms-conditions" element={<TermsCondition />} />
                       <Route path="/refund-policy" element={<RefundPolicy />} />
+                      <Route path="/return-policy" element={<ReturnPolicy />} />
+                      <Route path="/shipping-policy" element={<ShippingPolicy />} />
+                      <Route path="/contact-us" element={<ContactUs />} />
 
                       {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                       <Route path="*" element={<NotFound />} />
