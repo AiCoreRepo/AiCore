@@ -52,8 +52,8 @@ const ContactUs = () => {
                     </h1>
                     <div className="mx-auto mb-8 h-1 w-24 bg-[#D4AF37]" />
                     <p className="mx-auto max-w-3xl text-lg font-light leading-relaxed text-gray-300 md:text-xl">
-                        This page now also serves as the contact and grievance reference point for
-                        the legal pages based on the policy PDF you shared.
+                        Use this page to reach us for order support, payment issues, privacy
+                        requests, and general customer assistance.
                     </p>
                     <p className="mt-8 text-sm uppercase tracking-widest text-[#D4AF37]/80">
                         Last Updated: {LEGAL_LAST_UPDATED}

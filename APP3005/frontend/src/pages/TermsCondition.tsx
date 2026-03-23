@@ -86,9 +86,8 @@ const TermsCondition = () => {
                     </h1>
                     <div className="mx-auto mb-8 h-1 w-24 bg-[#D4AF37]" />
                     <p className="mx-auto max-w-3xl text-lg font-light leading-relaxed text-gray-300 md:text-xl">
-                        This version has been expanded to cover the legal-use points from your PDF,
-                        including the electronic-record clause, platform ownership, third-party
-                        links, indemnity, force majeure, and Indian governing law.
+                        These terms explain the rules, responsibilities, and legal conditions that
+                        apply when you access or use the platform.
                     </p>
                     <p className="mt-8 text-sm uppercase tracking-widest text-[#D4AF37]/80">
                         Last Updated: {LEGAL_LAST_UPDATED}

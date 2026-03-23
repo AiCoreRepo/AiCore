@@ -97,9 +97,8 @@ const PrivacyPolicy = () => {
                     </h1>
                     <div className="mx-auto mb-8 h-1 w-24 bg-[#D4AF37]" />
                     <p className="mx-auto max-w-3xl text-lg font-light leading-relaxed text-gray-300 md:text-xl">
-                        This version covers the Razorpay payment flow and the main clauses from
-                        your onboarding policy PDF, including India-only processing, payment-data
-                        handling, third-party sharing, deletion requests, and grievance contact.
+                        This policy explains how personal data is collected, used, stored, shared,
+                        and protected across the platform and related services.
                     </p>
                     <p className="mt-8 text-sm uppercase tracking-widest text-[#D4AF37]/80">
                         Last Updated: {LEGAL_LAST_UPDATED}

@@ -70,9 +70,9 @@ const RefundPolicy = () => {
                     </h1>
                     <div className="mx-auto mb-6 h-1 w-24 bg-[#D4AF37]" />
                     <p className="mx-auto max-w-3xl text-gray-500">
-                        This page now reflects the main refund and cancellation points from your
-                        policy PDF, including the 2-day cancellation reporting window and the
-                        7-day refund-processing statement.
+                        This policy explains cancellation eligibility, damaged-product reporting,
+                        refund timelines, and the key conditions that apply to order-related
+                        refunds and cancellations.
                     </p>
                     <p className="mt-4 text-sm text-gray-400">Last Updated: {LEGAL_LAST_UPDATED}</p>
                 </div>

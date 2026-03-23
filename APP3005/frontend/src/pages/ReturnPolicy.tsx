@@ -69,9 +69,8 @@ const ReturnPolicy = () => {
                     </h1>
                     <div className="mx-auto mb-8 h-1 w-24 bg-[#D4AF37]" />
                     <p className="mx-auto max-w-3xl text-lg font-light leading-relaxed text-gray-300 md:text-xl">
-                        This page now includes the main return and exchange points from your PDF,
-                        including the 2-day window, unused-condition requirement, original
-                        packaging expectation, sale-item restrictions, and post-inspection review.
+                        This policy explains the conditions, timelines, and review process for
+                        returns, replacements, and eligible exchanges.
                     </p>
                     <p className="mt-8 text-sm uppercase tracking-widest text-[#D4AF37]/80">
                         Last Updated: {LEGAL_LAST_UPDATED}
