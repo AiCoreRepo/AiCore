@@ -6,7 +6,6 @@ import {
     Shield,
     ShoppingBag,
     Building2,
-    Clock3,
 } from "lucide-react";
 import {
     LEGAL_ENTITY_NAME,
@@ -14,7 +13,6 @@ import {
     PRIVACY_EMAIL,
     REGISTERED_OFFICE_ADDRESS,
     SUPPORT_EMAIL,
-    SUPPORT_HOURS,
 } from "@/constants/legal.constants";
 
 const contactCards = [
@@ -94,7 +92,7 @@ const ContactUs = () => {
                     })}
                 </div>
 
-                <div className="mt-12 grid gap-8 md:grid-cols-2">
+                <div className="mt-12">
                     <section className="rounded-3xl border border-gray-100 bg-white p-8 shadow-sm">
                         <div className="mb-4 flex items-center gap-3">
                             <Building2 className="h-5 w-5 text-[#D4AF37]" />
@@ -102,14 +100,6 @@ const ContactUs = () => {
                         </div>
                         <p className="text-sm leading-7 text-gray-600">{LEGAL_ENTITY_NAME}</p>
                         <p className="text-sm leading-7 text-gray-600">{REGISTERED_OFFICE_ADDRESS}</p>
-                    </section>
-
-                    <section className="rounded-3xl border border-gray-100 bg-white p-8 shadow-sm">
-                        <div className="mb-4 flex items-center gap-3">
-                            <Clock3 className="h-5 w-5 text-[#D4AF37]" />
-                            <h2 className="text-2xl font-serif text-[#1a1a1a]">Support Window</h2>
-                        </div>
-                        <p className="text-sm leading-7 text-gray-600">{SUPPORT_HOURS}</p>
                         <p className="text-sm leading-7 text-gray-600">
                             If you need a grievance or privacy response, please contact{" "}
                             <a

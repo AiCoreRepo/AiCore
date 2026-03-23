@@ -68,10 +68,8 @@ const ShippingPolicy = () => {
                     </h1>
                     <div className="mx-auto mb-8 h-1 w-24 bg-[#D4AF37]" />
                     <p className="mx-auto max-w-3xl text-lg font-light leading-relaxed text-gray-300 md:text-xl">
-                        This version now covers the key shipping points from your PDF, including
-                        domestic courier dispatch, the 10-day shipping statement, delivery to the
-                        buyer-provided address, email confirmation, and non-refundable shipping
-                        charges where applicable.
+                        This policy explains how orders are dispatched, delivered, and handled for
+                        shipping-related communication, timelines, and applicable charges.
                     </p>
                     <p className="mt-8 text-sm uppercase tracking-widest text-[#D4AF37]/80">
                         Last Updated: {LEGAL_LAST_UPDATED}
@@ -95,7 +93,7 @@ const ShippingPolicy = () => {
                                     </div>
                                     <div>
                                         <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#D4AF37]">
-                                            Shipping {section.id}
+                                            Section {section.id}
                                         </p>
                                         <h2 className="text-3xl font-serif text-[#1a1a1a]">
                                             {section.title}

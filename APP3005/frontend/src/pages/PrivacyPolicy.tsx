@@ -16,7 +16,6 @@ import {
     PRIVACY_EMAIL,
     REGISTERED_OFFICE_ADDRESS,
     SUPPORT_EMAIL,
-    SUPPORT_HOURS,
 } from "@/constants/legal.constants";
 
 const sections = [
@@ -182,7 +181,6 @@ const PrivacyPolicy = () => {
                         </p>
                         <p>{LEGAL_ENTITY_NAME}</p>
                         <p>{REGISTERED_OFFICE_ADDRESS}</p>
-                        <p>Support hours: {SUPPORT_HOURS}</p>
                         <p>
                             You may withdraw previously given consent by contacting us in writing.
                             We may verify such requests before acting on them, and withdrawal will
