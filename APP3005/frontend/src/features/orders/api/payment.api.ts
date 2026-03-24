@@ -1,5 +1,5 @@
 // ============================================
-// PAYMENT API SERVICE
+// PAYMENT API SERVICE — PayU
 // ============================================
 
 import axios from 'axios';
@@ -21,25 +21,23 @@ api.interceptors.request.use((config) => {
 // TYPES
 // ============================================
 
+/**
+ * Response from POST /payments/initiate
+ * Backend returns a signed PayU checkout payload.
+ * The frontend must auto-submit this as an HTML form POST to `action`.
+ */
 export interface InitiatePaymentResponse {
-    razorpayOrderId: string;
-    amount: number;         // In paise
-    currency: string;
-    orderId: string;
-    orderNumber: string;
-    keyId: string;
-    prefill: {
-        name: string;
-        email: string;
-        contact: string;
-    };
-}
-
-export interface VerifyPaymentPayload {
-    razorpay_order_id: string;
-    razorpay_payment_id: string;
-    razorpay_signature: string;
-    order_id: string;
+    key: string;          // PayU merchant key
+    txnid: string;        // Unique transaction ID
+    amount: string;       // Amount as string e.g. "999.00"
+    productinfo: string;  // Order description e.g. "Order #AIV-001"
+    firstname: string;    // Derived from user email prefix
+    email: string;
+    phone: string;
+    surl: string;         // Backend success URL (PayU POSTs here)
+    furl: string;         // Backend failure URL (PayU POSTs here)
+    hash: string;         // SHA-512 forward hash (computed server-side)
+    action: string;       // PayU payment URL to POST to
 }
 
 export interface VerifyPaymentResponse {
@@ -53,14 +51,15 @@ export interface VerifyPaymentResponse {
 export interface PaymentStatusResponse {
     transactionId: string;
     gateway: string;
-    gatewayOrderId: string;
+    gatewayTxnId: string;
     gatewayPaymentId: string | null;
     status: string;
-    amountPaise: number;
-    amountRupees: number;
+    amount: number;
     currency: string;
     paymentMethod: string | null;
     capturedAt: string | null;
+    refundId: string | null;
+    refundedAt: string | null;
     orderStatus: string;
     orderPaymentStatus: string;
 }
@@ -71,8 +70,8 @@ export interface PaymentStatusResponse {
 
 export const paymentApi = {
     /**
-     * Step 1: Create a Razorpay order on the backend.
-     * Returns the Razorpay order ID and key to open checkout.
+     * Step 1: Create a PayU order on the backend.
+     * Returns a signed checkout payload to be submitted as an HTML form to PayU.
      */
     initiatePayment: async (orderId: string): Promise<InitiatePaymentResponse> => {
         const { data } = await api.post('/payments/initiate', { orderId });
@@ -80,16 +79,8 @@ export const paymentApi = {
     },
 
     /**
-     * Step 2: After Razorpay checkout completes, verify the signature.
-     * This marks the order as PAID on the backend.
-     */
-    verifyPayment: async (payload: VerifyPaymentPayload): Promise<VerifyPaymentResponse> => {
-        const { data } = await api.post('/payments/verify', payload);
-        return data;
-    },
-
-    /**
      * Get payment status for an order.
+     * Used by the success/failure pages to confirm the transaction state after redirect.
      */
     getPaymentStatus: async (orderId: string): Promise<PaymentStatusResponse> => {
         const { data } = await api.get(`/payments/status/${orderId}`);

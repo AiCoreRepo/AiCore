@@ -66,6 +66,7 @@ import { ReturnOrderPage } from "./features/orders/ReturnOrderPage";
 import { ReplaceOrderPage } from "./features/orders/ReplaceOrderPage";
 import UserDashboard from "./pages/UserDashboard";
 import PaymentSuccessPage from "./pages/PaymentSuccessPage";
+import PaymentFailurePage from "./pages/PaymentFailurePage";
 
 const queryClient = new QueryClient();
 
@@ -218,6 +219,7 @@ const App = () => (
                         </Suspense>
                       } />
                       <Route path="/payment-success" element={<PaymentSuccessPage />} />
+                      <Route path="/payment-failure" element={<PaymentFailurePage />} />
 
                       {/* Legal Pages */}
                       <Route path="/privacy-policy" element={<PrivacyPolicy />} />

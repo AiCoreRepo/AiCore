@@ -812,7 +812,7 @@ enum OrderStatus {
 enum PaymentMethod {
   PREPAID
   COD
-  RAZORPAY
+  PAYU
   WALLET
 }
 
@@ -898,7 +898,7 @@ enum ReplacementStatus {
 // ============================================
 
 /**
- * Tracks every Razorpay order/payment attempt for an order.
+ * Tracks every PayU transaction attempt for an order.
  * One order can have multiple attempts (e.g., user retries after failure).
  */
 model PaymentTransaction {
@@ -906,21 +906,21 @@ model PaymentTransaction {
   order_id       String @db.Uuid
 
   // Gateway Info
-  gateway            PaymentGateway @default(RAZORPAY)
-  gateway_order_id   String?        @unique // Razorpay order ID (order_XXXX)
-  gateway_payment_id String? // Razorpay payment ID (pay_XXXX)
+  gateway            PaymentGateway @default(PAYU)
+  gateway_order_id   String?        @unique // PayU txnid
+  gateway_payment_id String? // PayU mihpayid
 
   // Amount
   amount_paise Int // Amount in paise (smallest unit)
   currency     String  @default("INR")
-  receipt      String? // Unique receipt sent to Razorpay
+  receipt      String? // Unique txnid sent to PayU
 
   // Status
   status         PaymentTransactionStatus @default(CREATED)
   payment_method String? // card, upi, netbanking, wallet, etc.
 
   // Refund
-  refund_id   String? // Razorpay refund ID
+  refund_id   String? // PayU refund ID
   refunded_at DateTime?
 
   // Timestamps
@@ -928,7 +928,7 @@ model PaymentTransaction {
   captured_at DateTime?
   updated_at  DateTime  @updatedAt
 
-  // Metadata (raw Razorpay response)
+  // Metadata (raw PayU postback response)
   metadata Json?
 
   // Relations
@@ -943,7 +943,7 @@ model PaymentTransaction {
 }
 
 enum PaymentGateway {
-  RAZORPAY
+  PAYU
   COD
 }
 
