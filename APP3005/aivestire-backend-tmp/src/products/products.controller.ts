@@ -43,6 +43,7 @@ export class ProductsController {
     @Query('sortBy') sortBy?: string,
     @Query('sizes') sizes?: string,
     @Query('colors') colors?: string,
+    @Query('groupId') groupId?: string,
   ) {
     const pageNum = page ? parseInt(page, 10) : 1;
     const limitNum = limit ? parseInt(limit, 10) : 20;
@@ -59,6 +60,7 @@ export class ProductsController {
       sortBy,
       sizes,
       colors,
+      groupId,
     );
   }
 

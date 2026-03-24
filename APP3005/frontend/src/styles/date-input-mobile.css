@@ -1,87 +1,111 @@
 /* Mobile-optimized date input styling */
 
+
 /* Prevent zoom on mobile when focusing date inputs */
+
 @media screen and (max-width: 768px) {
-  input[type="date"] {
-    font-size: 16px !important;
-    /* Prevents iOS zoom */
-  }
+    input[type="date"] {
+        font-size: 16px !important;
+        /* Prevents iOS zoom */
+    }
 }
+
 
 /* Better date picker styling for all devices */
+
 input[type="date"] {
-  position: relative;
-  -webkit-appearance: none;
-  -moz-appearance: none;
-  appearance: none;
-  direction: ltr;
-  text-align: left;
-  padding-right: 40px !important;
-  /* Space for calendar icon on right */
+    position: relative;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    direction: ltr;
+    text-align: left;
+    padding-right: 40px !important;
+    /* Space for calendar icon on right */
+    /* Ensure the date text itself is clearly visible on dark backgrounds */
+    color: #f5f2eb;
+    caret-color: #f5f2eb;
+    color-scheme: dark;
 }
 
+
+/* Make sure the rendered date text uses the light color */
+
+input[type="date"]::-webkit-datetime-edit,
+input[type="date"]::-webkit-date-and-time-value {
+    color: #f5f2eb;
+}
+
+
 /* Style the calendar icon - Position on RIGHT side */
+
 input[type="date"]::-webkit-calendar-picker-indicator {
-  cursor: pointer;
-  opacity: 0.6;
-  transition: all 0.2s ease;
-  width: 18px;
-  height: 18px;
-  padding: 0;
-  margin: 0;
-  position: absolute;
-  right: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  background-size: contain;
-  background-repeat: no-repeat;
-  background-position: center;
+    cursor: pointer;
+    opacity: 0.9;
+    transition: all 0.2s ease;
+    width: 18px;
+    height: 18px;
+    padding: 0;
+    margin: 0;
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
 }
 
 input[type="date"]::-webkit-calendar-picker-indicator:hover {
-  opacity: 1;
-  transform: translateY(-50%) scale(1.1);
+    opacity: 1;
+    transform: translateY(-50%) scale(1.1);
 }
+
 
 /* Ensure date value is left-aligned with proper padding */
+
 input[type="date"]::-webkit-date-and-time-value {
-  text-align: left;
-  padding-right: 0;
-  padding-left: 0;
+    text-align: left;
+    padding-right: 0;
+    padding-left: 0;
 }
 
+
 /* Firefox date input styling */
+
 input[type="date"]::-moz-calendar-picker-indicator {
-  cursor: pointer;
-  opacity: 0.6;
-  transition: opacity 0.2s ease;
-  margin-left: auto;
+    cursor: pointer;
+    opacity: 0.6;
+    transition: opacity 0.2s ease;
+    margin-left: auto;
 }
 
 input[type="date"]::-moz-calendar-picker-indicator:hover {
-  opacity: 1;
+    opacity: 1;
 }
+
 
 /* Mobile-specific improvements */
+
 @media screen and (max-width: 640px) {
-
-  /* Make the date picker modal more mobile-friendly */
-  input[type="date"]::-webkit-calendar-picker-indicator {
-    width: 20px;
-    height: 20px;
-    right: 10px;
-  }
-
-  /* Ensure proper touch target size */
-  input[type="date"] {
-    min-height: 44px;
-    /* WCAG touch target size */
-  }
+    /* Make the date picker modal more mobile-friendly */
+    input[type="date"]::-webkit-calendar-picker-indicator {
+        width: 20px;
+        height: 20px;
+        right: 10px;
+    }
+    /* Ensure proper touch target size */
+    input[type="date"] {
+        min-height: 44px;
+        /* WCAG touch target size */
+    }
 }
 
+
 /* Tablet breakpoint */
+
 @media screen and (min-width: 641px) and (max-width: 1024px) {
-  input[type="date"] {
-    font-size: 15px;
-  }
+    input[type="date"] {
+        font-size: 15px;
+    }
 }

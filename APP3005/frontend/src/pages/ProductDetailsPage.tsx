@@ -146,17 +146,10 @@ const ProductDetailsPage = () => {
                 quantity: 1,
                 creator: product.creator,
             });
-            toast({
-                title: "Added to Cart",
-                description: `${product.title} has been added to your cart.`,
-            });
+            // Toast is handled by CartContext with CartToast component
         } catch (error) {
             console.error('Error adding to cart:', error);
-            toast({
-                variant: "destructive",
-                title: "Error",
-                description: "Failed to add product to cart.",
-            });
+            // Error toast is handled by CartContext
         }
     };
 

@@ -1,6 +1,6 @@
 import React, { ReactNode, useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { ShoppingBag, Heart, MapPin, CreditCard, Settings, LogOut, User, Home, Package, Menu, X } from 'lucide-react';
+import { ShoppingBag, Heart, MapPin, CreditCard, Settings, LogOut, User, Home, Package, Menu, X, Wallet } from 'lucide-react';
 import { LogoutConfirmDialog } from '@/components/LogoutConfirmDialog';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/AuthContext';
@@ -58,6 +58,12 @@ export const UserDashboardLayout: React.FC<UserLayoutProps> = ({ children, hideS
             label: 'My Orders',
             icon: Package,
             href: '/my-orders',
+        },
+        {
+            id: 'wallet',
+            label: 'Wallet',
+            icon: Wallet,
+            href: '/wallet',
         },
     ];
 

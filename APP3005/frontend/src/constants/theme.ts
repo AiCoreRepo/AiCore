@@ -10,6 +10,8 @@ import {
     Upload,
     Package,
     MessageSquare,
+    Ticket,
+    Layers,
 } from 'lucide-react';
 
 /**
@@ -103,6 +105,13 @@ export const menuItems: MenuItem[] = [
         // Microservice 2 (Creator): The Gatekeeper - Review pending 20-item uploads from creators
     },
     {
+        id: 'categories',
+        label: 'Categories',
+        icon: Layers,
+        href: '/admin-categories',
+        isBeta: false,
+    },
+    {
         id: 'try-on-approvals',
         label: 'Try-On Approvals',
         icon: Sparkles,
@@ -147,6 +156,13 @@ export const menuItems: MenuItem[] = [
         href: '/admin-clientele',
         isBeta: true,
         // Microservice 1 (Consumer): Buyer Management - User list, check Aura status, help stuck users
+    },
+    {
+        id: 'coupons',
+        label: 'Coupons & Referrals',
+        icon: Ticket,
+        href: '/admin-coupons',
+        isBeta: false,
     },
     {
         id: 'settings',

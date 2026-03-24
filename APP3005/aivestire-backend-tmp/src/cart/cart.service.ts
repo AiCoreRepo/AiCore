@@ -16,7 +16,7 @@ import {
 
 @Injectable()
 export class CartService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   /**
    * Get or create cart for user
@@ -46,6 +46,7 @@ export class CartService {
       select: {
         cart_id: true,
         user_id: true,
+        applied_coupon_code: true,
         created_at: true,
         updated_at: true,
         items: {
@@ -90,6 +91,7 @@ export class CartService {
     return {
       cart_id: cartWithItems.cart_id,
       user_id: cartWithItems.user_id,
+      applied_coupon_code: cartWithItems.applied_coupon_code,
       created_at: cartWithItems.created_at,
       updated_at: cartWithItems.updated_at,
       items: cartWithItems.items.map((item) => ({

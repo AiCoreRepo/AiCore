@@ -16,6 +16,7 @@ import NotFound from "./pages/NotFound";
 import CreatorLogin from "./pages/CreatorLogin";
 import AiTryOn from "./pages/AiTryOn";
 import DashboardPage from "./app/dashboard/page";
+import CreatorCouponsPage from "./app/creator-coupons/page";
 import SettingsPage from "./app/settings/page";
 import WardrobePage from "./app/wardrobe/page";
 import AnalyticsPage from "./app/analytics/page";
@@ -38,6 +39,13 @@ import AdminOrdersPage from "./app/admin-orders/page";
 import ArtisansPage from "./app/admin-artisans/page";
 import ClientelePage from "./app/admin-clientele/page";
 import AdminSettingsPage from "./app/admin-settings/page";
+const AdminCouponsPage = lazy(() => import("./app/admin-coupons/page"));
+const CreateCouponPage = lazy(() => import("./app/admin-coupons/create"));
+const EditCouponPage = lazy(() => import("./app/admin-coupons/edit"));
+const WalletPage = lazy(() => import("./pages/WalletPage"));
+const AdminWalletPage = lazy(() => import("./pages/AdminWalletPage"));
+const AdminCategoriesPage = lazy(() => import("./app/admin-categories/page"));
+
 import AdminLogin from "./pages/AdminLogin";
 import AdminSecretConfirm from "./pages/AdminSecretConfirm";
 import AdminCSVUploadPage from "./pages/AdminCSVUploadPage";
@@ -115,10 +123,22 @@ const App = () => (
                       <Route path="/my-orders/:orderId/replace" element={<ReplaceOrderPage />} />
                       <Route path="/track-order/:orderId" element={<OrderTrackingPage />} />
 
+                      {/* Wallet Route */}
+                      <Route path="/wallet" element={
+                        <Suspense fallback={<div className="min-h-screen bg-neutral-950 flex items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-2 border-[#D4AF37] border-t-transparent"></div></div>}>
+                          <WalletPage />
+                        </Suspense>
+                      } />
+
                       {/* Protected Creator Routes */}
                       <Route path="/creator-dashboard" element={
                         <ProtectedRoute requiredRole="CREATOR" redirectTo="/login">
                           <DashboardPage />
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/creator-coupons" element={
+                        <ProtectedRoute requiredRole="CREATOR" redirectTo="/login">
+                          <CreatorCouponsPage />
                         </ProtectedRoute>
                       } />
                       <Route path="/settings" element={
@@ -157,6 +177,11 @@ const App = () => (
                       <Route path="/admin-login" element={<AdminLogin />} />
                       <Route path="/admin-secret-confirm" element={<AdminSecretConfirm />} />
                       <Route path="/admin-dashboard" element={<AdminDashboardPage />} />
+                      <Route path="/admin-categories" element={
+                        <Suspense fallback={<div className="min-h-screen bg-neutral-950 flex items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-2 border-[#D4AF37] border-t-transparent"></div></div>}>
+                          <AdminCategoriesPage />
+                        </Suspense>
+                      } />
                       <Route path="/admin-approvals" element={
                         <Suspense fallback={<div className="min-h-screen bg-neutral-950 flex items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-2 border-[#D4AF37] border-t-transparent"></div></div>}>
                           <AtelierApprovalPage />
@@ -170,6 +195,26 @@ const App = () => (
                       <Route path="/admin-settings" element={<AdminSettingsPage />} />
                       <Route path="/admin-feedback" element={<AdminFeedbackPage />} />
                       <Route path="/admin-csv-upload" element={<AdminCSVUploadPage />} />
+                      <Route path="/admin-wallet" element={
+                        <Suspense fallback={<div className="min-h-screen bg-neutral-950 flex items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-2 border-[#D4AF37] border-t-transparent"></div></div>}>
+                          <AdminWalletPage />
+                        </Suspense>
+                      } />
+                      <Route path="/admin-coupons" element={
+                        <Suspense fallback={<div className="min-h-screen bg-neutral-950 flex items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-2 border-[#D4AF37] border-t-transparent"></div></div>}>
+                          <AdminCouponsPage />
+                        </Suspense>
+                      } />
+                      <Route path="/admin-coupons/create" element={
+                        <Suspense fallback={<div className="min-h-screen bg-neutral-950 flex items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-2 border-[#D4AF37] border-t-transparent"></div></div>}>
+                          <CreateCouponPage />
+                        </Suspense>
+                      } />
+                      <Route path="/admin-coupons/edit/:id" element={
+                        <Suspense fallback={<div className="min-h-screen bg-neutral-950 flex items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-2 border-[#D4AF37] border-t-transparent"></div></div>}>
+                          <EditCouponPage />
+                        </Suspense>
+                      } />
 
                       {/* Payment Routes */}
                       <Route path="/payment" element={

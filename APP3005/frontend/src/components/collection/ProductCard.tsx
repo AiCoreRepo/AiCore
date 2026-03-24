@@ -126,6 +126,7 @@ export const ProductCard = ({
     return (
         <>
             <div
+                id={`product-card-${product.product_id}`}
                 className="group cursor-pointer"
                 onClick={() => navigate(`/product/${product.product_id}`)}
             >

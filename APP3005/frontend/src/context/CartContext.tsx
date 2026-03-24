@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from './AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { CartToast } from '@/components/cart/CartToast';
 import {
     getUserCart,
     getGuestCart,
@@ -51,6 +52,7 @@ export interface CartItem {
 export interface CartState {
     items: CartItem[];
     summary: CartSummaryAPI;
+    appliedCouponCode: string | null;
     isLoading: boolean;
     error: string | null;
     lastUpdated: string | null;
@@ -83,6 +85,8 @@ export interface CartContextType {
     refreshCart: () => Promise<void>;
     itemCount: number;
     isEmpty: boolean;
+    lastAddedProductId: string | null;
+    clearLastAddedProductId: () => void;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -124,10 +128,16 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const { user } = useAuth();
     const { toast } = useToast();
     const previousUserId = useRef<string | null>(null);
+    const [lastAddedProductId, setLastAddedProductId] = useState<string | null>(null);
+
+    const clearLastAddedProductId = useCallback(() => {
+        setLastAddedProductId(null);
+    }, []);
 
     const [cart, setCart] = useState<CartState>({
         items: [],
         summary: DEFAULT_SUMMARY,
+        appliedCouponCode: null,
         isLoading: true,
         error: null,
         lastUpdated: null,
@@ -151,6 +161,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 setCart({
                     items: response.items.map(transformCartItem),
                     summary: response.summary,
+                    appliedCouponCode: response.applied_coupon_code || null,
                     isLoading: false,
                     error: null,
                     lastUpdated: new Date().toISOString(),
@@ -163,6 +174,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     setCart({
                         items: response.items.map(transformCartItem),
                         summary: response.summary,
+                        appliedCouponCode: response.applied_coupon_code || null,
                         isLoading: false,
                         error: null,
                         lastUpdated: new Date().toISOString(),
@@ -173,6 +185,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     setCart({
                         items: [],
                         summary: DEFAULT_SUMMARY,
+                        appliedCouponCode: null,
                         isLoading: false,
                         error: null,
                         lastUpdated: new Date().toISOString(),
@@ -233,6 +246,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setCart({
                 items: [],
                 summary: DEFAULT_SUMMARY,
+                appliedCouponCode: null,
                 isLoading: false,
                 error: null,
                 lastUpdated: new Date().toISOString(),
@@ -254,6 +268,15 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
      */
     const addToCart = useCallback(async (params: AddToCartParams) => {
         try {
+            // Check if this product already exists in cart (duplicate detection)
+            const existingItem = cart.items.find(
+                (item) =>
+                    item.product_id === params.product_id &&
+                    item.size === (params.size || undefined) &&
+                    item.color === (params.color || undefined)
+            );
+            const isDuplicate = !!existingItem;
+
             setCart(prev => ({ ...prev, isLoading: true, error: null }));
 
             const request = {
@@ -263,11 +286,14 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 color: params.color,
             };
 
+            let updatedItems: CartItem[];
             if (user) {
                 const response = await addToUserCart(request);
+                updatedItems = response.items.map(transformCartItem);
                 setCart({
-                    items: response.items.map(transformCartItem),
+                    items: updatedItems,
                     summary: response.summary,
+                    appliedCouponCode: response.applied_coupon_code || null,
                     isLoading: false,
                     error: null,
                     lastUpdated: new Date().toISOString(),
@@ -275,9 +301,11 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 });
             } else {
                 const response = await addToGuestCart(request);
+                updatedItems = response.items.map(transformCartItem);
                 setCart({
-                    items: response.items.map(transformCartItem),
+                    items: updatedItems,
                     summary: response.summary,
+                    appliedCouponCode: response.applied_coupon_code || null,
                     isLoading: false,
                     error: null,
                     lastUpdated: new Date().toISOString(),
@@ -285,10 +313,30 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 });
             }
 
-            toast({
-                title: 'Added to cart!',
-                description: `${params.title} has been added to your cart`,
-                duration: 2000,
+            // Track last added product for scroll-to-item
+            setLastAddedProductId(params.product_id);
+
+            // Find new quantity after update
+            const updatedItem = updatedItems.find(
+                (item) =>
+                    item.product_id === params.product_id &&
+                    item.size === (params.size || undefined) &&
+                    item.color === (params.color || undefined)
+            );
+            const newQty = updatedItem?.quantity || 1;
+
+            // Show animated CartToast
+            const { dismiss } = toast({
+                description: React.createElement(CartToast, {
+                    title: params.title,
+                    thumbnail: params.thumbnail,
+                    isQuantityUpdate: isDuplicate,
+                    newQuantity: newQty,
+                    priceCents: params.price_cents,
+                    onDismiss: () => dismiss(),
+                }),
+                duration: 3000,
+                className: `border-l-4 ${isDuplicate ? 'border-l-blue-500' : 'border-l-green-500'}`,
             });
 
         } catch (error) {
@@ -305,7 +353,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 duration: 3000,
             });
         }
-    }, [user, toast]);
+    }, [user, toast, cart.items]);
 
     /**
      * Remove item from cart
@@ -319,6 +367,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 setCart({
                     items: response.items.map(transformCartItem),
                     summary: response.summary,
+                    appliedCouponCode: response.applied_coupon_code || null,
                     isLoading: false,
                     error: null,
                     lastUpdated: new Date().toISOString(),
@@ -329,6 +378,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 setCart({
                     items: response.items.map(transformCartItem),
                     summary: response.summary,
+                    appliedCouponCode: response.applied_coupon_code || null,
                     isLoading: false,
                     error: null,
                     lastUpdated: new Date().toISOString(),
@@ -368,6 +418,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 setCart({
                     items: response.items.map(transformCartItem),
                     summary: response.summary,
+                    appliedCouponCode: response.applied_coupon_code || null,
                     isLoading: false,
                     error: null,
                     lastUpdated: new Date().toISOString(),
@@ -378,6 +429,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 setCart({
                     items: response.items.map(transformCartItem),
                     summary: response.summary,
+                    appliedCouponCode: response.applied_coupon_code || null,
                     isLoading: false,
                     error: null,
                     lastUpdated: new Date().toISOString(),
@@ -417,6 +469,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setCart({
                 items: [],
                 summary: DEFAULT_SUMMARY,
+                appliedCouponCode: null,
                 isLoading: false,
                 error: null,
                 lastUpdated: new Date().toISOString(),
@@ -463,6 +516,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         refreshCart,
         itemCount,
         isEmpty,
+        lastAddedProductId,
+        clearLastAddedProductId,
     };
 
     return <CartContext.Provider value={value}>{children}</CartContext.Provider>;

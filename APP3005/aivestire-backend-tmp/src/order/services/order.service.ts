@@ -123,20 +123,80 @@ export class OrderService {
       };
     });
     // Calculate total amount using utility
-    const totalAmount = OrderCalculations.calculateOrderTotal(
+    const grossTotal = OrderCalculations.calculateOrderTotal(
       orderItems.map((item) => ({
         quantity: item.quantity,
         unitPrice: item.unit_price,
       })),
     );
 
-    console.log('Total Amount:', totalAmount);
+    // ── Apply coupon discount (if provided) ─────────────────────────────
+    let couponDiscount = 0;
+    let appliedCouponId: string | null = null;
 
-    // COD orders are instantly confirmed/booked. Prepaid wait for payment.
+    if (dto.couponCode) {
+      const coupon = await this.prisma.coupon.findFirst({
+        where: {
+          code: dto.couponCode.toUpperCase(),
+          status: 'ACTIVE',
+          is_deleted: false,
+          start_date: { lte: new Date() },
+          end_date: { gte: new Date() },
+        },
+      });
+
+      if (coupon) {
+        // Check usage limit
+        const withinLimit = coupon.max_usage === 0 || coupon.current_usage < coupon.max_usage;
+        // Check min order (gross in rupees)
+        const grossRupees = grossTotal;
+        const minOrder = Number(coupon.min_order_amount ?? 0);
+        const meetsMin = grossRupees >= minOrder;
+
+        if (withinLimit && meetsMin) {
+          const discountVal = Number(coupon.discount_value);
+          if (coupon.discount_type === 'PERCENTAGE') {
+            couponDiscount = (grossTotal * discountVal) / 100;
+          } else {
+            // FLAT discount in rupees
+            couponDiscount = discountVal;
+          }
+          couponDiscount = Math.min(couponDiscount, grossTotal); // never exceed order value
+          appliedCouponId = coupon.coupon_id;
+        }
+      }
+    }
+
+    const totalAmount = Math.max(0, grossTotal - couponDiscount);
+
+    console.log(
+      'Total Amount:',
+      totalAmount,
+      couponDiscount ? `(coupon -₹${couponDiscount})` : '',
+    );
+
+    // Check wallet balance if payment method is WALLET
+    let userWallet: any = null;
+    if (
+      dto.paymentMethod === ('WALLET' as any) ||
+      dto.paymentMethod === PaymentMethod.WALLET
+    ) {
+      userWallet = await this.prisma.wallet.findUnique({ where: { user_id: userId } });
+      if (!userWallet || Number(userWallet.balance) < totalAmount) {
+        throw new BadRequestException('Insufficient wallet balance. Please choose another payment method.');
+      }
+    }
+
+    // COD and WALLET orders are instantly confirmed/booked. Prepaid wait for payment.
     const initialStatus =
-      dto.paymentMethod === PaymentMethod.COD
+      dto.paymentMethod === PaymentMethod.COD ||
+      dto.paymentMethod === PaymentMethod.WALLET
         ? OrderStatus.BOOKED
         : OrderStatus.PENDING;
+    const initialPaymentStatus =
+      dto.paymentMethod === PaymentMethod.WALLET
+        ? PaymentStatus.COMPLETED
+        : PaymentStatus.PENDING;
 
     // Create order in transaction
     const order = await this.prisma.$transaction(
@@ -158,7 +218,7 @@ export class OrderService {
             from_status: OrderStatus.PENDING,
             to_status: OrderStatus.BOOKED,
             changed_by_type: ChangedByType.SYSTEM,
-            notes: 'COD order auto-confirmed',
+            notes: dto.paymentMethod === PaymentMethod.WALLET ? 'Wallet order auto-confirmed and paid' : 'COD order auto-confirmed',
           });
         }
 
@@ -169,7 +229,7 @@ export class OrderService {
             user_id: userId,
             total_amount: totalAmount,
             payment_method: dto.paymentMethod,
-            payment_status: PaymentStatus.PENDING,
+            payment_status: initialPaymentStatus,
             current_status: initialStatus,
             shipping_address_id: dto.shippingAddressId,
             estimated_delivery_date: new Date(
@@ -188,6 +248,26 @@ export class OrderService {
           },
         });
 
+        // Deduct wallet balance if paid with wallet
+        if (dto.paymentMethod === PaymentMethod.WALLET && userWallet) {
+          await tx.wallet.update({
+            where: { wallet_id: userWallet.wallet_id },
+            data: { balance: { decrement: totalAmount } }
+          });
+
+          await tx.walletTransaction.create({
+            data: {
+              wallet_id: userWallet.wallet_id,
+              type: 'DEBIT',
+              source: 'ORDER_PAYMENT',
+              amount: totalAmount,
+              reference_id: orderNumber,
+              description: `Payment for Order #${orderNumber}`,
+              status: 'SUCCESS'
+            }
+          });
+        }
+
         // Deduct inventory
         for (const item of dto.items) {
           await tx.product.update({
@@ -197,6 +277,14 @@ export class OrderService {
                 decrement: item.quantity,
               },
             },
+          });
+        }
+
+        // Increment coupon usage if one was applied
+        if (appliedCouponId) {
+          await tx.coupon.update({
+            where: { coupon_id: appliedCouponId },
+            data: { current_usage: { increment: 1 } },
           });
         }
 

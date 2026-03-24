@@ -11,6 +11,7 @@ import {
   GENDER_OPTIONS,
 } from "@/constants/aura.constants";
 import "@/components/aura/aura-styles.css";
+import { updateBirthdayApi } from "@/api/coupons.api";
 import { FeedbackBottomSheet } from "@/components/feedback/FeedbackBottomSheet";
 import { FeedbackContextType, selectAuraAvatarForTryOns } from "@/lib/api";
 import { RefreshCw, Upload, Wand2, XCircle } from "lucide-react";
@@ -64,6 +65,7 @@ interface AttributeValues {
   skinTone: string;
   gender: string;
   height: string;
+  dateOfBirth: string;
 }
 
 type RecreateMode = "attributes-only" | "new-photo";
@@ -105,6 +107,7 @@ export default function AuraProfile() {
       skinTone: "",
       gender: "",
       height: "",
+      dateOfBirth: "",
     },
   );
   const [recreatePhoto, setRecreatePhoto] = useState<File | null>(null);
@@ -150,6 +153,7 @@ export default function AuraProfile() {
     skinTone: "",
     gender: "",
     height: "",
+    dateOfBirth: "",
   });
 
   // Store original values for cancel functionality
@@ -160,6 +164,7 @@ export default function AuraProfile() {
       skinTone: "",
       gender: "",
       height: "",
+      dateOfBirth: "",
     },
   );
 
@@ -181,6 +186,15 @@ export default function AuraProfile() {
 
     return age >= 0 ? age : null;
   };
+
+  const formatDateInputValue = useCallback((value?: string | null): string => {
+    if (!value) return "";
+
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "";
+
+    return date.toISOString().split("T")[0];
+  }, []);
 
   const toTitleCase = useCallback(
     (value: string) =>
@@ -290,6 +304,8 @@ export default function AuraProfile() {
         return;
       }
 
+      let dateOfBirth = "";
+
       // Fetch user profile for name
       const userResponse = await fetch(
         `${import.meta.env.VITE_API_URL}/auth/me`,
@@ -321,8 +337,15 @@ export default function AuraProfile() {
 
         const localDobKey = `aivestire:dob:${(userData.email || "").toLowerCase()}`;
         const storedDob =
-          userData?.dob || localStorage.getItem(localDobKey) || undefined;
-        setExactAge(calculateExactAge(storedDob));
+          userData?.dob ||
+          userData?.date_of_birth ||
+          localStorage.getItem(localDobKey) ||
+          undefined;
+        dateOfBirth = formatDateInputValue(storedDob);
+        if (dateOfBirth) {
+          localStorage.setItem(localDobKey, dateOfBirth);
+        }
+        setExactAge(calculateExactAge(dateOfBirth || undefined));
       }
 
       const response = await fetch(`${import.meta.env.VITE_API_URL}/aura`, {
@@ -346,6 +369,7 @@ export default function AuraProfile() {
         skinTone: data.skin_tone || "",
         gender: data.gender || "",
         height: data.height_cm ? String(data.height_cm) : "",
+        dateOfBirth,
       };
       setAttributes(initialAttributes);
       setOriginalAttributes(initialAttributes);
@@ -356,7 +380,7 @@ export default function AuraProfile() {
     } finally {
       setLoading(false);
     }
-  }, [navigate, parseRecreationLimit, toTitleCase]);
+  }, [navigate, parseRecreationLimit, toTitleCase, formatDateInputValue]);
 
   useEffect(() => {
     fetchAura();
@@ -461,7 +485,33 @@ export default function AuraProfile() {
 
       const updatedAura = await response.json();
       setAura(updatedAura);
-      setOriginalAttributes(attributes);
+
+      let nextSavedAttributes = {
+        ...attributes,
+        dateOfBirth: originalAttributes.dateOfBirth,
+      };
+
+      const normalizedDob = formatDateInputValue(attributes.dateOfBirth);
+      if (
+        normalizedDob &&
+        normalizedDob !== originalAttributes.dateOfBirth
+      ) {
+        await updateBirthdayApi(new Date(normalizedDob).toISOString());
+        setExactAge(calculateExactAge(normalizedDob));
+        nextSavedAttributes = {
+          ...nextSavedAttributes,
+          dateOfBirth: normalizedDob,
+        };
+      } else if (!normalizedDob && !originalAttributes.dateOfBirth) {
+        setExactAge(null);
+        nextSavedAttributes = {
+          ...nextSavedAttributes,
+          dateOfBirth: "",
+        };
+      }
+
+      setAttributes(nextSavedAttributes);
+      setOriginalAttributes(nextSavedAttributes);
       setIsEditing(false);
       setShowEditValidation(false);
 
@@ -821,6 +871,8 @@ export default function AuraProfile() {
   const showRecreateMissingFields =
     showRecreateValidation &&
     Object.keys(recreateRequiredAttributeErrors).length > 0;
+  const displayedAge =
+    calculateExactAge(attributes.dateOfBirth || undefined) ?? exactAge;
 
   if (!aura) {
     return (
@@ -972,11 +1024,19 @@ export default function AuraProfile() {
               options={GENDER_OPTIONS}
             />
 
+            <EditableAttributeCard
+              label="DATE OF BIRTH"
+              value={attributes.dateOfBirth}
+              isEditing={isEditing}
+              onChange={(value) => handleAttributeChange("dateOfBirth", value)}
+              type="date"
+            />
+
             {/* Exact Age (Read-only) */}
             <div className="editable-attribute-card">
               <div className="attribute-label">AGE</div>
               <div className="attribute-value">
-                {exactAge !== null ? `${exactAge} years` : "Not specified"}
+                {displayedAge !== null ? `${displayedAge} years` : "Not specified"}
               </div>
             </div>
           </div>
