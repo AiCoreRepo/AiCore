@@ -47,6 +47,9 @@ async function bootstrap() {
     'https://aivestire.com',
     'https://www.aivestire.com',
     'https://uat.aivestire.com',
+    'https://dev.aivestire.com',
+    'https://prod.aivestire.com',
+
   ];
 
   // console.log('🔧 CORS Configuration:');
