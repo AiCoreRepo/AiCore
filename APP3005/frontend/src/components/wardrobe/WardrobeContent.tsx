@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { getCreatorProducts } from "@/lib/api";
 import { Search, Plus, Shirt, Loader2, X } from "lucide-react";
 import { LuxeButton } from "@/components/common/Buttons/LuxeButton";
@@ -11,6 +12,7 @@ const WardrobeContent: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [page, setPage] = useState(1);
     const [hasMore, setHasMore] = useState(true);
+    const navigate = useNavigate();
     const [filter, setFilter] = useState("All");
     const [searchQuery, setSearchQuery] = useState("");
     const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
@@ -114,7 +116,7 @@ const WardrobeContent: React.FC = () => {
                     <h1 className="font-serif text-4xl text-luxury-black mb-2">My Wardrobe</h1>
                     <p className="text-stone-500">Manage your digital collection and curated looks.</p>
                 </div>
-                <LuxeButton onClick={() => setIsUploadModalOpen(true)} variant="luxury" className="flex items-center gap-2">
+                <LuxeButton onClick={() => navigate('/creator-upload')} variant="luxury" className="flex items-center gap-2">
                     <Plus size={18} />
                     Add New Item
                 </LuxeButton>

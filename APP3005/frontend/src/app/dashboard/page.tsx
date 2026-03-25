@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { LuxeColors } from "../../lib/luxe-theme";
 import LuxeSidebar from "../../components/common/LuxeSidebar";
 import ProfileHeader from "../../components/dashboard/ProfileHeader";
 import StatsCards from "../../components/dashboard/StatsCards";
 import UploadsGrid from "../../components/dashboard/UploadsGrid";
-import UploadCollectionModal from "../../components/dashboard/UploadCollectionModal";
 import CustomizeDashboardModal from "../../components/dashboard/CustomizeDashboardModal";
 import { Pagination } from "../../components/common/Pagination";
 import { getDashboardMetrics, getCreatorProducts, deleteProduct, getProfile } from "../../lib/api";
@@ -24,6 +24,7 @@ import { useSidebar } from "@/context/SidebarContext";
 const MAX_PRODUCTS = 30;
 
 const DashboardPage: React.FC = () => {
+  const navigate = useNavigate();
   const { sidebarWidth, toggleSidebar, isMobile } = useSidebar();
   const [stats, setStats] = useState<any>({
     rating: "NA",
@@ -52,7 +53,7 @@ const DashboardPage: React.FC = () => {
   const navLinks = [
     { label: "Dashboard", icon: <LayoutDashboard size={20} />, href: "/creator-dashboard" },
     { label: "My Wardrobe", icon: <Shirt size={20} />, href: "/wardrobe" },
-    { label: "Bulk Upload", icon: <Upload size={20} />, href: "/bulk-upload" },
+    { label: "Upload Product", icon: <Upload size={20} />, href: "/creator-upload" },
     { label: "My Coupons", icon: <Ticket size={20} />, href: "/creator-coupons" },
     { label: "Analytics", icon: <BarChart3 size={20} />, href: "/analytics" },
     { label: "Settings", icon: <Settings size={20} />, href: "/settings" },
@@ -174,8 +175,7 @@ const DashboardPage: React.FC = () => {
       setIsLimitDialogOpen(true);
       return;
     }
-    setEditingProduct(null);
-    setIsUploadFormOpen(true);
+    navigate('/creator-upload');
   };
 
   const handleUploadSuccess = (newProduct?: any) => {
@@ -299,12 +299,6 @@ const DashboardPage: React.FC = () => {
         </div>
       </div>
 
-      <UploadCollectionModal
-        open={isUploadFormOpen}
-        onOpenChange={setIsUploadFormOpen}
-        onSuccess={handleUploadSuccess}
-        initialData={editingProduct}
-      />
 
       <CustomizeDashboardModal
         open={isCustomizeModalOpen}

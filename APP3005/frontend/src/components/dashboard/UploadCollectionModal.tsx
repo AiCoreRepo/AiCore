@@ -1,1006 +1,803 @@
-import { useState, useEffect } from "react";
+import { useState, useCallback, useRef } from "react";
 import {
-    Upload, X, Loader2, Check, ChevronDown, ChevronRight,
-    Package, Tags, DollarSign, Search, Sparkles, Heart,
-    Users, Palette, Ruler, CalendarRange, ImageIcon, ArrowRight,
-    FolderTree, Layers
+  Upload, X, Loader2, Plus, Trash2,
+  ChevronDown, ChevronUp,
+  Image as ImageIcon, CheckCircle2, AlertCircle,
+  Sparkles, Layers, Palette, Package2, Info,
+  FolderTree, Tags, DollarSign,
 } from "lucide-react";
 import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog";
-import {
-    AlertDialog,
-    AlertDialogContent,
-    AlertDialogHeader,
-    AlertDialogTitle,
-    AlertDialogDescription,
-    AlertDialogFooter,
-} from "@/components/ui/alert-dialog";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { createProduct, updateProduct, getCategories, type Category, type SubCategory } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
-import { LuxeButton } from "@/components/common/Buttons/LuxeButton";
-import { compressImage } from "@/lib/utils";
+import { getCategories, type Category } from "@/lib/api";
+import { useEffect } from "react";
+import {
+  BODY_SHAPES,
+  SKIN_TONES,
+  CLOTHING_COLORS,
+  type BodyShapeValue,
+  type SkinToneValue,
+  type ClothingColorValue,
+} from "@/constants/product-hierarchy.enums";
+import { createProductHierarchy, fileToDataUri } from "@/api/creator-upload.api";
 
-// ─── Option Constants (matching recommendation enums) ───────────────────────
-const OCCASIONS = ['Formal', 'Party', 'Wedding', 'Casual luxury', 'Resort'];
-const BODY_SHAPES = ['Rectangle', 'Hourglass', 'Pear Shape', 'Apple Shape', 'Inverted Triangle'];
-const SKIN_TONES = ['Light', 'Medium', 'Dusky', 'Deep'];
-const SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
-const AGE_RANGES = ['18-24', '25-34', '35-44', '45-54', '55+'];
+// ─── Types ────────────────────────────────────────────────────────────────────
 
+interface ColorVariantForm {
+  id: string;
+  color: ClothingColorValue | "";
+  stock: number;
+  skin_tones: SkinToneValue[];
+  imageFiles: File[];
+  imagePreviews: string[];
+  errors: Record<string, string>;
+}
 
+interface PatternForm {
+  id: string;
+  name: string;
+  body_shapes: BodyShapeValue[];
+  color_variants: ColorVariantForm[];
+  collapsed: boolean;
+  errors: Record<string, string>;
+}
 
-// ─── Collapsible Section (Aura-style) ───────────────────────────────────────
-const CollapsibleSection = ({
-    title,
-    icon: Icon,
-    defaultOpen = true,
-    children,
-    badge,
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+const uid = () => Math.random().toString(36).slice(2, 9);
+
+const makeVariant = (): ColorVariantForm => ({
+  id: uid(), color: "", stock: 0, skin_tones: [],
+  imageFiles: [], imagePreviews: [], errors: {},
+});
+
+const makePattern = (): PatternForm => ({
+  id: uid(), name: "", body_shapes: [], color_variants: [makeVariant()],
+  collapsed: false, errors: {},
+});
+
+// ─── Small shared components ──────────────────────────────────────────────────
+
+const FieldError = ({ msg }: { msg?: string }) =>
+  msg ? (
+    <p className="flex items-center gap-1 mt-1 text-xs text-red-500">
+      <AlertCircle size={11} /> {msg}
+    </p>
+  ) : null;
+
+const SectionLabel = ({ children, hint, required }: {
+  children: React.ReactNode; hint?: string; required?: boolean;
+}) => (
+  <div className="mb-1.5">
+    <p className="text-[11px] font-bold uppercase tracking-wide" style={{ color: "rgba(44,36,22,0.65)" }}>
+      {children}{required && <span style={{ color: "#e74c3c" }}> *</span>}
+    </p>
+    {hint && <p className="text-[11px] mt-0.5" style={{ color: "rgba(44,36,22,0.4)" }}>{hint}</p>}
+  </div>
+);
+
+// Pill-style chip
+const Chip = ({
+  label, selected, onClick, swatchColor, emoji,
+}: { label: string; selected: boolean; onClick: () => void; swatchColor?: string; emoji?: string }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-all select-none"
+    style={{
+      borderColor: selected ? "#C9A75F" : "rgba(201,165,95,0.25)",
+      background: selected
+        ? "linear-gradient(135deg,rgba(201,165,95,0.18),rgba(201,165,95,0.08))"
+        : "rgba(255,255,255,0.7)",
+      color: selected ? "#2C2416" : "rgba(44,36,22,0.6)",
+      boxShadow: selected ? "0 0 0 2px rgba(201,165,95,0.15)" : "none",
+    }}
+  >
+    {emoji && <span>{emoji}</span>}
+    {swatchColor && (
+      <span
+        className="w-3 h-3 rounded-full border border-white/50 shadow-sm flex-shrink-0"
+        style={{ backgroundColor: swatchColor }}
+      />
+    )}
+    {label}
+  </button>
+);
+
+// Luxe-style text input
+const LuxeInput = ({
+  value, onChange, placeholder, type = "text", icon: Icon, required, min, step,
 }: {
-    title: string;
-    icon: React.ElementType;
-    defaultOpen?: boolean;
-    children: React.ReactNode;
-    badge?: string;
+  value: string | number; onChange: (v: string) => void; placeholder?: string;
+  type?: string; icon?: React.ElementType; required?: boolean; min?: number; step?: number;
+}) => (
+  <div className="relative">
+    {Icon && (
+      <div style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)", color: "rgba(201,165,95,0.7)", pointerEvents: "none" }}>
+        <Icon size={16} />
+      </div>
+    )}
+    <input
+      type={type}
+      value={value}
+      onChange={e => onChange(e.target.value)}
+      placeholder={placeholder}
+      required={required}
+      min={min}
+      step={step}
+      style={{
+        width: "100%",
+        padding: Icon ? "10px 12px 10px 38px" : "10px 12px",
+        borderRadius: 10,
+        border: "1.5px solid rgba(201,165,95,0.3)",
+        background: "rgba(255,255,255,0.85)",
+        color: "#1a1408",
+        fontSize: 13,
+        fontWeight: 600,
+        outline: "none",
+      }}
+      onFocus={e => { e.target.style.borderColor = "#C9A75F"; e.target.style.boxShadow = "0 0 0 3px rgba(201,165,95,0.1)"; }}
+      onBlur={e => { e.target.style.borderColor = "rgba(201,165,95,0.3)"; e.target.style.boxShadow = "none"; }}
+    />
+  </div>
+);
+
+// ─── Image Drop Zone ──────────────────────────────────────────────────────────
+
+const ImageDropZone = ({ previews, onAdd, onRemove }: {
+  previews: string[];
+  onAdd: (files: File[]) => void;
+  onRemove: (idx: number) => void;
 }) => {
-    const [isOpen, setIsOpen] = useState(defaultOpen);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [dragging, setDragging] = useState(false);
 
-    return (
-        <div
-            className="rounded-2xl overflow-hidden transition-all duration-300"
-            style={{
-                background: 'linear-gradient(135deg, rgba(255,255,255,0.8), rgba(248,243,235,0.8))',
-                border: '1.5px solid rgba(201, 165, 95, 0.25)',
-                boxShadow: isOpen ? '0 4px 20px rgba(201, 165, 95, 0.1)' : 'none',
-            }}
-        >
-            <button
-                type="button"
-                onClick={() => setIsOpen(!isOpen)}
-                className="w-full flex items-center justify-between px-5 py-4 transition-all duration-200 hover:bg-white/40"
-            >
-                <div className="flex items-center gap-3">
-                    <div
-                        className="w-8 h-8 rounded-lg flex items-center justify-center"
-                        style={{ background: 'linear-gradient(135deg, rgba(201,165,95,0.15), rgba(201,165,95,0.08))' }}
-                    >
-                        <Icon size={16} className="text-gold" style={{ color: '#C9A75F' }} />
-                    </div>
-                    <span className="text-xs font-bold uppercase tracking-wider" style={{ color: '#2C2416' }}>
-                        {title}
-                    </span>
-                    {badge && (
-                        <span
-                            className="text-[10px] font-bold px-2.5 py-0.5 rounded-full"
-                            style={{
-                                background: 'linear-gradient(135deg, rgba(201,165,95,0.15), rgba(201,165,95,0.08))',
-                                color: '#C9A75F',
-                            }}
-                        >
-                            {badge}
-                        </span>
-                    )}
-                </div>
-                <ChevronDown
-                    size={16}
-                    className={`transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`}
-                    style={{ color: '#C9A75F' }}
-                />
-            </button>
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setDragging(false);
+    const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith("image/"));
+    if (files.length) onAdd(files);
+  }, [onAdd]);
 
-            <div
-                style={{
-                    maxHeight: isOpen ? '2500px' : '0px',
-                    opacity: isOpen ? 1 : 0,
-                    overflow: 'hidden',
-                    transition: 'max-height 0.4s ease-in-out, opacity 0.3s ease-in-out',
-                }}
-            >
-                <div style={{ padding: '4px 20px 20px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
-                    {children}
-                </div>
+  return (
+    <div className="space-y-2">
+      {previews.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {previews.map((src, i) => (
+            <div key={i} className="relative w-14 h-14 rounded-lg overflow-hidden group"
+              style={{ border: "1.5px solid rgba(201,165,95,0.3)" }}>
+              <img src={src} alt="" className="w-full h-full object-cover" />
+              <button type="button" onClick={() => onRemove(i)}
+                className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                <X size={13} className="text-white" />
+              </button>
             </div>
+          ))}
         </div>
-    );
+      )}
+      <div
+        onDragOver={e => { e.preventDefault(); setDragging(true); }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={handleDrop}
+        onClick={() => inputRef.current?.click()}
+        className="flex flex-col items-center justify-center gap-1 cursor-pointer transition-all rounded-xl p-3"
+        style={{
+          border: `2px dashed ${dragging ? "#C9A75F" : "rgba(201,165,95,0.3)"}`,
+          background: dragging ? "rgba(201,165,95,0.06)" : "rgba(255,255,255,0.5)",
+          minHeight: 72,
+        }}
+      >
+        <ImageIcon size={18} style={{ color: "#C9A75F" }} />
+        <p className="text-[11px]" style={{ color: "rgba(44,36,22,0.5)" }}>
+          {previews.length === 0 ? "Drop images or click to upload" : "Add more images"}
+        </p>
+        <input ref={inputRef} type="file" accept="image/*" multiple className="hidden"
+          onChange={e => { const f = Array.from(e.target.files ?? []); if (f.length) onAdd(f); e.target.value = ""; }} />
+      </div>
+    </div>
+  );
 };
 
-// ─── Attribute Multi-Select Dropdown (Aura-style) ───────────────────────────
-const AttributeDropdown = ({
-    label,
-    options,
-    selected,
-    onToggle,
-    icon: Icon,
-    placeholder,
-}: {
-    label: string;
-    options: string[];
-    selected: string[];
-    onToggle: (value: string) => void;
-    icon: React.ElementType;
-    placeholder?: string;
+// ─── Color Variant Card ───────────────────────────────────────────────────────
+
+const ColorVariantCard = ({ variant, varIdx, onChange, onRemove, canRemove }: {
+  variant: ColorVariantForm; varIdx: number;
+  onChange: (v: ColorVariantForm) => void;
+  onRemove: () => void; canRemove: boolean;
 }) => {
-    const [isOpen, setIsOpen] = useState(false);
+  const selectedColor = CLOTHING_COLORS.find(c => c.value === variant.color);
 
-    return (
-        <div>
-            <label className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'rgba(44,36,22,0.7)' }}>
-                {label}
-            </label>
-            <Popover open={isOpen} onOpenChange={setIsOpen}>
-                <PopoverTrigger asChild>
-                    <button
-                        type="button"
-                        className="w-full relative transition-all duration-300"
-                        style={{
-                            padding: '12px 16px 12px 44px',
-                            borderRadius: '12px',
-                            border: isOpen ? '2px solid #C9A75F' : '2px solid rgba(201,165,95,0.3)',
-                            background: 'rgba(255,255,255,0.8)',
-                            backdropFilter: 'blur(8px)',
-                            color: '#2C2416',
-                            fontSize: '14px',
-                            fontWeight: 500,
-                            textAlign: 'left',
-                            cursor: 'pointer',
-                            boxShadow: isOpen ? '0 0 0 3px rgba(201,165,95,0.1)' : 'none',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                        }}
-                    >
-                        {/* Left icon */}
-                        <div style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: 'rgba(201,165,95,0.7)', pointerEvents: 'none' }}>
-                            <Icon size={18} />
-                        </div>
-                        <span style={{ color: selected.length > 0 ? '#2C2416' : 'rgba(44,36,22,0.4)', fontWeight: selected.length > 0 ? 600 : 400 }}>
-                            {selected.length > 0
-                                ? `${selected.length} selected — ${selected.slice(0, 3).join(', ')}${selected.length > 3 ? '...' : ''}`
-                                : placeholder || `Select ${label}`}
-                        </span>
-                        <ChevronDown
-                            size={16}
-                            style={{
-                                color: '#C9A75F',
-                                transition: 'transform 0.3s ease',
-                                transform: isOpen ? 'rotate(180deg)' : 'none',
-                                flexShrink: 0,
-                            }}
-                        />
-                    </button>
-                </PopoverTrigger>
-                <PopoverContent
-                    className="p-0 shadow-2xl"
-                    align="start"
-                    style={{
-                        width: 'var(--radix-popover-trigger-width)',
-                        borderRadius: '14px',
-                        border: '1.5px solid rgba(201,165,95,0.3)',
-                        background: 'linear-gradient(135deg, #FFFDF8, #FFF9EF)',
-                        overflow: 'hidden',
-                    }}
-                >
-                    <div style={{ padding: '6px' }}>
-                        {options.map((option) => {
-                            const isSelected = selected.includes(option);
-                            return (
-                                <button
-                                    key={option}
-                                    type="button"
-                                    onClick={() => onToggle(option)}
-                                    className="w-full transition-all duration-200"
-                                    style={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'space-between',
-                                        padding: '10px 14px',
-                                        borderRadius: '10px',
-                                        border: 'none',
-                                        cursor: 'pointer',
-                                        background: isSelected
-                                            ? 'linear-gradient(135deg, rgba(201,165,95,0.12), rgba(201,165,95,0.06))'
-                                            : 'transparent',
-                                        marginBottom: '2px',
-                                    }}
-                                >
-                                    <span style={{
-                                        fontSize: '14px',
-                                        fontWeight: isSelected ? 700 : 500,
-                                        color: isSelected ? '#2C2416' : 'rgba(44,36,22,0.7)',
-                                    }}>
-                                        {option}
-                                    </span>
-                                    <div style={{
-                                        width: '20px', height: '20px', borderRadius: '6px',
-                                        border: isSelected ? '2px solid #C9A75F' : '2px solid rgba(201,165,95,0.25)',
-                                        background: isSelected ? 'linear-gradient(135deg, #C9A75F, #D4B76E)' : 'transparent',
-                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                        transition: 'all 0.2s ease',
-                                        flexShrink: 0,
-                                    }}>
-                                        {isSelected && <Check size={12} strokeWidth={3} style={{ color: '#fff' }} />}
-                                    </div>
-                                </button>
-                            );
-                        })}
-                    </div>
-                </PopoverContent>
-            </Popover>
+  const handleImages = (files: File[]) => {
+    const newPreviews = files.map(f => URL.createObjectURL(f));
+    onChange({
+      ...variant,
+      imageFiles: [...variant.imageFiles, ...files],
+      imagePreviews: [...variant.imagePreviews, ...newPreviews],
+      errors: { ...variant.errors, images: "" },
+    });
+  };
 
-            {/* Selected chips below */}
-            {selected.length > 0 && (
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '8px' }}>
-                    {selected.map(item => (
-                        <span
-                            key={item}
-                            style={{
-                                display: 'inline-flex', alignItems: 'center', gap: '4px',
-                                padding: '3px 10px 3px 12px',
-                                borderRadius: '20px', fontSize: '11px', fontWeight: 700,
-                                background: 'linear-gradient(135deg, rgba(201,165,95,0.12), rgba(201,165,95,0.06))',
-                                border: '1px solid rgba(201,165,95,0.3)',
-                                color: '#2C2416',
-                            }}
-                        >
-                            {item}
-                            <button
-                                type="button"
-                                onClick={() => onToggle(item)}
-                                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px', color: 'rgba(44,36,22,0.5)', display: 'flex' }}
-                            >
-                                <X size={10} strokeWidth={3} />
-                            </button>
-                        </span>
-                    ))}
-                </div>
-            )}
+  const removeImage = (idx: number) => {
+    const nf = [...variant.imageFiles]; nf.splice(idx, 1);
+    const np = [...variant.imagePreviews]; np.splice(idx, 1);
+    onChange({ ...variant, imageFiles: nf, imagePreviews: np });
+  };
+
+  return (
+    <div className="rounded-xl p-3 space-y-3" style={{ background: "rgba(255,255,255,0.7)", border: "1.5px solid rgba(201,165,95,0.2)" }}>
+      {/* Variant header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 rounded-full border border-white/50 shadow-sm flex-shrink-0"
+            style={{ backgroundColor: selectedColor?.hex ?? "#e5e7eb" }} />
+          <span className="text-[11px] font-bold" style={{ color: "#2C2416" }}>
+            Color {varIdx + 1}{selectedColor ? ` — ${selectedColor.label}` : ""}
+          </span>
         </div>
-    );
+        {canRemove && (
+          <button type="button" onClick={onRemove} className="p-1 rounded-lg transition-colors hover:bg-red-50">
+            <Trash2 size={12} style={{ color: "#ef4444" }} />
+          </button>
+        )}
+      </div>
+
+      {/* Color picker */}
+      <div>
+        <SectionLabel required>Color</SectionLabel>
+        <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto pr-1 hide-scrollbar">
+          {CLOTHING_COLORS.map(c => (
+            <Chip key={c.value} label={c.label} selected={variant.color === c.value}
+              swatchColor={c.hex}
+              onClick={() => onChange({ ...variant, color: c.value, errors: { ...variant.errors, color: "" } })} />
+          ))}
+        </div>
+        <FieldError msg={variant.errors.color} />
+      </div>
+
+      {/* Stock */}
+      <div>
+        <SectionLabel required>Stock</SectionLabel>
+        <div className="flex items-center gap-2">
+          <input type="number" min={0} value={variant.stock}
+            onChange={e => onChange({ ...variant, stock: parseInt(e.target.value) || 0, errors: { ...variant.errors, stock: "" } })}
+            style={{ width: 90, padding: "8px 10px", borderRadius: 8, border: "1.5px solid rgba(201,165,95,0.3)", background: "rgba(255,255,255,0.85)", color: "#1a1408", fontSize: 13, fontWeight: 700, outline: "none" }}
+            onFocus={e => e.target.style.borderColor = "#C9A75F"}
+            onBlur={e => e.target.style.borderColor = "rgba(201,165,95,0.3)"}
+          />
+          <span className="text-[11px]" style={{ color: "rgba(44,36,22,0.45)" }}>units</span>
+        </div>
+        <FieldError msg={variant.errors.stock} />
+      </div>
+
+      {/* Skin tones */}
+      <div>
+        <SectionLabel required hint="Which skin tones does this color complement?">Skin Tones</SectionLabel>
+        <div className="flex flex-wrap gap-1.5">
+          {SKIN_TONES.map(st => (
+            <button key={st.value} type="button"
+              onClick={() => {
+                const next = variant.skin_tones.includes(st.value)
+                  ? variant.skin_tones.filter(x => x !== st.value)
+                  : [...variant.skin_tones, st.value];
+                onChange({ ...variant, skin_tones: next, errors: { ...variant.errors, skin_tones: "" } });
+              }}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-all"
+              style={{
+                borderColor: variant.skin_tones.includes(st.value) ? "#C9A75F" : "rgba(201,165,95,0.25)",
+                background: variant.skin_tones.includes(st.value)
+                  ? "linear-gradient(135deg,rgba(201,165,95,0.18),rgba(201,165,95,0.08))" : "rgba(255,255,255,0.7)",
+                color: variant.skin_tones.includes(st.value) ? "#2C2416" : "rgba(44,36,22,0.6)",
+              }}
+            >
+              <span className="w-3 h-3 rounded-full border border-white/40 shadow-sm" style={{ backgroundColor: st.hex }} />
+              {st.label}
+            </button>
+          ))}
+        </div>
+        <FieldError msg={variant.errors.skin_tones} />
+      </div>
+
+      {/* Images */}
+      <div>
+        <SectionLabel required>Images</SectionLabel>
+        <ImageDropZone previews={variant.imagePreviews} onAdd={handleImages} onRemove={removeImage} />
+        <FieldError msg={variant.errors.images} />
+      </div>
+    </div>
+  );
 };
 
-// ─── Luxe Single-Select Dropdown (Aura-style) ─────────────────────────────
-const LuxeSelect = ({
-    label,
-    options,
-    value,
-    onChange,
-    icon: Icon,
-    placeholder,
-    disabled = false,
-    required = false,
-}: {
-    label: string;
-    options: { id: string; name: string }[];
-    value: string;
-    onChange: (id: string) => void;
-    icon: React.ElementType;
-    placeholder?: string;
-    disabled?: boolean;
-    required?: boolean;
+// ─── Pattern Card ─────────────────────────────────────────────────────────────
+
+const PatternCard = ({ pattern, patIdx, onChange, onRemove, canRemove }: {
+  pattern: PatternForm; patIdx: number;
+  onChange: (p: PatternForm) => void;
+  onRemove: () => void; canRemove: boolean;
 }) => {
-    const [isOpen, setIsOpen] = useState(false);
-    const selectedOption = options.find(opt => opt.id === value);
+  const totalStock = pattern.color_variants.reduce((s, v) => s + v.stock, 0);
 
-    return (
-        <div style={{ opacity: disabled ? 0.6 : 1, pointerEvents: disabled ? 'none' : 'auto' }}>
-            <label className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'rgba(44,36,22,0.7)' }}>
-                {label} {required && <span style={{ color: '#e74c3c' }}>*</span>}
-            </label>
-            <Popover open={isOpen} onOpenChange={setIsOpen}>
-                <PopoverTrigger asChild>
-                    <button
-                        type="button"
-                        className="w-full relative transition-all duration-300"
-                        style={{
-                            padding: '12px 16px 12px 44px',
-                            borderRadius: '12px',
-                            border: isOpen ? '2px solid #C9A75F' : '2px solid rgba(201,165,95,0.3)',
-                            background: 'rgba(255,255,255,0.8)',
-                            backdropFilter: 'blur(8px)',
-                            color: '#2C2416',
-                            fontSize: '14px',
-                            fontWeight: 500,
-                            textAlign: 'left',
-                            cursor: 'pointer',
-                            boxShadow: isOpen ? '0 0 0 3px rgba(201,165,95,0.1)' : 'none',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                        }}
-                    >
-                        {/* Left icon */}
-                        <div style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: 'rgba(201,165,95,0.7)', pointerEvents: 'none' }}>
-                            <Icon size={18} />
-                        </div>
-                        <span style={{ color: selectedOption ? '#2C2416' : 'rgba(44,36,22,0.4)', fontWeight: selectedOption ? 600 : 400 }}>
-                            {selectedOption ? selectedOption.name : placeholder || `Select ${label}`}
-                        </span>
-                        <ChevronDown
-                            size={16}
-                            style={{
-                                color: '#C9A75F',
-                                transition: 'transform 0.3s ease',
-                                transform: isOpen ? 'rotate(180deg)' : 'none',
-                                flexShrink: 0,
-                            }}
-                        />
-                    </button>
-                </PopoverTrigger>
-                <PopoverContent
-                    className="p-0 shadow-2xl"
-                    align="start"
-                    style={{
-                        width: 'var(--radix-popover-trigger-width)',
-                        borderRadius: '14px',
-                        border: '1.5px solid rgba(201,165,95,0.3)',
-                        background: 'linear-gradient(135deg, #FFFDF8, #FFF9EF)',
-                        overflow: 'hidden',
-                        zIndex: 100,
-                    }}
-                >
-                    <div className="max-h-[300px] overflow-y-auto hide-scrollbar" style={{ padding: '6px' }}>
-                        {options.length === 0 ? (
-                            <div style={{ padding: '12px', textAlign: 'center', fontSize: '13px', color: 'rgba(44,36,22,0.5)' }}>
-                                No options available
-                            </div>
-                        ) : (
-                            options.map((option) => {
-                                const isSelected = value === option.id;
-                                return (
-                                    <button
-                                        key={option.id}
-                                        type="button"
-                                        onClick={() => {
-                                            onChange(option.id);
-                                            setIsOpen(false);
-                                        }}
-                                        className="w-full transition-all duration-200"
-                                        style={{
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'space-between',
-                                            padding: '10px 14px',
-                                            borderRadius: '10px',
-                                            border: 'none',
-                                            cursor: 'pointer',
-                                            background: isSelected
-                                                ? 'linear-gradient(135deg, rgba(201,165,95,0.12), rgba(201,165,95,0.06))'
-                                                : 'transparent',
-                                            marginBottom: '2px',
-                                            textAlign: 'left'
-                                        }}
-                                    >
-                                        <span style={{
-                                            fontSize: '14px',
-                                            fontWeight: isSelected ? 700 : 500,
-                                            color: isSelected ? '#2C2416' : 'rgba(44,36,22,0.7)',
-                                        }}>
-                                            {option.name}
-                                        </span>
-                                        {isSelected && (
-                                            <div style={{
-                                                width: '20px', height: '20px', borderRadius: '6px',
-                                                background: 'linear-gradient(135deg, #C9A75F, #D4B76E)',
-                                                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                            }}>
-                                                <Check size={12} strokeWidth={3} style={{ color: '#fff' }} />
-                                            </div>
-                                        )}
-                                    </button>
-                                );
-                            })
-                        )}
-                    </div>
-                </PopoverContent>
-            </Popover>
+  return (
+    <div className="rounded-2xl overflow-hidden" style={{
+      border: "1.5px solid rgba(201,165,95,0.3)",
+      background: "linear-gradient(135deg,rgba(255,253,248,0.9),rgba(255,249,239,0.9))",
+      boxShadow: "0 4px 20px rgba(201,165,95,0.08)",
+    }}>
+      {/* Pattern header */}
+      <div
+        className="flex items-center justify-between px-4 py-3 cursor-pointer select-none"
+        style={{ borderBottom: "1.5px solid rgba(201,165,95,0.15)", background: "rgba(255,255,255,0.6)" }}
+        onClick={() => onChange({ ...pattern, collapsed: !pattern.collapsed })}
+      >
+        <div className="flex items-center gap-2.5">
+          <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
+            style={{ background: "linear-gradient(135deg,rgba(201,165,95,0.18),rgba(201,165,95,0.08))" }}>
+            <Layers size={14} style={{ color: "#C9A75F" }} />
+          </div>
+          <div>
+            <p className="text-xs font-bold" style={{ color: "#2C2416" }}>
+              {pattern.name || `Pattern ${patIdx + 1}`}
+            </p>
+            <p className="text-[10px]" style={{ color: "rgba(44,36,22,0.45)" }}>
+              {pattern.color_variants.length} color{pattern.color_variants.length !== 1 ? "s" : ""} · {totalStock} units
+            </p>
+          </div>
         </div>
-    );
+        <div className="flex items-center gap-2">
+          {canRemove && (
+            <button type="button"
+              onClick={e => { e.stopPropagation(); onRemove(); }}
+              className="p-1 rounded-lg hover:bg-red-50 transition-colors">
+              <Trash2 size={13} style={{ color: "#ef4444" }} />
+            </button>
+          )}
+          {pattern.collapsed
+            ? <ChevronDown size={14} style={{ color: "#C9A75F" }} />
+            : <ChevronUp size={14} style={{ color: "#C9A75F" }} />}
+        </div>
+      </div>
+
+      {!pattern.collapsed && (
+        <div className="p-4 space-y-4">
+          {/* Pattern name */}
+          <div>
+            <SectionLabel required hint='e.g. "Slim Fit", "Relaxed Fit"'>Pattern Name</SectionLabel>
+            <LuxeInput
+              value={pattern.name}
+              onChange={v => onChange({ ...pattern, name: v, errors: { ...pattern.errors, name: "" } })}
+              placeholder='e.g. "Slim Fit"'
+              icon={Layers}
+            />
+            <FieldError msg={pattern.errors.name} />
+          </div>
+
+          {/* Body shapes */}
+          <div>
+            <SectionLabel required hint="Which body shapes does this pattern suit?">Body Shapes</SectionLabel>
+            <div className="flex flex-wrap gap-1.5">
+              {BODY_SHAPES.map(bs => (
+                <Chip key={bs.value} label={bs.label} emoji={bs.icon}
+                  selected={pattern.body_shapes.includes(bs.value as BodyShapeValue)}
+                  onClick={() => {
+                    const next = pattern.body_shapes.includes(bs.value as BodyShapeValue)
+                      ? pattern.body_shapes.filter(x => x !== bs.value)
+                      : [...pattern.body_shapes, bs.value as BodyShapeValue];
+                    onChange({ ...pattern, body_shapes: next, errors: { ...pattern.errors, body_shapes: "" } });
+                  }}
+                />
+              ))}
+            </div>
+            <FieldError msg={pattern.errors.body_shapes} />
+          </div>
+
+          {/* Color variants */}
+          <div style={{ borderTop: "1.5px solid rgba(201,165,95,0.15)", paddingTop: 14 }}>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-1.5">
+                <Palette size={13} style={{ color: "#C9A75F" }} />
+                <span className="text-xs font-bold" style={{ color: "#2C2416" }}>Color Variants</span>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                  style={{ background: "rgba(201,165,95,0.12)", color: "#C9A75F" }}>
+                  {pattern.color_variants.length}
+                </span>
+              </div>
+              <button type="button"
+                onClick={() => onChange({ ...pattern, color_variants: [...pattern.color_variants, makeVariant()] })}
+                className="flex items-center gap-1 text-[11px] font-bold px-2.5 py-1.5 rounded-lg transition-all"
+                style={{ background: "rgba(201,165,95,0.1)", color: "#C9A75F", border: "1px solid rgba(201,165,95,0.25)" }}>
+                <Plus size={11} /> Add Color
+              </button>
+            </div>
+            <div className="space-y-3">
+              {pattern.color_variants.map((v, vi) => (
+                <ColorVariantCard key={v.id} variant={v} varIdx={vi}
+                  onChange={updated => {
+                    const next = [...pattern.color_variants]; next[vi] = updated;
+                    onChange({ ...pattern, color_variants: next });
+                  }}
+                  onRemove={() => {
+                    if (pattern.color_variants.length <= 1) return;
+                    onChange({ ...pattern, color_variants: pattern.color_variants.filter((_, i) => i !== vi) });
+                  }}
+                  canRemove={pattern.color_variants.length > 1}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 };
 
-// ─── Main Component ─────────────────────────────────────────────────────────
+// ─── Main Modal Component ─────────────────────────────────────────────────────
+
 interface UploadCollectionModalProps {
-    open: boolean;
-    onOpenChange: (open: boolean) => void;
-    onSuccess?: (product?: any) => void;
-    initialData?: any;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSuccess?: (product?: any) => void;
+  initialData?: any;
 }
 
 const UploadCollectionModal = ({ open, onOpenChange, onSuccess, initialData }: UploadCollectionModalProps) => {
-    const { toast } = useToast();
-    const [isLoading, setIsLoading] = useState(false);
-    const [uploadProgress, setUploadProgress] = useState("");
-    const [formData, setFormData] = useState({
-        title: "", description: "", price: "0.00", currency: "INR",
-        inventory: "0", tags: "",
-        category_id: "", sub_category_id: "",
-        occasions: [] as string[], body_shapes: [] as string[],
-        skin_tones: [] as string[], sizes: [] as string[], age_ranges: [] as string[],
+  const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(false);
+  const [categories, setCategories] = useState<Category[]>([]);
+
+  // Product-level fields
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [price, setPrice] = useState("");
+  const [categoryId, setCategoryId] = useState("");
+  const [subCategoryId, setSubCategoryId] = useState("");
+
+  // Hierarchy
+  const [patterns, setPatterns] = useState<PatternForm[]>([makePattern()]);
+
+  // Errors
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // ── Load categories on open ────────────────────────────────────────────
+  useEffect(() => {
+    if (!open) return;
+    getCategories().then(c => setCategories(c || [])).catch(() => {});
+  }, [open]);
+
+  // ── Reset form on open (new product) ──────────────────────────────────
+  useEffect(() => {
+    if (!open) return;
+    if (!initialData) {
+      setTitle(""); setDescription(""); setPrice("");
+      setCategoryId(""); setSubCategoryId("");
+      setPatterns([makePattern()]); setErrors({});
+    } else {
+      // edit mode: populate base fields only (hierarchy editing not in scope)
+      setTitle(initialData.title ?? "");
+      setDescription(initialData.description ?? "");
+      setPrice(initialData.price_cents ? (initialData.price_cents / 100).toFixed(2) : "");
+      setCategoryId(initialData.category_id ?? "");
+      setSubCategoryId(initialData.sub_category_id ?? "");
+      setPatterns([makePattern()]);
+    }
+  }, [open, initialData]);
+
+  const selectedCategory = categories.find(c => c.category_id === categoryId);
+  const subCategories = selectedCategory?.subcategories?.filter(s => s.is_active) ?? [];
+
+  // ── Validation ─────────────────────────────────────────────────────────
+  const validate = () => {
+    let valid = true;
+    const errs: Record<string, string> = {};
+    if (!title.trim()) { errs.title = "Title is required"; valid = false; }
+    const priceNum = parseFloat(price);
+    if (!price || isNaN(priceNum) || priceNum <= 0) { errs.price = "Enter a valid price"; valid = false; }
+    setErrors(errs);
+
+    const updatedPatterns = patterns.map(p => {
+      const patErr: Record<string, string> = {};
+      if (!p.name.trim()) { patErr.name = "Pattern name is required"; valid = false; }
+      if (p.body_shapes.length === 0) { patErr.body_shapes = "Select at least one body shape"; valid = false; }
+
+      const updatedVariants = p.color_variants.map(v => {
+        const vErr: Record<string, string> = {};
+        if (!v.color) { vErr.color = "Select a color"; valid = false; }
+        if (v.skin_tones.length === 0) { vErr.skin_tones = "Select at least one skin tone"; valid = false; }
+        if (v.imageFiles.length === 0) { vErr.images = "Upload at least one image"; valid = false; }
+        return { ...v, errors: vErr };
+      });
+      return { ...p, errors: patErr, color_variants: updatedVariants };
     });
-    const [images, setImages] = useState<string[]>([]);
-    const [imageFiles, setImageFiles] = useState<File[]>([]);
-    const [categories, setCategories] = useState<Category[]>([]);
-    const [isInstructionsOpen, setIsInstructionsOpen] = useState(false);
+    setPatterns(updatedPatterns);
+    return valid;
+  };
 
-    useEffect(() => {
-        const fetchInitialData = async () => {
-            try {
-                const catsData = await getCategories();
-                setCategories(catsData || []);
-            } catch (e) { /* ignore */ }
-        };
-        if (open) fetchInitialData();
-    }, [open]);
+  // ── Submit ─────────────────────────────────────────────────────────────
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!validate()) return;
 
-    useEffect(() => {
-        if (initialData && open) {
-            const meta = initialData.metadata || {};
-            setFormData({
-                title: initialData.title || "", description: initialData.description || "",
-                price: initialData.price_cents ? (initialData.price_cents / 100).toFixed(2) : "0.00",
-                currency: initialData.currency || "INR",
-                inventory: initialData.inventory_count?.toString() || "0",
-                tags: initialData.tags ? initialData.tags.map((t: any) => t.name || t).join(", ") : "",
-                category_id: initialData.category_id || "",
-                sub_category_id: initialData.sub_category_id || "",
-                occasions: initialData.occasions || meta.occasions || [],
-                body_shapes: initialData.body_shapes || meta.body_shapes || [],
-                skin_tones: initialData.skin_tones || meta.skin_tones || [],
-                sizes: initialData.sizes || meta.sizes || [],
-                age_ranges: initialData.age_ranges || meta.age_ranges || [],
-            });
-            let imgs = initialData.images || [];
-            if (Array.isArray(imgs)) {
-                imgs = imgs
-                    .map((img: any) => (typeof img === "string" ? img : img?.url))
-                    .filter((u: any) => typeof u === "string" && u.length > 0);
-            } else {
-                imgs = [];
-            }
-            if (imgs.length === 0 && initialData.image && !initialData.image.includes("placehold.co")) imgs = [initialData.image];
-            setImages(imgs);
-        } else if (!initialData && open) {
-            setFormData({ title: "", description: "", price: "0.00", currency: "INR", inventory: "0", tags: "", category_id: "", sub_category_id: "", occasions: [], body_shapes: [], skin_tones: [], sizes: [], age_ranges: [] });
-            setImages([]); setImageFiles([]);
-        }
-    }, [initialData, open]);
+    setIsLoading(true);
+    try {
+      const patternsPayload = await Promise.all(
+        patterns.map(async p => ({
+          name: p.name,
+          body_shapes: p.body_shapes,
+          color_variants: await Promise.all(
+            p.color_variants.map(async v => ({
+              color: v.color as ClothingColorValue,
+              stock: v.stock,
+              skin_tones: v.skin_tones,
+              images: await Promise.all(v.imageFiles.map(fileToDataUri)),
+            }))
+          ),
+        }))
+      );
 
-    const toggleAttribute = (field: 'occasions' | 'body_shapes' | 'skin_tones' | 'sizes' | 'age_ranges', value: string) => {
-        setFormData(prev => ({ ...prev, [field]: prev[field].includes(value) ? prev[field].filter((v: string) => v !== value) : [...prev[field], value] }));
-    };
+      const result = await createProductHierarchy({
+        title: title.trim(),
+        description: description.trim() || undefined,
+        price_cents: Math.round(parseFloat(price) * 100),
+        category_id: categoryId || undefined,
+        sub_category_id: subCategoryId || undefined,
+        patterns: patternsPayload,
+      });
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (images.length === 0) {
-            toast({ title: "Image Required", description: "Please upload at least one product image.", variant: "destructive" });
-            return;
-        }
-        setIsLoading(true); setUploadProgress("Finalizing...");
-        try {
-            const tags = formData.tags ? formData.tags.split(",").map(t => t.trim()).filter(t => t).map(t => ({ name: t })) : [];
-            const productData = {
-                title: formData.title, description: formData.description || undefined,
-                price_cents: Math.round(parseFloat(formData.price) * 100), currency: formData.currency,
-                inventory_count: parseInt(formData.inventory) || 0, images,
-                tags: tags.length > 0 ? tags : undefined,
-                category_id: formData.category_id || undefined,
-                sub_category_id: formData.sub_category_id || undefined,
-                occasions: formData.occasions, body_shapes: formData.body_shapes,
-                skin_tones: formData.skin_tones, sizes: formData.sizes, age_ranges: formData.age_ranges,
-            };
-            setUploadProgress(initialData ? "Updating..." : "Uploading...");
-            const response = initialData ? await updateProduct(initialData.product_id, productData) : await createProduct(productData);
-            toast({ title: "Success!", description: initialData ? "Product updated." : "Product launched!" });
-            setTimeout(() => { onOpenChange(false); if (onSuccess) onSuccess(response); }, 300);
-        } catch (error: any) {
-            toast({ title: "Error", description: error.message || "Something went wrong.", variant: "destructive" });
-        } finally { setIsLoading(false); setUploadProgress(""); }
-    };
+      toast({
+        title: "Product Submitted! 🎉",
+        description: "Saved as DRAFT — it will go live after admin approval.",
+      });
 
-    const processFiles = async (files: File[]) => {
-        for (const file of files) {
-            if (file.type.startsWith("image/")) {
-                try {
-                    const compressed = await compressImage(file);
-                    setImages(p => [...p, compressed]); setImageFiles(p => [...p, file]);
-                } catch {
-                    const reader = new FileReader();
-                    reader.onloadend = () => { setImages(p => [...p, reader.result as string]); setImageFiles(p => [...p, file]); };
-                    reader.readAsDataURL(file);
-                }
-            }
-        }
-    };
+      setTimeout(() => {
+        onOpenChange(false);
+        if (onSuccess) onSuccess(result);
+      }, 300);
+    } catch (err: any) {
+      toast({ title: "Upload Failed", description: err?.message ?? "Something went wrong.", variant: "destructive" });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-    const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => { if (e.target.files) await processFiles(Array.from(e.target.files)); };
-    const removeImage = (i: number) => { setImages(p => p.filter((_, idx) => idx !== i)); setImageFiles(p => p.filter((_, idx) => idx !== i)); };
-    const totalAttrs = formData.occasions.length + formData.body_shapes.length + formData.skin_tones.length + formData.sizes.length + formData.age_ranges.length;
+  // ── Render ──────────────────────────────────────────────────────────────
+  const totalVariants = patterns.reduce((s, p) => s + p.color_variants.length, 0);
+  const totalStock = patterns.reduce((s, p) => s + p.color_variants.reduce((ss, v) => ss + v.stock, 0), 0);
 
-    const selectedCategory = categories.find(c => c.category_id === formData.category_id);
-    const availableSubCategories = selectedCategory?.subcategories?.filter(s => s.is_active) || [];
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent
+        className="p-0 border-none [&>button]:hidden"
+        style={{
+          maxWidth: 680, width: "96vw", height: "92vh", maxHeight: "92vh",
+          borderRadius: 20, overflow: "hidden",
+          display: "flex", flexDirection: "column",
+          background: "linear-gradient(135deg,#FFFDF8 0%,#FFF9EF 50%,#FFFDF8 100%)",
+          border: "2px solid rgba(201,165,95,0.4)",
+          boxShadow: "0 20px 60px rgba(201,165,95,0.25),0 0 40px rgba(201,165,95,0.1)",
+        }}
+      >
+        {/* Inner top glow */}
+        <div style={{
+          position: "absolute", inset: 0, borderRadius: 24, pointerEvents: "none", zIndex: 0,
+          background: "linear-gradient(to bottom,rgba(255,255,255,0.5),transparent 40%)",
+        }} />
 
-    // Aura-style input class
-    const inputCls: React.CSSProperties = {
-        width: '100%', padding: '12px 16px 12px 44px', borderRadius: '12px',
-        border: '2px solid rgba(201,165,95,0.3)', background: 'rgba(255,255,255,0.9)',
-        backdropFilter: 'blur(8px)', color: '#1a1408', fontSize: '14px', fontWeight: 600,
-        outline: 'none', transition: 'all 0.3s ease', textAlign: 'left' as const,
-    };
+        {/* Close button */}
+        <button type="button" onClick={() => onOpenChange(false)}
+          style={{
+            position: "absolute", top: 14, right: 14, zIndex: 10,
+            width: 32, height: 32, borderRadius: "50%",
+            border: "1.5px solid rgba(201,165,95,0.3)",
+            background: "rgba(255,255,255,0.9)", backdropFilter: "blur(8px)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            cursor: "pointer", color: "#2C2416",
+            boxShadow: "0 2px 8px rgba(201,165,95,0.15)",
+          }}
+          onMouseOver={e => { e.currentTarget.style.background = "rgba(201,165,95,0.15)"; }}
+          onMouseOut={e => { e.currentTarget.style.background = "rgba(255,255,255,0.9)"; }}
+        >
+          <X size={15} strokeWidth={2.5} />
+        </button>
 
-    // Force placeholder + input text color/alignment via CSS
-    const inputStyleOverrides = `
-      .upload-modal-form input,
-      .upload-modal-form textarea,
-      .upload-modal-form select {
-        color: #1a1408 !important;
-        text-align: left !important;
-      }
-      .upload-modal-form input::placeholder,
-      .upload-modal-form textarea::placeholder {
-        color: rgba(44,36,22,0.4) !important;
-        text-align: left !important;
-        font-weight: 400 !important;
-      }
-    `;
+        {/* Header */}
+        <div style={{
+          padding: "16px 20px", paddingRight: 52, flexShrink: 0, position: "relative", zIndex: 1,
+          borderBottom: "1.5px solid rgba(201,165,95,0.2)",
+          background: "linear-gradient(135deg,rgba(255,255,255,0.95),rgba(248,243,235,0.9))",
+        }}>
+          <DialogHeader>
+            <DialogTitle style={{ fontSize: 22, fontWeight: 700, color: "#2C2416", fontFamily: "'Playfair Display',serif" }}>
+              {initialData ? "Edit " : "Upload "}
+              <span style={{ background: "linear-gradient(135deg,#C9A75F,#D4B76E)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+                Product
+              </span>
+            </DialogTitle>
+          </DialogHeader>
 
-    return (
-        <>
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent
-                className="p-0 border-none [&>button]:hidden"
-                style={{
-                    // @ts-ignore
-                    '--input-color': '#1a1408',
-                    maxWidth: '680px', width: '96vw', height: '92vh', maxHeight: '92vh',
-                    borderRadius: '20px', overflow: 'hidden',
-                    display: 'flex', flexDirection: 'column',
-                    background: 'linear-gradient(135deg, #FFFDF8 0%, #FFF9EF 50%, #FFFDF8 100%)',
-                    border: '2px solid rgba(201,165,95,0.4)',
-                    boxShadow: '0 20px 60px rgba(201,165,95,0.25), 0 0 40px rgba(201,165,95,0.1), inset 0 1px 0 rgba(255,255,255,0.8)',
-                }}
+          {/* Flow steps */}
+          <div className="flex items-center gap-2 mt-3 text-[10px]">
+            {[{ icon: Package2, label: "Product Info" }, { icon: Layers, label: "Patterns" }, { icon: Palette, label: "Colors" }].map(({ icon: Icon, label }, i) => (
+              <div key={i} className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1 px-2 py-1 rounded-full"
+                  style={{ background: "rgba(201,165,95,0.1)", border: "1px solid rgba(201,165,95,0.25)", color: "#2C2416" }}>
+                  <Icon size={10} style={{ color: "#C9A75F" }} />
+                  <span className="font-semibold">{i + 1}. {label}</span>
+                </div>
+                {i < 2 && <div style={{ width: 12, height: 1, background: "rgba(201,165,95,0.3)" }} />}
+              </div>
+            ))}
+            {/* Stats pills */}
+            <div className="ml-auto flex gap-1.5">
+              <span className="px-2 py-0.5 rounded-full font-bold text-[10px]"
+                style={{ background: "rgba(201,165,95,0.1)", color: "#C9A75F" }}>
+                {patterns.length}P · {totalVariants}C · {totalStock}u
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Scrollable body */}
+        <form id="hierarchy-upload-form" onSubmit={handleSubmit}
+          className="hide-scrollbar"
+          style={{ flex: 1, overflowY: "auto", padding: "14px 16px", position: "relative", zIndex: 1, display: "flex", flexDirection: "column", gap: 14 }}>
+
+          {/* ══ STEP 1: Product Info ══ */}
+          <div className="rounded-2xl p-4 space-y-3" style={{
+            background: "rgba(255,255,255,0.8)", backdropFilter: "blur(8px)",
+            border: "1.5px solid rgba(201,165,95,0.25)",
+            boxShadow: "0 4px 20px rgba(201,165,95,0.06)",
+          }}>
+            <div className="flex items-center gap-2 pb-2" style={{ borderBottom: "1px solid rgba(201,165,95,0.15)" }}>
+              <Package2 size={15} style={{ color: "#C9A75F" }} />
+              <span className="text-xs font-bold" style={{ color: "#2C2416" }}>Product Info</span>
+            </div>
+
+            <div>
+              <SectionLabel required>Title</SectionLabel>
+              <LuxeInput value={title} onChange={setTitle} placeholder="e.g. Midnight Silk Blazer" icon={Tags} />
+              <FieldError msg={errors.title} />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <SectionLabel required>Price (₹)</SectionLabel>
+                <LuxeInput value={price} onChange={setPrice} type="number" placeholder="499" icon={DollarSign} min={1} step={1} />
+                <FieldError msg={errors.price} />
+              </div>
+              <div>
+                <SectionLabel>Category</SectionLabel>
+                <div className="relative">
+                  <div style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)", color: "rgba(201,165,95,0.7)", pointerEvents: "none" }}>
+                    <FolderTree size={14} />
+                  </div>
+                  <select value={categoryId}
+                    onChange={e => { setCategoryId(e.target.value); setSubCategoryId(""); }}
+                    style={{ width: "100%", padding: "10px 10px 10px 34px", borderRadius: 10, border: "1.5px solid rgba(201,165,95,0.3)", background: "rgba(255,255,255,0.85)", color: "#1a1408", fontSize: 12, fontWeight: 600, outline: "none" }}>
+                    <option value="">Select category</option>
+                    {categories.filter(c => c.is_active).map(c => (
+                      <option key={c.category_id} value={c.category_id}>{c.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {subCategories.length > 0 && (
+              <div>
+                <SectionLabel>Subcategory</SectionLabel>
+                <select value={subCategoryId} onChange={e => setSubCategoryId(e.target.value)}
+                  style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1.5px solid rgba(201,165,95,0.3)", background: "rgba(255,255,255,0.85)", color: "#1a1408", fontSize: 12, fontWeight: 600, outline: "none" }}>
+                  <option value="">Select subcategory</option>
+                  {subCategories.map(s => (
+                    <option key={s.sub_category_id} value={s.sub_category_id}>{s.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            <div>
+              <SectionLabel>Description</SectionLabel>
+              <textarea value={description} onChange={e => setDescription(e.target.value)}
+                placeholder="Tell the story behind this creation..."
+                rows={2}
+                style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1.5px solid rgba(201,165,95,0.3)", background: "rgba(255,255,255,0.85)", color: "#1a1408", fontSize: 13, fontWeight: 500, outline: "none", resize: "none" }}
+                onFocus={e => e.target.style.borderColor = "#C9A75F"}
+                onBlur={e => e.target.style.borderColor = "rgba(201,165,95,0.3)"}
+              />
+            </div>
+          </div>
+
+          {/* ══ STEP 2 & 3: Patterns + Colors ══ */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-1.5">
+                <Layers size={14} style={{ color: "#C9A75F" }} />
+                <span className="text-xs font-bold" style={{ color: "#2C2416" }}>Patterns & Colors</span>
+              </div>
+            </div>
+
+            {/* Hint */}
+            <div className="flex items-start gap-2 rounded-xl px-3 py-2 mb-3"
+              style={{ background: "rgba(201,165,95,0.07)", border: "1px solid rgba(201,165,95,0.2)" }}>
+              <Info size={12} style={{ color: "#C9A75F", marginTop: 1, flexShrink: 0 }} />
+              <p className="text-[11px]" style={{ color: "rgba(44,36,22,0.6)", lineHeight: 1.5 }}>
+                Add <strong>Patterns</strong> (fits like Slim/Relaxed), then inside each pattern add
+                <strong> Color Variants</strong> with stock and photos.
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              {patterns.map((p, pi) => (
+                <PatternCard key={p.id} pattern={p} patIdx={pi}
+                  onChange={updated => {
+                    const next = [...patterns]; next[pi] = updated; setPatterns(next);
+                  }}
+                  onRemove={() => {
+                    if (!window.confirm("Remove this pattern?")) return;
+                    setPatterns(prev => prev.filter((_, i) => i !== pi));
+                  }}
+                  canRemove={patterns.length > 1}
+                />
+              ))}
+            </div>
+
+            <button type="button"
+              onClick={() => setPatterns(p => [...p, makePattern()])}
+              className="mt-3 w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold transition-all"
+              style={{
+                border: "2px dashed rgba(201,165,95,0.3)", color: "#C9A75F",
+                background: "rgba(201,165,95,0.03)",
+              }}
+              onMouseOver={e => { e.currentTarget.style.borderColor = "#C9A75F"; e.currentTarget.style.background = "rgba(201,165,95,0.07)"; }}
+              onMouseOut={e => { e.currentTarget.style.borderColor = "rgba(201,165,95,0.3)"; e.currentTarget.style.background = "rgba(201,165,95,0.03)"; }}
             >
-                {/* Inner glow */}
-                <div style={{ position: 'absolute', inset: 0, borderRadius: '24px', background: 'linear-gradient(to bottom, rgba(255,255,255,0.5), transparent 40%)', pointerEvents: 'none', zIndex: 0 }} />
+              <Plus size={13} /> Add Pattern
+            </button>
+          </div>
 
-                {/* Custom Close Button */}
-                <button
-                    type="button"
-                    onClick={() => onOpenChange(false)}
-                    style={{
-                        position: 'absolute', top: '16px', right: '16px', zIndex: 10,
-                        width: '34px', height: '34px', borderRadius: '50%',
-                        border: '1.5px solid rgba(201,165,95,0.3)',
-                        background: 'rgba(255,255,255,0.9)',
-                        backdropFilter: 'blur(8px)',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        cursor: 'pointer', transition: 'all 0.2s ease',
-                        color: '#2C2416',
-                        boxShadow: '0 2px 8px rgba(201,165,95,0.15)',
-                    }}
-                    onMouseOver={(e) => { e.currentTarget.style.background = 'rgba(201,165,95,0.15)'; e.currentTarget.style.borderColor = '#C9A75F'; }}
-                    onMouseOut={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.9)'; e.currentTarget.style.borderColor = 'rgba(201,165,95,0.3)'; }}
-                >
-                    <X size={16} strokeWidth={2.5} />
-                </button>
+          {/* Extra bottom padding for sticky footer */}
+          <div style={{ height: 16 }} />
+        </form>
 
-                {/* Header */}
-                <div style={{
-                    padding: '16px 16px', paddingRight: '52px', flexShrink: 0, position: 'relative', zIndex: 1,
-                    borderBottom: '1.5px solid rgba(201,165,95,0.2)',
-                    background: 'linear-gradient(135deg, rgba(255,255,255,0.95), rgba(248,243,235,0.9))',
-                }}>
-                    <DialogHeader>
-                        <DialogTitle style={{
-                            fontSize: '24px', fontWeight: 700, color: '#2C2416',
-                            fontFamily: "'Playfair Display', serif",
-                        }}>
-                            {initialData ? "Edit " : "Upload "}
-                            <span style={{
-                                background: 'linear-gradient(135deg, #C9A75F, #D4B76E)',
-                                WebkitBackgroundClip: 'text',
-                                WebkitTextFillColor: 'transparent',
-                            }}>Product</span>
-                        </DialogTitle>
-                    </DialogHeader>
-                    <p style={{ fontSize: '13px', color: 'rgba(44,36,22,0.55)', marginTop: '4px', fontWeight: 500 }}>
-                        Fill in your product details and choose who it's designed for.
-                    </p>
-                </div>
+        {/* ══ Sticky Footer ══ */}
+        <div style={{
+          flexShrink: 0, borderTop: "1.5px solid rgba(201,165,95,0.2)",
+          background: "rgba(255,253,248,0.95)", backdropFilter: "blur(12px)",
+          padding: "12px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12,
+          position: "relative", zIndex: 5,
+        }}>
+          <div className="flex items-center gap-3 text-[11px]" style={{ color: "rgba(44,36,22,0.5)" }}>
+            <span><strong style={{ color: "#2C2416" }}>{patterns.length}</strong> pattern{patterns.length !== 1 ? "s" : ""}</span>
+            <span>·</span>
+            <span><strong style={{ color: "#2C2416" }}>{totalVariants}</strong> color{totalVariants !== 1 ? "s" : ""}</span>
+            <span>·</span>
+            <span><strong style={{ color: "#2C2416" }}>{totalStock}</strong> units</span>
+          </div>
 
-                {/* Style overrides for input visibility & alignment */}
-                <style>{inputStyleOverrides}</style>
-
-                {/* Scrollable Body */}
-                <div className="hide-scrollbar" style={{ flex: 1, overflowY: 'auto', padding: '12px 14px', position: 'relative', zIndex: 1 }}>
-                    <form onSubmit={handleSubmit} className="upload-modal-form" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-
-                        {/* ─── 1. Product Information ──────────────────── */}
-                        <CollapsibleSection title="Product Details" icon={Package} defaultOpen={true}>
-                            {/* Title */}
-                            <div>
-                                <label className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'rgba(44,36,22,0.7)' }}>
-                                    Title <span style={{ color: '#e74c3c' }}>*</span>
-                                </label>
-                                <div style={{ position: 'relative' }}>
-                                    <div style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: 'rgba(201,165,95,0.7)', pointerEvents: 'none' }}>
-                                        <Tags size={18} />
-                                    </div>
-                                    <input
-                                        type="text" required placeholder="e.g., Midnight Silk Blazer"
-                                        value={formData.title}
-                                        onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                                        style={inputCls}
-                                        onFocus={(e) => { e.target.style.borderColor = '#C9A75F'; e.target.style.boxShadow = '0 0 0 3px rgba(201,165,95,0.1)'; }}
-                                        onBlur={(e) => { e.target.style.borderColor = 'rgba(201,165,95,0.3)'; e.target.style.boxShadow = 'none'; }}
-                                    />
-                                </div>
-                            </div>
-
-                            {/* Description */}
-                            <div>
-                                <label className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'rgba(44,36,22,0.7)' }}>Description</label>
-                                <textarea
-                                    placeholder="Tell the story behind this creation..."
-                                    rows={3} value={formData.description}
-                                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                                    style={{ ...inputCls, paddingLeft: '16px', resize: 'none' }}
-                                    onFocus={(e) => { e.target.style.borderColor = '#C9A75F'; }}
-                                    onBlur={(e) => { e.target.style.borderColor = 'rgba(201,165,95,0.3)'; }}
-                                />
-                            </div>
-
-                            {/* Price + Stock row */}
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                <div>
-                                    <label className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'rgba(44,36,22,0.7)' }}>
-                                        Price (INR) <span style={{ color: '#e74c3c' }}>*</span>
-                                    </label>
-                                    <div style={{ position: 'relative' }}>
-                                        <div style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: 'rgba(201,165,95,0.7)', pointerEvents: 'none' }}>
-                                            <DollarSign size={18} />
-                                        </div>
-                                        <input
-                                            type="number" required step="0.01" min="0" value={formData.price}
-                                            onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                                            style={{ ...inputCls, fontWeight: 700 }}
-                                            onFocus={(e) => { e.target.style.borderColor = '#C9A75F'; }}
-                                            onBlur={(e) => { e.target.style.borderColor = 'rgba(201,165,95,0.3)'; }}
-                                        />
-                                    </div>
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'rgba(44,36,22,0.7)' }}>Stock</label>
-                                    <div style={{ position: 'relative' }}>
-                                        <div style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: 'rgba(201,165,95,0.7)', pointerEvents: 'none' }}>
-                                            <Package size={18} />
-                                        </div>
-                                        <input
-                                            type="number" min="0" value={formData.inventory}
-                                            onChange={(e) => setFormData({ ...formData, inventory: e.target.value })}
-                                            style={{ ...inputCls, fontWeight: 700 }}
-                                            onFocus={(e) => { e.target.style.borderColor = '#C9A75F'; }}
-                                            onBlur={(e) => { e.target.style.borderColor = 'rgba(201,165,95,0.3)'; }}
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-                        </CollapsibleSection>
-
-                        {/* ─── 2. Classification & Targeting ─────────────────────── */}
-                        <CollapsibleSection
-                            title="Classification & Targeting"
-                            icon={Sparkles}
-                            defaultOpen={true}
-                            badge={totalAttrs > 0 ? `${totalAttrs} filters` : undefined}
-                        >
-                            {/* Gradient accent bar + Quote */}
-                            <div style={{ position: 'relative' }}>
-                                <div style={{
-                                    position: 'absolute', left: 0, top: 0, bottom: 0, width: '4px',
-                                    borderRadius: '4px',
-                                    background: 'linear-gradient(to bottom, #C9A75F, #D4B76E, #C9A75F)',
-                                    boxShadow: '0 0 8px rgba(201,165,95,0.3)',
-                                }} />
-                                <div style={{ paddingLeft: '16px' }}>
-                                    <p style={{ fontFamily: "'Playfair Display', serif", fontSize: '15px', fontWeight: 700, color: '#2C2416', marginBottom: '4px' }}>
-                                        Help us classify your creation ✨
-                                    </p>
-                                    <p style={{ fontSize: '12px', color: 'rgba(44,36,22,0.55)', lineHeight: 1.5, fontWeight: 500 }}>
-                                        Select category and attributes to power our AI recommendation engine.
-                                    </p>
-                                </div>
-                            </div>
-                            
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                <LuxeSelect
-                                    label="Category"
-                                    icon={FolderTree}
-                                    required
-                                    options={categories.filter(c => c.is_active).map(c => ({ id: c.category_id, name: c.name }))}
-                                    value={formData.category_id}
-                                    onChange={(id) => setFormData({ ...formData, category_id: id, sub_category_id: "" })}
-                                    placeholder="Select Category"
-                                />
-                                <LuxeSelect
-                                    label="Subcategory"
-                                    icon={Layers}
-                                    disabled={!formData.category_id || availableSubCategories.length === 0}
-                                    options={availableSubCategories.map(s => ({ id: s.sub_category_id, name: s.name }))}
-                                    value={formData.sub_category_id}
-                                    onChange={(id) => setFormData({ ...formData, sub_category_id: id })}
-                                    placeholder={!formData.category_id ? "Select Category First" : availableSubCategories.length === 0 ? "No Subcategories" : "Select Subcategory"}
-                                />
-                            </div>
-
-                            <AttributeDropdown
-                                label="Occasions" icon={Heart} options={OCCASIONS}
-                                selected={formData.occasions}
-                                onToggle={(v) => toggleAttribute('occasions', v)}
-                                placeholder="What occasions does this suit?"
-                            />
-                            <AttributeDropdown
-                                label="Body Shapes" icon={Users} options={BODY_SHAPES}
-                                selected={formData.body_shapes}
-                                onToggle={(v) => toggleAttribute('body_shapes', v)}
-                                placeholder="Which body shapes fit best?"
-                            />
-                            <AttributeDropdown
-                                label="Skin Tones" icon={Palette} options={SKIN_TONES}
-                                selected={formData.skin_tones}
-                                onToggle={(v) => toggleAttribute('skin_tones', v)}
-                                placeholder="Which skin tones complement?"
-                            />
-                            <AttributeDropdown
-                                label="Sizes" icon={Ruler} options={SIZES}
-                                selected={formData.sizes}
-                                onToggle={(v) => toggleAttribute('sizes', v)}
-                                placeholder="Available sizes?"
-                            />
-                            <AttributeDropdown
-                                label="Age Range" icon={CalendarRange} options={AGE_RANGES}
-                                selected={formData.age_ranges}
-                                onToggle={(v) => toggleAttribute('age_ranges', v)}
-                                placeholder="Target age groups?"
-                            />
-                        </CollapsibleSection>
-
-                        {/* ─── 3. Tags, Collections & Media ──────────────── */}
-                        <CollapsibleSection title="Tags & Images" icon={ImageIcon} defaultOpen={true}>
-                            {/* Search tags */}
-                            <div>
-                                <label className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'rgba(44,36,22,0.7)' }}>Search Tags</label>
-                                <div style={{ position: 'relative' }}>
-                                    <div style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: 'rgba(201,165,95,0.7)', pointerEvents: 'none' }}>
-                                        <Tags size={18} />
-                                    </div>
-                                    <input
-                                        type="text" placeholder="silk, blazer, evening..."
-                                        value={formData.tags}
-                                        onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
-                                        style={inputCls}
-                                        onFocus={(e) => { e.target.style.borderColor = '#C9A75F'; }}
-                                        onBlur={(e) => { e.target.style.borderColor = 'rgba(201,165,95,0.3)'; }}
-                                    />
-                                </div>
-                            </div>
-
-                            {/* Image Upload */}
-                            <div>
-                                <label className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'rgba(44,36,22,0.7)' }}>
-                                    Product Images <span style={{ color: '#e74c3c' }}>*</span>
-                                </label>
-                                <div onClick={() => setIsInstructionsOpen(true)} style={{
-                                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                                    width: '100%', minHeight: '140px', borderRadius: '16px', cursor: 'pointer',
-                                    border: '2.5px dashed rgba(201,165,95,0.35)', background: 'rgba(255,255,255,0.6)',
-                                    transition: 'all 0.3s ease',
-                                }}
-                                    onMouseOver={(e) => { (e.currentTarget as HTMLElement).style.borderColor = '#C9A75F'; (e.currentTarget as HTMLElement).style.background = 'rgba(201,165,95,0.04)'; }}
-                                    onMouseOut={(e) => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(201,165,95,0.35)'; (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.6)'; }}
-                                >
-                                    <div style={{ width: '44px', height: '44px', borderRadius: '50%', background: 'rgba(201,165,95,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '10px' }}>
-                                        <Upload size={20} style={{ color: '#C9A75F' }} />
-                                    </div>
-                                    <span style={{ fontSize: '14px', fontWeight: 700, color: '#2C2416' }}>
-                                        {images.length > 0 ? `${images.length} Selected` : "Drop Images Here"}
-                                    </span>
-                                    <span style={{ fontSize: '10px', fontWeight: 700, color: 'rgba(44,36,22,0.4)', marginTop: '4px', textTransform: 'uppercase', letterSpacing: '1px' }}>
-                                        JPG • PNG • WEBP
-                                    </span>
-                                </div>
-
-                                {images.length > 0 && (
-                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', marginTop: '10px' }}>
-                                        {images.map((img, idx) => (
-                                            <div key={idx} style={{ position: 'relative', aspectRatio: '1', borderRadius: '12px', overflow: 'hidden', border: '1.5px solid rgba(201,165,95,0.25)' }}>
-                                                <img src={img} alt={`Preview ${idx}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                                <button type="button" onClick={() => removeImage(idx)} style={{ position: 'absolute', top: 4, right: 4, width: 20, height: 20, borderRadius: '50%', background: 'rgba(0,0,0,0.6)', color: '#fff', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-                                                    <X size={10} strokeWidth={3} />
-                                                </button>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
-                        </CollapsibleSection>
-
-                        {/* ─── Actions ────────────────────────────────── */}
-                        <div style={{ display: 'flex', gap: '10px', paddingTop: '4px', paddingBottom: '12px' }}>
-                            <button
-                                type="button" onClick={() => onOpenChange(false)}
-                                style={{
-                                    flex: 1, height: '48px', borderRadius: '16px',
-                                    fontWeight: 700, fontSize: '13px',
-                                    color: '#2C2416', border: '2px solid rgba(201,165,95,0.3)',
-                                    background: 'white', cursor: 'pointer',
-                                    transition: 'all 0.3s ease',
-                                }}
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                type="submit" disabled={isLoading}
-                                className="group"
-                                style={{
-                                    flex: 2, height: '48px', borderRadius: '16px',
-                                    fontWeight: 700, fontSize: '14px',
-                                    color: '#2C2416', border: 'none', cursor: 'pointer',
-                                    background: 'linear-gradient(135deg, #C9A75F 0%, #D4B76E 100%)',
-                                    boxShadow: '0 8px 24px rgba(201,165,95,0.35), 0 0 30px rgba(201,165,95,0.15)',
-                                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px',
-                                    transition: 'all 0.3s ease',
-                                    opacity: isLoading ? 0.7 : 1,
-                                }}
-                            >
-                                {isLoading ? (
-                                    <>
-                                        <Loader2 size={18} className="animate-spin" />
-                                        <span style={{ fontSize: '12px' }}>{uploadProgress || "Launching..."}</span>
-                                    </>
-                                ) : (
-                                    <>
-                                        <Sparkles size={18} />
-                                        {initialData ? "Save Changes" : "Launch Product"}
-                                        <ArrowRight size={16} />
-                                    </>
-                                )}
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            </DialogContent>
-        </Dialog>
-
-        {/* Crazy, Respectful & Humorous Instructions Dialog */}
-        <AlertDialog open={isInstructionsOpen} onOpenChange={setIsInstructionsOpen}>
-            <AlertDialogContent
-                className="border-none p-0"
-                style={{
-                    maxWidth: '480px',
-                    borderRadius: '24px',
-                    background: 'linear-gradient(135deg, #FFFDF8 0%, #FFF9EF 50%, #FFFDF8 100%)',
-                    border: '2px solid rgba(201,165,95,0.4)',
-                    boxShadow: '0 20px 60px rgba(201,165,95,0.25), 0 0 40px rgba(201,165,95,0.1)',
-                    overflow: 'hidden',
-                    zIndex: 99999, // ensures it stays above the parent modal
-                }}
-            >
-                {/* Top gold accent bar */}
-                <div style={{
-                    height: '5px',
-                    background: 'linear-gradient(90deg, #C9A75F, #D4B76E, #C9A75F)',
-                    boxShadow: '0 2px 12px rgba(201,165,95,0.4)',
-                }} />
-
-                <div style={{ padding: '32px 28px 28px' }}>
-                    <AlertDialogHeader>
-                        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}>
-                            <div style={{
-                                width: '72px', height: '72px', borderRadius: '50%',
-                                background: 'linear-gradient(135deg, rgba(201,165,95,0.15), rgba(201,165,95,0.05))',
-                                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                border: '2px solid rgba(201,165,95,0.25)',
-                                boxShadow: '0 4px 15px rgba(201,165,95,0.15)',
-                            }}>
-                                <Sparkles size={32} style={{ color: '#C9A75F' }} />
-                            </div>
-                        </div>
-
-                        <AlertDialogTitle style={{
-                            textAlign: 'center',
-                            fontFamily: "'Playfair Display', serif",
-                            fontSize: '26px', fontWeight: 700, color: '#2C2416',
-                            marginBottom: '10px'
-                        }}>
-                            A Gentle <span style={{ color: '#C9A75F' }}>(& Crazy)</span> Request!
-                        </AlertDialogTitle>
-
-                        <AlertDialogDescription style={{
-                            textAlign: 'center', fontSize: '14.5px',
-                            lineHeight: 1.6, color: 'rgba(44,36,22,0.8)',
-                        }}>
-                            Dearest fabulous creator! Before you bless our servers with your stunning designs, please humor us with these tiny, microscopic, incredibly important rules:
-                            
-                            <div style={{ 
-                                marginTop: '20px', 
-                                textAlign: 'left', 
-                                background: 'rgba(255,255,255,0.6)', 
-                                padding: '16px', 
-                                borderRadius: '16px',
-                                border: '1px solid rgba(201,165,95,0.2)'
-                            }}>
-                                <ul style={{ listStyleType: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                                    <li style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
-                                        <div style={{ color: '#C9A75F', marginTop: '2px' }}><Check size={16} strokeWidth={3} /></div>
-                                        <span><strong>Crystal Clear Please!</strong> No blurry, potato-quality photos. Let your design shine brighter than a diamond. 💎</span>
-                                    </li>
-                                    <li style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
-                                        <div style={{ color: '#C9A75F', marginTop: '2px' }}><Check size={16} strokeWidth={3} /></div>
-                                        <span><strong>Keep it under 20MB.</strong> Our servers hit the gym, but they can't lift heavier than that! 🏋️‍♂️</span>
-                                    </li>
-                                    <li style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
-                                        <div style={{ color: '#C9A75F', marginTop: '2px' }}><Check size={16} strokeWidth={3} /></div>
-                                        <span><strong>JPG, PNG, or WEBP only.</strong> (Sorry, no magical moving GIFs of your outfit just yet. 🪄)</span>
-                                    </li>
-                                </ul>
-                            </div>
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-
-                    <AlertDialogFooter style={{ display: 'flex', justifyContent: 'center', marginTop: '28px', flexDirection: 'column', gap: '12px' }}>
-                        {/* 
-                          We use a <label> pretending to be a button, so when they click it, 
-                          it triggers the file input natively, AND we close the dialog!
-                        */}
-                        <label 
-                            style={{
-                                width: '100%', height: '50px', borderRadius: '14px',
-                                fontWeight: 700, fontSize: '15px', color: '#2C2416',
-                                background: 'linear-gradient(135deg, #C9A75F 0%, #D4B76E 100%)',
-                                boxShadow: '0 6px 20px rgba(201,165,95,0.3)',
-                                display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
-                                transition: 'all 0.2s', margin: 0
-                            }}
-                            onMouseOver={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 8px 25px rgba(201,165,95,0.4)'; }}
-                            onMouseOut={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 6px 20px rgba(201,165,95,0.3)'; }}
-                        >
-                            I Swear on Fashion, I Understand! 👗✨
-                            <input
-                                type="file"
-                                multiple
-                                accept="image/*"
-                                onChange={async (e) => {
-                                    await handleImageUpload(e);
-                                    // Close only after we've received and processed the files
-                                    setIsInstructionsOpen(false);
-                                }}
-                                style={{ display: 'none' }}
-                            />
-                        </label>
-
-                        <button
-                            type="button"
-                            onClick={() => setIsInstructionsOpen(false)}
-                            style={{
-                                width: '100%', height: '40px', borderRadius: '12px',
-                                fontWeight: 600, fontSize: '14px', color: 'rgba(44,36,22,0.6)',
-                                background: 'transparent', border: 'none', cursor: 'pointer',
-                            }}
-                            onMouseOver={(e) => { e.currentTarget.style.color = '#2C2416'; e.currentTarget.style.background = 'rgba(201,165,95,0.1)'; }}
-                            onMouseOut={(e) => { e.currentTarget.style.color = 'rgba(44,36,22,0.6)'; e.currentTarget.style.background = 'transparent'; }}
-                        >
-                            Nevermind, I'll return later
-                        </button>
-                    </AlertDialogFooter>
-                </div>
-            </AlertDialogContent>
-        </AlertDialog>
-        </>
-    );
+          <div className="flex gap-2">
+            <button type="button" onClick={() => onOpenChange(false)}
+              className="px-4 py-2 rounded-xl text-xs font-bold transition-all"
+              style={{ border: "1.5px solid rgba(201,165,95,0.3)", color: "#2C2416", background: "rgba(255,255,255,0.7)" }}>
+              Cancel
+            </button>
+            <button type="submit" form="hierarchy-upload-form" disabled={isLoading}
+              className="flex items-center gap-1.5 px-5 py-2 rounded-xl text-xs font-bold transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+              style={{
+                background: "linear-gradient(135deg,#C9A75F,#D4B76E)",
+                color: "#2C2416", border: "none",
+                boxShadow: "0 4px 16px rgba(201,165,95,0.35)",
+              }}>
+              {isLoading
+                ? <><Loader2 size={13} className="animate-spin" /> Uploading…</>
+                : <><Upload size={13} /> Submit Product</>}
+            </button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
 };
 
 export default UploadCollectionModal;
