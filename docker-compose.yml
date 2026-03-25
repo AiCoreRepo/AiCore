@@ -43,7 +43,7 @@ services:
       [
         "sh",
         "-c",
-        "set -e; DB_WAIT_HOST=db; DB_WAIT_PORT=5540; until node -e \"const net=require('net'); const host=process.env.DB_WAIT_HOST || 'db'; const port=Number(process.env.DB_WAIT_PORT || 5540); const s=net.createConnection({host, port},()=>process.exit(0)); s.on('error',()=>process.exit(1));\"; do echo \"waiting for db at $$DB_WAIT_HOST:$$DB_WAIT_PORT...\"; sleep 2; done; if ! node ./node_modules/prisma/build/index.js migrate deploy; then echo 'migrate deploy failed; attempting to mark known pre-applied migration as applied'; node ./node_modules/prisma/build/index.js migrate resolve --applied 20260215_add_refund_return_replacement; node ./node_modules/prisma/build/index.js migrate deploy; fi; node scripts/seed-products.js; node dist/src/main"
+        "set -e; node scripts/wait-for-services.mjs; node scripts/run-migrations.mjs; node scripts/seed-products.js; node dist/src/main"
       ]
     env_file:
       - ./APP3005/aivestire-backend-tmp/.env
