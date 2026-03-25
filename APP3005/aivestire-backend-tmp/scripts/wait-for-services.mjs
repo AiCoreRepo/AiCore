@@ -4,6 +4,10 @@ import net from 'node:net';
 import process from 'node:process';
 import { URL } from 'node:url';
 
+import { loadLocalEnvFiles } from './load-env.mjs';
+
+loadLocalEnvFiles();
+
 const DEFAULT_TIMEOUT_MS = Number(process.env.SERVICE_WAIT_TIMEOUT_MS || 120000);
 const DEFAULT_INTERVAL_MS = Number(process.env.SERVICE_WAIT_INTERVAL_MS || 2000);
 const DB_RETRY_ATTEMPTS = Math.max(

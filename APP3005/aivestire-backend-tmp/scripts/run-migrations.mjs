@@ -5,6 +5,10 @@ import process from 'node:process';
 
 import { PrismaClient } from '@prisma/client';
 
+import { loadLocalEnvFiles } from './load-env.mjs';
+
+loadLocalEnvFiles();
+
 const PRISMA_CLI = './node_modules/prisma/build/index.js';
 const KNOWN_PREAPPLIED_MIGRATION = '20260215_add_refund_return_replacement';
 const KNOWN_FAILED_MIGRATION = '20260228000000_add_coupon_scopes';
