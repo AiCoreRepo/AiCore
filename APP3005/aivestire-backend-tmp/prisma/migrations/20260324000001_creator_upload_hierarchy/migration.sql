@@ -5,6 +5,7 @@
 
 -- ── ENUMS ────────────────────────────────────────────────────
 
+DO $$ BEGIN
 CREATE TYPE "BodyShape" AS ENUM (
   'HOURGLASS',
   'PEAR',
@@ -16,7 +17,9 @@ CREATE TYPE "BodyShape" AS ENUM (
   'PETITE',
   'PLUS_SIZE'
 );
+EXCEPTION WHEN duplicate_object THEN null; END $$;
 
+DO $$ BEGIN
 CREATE TYPE "SkinTone" AS ENUM (
   'FAIR',
   'LIGHT',
@@ -27,7 +30,9 @@ CREATE TYPE "SkinTone" AS ENUM (
   'DARK_BROWN',
   'DEEP'
 );
+EXCEPTION WHEN duplicate_object THEN null; END $$;
 
+DO $$ BEGIN
 CREATE TYPE "ClothingColor" AS ENUM (
   'BLACK',
   'WHITE',
@@ -62,6 +67,7 @@ CREATE TYPE "ClothingColor" AS ENUM (
   'PRINTED',
   'OTHER'
 );
+EXCEPTION WHEN duplicate_object THEN null; END $$;
 
 -- ── TABLE: product_patterns ───────────────────────────────────
 

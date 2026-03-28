@@ -74,6 +74,7 @@ model Product {
   slug              String                   @unique
   description       String?
   price_cents       Int
+  commission_percentage Int                  @default(10)
   currency          String                   @default("INR")
   inventory_count   Int                      @default(0)
   is_deleted        Boolean                  @default(false)

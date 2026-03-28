@@ -28,7 +28,6 @@ import AuraProfile from "./pages/AuraProfile";
 import LetAIDecidePage from "./pages/LetAIDecidePage";
 const CreatorUploadPage = lazy(() => import("./app/creator-upload/page"));
 import AdminDashboardPage from "./app/admin-dashboard/page";
-const AtelierApprovalPage = lazy(() => import("./app/admin-approvals/page"));
 const CartPage = lazy(() => import("./pages/CartPage"));
 const PaymentPage = lazy(() => import("./pages/PaymentPage"));
 const WishlistPage = lazy(() => import("./pages/WishlistPage"));
@@ -38,7 +37,9 @@ import AdminTryOnApprovals from "./app/admin-tryon-approvals/page";
 import AdminOrdersPage from "./app/admin-orders/page";
 import ArtisansPage from "./app/admin-artisans/page";
 import ClientelePage from "./app/admin-clientele/page";
+import AdminProductsPage from "./app/admin-products/page";
 import AdminSettingsPage from "./app/admin-settings/page";
+const AdminCreatorDetailPage = lazy(() => import("./app/admin-creator-detail/page"));
 const AdminCouponsPage = lazy(() => import("./app/admin-coupons/page"));
 const CreateCouponPage = lazy(() => import("./app/admin-coupons/create"));
 const EditCouponPage = lazy(() => import("./app/admin-coupons/edit"));
@@ -67,6 +68,7 @@ import { ReplaceOrderPage } from "./features/orders/ReplaceOrderPage";
 import UserDashboard from "./pages/UserDashboard";
 import PaymentSuccessPage from "./pages/PaymentSuccessPage";
 import PaymentFailurePage from "./pages/PaymentFailurePage";
+
 
 const queryClient = new QueryClient();
 
@@ -181,15 +183,20 @@ const App = () => (
                           <AdminCategoriesPage />
                         </Suspense>
                       } />
-                      <Route path="/admin-approvals" element={
-                        <Suspense fallback={<div className="min-h-screen bg-neutral-950 flex items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-2 border-[#D4AF37] border-t-transparent"></div></div>}>
-                          <AtelierApprovalPage />
-                        </Suspense>
-                      } />
                       <Route path="/admin-tryon-approvals" element={<AdminTryOnApprovals />} />
                       <Route path="/admin-orders" element={<AdminOrdersPage />} />
+                      <Route path="/admin-products" element={
+                        <Suspense fallback={<div className="min-h-screen bg-neutral-950 flex items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-2 border-[#D4AF37] border-t-transparent"></div></div>}>
+                          <AdminProductsPage />
+                        </Suspense>
+                      } />
                       <Route path="/admin-collection" element={<AdminCollectionPage />} />
                       <Route path="/admin-artisans" element={<ArtisansPage />} />
+                      <Route path="/admin-artisans/:creatorId" element={
+                        <Suspense fallback={<div className="min-h-screen bg-neutral-950 flex items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-2 border-[#D4AF37] border-t-transparent"></div></div>}>
+                          <AdminCreatorDetailPage />
+                        </Suspense>
+                      } />
                       <Route path="/admin-clientele" element={<ClientelePage />} />
                       <Route path="/admin-settings" element={<AdminSettingsPage />} />
                       <Route path="/admin-csv-upload" element={<AdminCSVUploadPage />} />
