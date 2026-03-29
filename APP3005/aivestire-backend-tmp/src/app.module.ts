@@ -36,6 +36,7 @@ import { CreatorCouponsModule } from './creator-coupons/creator-coupons.module';
 import { WalletModule } from './wallet/wallet.module';
 import { ProductGroupsModule } from './product-groups/product-groups.module';
 import { CategoriesModule } from './categories/categories.module';
+import { AdminAnalyticsModule } from './admin-analytics/admin-analytics.module';
 
 
 @Module({
@@ -74,6 +75,7 @@ import { CategoriesModule } from './categories/categories.module';
     WalletModule,
     ProductGroupsModule,
     CategoriesModule,
+    AdminAnalyticsModule,
   ],
   controllers: [AppController],
   providers: [AppService, AdminSeederService],

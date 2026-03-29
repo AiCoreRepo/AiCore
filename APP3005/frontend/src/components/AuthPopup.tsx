@@ -9,6 +9,7 @@ interface AuthPopupProps {
     onAction: () => void;
 }
 
+// TODO: modification needed
 const greetings = [
     "Hello, Beautiful! ✨",
     "Welcome, Style Icon! 🌟",

@@ -1,12 +1,13 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { LayoutDashboard, Package } from 'lucide-react';
+import { LayoutDashboard, Package, BarChart } from 'lucide-react';
 import { Sidebar } from '@/components/admin/Sidebar';
 import { CreatorDetailHeader } from '@/components/admin/creator-detail/CreatorDetailHeader';
 import { CreatorSummaryCards } from '@/components/admin/creator-detail/CreatorSummaryCards';
-import { CreatorInfoPanel } from '@/components/admin/creator-detail/CreatorInfoPanel';
 import { CreatorProductsPanel } from '@/components/admin/creator-detail/CreatorProductsPanel';
+import { CreatorFinancialsPanel } from '@/components/admin/creator-detail/CreatorFinancialsPanel';
+import { CreatorDetailsCards } from '@/components/admin/creator-detail/CreatorDetailsCards';
 import { useAdminCreatorById, useToggleCreatorStatus } from '@/hooks/useAdminCreators';
 import { ConfirmDialog } from '@/components/admin/creators/ConfirmDialog';
 import { PayCreatorModal } from '@/components/admin/creators/PayCreatorModal';
@@ -14,11 +15,12 @@ import { CreatorListItem } from '@/api/admin-creators.api';
 import { animations } from '@/constants/theme';
 import { cn } from '@/utils/cn';
 
-type Tab = 'overview' | 'products';
+type Tab = 'overview' | 'products' | 'financials';
 
 const TABS: { key: Tab; label: string; Icon: React.ElementType }[] = [
   { key: 'overview', label: 'Overview', Icon: LayoutDashboard },
   { key: 'products', label: 'Products', Icon: Package },
+  { key: 'financials', label: 'Financials', Icon: BarChart },
 ];
 
 export default function AdminCreatorDetailPage() {
@@ -137,14 +139,19 @@ export default function AdminCreatorDetailPage() {
               variants={animations.fadeIn}
               initial="initial"
               animate="animate"
-              className="grid grid-cols-1 xl:grid-cols-3 gap-6"
+              className="space-y-6 mt-6"
             >
-              <div className="xl:col-span-2 space-y-6">
-                <CreatorSummaryCards detail={detail} />
-              </div>
-              <div>
-                <CreatorInfoPanel detail={detail} />
-              </div>
+              <CreatorSummaryCards detail={detail} />
+              <CreatorDetailsCards detail={detail} />
+            </motion.div>
+          ) : activeTab === 'financials' ? (
+            <motion.div
+              key="financials"
+              variants={animations.fadeIn}
+              initial="initial"
+              animate="animate"
+            >
+              <CreatorFinancialsPanel creatorId={creatorId} />
             </motion.div>
           ) : (
             <motion.div

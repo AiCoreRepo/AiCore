@@ -45,6 +45,7 @@ const CreateCouponPage = lazy(() => import("./app/admin-coupons/create"));
 const EditCouponPage = lazy(() => import("./app/admin-coupons/edit"));
 const WalletPage = lazy(() => import("./pages/WalletPage"));
 const AdminWalletPage = lazy(() => import("./pages/AdminWalletPage"));
+const AdminAnalyticsPage = lazy(() => import("./pages/AdminAnalyticsPage"));
 const AdminCategoriesPage = lazy(() => import("./app/admin-categories/page"));
 
 import AdminLogin from "./pages/AdminLogin";
@@ -203,6 +204,11 @@ const App = () => (
                       <Route path="/admin-wallet" element={
                         <Suspense fallback={<div className="min-h-screen bg-neutral-950 flex items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-2 border-[#D4AF37] border-t-transparent"></div></div>}>
                           <AdminWalletPage />
+                        </Suspense>
+                      } />
+                      <Route path="/admin-analytics" element={
+                        <Suspense fallback={<div className="min-h-screen bg-neutral-950 flex items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-2 border-[#D4AF37] border-t-transparent"></div></div>}>
+                          <AdminAnalyticsPage />
                         </Suspense>
                       } />
                       <Route path="/admin-coupons" element={

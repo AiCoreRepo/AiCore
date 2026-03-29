@@ -57,6 +57,8 @@ model Creator {
   products          Product[]
   creator_coupons   CreatorCoupon[]
   product_groups    ProductGroup[]
+  order_items       OrderItem[]
+  payouts           Payout[]
 }
 
 model CreatorLimit {
@@ -696,14 +698,28 @@ model OrderItem {
   size            String?
   color           String?
 
+  // Financial Snapshot data
+  creator_id    String      @db.Uuid
+  creator_price Decimal     @db.Decimal(10, 2)
+  commission    Decimal     @db.Decimal(10, 2)
+  selling_price Decimal     @db.Decimal(10, 2)
+  order_status  OrderStatus @default(PENDING)
+  delivered_at  DateTime?
+
   created_at DateTime @default(now())
 
   // Relations
   order   Order   @relation(fields: [order_id], references: [order_id], onDelete: Cascade)
   product Product @relation(fields: [product_id], references: [product_id])
+  creator Creator @relation(fields: [creator_id], references: [creator_id])
 
   @@index([order_id])
   @@index([product_id])
+  @@index([creator_id])
+  @@index([order_status])
+  @@index([delivered_at])
+  @@index([creator_id, order_status])
+  @@index([creator_id, delivered_at])
   @@map("order_items")
 }
 
@@ -1306,4 +1322,30 @@ enum WalletTransactionStatus {
   SUCCESS
   FAILED
   REVERSED
+}
+
+// ============================================
+// PAYOUT SYSTEM
+// ============================================
+
+enum PayoutStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
+model Payout {
+  payout_id  String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  creator_id String       @db.Uuid
+  amount     Decimal      @db.Decimal(10, 2)
+  status     PayoutStatus @default(PENDING)
+  note       String?
+  created_at DateTime     @default(now())
+
+  creator Creator @relation(fields: [creator_id], references: [creator_id])
+
+  @@index([creator_id])
+  @@index([status])
+  @@index([creator_id, status])
+  @@map("payouts")
 }

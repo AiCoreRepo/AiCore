@@ -1,5 +1,5 @@
 import { Variants } from 'framer-motion';
-import { LayoutDashboard, CheckSquare, ShoppingBag, Palette, Users, Settings, Sparkles, Upload, Package, Ticket, Layers } from 'lucide-react';
+import { LayoutDashboard, CheckSquare, ShoppingBag, Palette, Users, Settings, Sparkles, Upload, Package, Ticket, Layers, BarChart } from 'lucide-react';
 
 /**
  * Midnight Luxury Design Tokens

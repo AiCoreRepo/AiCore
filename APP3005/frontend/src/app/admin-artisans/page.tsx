@@ -8,6 +8,8 @@ import { CreatorProfileModal } from '@/components/admin/creators/CreatorProfileM
 import { ConfirmDialog } from '@/components/admin/creators/ConfirmDialog';
 import { PayCreatorModal } from '@/components/admin/creators/PayCreatorModal';
 import { useAdminCreators, useToggleCreatorStatus } from '@/hooks/useAdminCreators';
+import { useAnalyticsOverview } from '@/hooks/useAdminAnalytics';
+import { AnalyticsOverviewCards } from '@/components/admin/analytics/AnalyticsOverviewCards';
 import { CreatorListItem } from '@/api/admin-creators.api';
 import {
     CreatorStatusFilter,
@@ -47,8 +49,9 @@ function CreatorsPage() {
         limit: CREATOR_PAGINATION.DEFAULT_LIMIT,
     });
     
-
     const toggleMutation = useToggleCreatorStatus();
+
+    const { data: analyticsData, isLoading: isLoadingAnalytics } = useAnalyticsOverview();
 
     const navigate = useNavigate();
 
@@ -192,6 +195,18 @@ function CreatorsPage() {
                                 </div>
                             </div>
                         ))}
+                    </motion.div>
+
+                    {/* ── Financial Analytics Overview ───────────────────── */}
+                    <motion.div
+                        variants={animations.fadeIn}
+                        initial="initial"
+                        animate="animate"
+                    >
+                        <h2 className="text-xl font-bold text-neutral-100 mb-4" style={{ fontFamily: typography.fontSerif }}>
+                            Platform Financials
+                        </h2>
+                        <AnalyticsOverviewCards data={analyticsData} isLoading={isLoadingAnalytics} />
                     </motion.div>
 
                     {/* ── Search & Filter Bar ───────────────────────────── */}
