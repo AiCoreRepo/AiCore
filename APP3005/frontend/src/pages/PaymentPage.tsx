@@ -185,7 +185,7 @@ const PaymentPage = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const { toast } = useToast();
-    const { cart } = useCart();
+    const { cart, clearCart, refreshCart } = useCart();
     const { wallet } = useWallet();
     const { redirectToPayU } = usePayU();
 
@@ -266,6 +266,11 @@ const PaymentPage = () => {
 
             if (isCOD || isAivestireWallet) {
                 sessionStorage.removeItem('aivestire_applied_coupon');
+                // Best-effort cart invalidation so UI updates immediately
+                clearCart({ silent: true }).catch(() => {
+                    // If clear fails (e.g., already cleared server-side), fall back to refetch
+                    refreshCart().catch(() => { });
+                });
                 toast({ title: '✅ Order Placed!', description: isCOD ? `Order #${orderNumber} confirmed. Pay on delivery.` : `Paid via Aivestire Wallet.`, className: 'bg-emerald-50 border-emerald-200 text-emerald-900' });
                 setTimeout(() => navigate('/my-orders?from=cart'), 500);
                 return;

@@ -46,6 +46,7 @@ function CreatorsPage() {
         page,
         limit: CREATOR_PAGINATION.DEFAULT_LIMIT,
     });
+    
 
     const toggleMutation = useToggleCreatorStatus();
 

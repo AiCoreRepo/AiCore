@@ -266,6 +266,23 @@ export class OrderService {
           });
         }
 
+        // Clear ordered items from the user's cart
+        const userCart = await tx.cart.findUnique({
+          where: { user_id: userId },
+        });
+        if (userCart) {
+          for (const item of dto.items) {
+            await tx.cartItem.deleteMany({
+              where: {
+                cart_id: userCart.cart_id,
+                product_id: item.productId,
+                size: item.size || null,
+                color: item.color || null,
+              },
+            });
+          }
+        }
+
         // Increment coupon usage if one was applied
         if (appliedCouponId) {
           await tx.coupon.update({
