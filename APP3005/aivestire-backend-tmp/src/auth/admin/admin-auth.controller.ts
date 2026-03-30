@@ -1,26 +1,22 @@
 import {
     Controller,
-    Get,
     Post,
     Body,
-    Req,
     Res,
-    UseGuards,
     HttpCode,
     HttpStatus,
-    UnauthorizedException,
 } from '@nestjs/common';
-import { AuthGuard } from '@nestjs/passport';
 import { Throttle } from '@nestjs/throttler';
-import type { Request, Response } from 'express';
+import type { Response } from 'express';
 import { AdminAuthService } from './admin-auth.service';
 
-@Controller('auth/google/admin')
+@Controller(['auth/google/admin', 'auth/admin'])
 export class AdminAuthController {
     constructor(private readonly adminAuthService: AdminAuthService) { }
 
     /**
-     * POST /auth/google/admin/verify-secret
+     * POST /auth/admin/verify-secret
+     * Also available at POST /auth/google/admin/verify-secret for backward compatibility.
      * Verifies admin secret and issues admin JWT cookie
      */
     @Post('verify-secret')

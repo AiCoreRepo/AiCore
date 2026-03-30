@@ -29,7 +29,7 @@ const AdminSecretConfirm: React.FC = () => {
 
         setIsLoading(true);
         try {
-            const response = await fetch(`${API_URL}/auth/google/admin/verify-secret`, {
+            const response = await fetch(`${API_URL}/auth/admin/verify-secret`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',

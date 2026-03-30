@@ -1,53 +1,96 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Loader2, ShieldCheck } from 'lucide-react';
+import { Eye, EyeOff, Loader2, Lock, ShieldCheck } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { useGoogleLogin } from '@react-oauth/google';
-import { getErrorMessage } from '@/lib/error-utils';
-import { googleAuth } from '@/lib/api';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 const AdminLogin = () => {
     const [isLoading, setIsLoading] = useState(false);
+    const [isSecretModalOpen, setIsSecretModalOpen] = useState(false);
+    const [email, setEmail] = useState('');
+    const [secret, setSecret] = useState('');
+    const [showSecret, setShowSecret] = useState(false);
     const navigate = useNavigate();
     const { toast } = useToast();
 
-    const handleGoogleLogin = useGoogleLogin({
-        onSuccess: async (tokenResponse) => {
-            setIsLoading(true);
-            try {
-                // We use the same googleAuth API as users, but with role: 'ADMIN'
-                const result = await googleAuth({
-                    token: tokenResponse.access_token,
-                    role: 'ADMIN',
-                });
+    const handleOpenSecretModal = () => {
+        // Admin Google auth is disabled by design.
+        setIsSecretModalOpen(true);
+    };
 
-                toast({
-                    title: "Identity Verified",
-                    description: "Please confirm your admin secret to proceed.",
-                });
+    const handleSecretSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
 
-                // Redirect to secret confirmation page
-                navigate(`/admin-secret-confirm?email=${encodeURIComponent(result.user.email)}`);
-
-            } catch (error: unknown) {
-                toast({
-                    title: "Authentication Failed",
-                    description: getErrorMessage(error, "You do not have administrative access."),
-                    variant: "destructive",
-                });
-            } finally {
-                setIsLoading(false);
-            }
-        },
-        onError: () => {
+        if (!email.trim()) {
             toast({
-                title: "Google Sign-In Failed",
-                description: "Could not connect to Google. Please try again.",
-                variant: "destructive",
+                title: 'Email required',
+                description: 'Please enter admin email.',
+                variant: 'destructive',
             });
-        },
-        flow: 'implicit',
-    });
+            return;
+        }
+
+        if (!secret.trim()) {
+            toast({
+                title: 'Secret required',
+                description: 'Please enter admin secret.',
+                variant: 'destructive',
+            });
+            return;
+        }
+
+        setIsLoading(true);
+        try {
+            const response = await fetch(`${API_URL}/auth/admin/verify-secret`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({
+                    email: email.trim(),
+                    secret: secret.trim(),
+                }),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.message || 'Verification failed');
+            }
+
+            const data = await response.json();
+
+            toast({
+                title: 'Access Granted',
+                description: 'Welcome, Admin.',
+            });
+
+            setIsSecretModalOpen(false);
+            setSecret('');
+            setShowSecret(false);
+
+            setTimeout(() => {
+                navigate(data.redirect || '/admin-dashboard');
+            }, 300);
+        } catch (error: unknown) {
+            toast({
+                title: 'Verification Failed',
+                description:
+                    error instanceof Error
+                        ? error.message
+                        : 'Invalid admin credentials. Please try again.',
+                variant: 'destructive',
+            });
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     return (
         <div className="min-h-screen bg-neutral-950 flex items-center justify-center p-6">
@@ -86,22 +129,17 @@ const AdminLogin = () => {
                             type="button"
                             disabled={isLoading}
                             className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-white hover:bg-neutral-100 text-neutral-900 font-semibold rounded-xl transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98] shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
-                            onClick={() => handleGoogleLogin()}
+                            onClick={handleOpenSecretModal}
                         >
                             {isLoading ? (
                                 <>
                                     <Loader2 className="w-5 h-5 animate-spin" />
-                                    <span>Verifying...</span>
+                                    <span>Verifying Secret...</span>
                                 </>
                             ) : (
                                 <>
-                                    <svg className="h-5 w-5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                        <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
-                                        <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
-                                        <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
-                                        <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
-                                    </svg>
-                                    <span className="text-sm">Sign in as Administrator</span>
+                                    <Lock className="h-5 w-5" />
+                                    <span className="text-sm">Continue with Admin Secret</span>
                                 </>
                             )}
                         </button>
@@ -112,6 +150,100 @@ const AdminLogin = () => {
                     </p>
                 </div>
             </div>
+
+            <Dialog
+                open={isSecretModalOpen}
+                onOpenChange={(open) => {
+                    setIsSecretModalOpen(open);
+                    if (!open) {
+                        setSecret('');
+                        setShowSecret(false);
+                    }
+                }}
+            >
+                <DialogContent className="bg-neutral-900 border-neutral-800 text-neutral-100 sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2 text-neutral-100">
+                            <Lock className="w-5 h-5 text-[#D4AF37]" />
+                            Admin Secret Verification
+                        </DialogTitle>
+                        <DialogDescription className="text-neutral-400">
+                            Google login for admin is disabled. Enter admin email and secret.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <form onSubmit={handleSecretSubmit} className="space-y-4">
+                        <div>
+                            <label className="block text-xs text-neutral-400 uppercase tracking-wider mb-2 font-medium">
+                                Admin Email
+                            </label>
+                            <input
+                                type="email"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                placeholder="admin@company.com"
+                                className="w-full px-4 py-3 bg-neutral-950 border border-neutral-700/50 rounded-lg
+                                         !text-white placeholder-neutral-500
+                                         focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/40 focus:border-[#D4AF37]/50"
+                                autoComplete="username"
+                                disabled={isLoading}
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-xs text-neutral-400 uppercase tracking-wider mb-2 font-medium">
+                                Admin Secret
+                            </label>
+                            <div className="relative">
+                                <input
+                                    type={showSecret ? 'text' : 'password'}
+                                    value={secret}
+                                    onChange={(e) => setSecret(e.target.value)}
+                                    placeholder="Enter your secret"
+                                    className="w-full pl-4 pr-12 py-3 bg-neutral-950 border border-neutral-700/50 rounded-lg
+                                             !text-white placeholder-neutral-500
+                                             focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/40 focus:border-[#D4AF37]/50"
+                                    autoComplete="current-password"
+                                    disabled={isLoading}
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowSecret((prev) => !prev)}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-white transition-colors p-1"
+                                    disabled={isLoading}
+                                >
+                                    {showSecret ? (
+                                        <EyeOff className="w-5 h-5" />
+                                    ) : (
+                                        <Eye className="w-5 h-5" />
+                                    )}
+                                </button>
+                            </div>
+                        </div>
+
+                        <button
+                            type="submit"
+                            disabled={isLoading || !email.trim() || !secret.trim()}
+                            className="w-full py-3 px-6 bg-gradient-to-r from-[#D4AF37] to-[#B8962E] text-neutral-950
+                                     font-semibold rounded-lg hover:from-[#E5C04B] hover:to-[#C9A73A]
+                                     disabled:opacity-50 disabled:cursor-not-allowed
+                                     transition-all duration-200 flex items-center justify-center gap-2"
+                        >
+                            {isLoading ? (
+                                <>
+                                    <Loader2 className="w-5 h-5 animate-spin" />
+                                    Verifying...
+                                </>
+                            ) : (
+                                <>
+                                    <ShieldCheck className="w-5 h-5" />
+                                    Confirm Access
+                                </>
+                            )}
+                        </button>
+                    </form>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 };
