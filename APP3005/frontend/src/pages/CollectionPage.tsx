@@ -42,6 +42,9 @@ const getProductImageUrl = (product: PublicProduct): string | null => {
     return fallbackImage?.url ?? product.thumbnail ?? null;
 };
 
+const getAvatarImageUrl = (aura: any): string | null =>
+    aura?.tryon_model_url || aura?.model_url || aura?.image_url || null;
+
 const buildGeminiTryOnAdditionalParams = (aura: any) => ({
     aura_attributes: aura
         ? {
@@ -335,7 +338,7 @@ const CollectionPage = () => {
             let result: TryOnResult;
 
             if (provider === TRYON_PROVIDER.GEMINI) {
-                const avatarImage = aura?.model_url || aura?.image_url;
+                const avatarImage = getAvatarImageUrl(aura);
                 const clothingImage = getProductImageUrl(product);
 
                 if (!avatarImage || !clothingImage) {

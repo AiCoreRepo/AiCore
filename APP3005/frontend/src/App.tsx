@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { lazy, Suspense } from "react";
 import Index from "./pages/Index";
 import { AuthProvider } from "./context/AuthContext";
@@ -113,6 +113,14 @@ const App = () => (
                       <Route path="/forgot-password" element={<ForgotPassword />} />
                       <Route path="/creator-login" element={<CreatorLogin />} />
                       <Route path="/ai-try-on" element={<AiTryOn />} />
+                      <Route
+                        path="/aitryon"
+                        element={<Navigate to="/ai-try-on" replace />}
+                      />
+                      <Route
+                        path="/aitryon/*"
+                        element={<Navigate to="/ai-try-on" replace />}
+                      />
                       <Route path="/let-ai-decide" element={<LetAIDecidePage />} />
 
                       {/* User Dashboard Routes */}

@@ -69,13 +69,43 @@ function parseApiErrorBody(bodyText: string, defaultMessage: string) {
   }
 }
 
+function isHtmlErrorDocument(bodyText: string): boolean {
+  const trimmed = bodyText.trim().toLowerCase();
+  return trimmed.startsWith("<!doctype html") || trimmed.startsWith("<html");
+}
+
+function getFriendlyHttpErrorMessage(
+  res: Response,
+  bodyText: string,
+  defaultMessage: string,
+): string {
+  if (!isHtmlErrorDocument(bodyText)) {
+    return defaultMessage;
+  }
+
+  if (res.status === 504) {
+    return "The try-on service timed out before the server finished processing. Please try again.";
+  }
+
+  if (res.status === 502 || res.status === 503) {
+    return "The try-on service is temporarily unavailable. Please try again shortly.";
+  }
+
+  return defaultMessage;
+}
+
 // Helper function to handle API errors and trigger logout on 401
 function handleApiError(
   res: Response,
   bodyText: string,
   defaultMessage: string,
 ): never {
-  const parsedError = parseApiErrorBody(bodyText, defaultMessage);
+  const fallbackMessage = getFriendlyHttpErrorMessage(
+    res,
+    bodyText,
+    defaultMessage,
+  );
+  const parsedError = parseApiErrorBody(bodyText, fallbackMessage);
 
   const error = new Error(parsedError.message) as ApiError;
   error.status = res.status;
