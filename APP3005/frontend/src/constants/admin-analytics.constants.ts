@@ -5,9 +5,11 @@ export const ADMIN_ANALYTICS_QUERY_KEYS = {
 } as const;
 
 export enum PayoutStatus {
-  PENDING = 'PENDING',
-  COMPLETED = 'COMPLETED',
-  FAILED = 'FAILED',
+  PENDING    = 'PENDING',
+  PROCESSING = 'PROCESSING',
+  SUCCESS    = 'SUCCESS',
+  FAILED     = 'FAILED',
+  CANCELLED  = 'CANCELLED',
 }
 
 export const ADMIN_ANALYTICS_TABS = {

@@ -8,10 +8,9 @@ import { CreatorSummaryCards } from '@/components/admin/creator-detail/CreatorSu
 import { CreatorProductsPanel } from '@/components/admin/creator-detail/CreatorProductsPanel';
 import { CreatorFinancialsPanel } from '@/components/admin/creator-detail/CreatorFinancialsPanel';
 import { CreatorDetailsCards } from '@/components/admin/creator-detail/CreatorDetailsCards';
+import { PayCreatorModal } from '@/components/admin/creators/PayCreatorModal';
 import { useAdminCreatorById, useToggleCreatorStatus } from '@/hooks/useAdminCreators';
 import { ConfirmDialog } from '@/components/admin/creators/ConfirmDialog';
-import { PayCreatorModal } from '@/components/admin/creators/PayCreatorModal';
-import { CreatorListItem } from '@/api/admin-creators.api';
 import { animations } from '@/constants/theme';
 import { cn } from '@/utils/cn';
 
@@ -34,20 +33,6 @@ export default function AdminCreatorDetailPage() {
   const { data: detail, isLoading, error } = useAdminCreatorById(creatorId ?? '');
   const toggleMutation = useToggleCreatorStatus();
 
-  const creatorListItem = useMemo<CreatorListItem | null>(() => {
-    if (!detail) return null;
-    return {
-      creator_id: detail.creator_id,
-      store_name: detail.store_name,
-      store_slug: detail.store_slug,
-      about: detail.about,
-      verified: detail.verified,
-      created_at: detail.created_at,
-      is_active: detail.is_active,
-      total_products: detail.product_summary?.total ?? 0,
-      user: detail.user,
-    };
-  }, [detail]);
 
   const handleConfirmToggle = useCallback(async () => {
     if (!detail) return;
@@ -104,8 +89,8 @@ export default function AdminCreatorDetailPage() {
             detail={detail}
             onBack={() => navigate('/admin-artisans')}
             onToggleStatus={() => setIsConfirmOpen(true)}
-            onPay={() => setIsPayOpen(true)}
             isToggling={toggleMutation.isPending}
+            onPay={() => setIsPayOpen(true)}
           />
 
           {/* Tab Bar */}
@@ -182,7 +167,7 @@ export default function AdminCreatorDetailPage() {
       <PayCreatorModal
         isOpen={isPayOpen}
         onClose={() => setIsPayOpen(false)}
-        creator={creatorListItem}
+        creator={detail}
       />
     </div>
   );

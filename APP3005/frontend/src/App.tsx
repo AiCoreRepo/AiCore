@@ -40,6 +40,7 @@ import ClientelePage from "./app/admin-clientele/page";
 import AdminProductsPage from "./app/admin-products/page";
 import AdminSettingsPage from "./app/admin-settings/page";
 const AdminCreatorDetailPage = lazy(() => import("./app/admin-creator-detail/page"));
+const AdminPayoutProcessPage = lazy(() => import("./app/admin-payout-process/page"));
 const AdminCouponsPage = lazy(() => import("./app/admin-coupons/page"));
 const CreateCouponPage = lazy(() => import("./app/admin-coupons/create"));
 const EditCouponPage = lazy(() => import("./app/admin-coupons/edit"));
@@ -201,6 +202,11 @@ const App = () => (
                       <Route path="/admin-clientele" element={<ClientelePage />} />
                       <Route path="/admin-settings" element={<AdminSettingsPage />} />
                       <Route path="/admin-csv-upload" element={<AdminCSVUploadPage />} />
+                      <Route path="/admin-payout-process/:creatorId" element={
+                        <Suspense fallback={<div className="min-h-screen bg-neutral-950 flex items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-2 border-[#D4AF37] border-t-transparent"></div></div>}>
+                          <AdminPayoutProcessPage />
+                        </Suspense>
+                      } />
                       <Route path="/admin-wallet" element={
                         <Suspense fallback={<div className="min-h-screen bg-neutral-950 flex items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-2 border-[#D4AF37] border-t-transparent"></div></div>}>
                           <AdminWalletPage />

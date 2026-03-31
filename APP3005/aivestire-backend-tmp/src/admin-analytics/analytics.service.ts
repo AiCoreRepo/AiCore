@@ -48,7 +48,7 @@ export class AnalyticsService {
     for (const p of creatorPayouts) {
       payoutMap.set(p.creator_id, {
         total_paid: toNumber(p._sum.amount),
-        last_payout_date: p._max.created_at,
+        last_payout_date: p._max.completed_at,
       });
     }
 
@@ -76,7 +76,7 @@ export class AnalyticsService {
       this.analyticsRepo.aggregateCreatorMetrics([creatorId]),
       this.payoutRepo.getCreatorTotalPaid(creatorId),
       this.analyticsRepo.getCreatorProductBreakdown(creatorId),
-      this.payoutRepo.getPayoutHistory(creatorId),
+      this.payoutRepo.getPayoutHistory(creatorId, 1, 20),
     ]);
 
     const summary = summaryList.length > 0 ? summaryList[0] : null;
@@ -94,7 +94,7 @@ export class AnalyticsService {
         product_name: b.product_name,
         ...calculateCreatorAnalytics(b),
       })),
-      payout_history: payoutHistory,
+      payout_history: payoutHistory.payouts,
     };
   }
 }

@@ -5,9 +5,13 @@ import { AnalyticsService } from './analytics.service';
 import { PayoutService } from './payout.service';
 import { AdminAnalyticsController } from './admin-analytics.controller';
 import { PrismaModule } from '../prisma/prisma.module';
+import { PaymentModule } from '../payment/payment.module';
 
 @Module({
-  imports: [PrismaModule],
+  imports: [
+    PrismaModule,
+    PaymentModule, // Provides PayUGatewayService for hash generation & verification
+  ],
   controllers: [AdminAnalyticsController],
   providers: [
     AnalyticsRepository,

@@ -1329,23 +1329,50 @@ enum WalletTransactionStatus {
 // ============================================
 
 enum PayoutStatus {
-  PENDING
-  COMPLETED
-  FAILED
+  PENDING     // Row created, awaiting dispatch
+  PROCESSING  // Request sent to PayU
+  SUCCESS     // Gateway confirmed transfer
+  FAILED      // Gateway rejected transfer
+  CANCELLED   // Admin cancelled before dispatch
+}
+
+enum PayoutType {
+  FULL
+  PARTIAL
 }
 
 model Payout {
-  payout_id  String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  creator_id String       @db.Uuid
-  amount     Decimal      @db.Decimal(10, 2)
-  status     PayoutStatus @default(PENDING)
-  note       String?
-  created_at DateTime     @default(now())
+  payout_id          String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  creator_id         String       @db.Uuid
+  amount             Decimal      @db.Decimal(10, 2)
+  payout_type        PayoutType   @default(FULL)
+  status             PayoutStatus @default(PENDING)
+
+  // Gateway fields
+  gateway_status     String?      // Raw PayU status string (success / failed / pending)
+  transaction_id     String?      // PayU transfer_id / mihpayid
+  payment_gateway    String       @default("PAYU")
+
+  // UPI / beneficiary details
+  upi_id             String?
+  phone_number       String?
+
+  // Audit
+  processed_by_admin String?      @db.Uuid // admin user_id (no FK to keep User model clean)
+
+  // Timestamps
+  initiated_at       DateTime     @default(now())
+  completed_at       DateTime?
+  failed_at          DateTime?
+  failure_reason     String?
+  note               String?
+  created_at         DateTime     @default(now())
 
   creator Creator @relation(fields: [creator_id], references: [creator_id])
 
   @@index([creator_id])
   @@index([status])
   @@index([creator_id, status])
+  @@index([transaction_id])
   @@map("payouts")
 }
