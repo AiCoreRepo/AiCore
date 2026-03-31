@@ -114,6 +114,7 @@ export const ProductCard = ({ product, onTryOn }: ProductCardProps) => {
     return (
         <>
             <div
+                id={`product-card-${product.product_id}`}
                 className="group cursor-pointer"
                 onClick={() => navigate(`/product/${product.product_id}`)}
             >

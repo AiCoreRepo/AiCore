@@ -161,7 +161,7 @@ const ProfileHeader = ({ user, onUploadClick, onCustomizeClick, onProfileUpdate 
                 </div>
             </div>
 
-            <div className="flex flex-col gap-2.5 items-end w-full md:w-64">
+            <div className="flex flex-col gap-3 items-end w-full md:w-64">
                 <button
                     onClick={handleUploadClick}
                     disabled={isCheckingTerms}

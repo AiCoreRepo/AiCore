@@ -8,14 +8,23 @@ import { PrismaService } from '../prisma/prisma.service';
 import { ReviewProductDto } from './dto/review-product.dto';
 import { AdminStatsDto } from './dto/admin-stats.dto';
 import { UserRole, ProductStatus, ApprovalStatus } from '@prisma/client';
-import { ADMIN_MESSAGES } from './admin.constants';
+import { ADMIN_MESSAGES, CREATOR_STATUS } from './admin.constants';
+import {
+  calculateCreatorRevenue,
+  OrderInput,
+} from '../common/utils/revenue-calculation.utils';
+import {
+  GetCreatorsQueryDto,
+  CreatorStatusFilter,
+} from './dto/creator-management.dto';
+import { UpdateAdminProductDto } from './dto/update-admin-product.dto';
 import { parse } from 'csv-parse/sync';
 
 @Injectable()
 export class AdminService {
   private readonly logger = new Logger(AdminService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   async getDashboardStats(): Promise<AdminStatsDto> {
     const [totalCreators, totalProducts, pendingApprovals] = await Promise.all([
@@ -205,6 +214,143 @@ export class AdminService {
         totalPages: Math.ceil(total / limit),
         hasMore: page * limit < total,
       },
+    };
+  }
+
+  /**
+   * Get all products with pagination and filters
+   */
+  async getAllProductsAdmin(
+    page: number = 1,
+    limit: number = 20,
+    search?: string,
+    status?: string,
+    creatorId?: string,
+  ) {
+    const skip = (page - 1) * limit;
+
+    const where: any = {
+      is_deleted: false,
+    };
+
+    if (status) {
+      where.status = status;
+    }
+
+    if (creatorId) {
+      where.creator_id = creatorId;
+    }
+
+    if (search) {
+      where.OR = [
+        { title: { contains: search, mode: 'insensitive' } },
+        { description: { contains: search, mode: 'insensitive' } },
+        {
+          creator: {
+            store_name: { contains: search, mode: 'insensitive' },
+          },
+        },
+      ];
+    }
+
+    const [products, total] = await Promise.all([
+      this.prisma.product.findMany({
+        where,
+        include: {
+          creator: {
+            select: {
+              creator_id: true,
+              store_name: true,
+              verified: true,
+            },
+          },
+          images: {
+            orderBy: [{ is_primary: 'desc' }, { order_index: 'asc' }],
+            take: 1,
+          },
+          stats: {
+            select: {
+              views: true,
+            },
+          },
+        },
+        orderBy: { created_at: 'desc' },
+        skip,
+        take: limit,
+      }),
+      this.prisma.product.count({ where }),
+    ]);
+
+    return {
+      products: products.map((product: any) => ({
+        product_id: product.product_id,
+        title: product.title,
+        description: product.description,
+        price_cents: product.price_cents,
+        commission_percentage: product.commission_percentage,
+        currency: product.currency,
+        thumbnail: product.images[0]?.url || null,
+        created_at: product.created_at,
+        status: product.status,
+        inventory_count: product.inventory_count,
+        category: product.category,
+        is_featured: product.is_featured,
+        views: product.stats?.views || 0,
+        creator: {
+          creator_id: product.creator.creator_id,
+          store_name: product.creator.store_name,
+          verified: product.creator.verified,
+        },
+      })),
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+        hasMore: page * limit < total,
+      },
+    };
+  }
+
+  /**
+   * Admin edit product (price, commission)
+   */
+  async updateProductAdmin(productId: string, dto: UpdateAdminProductDto) {
+    const product = await this.prisma.product.findUnique({
+      where: { product_id: productId },
+    });
+
+    if (!product) {
+      throw new NotFoundException(ADMIN_MESSAGES.ERRORS.PRODUCT_NOT_FOUND);
+    }
+
+    // Only update allowed fields
+    const dataToUpdate: any = {};
+    if (dto.price_cents !== undefined) {
+      dataToUpdate.price_cents = dto.price_cents;
+    }
+    if (dto.commission_percentage !== undefined) {
+      dataToUpdate.commission_percentage = dto.commission_percentage;
+    }
+    
+    if (Object.keys(dataToUpdate).length > 0) {
+      dataToUpdate.updated_at = new Date();
+      const updated = await this.prisma.product.update({
+        where: { product_id: productId },
+        data: dataToUpdate,
+      });
+
+      return {
+        message: 'Product updated successfully',
+        product_id: updated.product_id,
+        price_cents: updated.price_cents,
+        commission_percentage: updated.commission_percentage,
+      };
+    }
+
+    return {
+      message: 'No changes provided',
+      product_id: product.product_id,
     };
   }
 
@@ -531,5 +677,346 @@ export class AdminService {
         error: error.message,
       };
     }
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // CREATOR MANAGEMENT
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Get paginated list of creators with optional search and status filter.
+   * Status is derived from User.status field ('active' | 'inactive').
+   */
+  async getCreators(query: GetCreatorsQueryDto) {
+    const page = query.page ? parseInt(query.page, 10) : 1;
+    const limit = query.limit ? parseInt(query.limit, 10) : 20;
+    const skip = (page - 1) * limit;
+
+    // Build user-level where conditions
+    const userWhere: any = { role: UserRole.CREATOR };
+
+    if (query.status && query.status !== CreatorStatusFilter.ALL) {
+      userWhere.status =
+        query.status === CreatorStatusFilter.ACTIVE
+          ? CREATOR_STATUS.ACTIVE
+          : CREATOR_STATUS.INACTIVE;
+    }
+
+    if (query.search) {
+      userWhere.OR = [
+        { email: { contains: query.search, mode: 'insensitive' } },
+        {
+          creatorProfile: {
+            store_name: { contains: query.search, mode: 'insensitive' },
+          },
+        },
+      ];
+    }
+
+    const [creators, total] = await Promise.all([
+      this.prisma.creator.findMany({
+        where: { user: userWhere },
+        include: {
+          user: {
+            select: {
+              user_id: true,
+              email: true,
+              status: true,
+              created_at: true,
+              last_login: true,
+            },
+          },
+          _count: {
+            select: {
+              products: {
+                where: { is_deleted: false },
+              },
+            },
+          },
+        },
+        orderBy: { created_at: 'desc' },
+        skip,
+        take: limit,
+      }),
+      this.prisma.creator.count({ where: { user: userWhere } }),
+    ]);
+
+    return {
+      creators: creators.map((c) => ({
+        creator_id: c.creator_id,
+        store_name: c.store_name,
+        store_slug: c.store_slug,
+        about: c.about,
+        verified: c.verified,
+        created_at: c.created_at,
+        user: {
+          user_id: c.user.user_id,
+          email: c.user.email,
+          status: c.user.status,
+          last_login: c.user.last_login,
+        },
+        total_products: c._count.products,
+        is_active: c.user.status === CREATOR_STATUS.ACTIVE,
+      })),
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+        hasMore: page * limit < total,
+      },
+    };
+  }
+
+  /**
+   * Get a single creator by creator_id with full details and product summary
+   */
+  async getCreatorById(creatorId: string) {
+    const creator = await this.prisma.creator.findUnique({
+      where: { creator_id: creatorId },
+      include: {
+        user: {
+          select: {
+            user_id: true,
+            email: true,
+            status: true,
+            created_at: true,
+            last_login: true,
+            phone: true,
+          },
+        },
+        limits: true,
+        _count: {
+          select: {
+            products: { where: { is_deleted: false } },
+          },
+        },
+      },
+    });
+
+    if (!creator) {
+      throw new NotFoundException(ADMIN_MESSAGES.ERRORS.CREATOR_NOT_FOUND);
+    }
+
+    // Product summary breakdown
+    const [approved, pending, rejected, rawOrderItems] = await Promise.all([
+      this.prisma.product.count({
+        where: { creator_id: creatorId, status: ProductStatus.APPROVED, is_deleted: false },
+      }),
+      this.prisma.product.count({
+        where: { creator_id: creatorId, status: ProductStatus.PENDING, is_deleted: false },
+      }),
+      this.prisma.product.count({
+        where: { creator_id: creatorId, status: ProductStatus.REJECTED, is_deleted: false },
+      }),
+      // Fetch only the raw data the utility needs — single optimized query
+      this.prisma.orderItem.findMany({
+        where: { product: { creator_id: creatorId } },
+        select: {
+          product_id: true,
+          quantity: true,
+          unit_price: true,
+          order: {
+            select: {
+              order_id: true,
+              payment_status: true,
+              current_status: true,
+            },
+          },
+        },
+      }),
+    ]);
+
+    // Transform raw DB rows into the OrderInput format the utility understands
+    const ordersForUtil: OrderInput[] = rawOrderItems.map((item) => ({
+      orderId: item.order.order_id,
+      paymentStatus: item.order.payment_status,
+      currentStatus: item.order.current_status,
+      items: [{
+        productId: item.product_id,
+        creatorId,
+        unitPricePaise: Math.round(Number(item.unit_price) * 100),
+        quantity: item.quantity,
+      }],
+    }));
+
+    const revenueSummary = calculateCreatorRevenue(creatorId, ordersForUtil);
+
+    return {
+      creator_id: creator.creator_id,
+      store_name: creator.store_name,
+      store_slug: creator.store_slug,
+      about: creator.about,
+      verified: creator.verified,
+      created_at: creator.created_at,
+      user: {
+        user_id: creator.user.user_id,
+        email: creator.user.email,
+        status: creator.user.status,
+        last_login: creator.user.last_login,
+        phone: creator.user.phone,
+      },
+      limits: creator.limits,
+      is_active: creator.user.status === CREATOR_STATUS.ACTIVE,
+      product_summary: {
+        total: creator._count.products,
+        approved,
+        pending,
+        rejected,
+      },
+      total_sales: revenueSummary.totalRevenuePaise,
+      total_sales_formatted: revenueSummary.totalRevenueFormatted,
+    };
+  }
+
+  /**
+   * Get products uploaded by a specific creator with optional status filter
+   */
+  async getCreatorProducts(
+    creatorId: string,
+    statusFilter?: string,
+    page: number = 1,
+    limit: number = 20,
+  ) {
+    const creator = await this.prisma.creator.findUnique({
+      where: { creator_id: creatorId },
+    });
+
+    if (!creator) {
+      throw new NotFoundException(ADMIN_MESSAGES.ERRORS.CREATOR_NOT_FOUND);
+    }
+
+    const skip = (page - 1) * limit;
+
+    const where: any = {
+      creator_id: creatorId,
+      is_deleted: false,
+    };
+
+    // Map filter string to enum
+    const validStatuses = ['PENDING', 'APPROVED', 'REJECTED', 'DRAFT', 'ARCHIVED'];
+    if (statusFilter && validStatuses.includes(statusFilter)) {
+      where.status = statusFilter as ProductStatus;
+    }
+
+    const [products, total] = await Promise.all([
+      this.prisma.product.findMany({
+        where,
+        include: {
+          images: {
+            where: { is_primary: true },
+            take: 1,
+            select: { url: true },
+          },
+          stats: { select: { views: true } },
+        },
+        orderBy: { created_at: 'desc' },
+        skip,
+        take: limit,
+      }),
+      this.prisma.product.count({ where }),
+    ]);
+
+    const productIds = products.map((p) => p.product_id);
+
+    // Fetch raw order items for this product set
+    const rawOrderItems = await this.prisma.orderItem.findMany({
+      where: { product_id: { in: productIds } },
+      select: {
+        product_id: true,
+        quantity: true,
+        unit_price: true,
+        order: {
+          select: {
+            order_id: true,
+            payment_status: true,
+            current_status: true,
+          },
+        },
+      },
+    });
+
+    // Build OrderInput array for the utility
+    const ordersForUtil: OrderInput[] = rawOrderItems.map((item) => ({
+      orderId: item.order.order_id,
+      paymentStatus: item.order.payment_status,
+      currentStatus: item.order.current_status,
+      items: [{
+        productId: item.product_id,
+        creatorId,
+        unitPricePaise: Math.round(Number(item.unit_price) * 100),
+        quantity: item.quantity,
+      }],
+    }));
+
+    // Use the utility to compute all product-level sales
+    const revenueSummary = calculateCreatorRevenue(creatorId, ordersForUtil);
+    const salesMap = new Map(
+      revenueSummary.productWiseSales.map((s) => [s.productId, s]),
+    );
+
+    return {
+      products: products.map((p) => ({
+        product_id: p.product_id,
+        title: p.title,
+        description: p.description,
+        status: p.status,
+        price_cents: p.price_cents,
+        currency: p.currency,
+        category: p.category,
+        created_at: p.created_at,
+        thumbnail: p.images[0]?.url || null,
+        views: p.stats?.views || 0,
+        inventory_count: p.inventory_count,
+        is_featured: p.is_featured,
+        sales: {
+          units_sold: salesMap.get(p.product_id)?.unitsSold || 0,
+          revenue_generated: salesMap.get(p.product_id)?.revenuePaise || 0,
+          revenue_formatted: salesMap.get(p.product_id)?.revenueFormatted || '₹0.00',
+        },
+      })),
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+        hasMore: page * limit < total,
+      },
+    };
+  }
+
+  /**
+   * Activate or deactivate a creator.
+   * Sets User.status = 'active' | 'inactive'.
+   * When deactivated, products are NOT deleted but are hidden from storefront
+   * (consumer-facing queries should filter by creator's user status).
+   */
+  async toggleCreatorStatus(creatorId: string, action: 'ACTIVE' | 'INACTIVE') {
+    const creator = await this.prisma.creator.findUnique({
+      where: { creator_id: creatorId },
+      include: { user: { select: { user_id: true, status: true } } },
+    });
+
+    if (!creator) {
+      throw new NotFoundException(ADMIN_MESSAGES.ERRORS.CREATOR_NOT_FOUND);
+    }
+
+    const newStatus =
+      action === 'ACTIVE' ? CREATOR_STATUS.ACTIVE : CREATOR_STATUS.INACTIVE;
+
+    await this.prisma.user.update({
+      where: { user_id: creator.user.user_id },
+      data: { status: newStatus },
+    });
+
+    return {
+      creator_id: creator.creator_id,
+      store_name: creator.store_name,
+      is_active: newStatus === CREATOR_STATUS.ACTIVE,
+      message:
+        action === 'ACTIVE'
+          ? ADMIN_MESSAGES.SUCCESS.CREATOR_ACTIVATED
+          : ADMIN_MESSAGES.SUCCESS.CREATOR_DEACTIVATED,
+    };
   }
 }

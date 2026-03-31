@@ -1,443 +1,803 @@
-import { useState, useEffect } from "react";
-import { Upload, X, Loader2, CheckCircle } from "lucide-react";
+import { useState, useCallback, useRef } from "react";
 import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
+  Upload, X, Loader2, Plus, Trash2,
+  ChevronDown, ChevronUp,
+  Image as ImageIcon, CheckCircle2, AlertCircle,
+  Sparkles, Layers, Palette, Package2, Info,
+  FolderTree, Tags, DollarSign,
+} from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog";
-import { createProduct, updateProduct } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
-import { LuxeButton } from "@/components/common/Buttons/LuxeButton";
-import { compressImage } from "@/lib/utils";
+import { getCategories, type Category } from "@/lib/api";
+import { useEffect } from "react";
+import {
+  BODY_SHAPES,
+  SKIN_TONES,
+  CLOTHING_COLORS,
+  type BodyShapeValue,
+  type SkinToneValue,
+  type ClothingColorValue,
+} from "@/constants/product-hierarchy.enums";
+import { createProductHierarchy, fileToDataUri } from "@/api/creator-upload.api";
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+interface ColorVariantForm {
+  id: string;
+  color: ClothingColorValue | "";
+  stock: number;
+  skin_tones: SkinToneValue[];
+  imageFiles: File[];
+  imagePreviews: string[];
+  errors: Record<string, string>;
+}
+
+interface PatternForm {
+  id: string;
+  name: string;
+  body_shapes: BodyShapeValue[];
+  color_variants: ColorVariantForm[];
+  collapsed: boolean;
+  errors: Record<string, string>;
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+const uid = () => Math.random().toString(36).slice(2, 9);
+
+const makeVariant = (): ColorVariantForm => ({
+  id: uid(), color: "", stock: 0, skin_tones: [],
+  imageFiles: [], imagePreviews: [], errors: {},
+});
+
+const makePattern = (): PatternForm => ({
+  id: uid(), name: "", body_shapes: [], color_variants: [makeVariant()],
+  collapsed: false, errors: {},
+});
+
+// ─── Small shared components ──────────────────────────────────────────────────
+
+const FieldError = ({ msg }: { msg?: string }) =>
+  msg ? (
+    <p className="flex items-center gap-1 mt-1 text-xs text-red-500">
+      <AlertCircle size={11} /> {msg}
+    </p>
+  ) : null;
+
+const SectionLabel = ({ children, hint, required }: {
+  children: React.ReactNode; hint?: string; required?: boolean;
+}) => (
+  <div className="mb-1.5">
+    <p className="text-[11px] font-bold uppercase tracking-wide" style={{ color: "rgba(44,36,22,0.65)" }}>
+      {children}{required && <span style={{ color: "#e74c3c" }}> *</span>}
+    </p>
+    {hint && <p className="text-[11px] mt-0.5" style={{ color: "rgba(44,36,22,0.4)" }}>{hint}</p>}
+  </div>
+);
+
+// Pill-style chip
+const Chip = ({
+  label, selected, onClick, swatchColor, emoji,
+}: { label: string; selected: boolean; onClick: () => void; swatchColor?: string; emoji?: string }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-all select-none"
+    style={{
+      borderColor: selected ? "#C9A75F" : "rgba(201,165,95,0.25)",
+      background: selected
+        ? "linear-gradient(135deg,rgba(201,165,95,0.18),rgba(201,165,95,0.08))"
+        : "rgba(255,255,255,0.7)",
+      color: selected ? "#2C2416" : "rgba(44,36,22,0.6)",
+      boxShadow: selected ? "0 0 0 2px rgba(201,165,95,0.15)" : "none",
+    }}
+  >
+    {emoji && <span>{emoji}</span>}
+    {swatchColor && (
+      <span
+        className="w-3 h-3 rounded-full border border-white/50 shadow-sm flex-shrink-0"
+        style={{ backgroundColor: swatchColor }}
+      />
+    )}
+    {label}
+  </button>
+);
+
+// Luxe-style text input
+const LuxeInput = ({
+  value, onChange, placeholder, type = "text", icon: Icon, required, min, step,
+}: {
+  value: string | number; onChange: (v: string) => void; placeholder?: string;
+  type?: string; icon?: React.ElementType; required?: boolean; min?: number; step?: number;
+}) => (
+  <div className="relative">
+    {Icon && (
+      <div style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)", color: "rgba(201,165,95,0.7)", pointerEvents: "none" }}>
+        <Icon size={16} />
+      </div>
+    )}
+    <input
+      type={type}
+      value={value}
+      onChange={e => onChange(e.target.value)}
+      placeholder={placeholder}
+      required={required}
+      min={min}
+      step={step}
+      style={{
+        width: "100%",
+        padding: Icon ? "10px 12px 10px 38px" : "10px 12px",
+        borderRadius: 10,
+        border: "1.5px solid rgba(201,165,95,0.3)",
+        background: "rgba(255,255,255,0.85)",
+        color: "#1a1408",
+        fontSize: 13,
+        fontWeight: 600,
+        outline: "none",
+      }}
+      onFocus={e => { e.target.style.borderColor = "#C9A75F"; e.target.style.boxShadow = "0 0 0 3px rgba(201,165,95,0.1)"; }}
+      onBlur={e => { e.target.style.borderColor = "rgba(201,165,95,0.3)"; e.target.style.boxShadow = "none"; }}
+    />
+  </div>
+);
+
+// ─── Image Drop Zone ──────────────────────────────────────────────────────────
+
+const ImageDropZone = ({ previews, onAdd, onRemove }: {
+  previews: string[];
+  onAdd: (files: File[]) => void;
+  onRemove: (idx: number) => void;
+}) => {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [dragging, setDragging] = useState(false);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setDragging(false);
+    const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith("image/"));
+    if (files.length) onAdd(files);
+  }, [onAdd]);
+
+  return (
+    <div className="space-y-2">
+      {previews.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {previews.map((src, i) => (
+            <div key={i} className="relative w-14 h-14 rounded-lg overflow-hidden group"
+              style={{ border: "1.5px solid rgba(201,165,95,0.3)" }}>
+              <img src={src} alt="" className="w-full h-full object-cover" />
+              <button type="button" onClick={() => onRemove(i)}
+                className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                <X size={13} className="text-white" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+      <div
+        onDragOver={e => { e.preventDefault(); setDragging(true); }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={handleDrop}
+        onClick={() => inputRef.current?.click()}
+        className="flex flex-col items-center justify-center gap-1 cursor-pointer transition-all rounded-xl p-3"
+        style={{
+          border: `2px dashed ${dragging ? "#C9A75F" : "rgba(201,165,95,0.3)"}`,
+          background: dragging ? "rgba(201,165,95,0.06)" : "rgba(255,255,255,0.5)",
+          minHeight: 72,
+        }}
+      >
+        <ImageIcon size={18} style={{ color: "#C9A75F" }} />
+        <p className="text-[11px]" style={{ color: "rgba(44,36,22,0.5)" }}>
+          {previews.length === 0 ? "Drop images or click to upload" : "Add more images"}
+        </p>
+        <input ref={inputRef} type="file" accept="image/*" multiple className="hidden"
+          onChange={e => { const f = Array.from(e.target.files ?? []); if (f.length) onAdd(f); e.target.value = ""; }} />
+      </div>
+    </div>
+  );
+};
+
+// ─── Color Variant Card ───────────────────────────────────────────────────────
+
+const ColorVariantCard = ({ variant, varIdx, onChange, onRemove, canRemove }: {
+  variant: ColorVariantForm; varIdx: number;
+  onChange: (v: ColorVariantForm) => void;
+  onRemove: () => void; canRemove: boolean;
+}) => {
+  const selectedColor = CLOTHING_COLORS.find(c => c.value === variant.color);
+
+  const handleImages = (files: File[]) => {
+    const newPreviews = files.map(f => URL.createObjectURL(f));
+    onChange({
+      ...variant,
+      imageFiles: [...variant.imageFiles, ...files],
+      imagePreviews: [...variant.imagePreviews, ...newPreviews],
+      errors: { ...variant.errors, images: "" },
+    });
+  };
+
+  const removeImage = (idx: number) => {
+    const nf = [...variant.imageFiles]; nf.splice(idx, 1);
+    const np = [...variant.imagePreviews]; np.splice(idx, 1);
+    onChange({ ...variant, imageFiles: nf, imagePreviews: np });
+  };
+
+  return (
+    <div className="rounded-xl p-3 space-y-3" style={{ background: "rgba(255,255,255,0.7)", border: "1.5px solid rgba(201,165,95,0.2)" }}>
+      {/* Variant header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 rounded-full border border-white/50 shadow-sm flex-shrink-0"
+            style={{ backgroundColor: selectedColor?.hex ?? "#e5e7eb" }} />
+          <span className="text-[11px] font-bold" style={{ color: "#2C2416" }}>
+            Color {varIdx + 1}{selectedColor ? ` — ${selectedColor.label}` : ""}
+          </span>
+        </div>
+        {canRemove && (
+          <button type="button" onClick={onRemove} className="p-1 rounded-lg transition-colors hover:bg-red-50">
+            <Trash2 size={12} style={{ color: "#ef4444" }} />
+          </button>
+        )}
+      </div>
+
+      {/* Color picker */}
+      <div>
+        <SectionLabel required>Color</SectionLabel>
+        <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto pr-1 hide-scrollbar">
+          {CLOTHING_COLORS.map(c => (
+            <Chip key={c.value} label={c.label} selected={variant.color === c.value}
+              swatchColor={c.hex}
+              onClick={() => onChange({ ...variant, color: c.value, errors: { ...variant.errors, color: "" } })} />
+          ))}
+        </div>
+        <FieldError msg={variant.errors.color} />
+      </div>
+
+      {/* Stock */}
+      <div>
+        <SectionLabel required>Stock</SectionLabel>
+        <div className="flex items-center gap-2">
+          <input type="number" min={0} value={variant.stock}
+            onChange={e => onChange({ ...variant, stock: parseInt(e.target.value) || 0, errors: { ...variant.errors, stock: "" } })}
+            style={{ width: 90, padding: "8px 10px", borderRadius: 8, border: "1.5px solid rgba(201,165,95,0.3)", background: "rgba(255,255,255,0.85)", color: "#1a1408", fontSize: 13, fontWeight: 700, outline: "none" }}
+            onFocus={e => e.target.style.borderColor = "#C9A75F"}
+            onBlur={e => e.target.style.borderColor = "rgba(201,165,95,0.3)"}
+          />
+          <span className="text-[11px]" style={{ color: "rgba(44,36,22,0.45)" }}>units</span>
+        </div>
+        <FieldError msg={variant.errors.stock} />
+      </div>
+
+      {/* Skin tones */}
+      <div>
+        <SectionLabel required hint="Which skin tones does this color complement?">Skin Tones</SectionLabel>
+        <div className="flex flex-wrap gap-1.5">
+          {SKIN_TONES.map(st => (
+            <button key={st.value} type="button"
+              onClick={() => {
+                const next = variant.skin_tones.includes(st.value)
+                  ? variant.skin_tones.filter(x => x !== st.value)
+                  : [...variant.skin_tones, st.value];
+                onChange({ ...variant, skin_tones: next, errors: { ...variant.errors, skin_tones: "" } });
+              }}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-all"
+              style={{
+                borderColor: variant.skin_tones.includes(st.value) ? "#C9A75F" : "rgba(201,165,95,0.25)",
+                background: variant.skin_tones.includes(st.value)
+                  ? "linear-gradient(135deg,rgba(201,165,95,0.18),rgba(201,165,95,0.08))" : "rgba(255,255,255,0.7)",
+                color: variant.skin_tones.includes(st.value) ? "#2C2416" : "rgba(44,36,22,0.6)",
+              }}
+            >
+              <span className="w-3 h-3 rounded-full border border-white/40 shadow-sm" style={{ backgroundColor: st.hex }} />
+              {st.label}
+            </button>
+          ))}
+        </div>
+        <FieldError msg={variant.errors.skin_tones} />
+      </div>
+
+      {/* Images */}
+      <div>
+        <SectionLabel required>Images</SectionLabel>
+        <ImageDropZone previews={variant.imagePreviews} onAdd={handleImages} onRemove={removeImage} />
+        <FieldError msg={variant.errors.images} />
+      </div>
+    </div>
+  );
+};
+
+// ─── Pattern Card ─────────────────────────────────────────────────────────────
+
+const PatternCard = ({ pattern, patIdx, onChange, onRemove, canRemove }: {
+  pattern: PatternForm; patIdx: number;
+  onChange: (p: PatternForm) => void;
+  onRemove: () => void; canRemove: boolean;
+}) => {
+  const totalStock = pattern.color_variants.reduce((s, v) => s + v.stock, 0);
+
+  return (
+    <div className="rounded-2xl overflow-hidden" style={{
+      border: "1.5px solid rgba(201,165,95,0.3)",
+      background: "linear-gradient(135deg,rgba(255,253,248,0.9),rgba(255,249,239,0.9))",
+      boxShadow: "0 4px 20px rgba(201,165,95,0.08)",
+    }}>
+      {/* Pattern header */}
+      <div
+        className="flex items-center justify-between px-4 py-3 cursor-pointer select-none"
+        style={{ borderBottom: "1.5px solid rgba(201,165,95,0.15)", background: "rgba(255,255,255,0.6)" }}
+        onClick={() => onChange({ ...pattern, collapsed: !pattern.collapsed })}
+      >
+        <div className="flex items-center gap-2.5">
+          <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
+            style={{ background: "linear-gradient(135deg,rgba(201,165,95,0.18),rgba(201,165,95,0.08))" }}>
+            <Layers size={14} style={{ color: "#C9A75F" }} />
+          </div>
+          <div>
+            <p className="text-xs font-bold" style={{ color: "#2C2416" }}>
+              {pattern.name || `Pattern ${patIdx + 1}`}
+            </p>
+            <p className="text-[10px]" style={{ color: "rgba(44,36,22,0.45)" }}>
+              {pattern.color_variants.length} color{pattern.color_variants.length !== 1 ? "s" : ""} · {totalStock} units
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          {canRemove && (
+            <button type="button"
+              onClick={e => { e.stopPropagation(); onRemove(); }}
+              className="p-1 rounded-lg hover:bg-red-50 transition-colors">
+              <Trash2 size={13} style={{ color: "#ef4444" }} />
+            </button>
+          )}
+          {pattern.collapsed
+            ? <ChevronDown size={14} style={{ color: "#C9A75F" }} />
+            : <ChevronUp size={14} style={{ color: "#C9A75F" }} />}
+        </div>
+      </div>
+
+      {!pattern.collapsed && (
+        <div className="p-4 space-y-4">
+          {/* Pattern name */}
+          <div>
+            <SectionLabel required hint='e.g. "Slim Fit", "Relaxed Fit"'>Pattern Name</SectionLabel>
+            <LuxeInput
+              value={pattern.name}
+              onChange={v => onChange({ ...pattern, name: v, errors: { ...pattern.errors, name: "" } })}
+              placeholder='e.g. "Slim Fit"'
+              icon={Layers}
+            />
+            <FieldError msg={pattern.errors.name} />
+          </div>
+
+          {/* Body shapes */}
+          <div>
+            <SectionLabel required hint="Which body shapes does this pattern suit?">Body Shapes</SectionLabel>
+            <div className="flex flex-wrap gap-1.5">
+              {BODY_SHAPES.map(bs => (
+                <Chip key={bs.value} label={bs.label} emoji={bs.icon}
+                  selected={pattern.body_shapes.includes(bs.value as BodyShapeValue)}
+                  onClick={() => {
+                    const next = pattern.body_shapes.includes(bs.value as BodyShapeValue)
+                      ? pattern.body_shapes.filter(x => x !== bs.value)
+                      : [...pattern.body_shapes, bs.value as BodyShapeValue];
+                    onChange({ ...pattern, body_shapes: next, errors: { ...pattern.errors, body_shapes: "" } });
+                  }}
+                />
+              ))}
+            </div>
+            <FieldError msg={pattern.errors.body_shapes} />
+          </div>
+
+          {/* Color variants */}
+          <div style={{ borderTop: "1.5px solid rgba(201,165,95,0.15)", paddingTop: 14 }}>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-1.5">
+                <Palette size={13} style={{ color: "#C9A75F" }} />
+                <span className="text-xs font-bold" style={{ color: "#2C2416" }}>Color Variants</span>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                  style={{ background: "rgba(201,165,95,0.12)", color: "#C9A75F" }}>
+                  {pattern.color_variants.length}
+                </span>
+              </div>
+              <button type="button"
+                onClick={() => onChange({ ...pattern, color_variants: [...pattern.color_variants, makeVariant()] })}
+                className="flex items-center gap-1 text-[11px] font-bold px-2.5 py-1.5 rounded-lg transition-all"
+                style={{ background: "rgba(201,165,95,0.1)", color: "#C9A75F", border: "1px solid rgba(201,165,95,0.25)" }}>
+                <Plus size={11} /> Add Color
+              </button>
+            </div>
+            <div className="space-y-3">
+              {pattern.color_variants.map((v, vi) => (
+                <ColorVariantCard key={v.id} variant={v} varIdx={vi}
+                  onChange={updated => {
+                    const next = [...pattern.color_variants]; next[vi] = updated;
+                    onChange({ ...pattern, color_variants: next });
+                  }}
+                  onRemove={() => {
+                    if (pattern.color_variants.length <= 1) return;
+                    onChange({ ...pattern, color_variants: pattern.color_variants.filter((_, i) => i !== vi) });
+                  }}
+                  canRemove={pattern.color_variants.length > 1}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ─── Main Modal Component ─────────────────────────────────────────────────────
 
 interface UploadCollectionModalProps {
-    open: boolean;
-    onOpenChange: (open: boolean) => void;
-    onSuccess?: (product?: any) => void;
-    initialData?: any;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSuccess?: (product?: any) => void;
+  initialData?: any;
 }
 
 const UploadCollectionModal = ({ open, onOpenChange, onSuccess, initialData }: UploadCollectionModalProps) => {
-    const { toast } = useToast();
-    const [isLoading, setIsLoading] = useState(false);
-    const [uploadProgress, setUploadProgress] = useState("");
-    const [formData, setFormData] = useState({
-        title: "",
-        description: "",
-        price: "0.00",
-        currency: "INR",
-        inventory: "0",
-        tags: "",
+  const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(false);
+  const [categories, setCategories] = useState<Category[]>([]);
+
+  // Product-level fields
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [price, setPrice] = useState("");
+  const [categoryId, setCategoryId] = useState("");
+  const [subCategoryId, setSubCategoryId] = useState("");
+
+  // Hierarchy
+  const [patterns, setPatterns] = useState<PatternForm[]>([makePattern()]);
+
+  // Errors
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // ── Load categories on open ────────────────────────────────────────────
+  useEffect(() => {
+    if (!open) return;
+    getCategories().then(c => setCategories(c || [])).catch(() => {});
+  }, [open]);
+
+  // ── Reset form on open (new product) ──────────────────────────────────
+  useEffect(() => {
+    if (!open) return;
+    if (!initialData) {
+      setTitle(""); setDescription(""); setPrice("");
+      setCategoryId(""); setSubCategoryId("");
+      setPatterns([makePattern()]); setErrors({});
+    } else {
+      // edit mode: populate base fields only (hierarchy editing not in scope)
+      setTitle(initialData.title ?? "");
+      setDescription(initialData.description ?? "");
+      setPrice(initialData.price_cents ? (initialData.price_cents / 100).toFixed(2) : "");
+      setCategoryId(initialData.category_id ?? "");
+      setSubCategoryId(initialData.sub_category_id ?? "");
+      setPatterns([makePattern()]);
+    }
+  }, [open, initialData]);
+
+  const selectedCategory = categories.find(c => c.category_id === categoryId);
+  const subCategories = selectedCategory?.subcategories?.filter(s => s.is_active) ?? [];
+
+  // ── Validation ─────────────────────────────────────────────────────────
+  const validate = () => {
+    let valid = true;
+    const errs: Record<string, string> = {};
+    if (!title.trim()) { errs.title = "Title is required"; valid = false; }
+    const priceNum = parseFloat(price);
+    if (!price || isNaN(priceNum) || priceNum <= 0) { errs.price = "Enter a valid price"; valid = false; }
+    setErrors(errs);
+
+    const updatedPatterns = patterns.map(p => {
+      const patErr: Record<string, string> = {};
+      if (!p.name.trim()) { patErr.name = "Pattern name is required"; valid = false; }
+      if (p.body_shapes.length === 0) { patErr.body_shapes = "Select at least one body shape"; valid = false; }
+
+      const updatedVariants = p.color_variants.map(v => {
+        const vErr: Record<string, string> = {};
+        if (!v.color) { vErr.color = "Select a color"; valid = false; }
+        if (v.skin_tones.length === 0) { vErr.skin_tones = "Select at least one skin tone"; valid = false; }
+        if (v.imageFiles.length === 0) { vErr.images = "Upload at least one image"; valid = false; }
+        return { ...v, errors: vErr };
+      });
+      return { ...p, errors: patErr, color_variants: updatedVariants };
     });
-    const [images, setImages] = useState<string[]>([]);
-    const [imageFiles, setImageFiles] = useState<File[]>([]);
+    setPatterns(updatedPatterns);
+    return valid;
+  };
 
-    useEffect(() => {
-        if (initialData && open) {
-            setFormData({
-                title: initialData.title || "",
-                description: initialData.description || "",
-                price: initialData.price_cents ? (initialData.price_cents / 100).toFixed(2) : "0.00",
-                currency: initialData.currency || "INR",
-                inventory: initialData.inventory_count?.toString() || "0",
-                tags: initialData.tags ? initialData.tags.map((t: any) => t.name || t).join(", ") : "",
-            });
+  // ── Submit ─────────────────────────────────────────────────────────────
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!validate()) return;
 
-            let imgs = initialData.images || [];
-            if (imgs.length === 0 && initialData.image && !initialData.image.includes("placehold.co")) {
-                imgs = [initialData.image];
-            }
-            setImages(imgs);
-        } else if (!initialData && open) {
-            setFormData({
-                title: "",
-                description: "",
-                price: "0.00",
-                currency: "INR",
-                inventory: "0",
-                tags: "",
-            });
-            setImages([]);
-            setImageFiles([]);
-        }
-    }, [initialData, open]);
+    setIsLoading(true);
+    try {
+      const patternsPayload = await Promise.all(
+        patterns.map(async p => ({
+          name: p.name,
+          body_shapes: p.body_shapes,
+          color_variants: await Promise.all(
+            p.color_variants.map(async v => ({
+              color: v.color as ClothingColorValue,
+              stock: v.stock,
+              skin_tones: v.skin_tones,
+              images: await Promise.all(v.imageFiles.map(fileToDataUri)),
+            }))
+          ),
+        }))
+      );
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
+      const result = await createProductHierarchy({
+        title: title.trim(),
+        description: description.trim() || undefined,
+        price_cents: Math.round(parseFloat(price) * 100),
+        category_id: categoryId || undefined,
+        sub_category_id: subCategoryId || undefined,
+        patterns: patternsPayload,
+      });
 
-        if (images.length === 0) {
-            toast({
-                title: "Error",
-                description: "Please upload at least one image",
-                variant: "destructive",
-            });
-            return;
-        }
+      toast({
+        title: "Product Submitted! 🎉",
+        description: "Saved as DRAFT — it will go live after admin approval.",
+      });
 
-        setIsLoading(true);
-        setUploadProgress("Preparing product data...");
+      setTimeout(() => {
+        onOpenChange(false);
+        if (onSuccess) onSuccess(result);
+      }, 300);
+    } catch (err: any) {
+      toast({ title: "Upload Failed", description: err?.message ?? "Something went wrong.", variant: "destructive" });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-        try {
-            const tags = formData.tags
-                ? formData.tags
-                    .split(",")
-                    .map((tag) => tag.trim())
-                    .filter((tag) => tag.length > 0)
-                    .map((tag) => ({ name: tag }))
-                : [];
+  // ── Render ──────────────────────────────────────────────────────────────
+  const totalVariants = patterns.reduce((s, p) => s + p.color_variants.length, 0);
+  const totalStock = patterns.reduce((s, p) => s + p.color_variants.reduce((ss, v) => ss + v.stock, 0), 0);
 
-            const productData = {
-                title: formData.title,
-                description: formData.description || undefined,
-                price_cents: Math.round(parseFloat(formData.price) * 100),
-                currency: formData.currency,
-                inventory_count: parseInt(formData.inventory) || 0,
-                images: images,
-                tags: tags.length > 0 ? tags : undefined,
-            };
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent
+        className="p-0 border-none [&>button]:hidden"
+        style={{
+          maxWidth: 680, width: "96vw", height: "92vh", maxHeight: "92vh",
+          borderRadius: 20, overflow: "hidden",
+          display: "flex", flexDirection: "column",
+          background: "linear-gradient(135deg,#FFFDF8 0%,#FFF9EF 50%,#FFFDF8 100%)",
+          border: "2px solid rgba(201,165,95,0.4)",
+          boxShadow: "0 20px 60px rgba(201,165,95,0.25),0 0 40px rgba(201,165,95,0.1)",
+        }}
+      >
+        {/* Inner top glow */}
+        <div style={{
+          position: "absolute", inset: 0, borderRadius: 24, pointerEvents: "none", zIndex: 0,
+          background: "linear-gradient(to bottom,rgba(255,255,255,0.5),transparent 40%)",
+        }} />
 
-            setUploadProgress(initialData ? "Updating product..." : "Uploading product...");
+        {/* Close button */}
+        <button type="button" onClick={() => onOpenChange(false)}
+          style={{
+            position: "absolute", top: 14, right: 14, zIndex: 10,
+            width: 32, height: 32, borderRadius: "50%",
+            border: "1.5px solid rgba(201,165,95,0.3)",
+            background: "rgba(255,255,255,0.9)", backdropFilter: "blur(8px)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            cursor: "pointer", color: "#2C2416",
+            boxShadow: "0 2px 8px rgba(201,165,95,0.15)",
+          }}
+          onMouseOver={e => { e.currentTarget.style.background = "rgba(201,165,95,0.15)"; }}
+          onMouseOut={e => { e.currentTarget.style.background = "rgba(255,255,255,0.9)"; }}
+        >
+          <X size={15} strokeWidth={2.5} />
+        </button>
 
-            let response;
-            if (initialData) {
-                response = await updateProduct(initialData.product_id, productData);
-            } else {
-                response = await createProduct(productData);
-            }
+        {/* Header */}
+        <div style={{
+          padding: "16px 20px", paddingRight: 52, flexShrink: 0, position: "relative", zIndex: 1,
+          borderBottom: "1.5px solid rgba(201,165,95,0.2)",
+          background: "linear-gradient(135deg,rgba(255,255,255,0.95),rgba(248,243,235,0.9))",
+        }}>
+          <DialogHeader>
+            <DialogTitle style={{ fontSize: 22, fontWeight: 700, color: "#2C2416", fontFamily: "'Playfair Display',serif" }}>
+              {initialData ? "Edit " : "Upload "}
+              <span style={{ background: "linear-gradient(135deg,#C9A75F,#D4B76E)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+                Product
+              </span>
+            </DialogTitle>
+          </DialogHeader>
 
-            setUploadProgress("Success!");
-
-            // Show success toast
-            toast({
-                title: "✅ Success!",
-                description: initialData
-                    ? "Product updated successfully. It will be reviewed by admin."
-                    : "Product uploaded successfully! Your product is now pending admin approval.",
-                duration: 5000,
-            });
-
-            // Reset form
-            setFormData({
-                title: "",
-                description: "",
-                price: "0.00",
-                currency: "INR",
-                inventory: "0",
-                tags: "",
-            });
-            setImages([]);
-            setImageFiles([]);
-
-            // Small delay to show success state
-            setTimeout(() => {
-                onOpenChange(false);
-                if (onSuccess) onSuccess(response);
-            }, 500);
-
-        } catch (error: any) {
-            console.error("Upload error:", error);
-            toast({
-                title: "❌ Upload Failed",
-                description: error.message || `Failed to ${initialData ? "update" : "upload"} product. Please try again.`,
-                variant: "destructive",
-                duration: 5000,
-            });
-        } finally {
-            setIsLoading(false);
-            setUploadProgress("");
-        }
-    };
-
-    const [isDragging, setIsDragging] = useState(false);
-
-    const processFiles = async (files: File[]) => {
-        for (const file of files) {
-            if (file.type.startsWith("image/")) {
-                try {
-                    const compressedBase64 = await compressImage(file);
-                    setImages((prev) => [...prev, compressedBase64]);
-                    setImageFiles((prev) => [...prev, file]);
-                } catch (error) {
-                    console.error("Error compressing image:", error);
-                    const reader = new FileReader();
-                    reader.onloadend = () => {
-                        setImages((prev) => [...prev, reader.result as string]);
-                        setImageFiles((prev) => [...prev, file]);
-                    };
-                    reader.readAsDataURL(file);
-                }
-            }
-        }
-    };
-
-    const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files) {
-            const filesArray = Array.from(e.target.files);
-            await processFiles(filesArray);
-        }
-    };
-
-    const handleDragOver = (e: React.DragEvent) => {
-        e.preventDefault();
-        setIsDragging(true);
-    };
-
-    const handleDragLeave = (e: React.DragEvent) => {
-        e.preventDefault();
-        setIsDragging(false);
-    };
-
-    const handleDrop = async (e: React.DragEvent) => {
-        e.preventDefault();
-        setIsDragging(false);
-
-        if (e.dataTransfer.files) {
-            const filesArray = Array.from(e.dataTransfer.files);
-            await processFiles(filesArray);
-        }
-    };
-
-    const removeImage = (index: number) => {
-        setImages((prev) => prev.filter((_, i) => i !== index));
-        setImageFiles((prev) => prev.filter((_, i) => i !== index));
-    };
-
-    return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="bg-gradient-to-br from-luxury-cream via-white to-luxury-cream/80 text-luxury-charcoal max-w-4xl max-h-[90vh] overflow-y-auto border-2 border-luxury-gold shadow-2xl">
-                <DialogHeader>
-                    <DialogTitle className="text-3xl font-serif text-luxury-charcoal bg-gradient-to-r from-luxury-gold to-amber-600 bg-clip-text text-transparent">
-                        {initialData ? "Edit Collection" : "Upload New Collection"}
-                    </DialogTitle>
-                </DialogHeader>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-4">
-                    {/* Left Side: Form */}
-                    <form onSubmit={handleSubmit} className="space-y-5">
-                        {/* Product Title */}
-                        <div>
-                            <label className="block text-sm font-medium mb-2 text-luxury-charcoal">
-                                Product Title <span className="text-luxury-gold">*</span>
-                            </label>
-                            <input
-                                type="text"
-                                required
-                                placeholder="e.g., Elegant Summer Dress"
-                                value={formData.title}
-                                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                                className="w-full px-4 py-3 bg-white border-2 border-luxury-gold/30 rounded-lg text-luxury-charcoal placeholder:text-gray-400 focus:outline-none focus:border-luxury-gold focus:ring-2 focus:ring-luxury-gold/20 transition-all"
-                            />
-                        </div>
-
-                        {/* Description */}
-                        <div>
-                            <label className="block text-sm font-medium mb-2 text-luxury-charcoal">Description</label>
-                            <textarea
-                                placeholder="Describe your product..."
-                                rows={4}
-                                value={formData.description}
-                                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                                className="w-full px-4 py-3 bg-white border-2 border-luxury-gold/30 rounded-lg text-luxury-charcoal placeholder:text-gray-400 focus:outline-none focus:border-luxury-gold focus:ring-2 focus:ring-luxury-gold/20 resize-none transition-all"
-                            />
-                        </div>
-
-                        {/* Inventory Count */}
-                        <div>
-                            <label className="block text-sm font-medium mb-2 text-luxury-charcoal">Inventory Count</label>
-                            <input
-                                type="number"
-                                min="0"
-                                value={formData.inventory}
-                                onChange={(e) => setFormData({ ...formData, inventory: e.target.value })}
-                                className="w-full px-4 py-3 bg-white border-2 border-luxury-gold/30 rounded-lg text-luxury-charcoal focus:outline-none focus:border-luxury-gold focus:ring-2 focus:ring-luxury-gold/20 transition-all"
-                            />
-                        </div>
-
-                        {/* Price and Currency */}
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <label className="block text-sm font-medium mb-2 text-luxury-charcoal">
-                                    Price (₹) <span className="text-luxury-gold">*</span>
-                                </label>
-                                <input
-                                    type="number"
-                                    required
-                                    step="0.01"
-                                    min="0"
-                                    value={formData.price}
-                                    onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                                    className="w-full px-4 py-3 bg-white border-2 border-luxury-gold/30 rounded-lg text-luxury-charcoal focus:outline-none focus:border-luxury-gold focus:ring-2 focus:ring-luxury-gold/20 transition-all"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium mb-2 text-luxury-charcoal">Currency</label>
-                                <select
-                                    value={formData.currency}
-                                    onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
-                                    className="w-full px-4 py-3 bg-white border-2 border-luxury-gold/30 rounded-lg text-luxury-charcoal focus:outline-none focus:border-luxury-gold focus:ring-2 focus:ring-luxury-gold/20 appearance-none cursor-pointer transition-all"
-                                >
-                                    <option value="INR">INR - Indian Rupee</option>
-                                    <option value="USD">USD - US Dollar</option>
-                                    <option value="EUR">EUR - Euro</option>
-                                    <option value="GBP">GBP - British Pound</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        {/* Tags */}
-                        <div>
-                            <label className="block text-sm font-medium mb-2 text-luxury-charcoal">Tags (comma-separated)</label>
-                            <input
-                                type="text"
-                                placeholder="e.g., dress, summer, elegant, casual"
-                                value={formData.tags}
-                                onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
-                                className="w-full px-4 py-3 bg-white border-2 border-luxury-gold/30 rounded-lg text-luxury-charcoal placeholder:text-gray-400 focus:outline-none focus:border-luxury-gold focus:ring-2 focus:ring-luxury-gold/20 transition-all"
-                            />
-                            <p className="text-xs text-gray-500 mt-1">Separate tags with commas</p>
-                        </div>
-
-                        {/* Submit Buttons (Mobile only) */}
-                        <div className="flex gap-3 pt-4 md:hidden">
-                            <LuxeButton
-                                type="button"
-                                variant="luxury-outline"
-                                onClick={() => onOpenChange(false)}
-                                className="flex-1"
-                            >
-                                Cancel
-                            </LuxeButton>
-                            <LuxeButton
-                                type="submit"
-                                variant="luxury"
-                                disabled={isLoading}
-                                className="flex-1 flex items-center justify-center gap-2"
-                            >
-                                {isLoading ? (
-                                    <>
-                                        <Loader2 className="w-4 h-4 animate-spin" />
-                                        {uploadProgress || "Processing..."}
-                                    </>
-                                ) : (
-                                    <>
-                                        <Upload className="w-4 h-4" />
-                                        {initialData ? "Update Collection" : "Upload Collection"}
-                                    </>
-                                )}
-                            </LuxeButton>
-                        </div>
-                    </form>
-
-                    {/* Right Side: Image Upload & Quote */}
-                    <div className="flex flex-col h-full">
-                        {/* Quote Section */}
-                        <div className="mb-6 p-6 bg-gradient-to-br from-luxury-gold/20 via-amber-100/30 to-luxury-gold/10 rounded-xl border-2 border-luxury-gold/40 text-center shadow-lg">
-                            <p className="font-serif text-xl text-luxury-gold italic mb-2 drop-shadow-sm">
-                                "Capture the Essence."
-                            </p>
-                            <p className="text-sm text-luxury-charcoal/80 leading-relaxed">
-                                Upload multiple angles to help our AI reveal the true spirit of your design.
-                            </p>
-                        </div>
-
-                        {/* Product Images */}
-                        <div className="flex-1 flex flex-col">
-                            <label className="block text-sm font-medium mb-2 text-luxury-charcoal">
-                                Product Images <span className="text-luxury-gold">*</span>
-                            </label>
-                            <div
-                                onDragOver={handleDragOver}
-                                onDragLeave={handleDragLeave}
-                                onDrop={handleDrop}
-                                className="flex-1 min-h-[200px]"
-                            >
-                                <label
-                                    className={`flex flex-col items-center justify-center w-full h-full min-h-[200px] border-2 border-dashed rounded-lg cursor-pointer transition-all ${isDragging
-                                        ? "border-luxury-gold bg-luxury-gold/20 shadow-lg"
-                                        : "border-luxury-gold/40 hover:border-luxury-gold hover:bg-luxury-gold/5"
-                                        }`}
-                                >
-                                    <Upload className={`w-10 h-10 mb-3 ${isDragging ? "text-luxury-gold" : "text-luxury-gold/60"}`} />
-                                    <span className={`text-base font-medium ${isDragging ? "text-luxury-gold" : "text-luxury-charcoal/70"}`}>
-                                        {images.length > 0
-                                            ? `${images.length} file(s) selected`
-                                            : "Click or Drag to upload images"}
-                                    </span>
-                                    <span className="text-xs text-gray-500 mt-2">
-                                        Supports JPG, PNG, WEBP
-                                    </span>
-                                    <input
-                                        type="file"
-                                        multiple
-                                        accept="image/*"
-                                        onChange={handleImageUpload}
-                                        className="hidden"
-                                    />
-                                </label>
-                            </div>
-
-                            {/* Image Preview */}
-                            {images.length > 0 && (
-                                <div className="grid grid-cols-3 gap-3 mt-4 max-h-[200px] overflow-y-auto pr-1 custom-scrollbar">
-                                    {images.map((image, index) => (
-                                        <div
-                                            key={index}
-                                            className="relative group rounded-lg overflow-hidden border-2 border-luxury-gold/30 aspect-square hover:border-luxury-gold transition-all"
-                                        >
-                                            <img
-                                                src={image}
-                                                alt={`Preview ${index + 1}`}
-                                                className="w-full h-full object-cover"
-                                            />
-                                            <button
-                                                type="button"
-                                                onClick={() => removeImage(index)}
-                                                className="absolute top-1 right-1 bg-black/60 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500"
-                                            >
-                                                <X className="w-3 h-3" />
-                                            </button>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Submit Buttons (Desktop) */}
-                        <div className="hidden md:flex gap-3 pt-6 mt-auto">
-                            <LuxeButton
-                                type="button"
-                                variant="luxury-outline"
-                                onClick={() => onOpenChange(false)}
-                                className="flex-1"
-                            >
-                                Cancel
-                            </LuxeButton>
-                            <LuxeButton
-                                type="button"
-                                onClick={(e) => handleSubmit(e as any)}
-                                variant="luxury"
-                                disabled={isLoading}
-                                className="flex-1 flex items-center justify-center gap-2"
-                            >
-                                {isLoading ? (
-                                    <>
-                                        <Loader2 className="w-4 h-4 animate-spin" />
-                                        {uploadProgress || "Processing..."}
-                                    </>
-                                ) : (
-                                    <>
-                                        <Upload className="w-4 h-4" />
-                                        {initialData ? "Update Collection" : "Upload Collection"}
-                                    </>
-                                )}
-                            </LuxeButton>
-                        </div>
-                    </div>
+          {/* Flow steps */}
+          <div className="flex items-center gap-2 mt-3 text-[10px]">
+            {[{ icon: Package2, label: "Product Info" }, { icon: Layers, label: "Patterns" }, { icon: Palette, label: "Colors" }].map(({ icon: Icon, label }, i) => (
+              <div key={i} className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1 px-2 py-1 rounded-full"
+                  style={{ background: "rgba(201,165,95,0.1)", border: "1px solid rgba(201,165,95,0.25)", color: "#2C2416" }}>
+                  <Icon size={10} style={{ color: "#C9A75F" }} />
+                  <span className="font-semibold">{i + 1}. {label}</span>
                 </div>
-            </DialogContent>
-        </Dialog>
-    );
+                {i < 2 && <div style={{ width: 12, height: 1, background: "rgba(201,165,95,0.3)" }} />}
+              </div>
+            ))}
+            {/* Stats pills */}
+            <div className="ml-auto flex gap-1.5">
+              <span className="px-2 py-0.5 rounded-full font-bold text-[10px]"
+                style={{ background: "rgba(201,165,95,0.1)", color: "#C9A75F" }}>
+                {patterns.length}P · {totalVariants}C · {totalStock}u
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Scrollable body */}
+        <form id="hierarchy-upload-form" onSubmit={handleSubmit}
+          className="hide-scrollbar"
+          style={{ flex: 1, overflowY: "auto", padding: "14px 16px", position: "relative", zIndex: 1, display: "flex", flexDirection: "column", gap: 14 }}>
+
+          {/* ══ STEP 1: Product Info ══ */}
+          <div className="rounded-2xl p-4 space-y-3" style={{
+            background: "rgba(255,255,255,0.8)", backdropFilter: "blur(8px)",
+            border: "1.5px solid rgba(201,165,95,0.25)",
+            boxShadow: "0 4px 20px rgba(201,165,95,0.06)",
+          }}>
+            <div className="flex items-center gap-2 pb-2" style={{ borderBottom: "1px solid rgba(201,165,95,0.15)" }}>
+              <Package2 size={15} style={{ color: "#C9A75F" }} />
+              <span className="text-xs font-bold" style={{ color: "#2C2416" }}>Product Info</span>
+            </div>
+
+            <div>
+              <SectionLabel required>Title</SectionLabel>
+              <LuxeInput value={title} onChange={setTitle} placeholder="e.g. Midnight Silk Blazer" icon={Tags} />
+              <FieldError msg={errors.title} />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <SectionLabel required>Price (₹)</SectionLabel>
+                <LuxeInput value={price} onChange={setPrice} type="number" placeholder="499" icon={DollarSign} min={1} step={1} />
+                <FieldError msg={errors.price} />
+              </div>
+              <div>
+                <SectionLabel>Category</SectionLabel>
+                <div className="relative">
+                  <div style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)", color: "rgba(201,165,95,0.7)", pointerEvents: "none" }}>
+                    <FolderTree size={14} />
+                  </div>
+                  <select value={categoryId}
+                    onChange={e => { setCategoryId(e.target.value); setSubCategoryId(""); }}
+                    style={{ width: "100%", padding: "10px 10px 10px 34px", borderRadius: 10, border: "1.5px solid rgba(201,165,95,0.3)", background: "rgba(255,255,255,0.85)", color: "#1a1408", fontSize: 12, fontWeight: 600, outline: "none" }}>
+                    <option value="">Select category</option>
+                    {categories.filter(c => c.is_active).map(c => (
+                      <option key={c.category_id} value={c.category_id}>{c.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {subCategories.length > 0 && (
+              <div>
+                <SectionLabel>Subcategory</SectionLabel>
+                <select value={subCategoryId} onChange={e => setSubCategoryId(e.target.value)}
+                  style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1.5px solid rgba(201,165,95,0.3)", background: "rgba(255,255,255,0.85)", color: "#1a1408", fontSize: 12, fontWeight: 600, outline: "none" }}>
+                  <option value="">Select subcategory</option>
+                  {subCategories.map(s => (
+                    <option key={s.sub_category_id} value={s.sub_category_id}>{s.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            <div>
+              <SectionLabel>Description</SectionLabel>
+              <textarea value={description} onChange={e => setDescription(e.target.value)}
+                placeholder="Tell the story behind this creation..."
+                rows={2}
+                style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1.5px solid rgba(201,165,95,0.3)", background: "rgba(255,255,255,0.85)", color: "#1a1408", fontSize: 13, fontWeight: 500, outline: "none", resize: "none" }}
+                onFocus={e => e.target.style.borderColor = "#C9A75F"}
+                onBlur={e => e.target.style.borderColor = "rgba(201,165,95,0.3)"}
+              />
+            </div>
+          </div>
+
+          {/* ══ STEP 2 & 3: Patterns + Colors ══ */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-1.5">
+                <Layers size={14} style={{ color: "#C9A75F" }} />
+                <span className="text-xs font-bold" style={{ color: "#2C2416" }}>Patterns & Colors</span>
+              </div>
+            </div>
+
+            {/* Hint */}
+            <div className="flex items-start gap-2 rounded-xl px-3 py-2 mb-3"
+              style={{ background: "rgba(201,165,95,0.07)", border: "1px solid rgba(201,165,95,0.2)" }}>
+              <Info size={12} style={{ color: "#C9A75F", marginTop: 1, flexShrink: 0 }} />
+              <p className="text-[11px]" style={{ color: "rgba(44,36,22,0.6)", lineHeight: 1.5 }}>
+                Add <strong>Patterns</strong> (fits like Slim/Relaxed), then inside each pattern add
+                <strong> Color Variants</strong> with stock and photos.
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              {patterns.map((p, pi) => (
+                <PatternCard key={p.id} pattern={p} patIdx={pi}
+                  onChange={updated => {
+                    const next = [...patterns]; next[pi] = updated; setPatterns(next);
+                  }}
+                  onRemove={() => {
+                    if (!window.confirm("Remove this pattern?")) return;
+                    setPatterns(prev => prev.filter((_, i) => i !== pi));
+                  }}
+                  canRemove={patterns.length > 1}
+                />
+              ))}
+            </div>
+
+            <button type="button"
+              onClick={() => setPatterns(p => [...p, makePattern()])}
+              className="mt-3 w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold transition-all"
+              style={{
+                border: "2px dashed rgba(201,165,95,0.3)", color: "#C9A75F",
+                background: "rgba(201,165,95,0.03)",
+              }}
+              onMouseOver={e => { e.currentTarget.style.borderColor = "#C9A75F"; e.currentTarget.style.background = "rgba(201,165,95,0.07)"; }}
+              onMouseOut={e => { e.currentTarget.style.borderColor = "rgba(201,165,95,0.3)"; e.currentTarget.style.background = "rgba(201,165,95,0.03)"; }}
+            >
+              <Plus size={13} /> Add Pattern
+            </button>
+          </div>
+
+          {/* Extra bottom padding for sticky footer */}
+          <div style={{ height: 16 }} />
+        </form>
+
+        {/* ══ Sticky Footer ══ */}
+        <div style={{
+          flexShrink: 0, borderTop: "1.5px solid rgba(201,165,95,0.2)",
+          background: "rgba(255,253,248,0.95)", backdropFilter: "blur(12px)",
+          padding: "12px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12,
+          position: "relative", zIndex: 5,
+        }}>
+          <div className="flex items-center gap-3 text-[11px]" style={{ color: "rgba(44,36,22,0.5)" }}>
+            <span><strong style={{ color: "#2C2416" }}>{patterns.length}</strong> pattern{patterns.length !== 1 ? "s" : ""}</span>
+            <span>·</span>
+            <span><strong style={{ color: "#2C2416" }}>{totalVariants}</strong> color{totalVariants !== 1 ? "s" : ""}</span>
+            <span>·</span>
+            <span><strong style={{ color: "#2C2416" }}>{totalStock}</strong> units</span>
+          </div>
+
+          <div className="flex gap-2">
+            <button type="button" onClick={() => onOpenChange(false)}
+              className="px-4 py-2 rounded-xl text-xs font-bold transition-all"
+              style={{ border: "1.5px solid rgba(201,165,95,0.3)", color: "#2C2416", background: "rgba(255,255,255,0.7)" }}>
+              Cancel
+            </button>
+            <button type="submit" form="hierarchy-upload-form" disabled={isLoading}
+              className="flex items-center gap-1.5 px-5 py-2 rounded-xl text-xs font-bold transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+              style={{
+                background: "linear-gradient(135deg,#C9A75F,#D4B76E)",
+                color: "#2C2416", border: "none",
+                boxShadow: "0 4px 16px rgba(201,165,95,0.35)",
+              }}>
+              {isLoading
+                ? <><Loader2 size={13} className="animate-spin" /> Uploading…</>
+                : <><Upload size={13} /> Submit Product</>}
+            </button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
 };
 
 export default UploadCollectionModal;

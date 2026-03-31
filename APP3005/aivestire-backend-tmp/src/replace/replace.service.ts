@@ -176,9 +176,15 @@ export class ReplacementService {
               product: {
                 connect: { product_id: item.product_id },
               },
+              creator: {
+                connect: { creator_id: item.creator_id },
+              },
               quantity: item.quantity,
               unit_price: item.unit_price,
               total_price: item.total_price,
+              selling_price: item.selling_price,
+              commission: item.commission,
+              creator_price: item.creator_price,
               product_name: item.product_name,
               product_image: item.product_image || undefined,
               size: item.size || undefined,

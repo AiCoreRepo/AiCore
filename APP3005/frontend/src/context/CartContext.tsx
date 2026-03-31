@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from './AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { CartToast } from '@/components/cart/CartToast';
 import {
     getUserCart,
     getGuestCart,
@@ -51,6 +52,7 @@ export interface CartItem {
 export interface CartState {
     items: CartItem[];
     summary: CartSummaryAPI;
+    appliedCouponCode: string | null;
     isLoading: boolean;
     error: string | null;
     lastUpdated: string | null;
@@ -79,10 +81,12 @@ export interface CartContextType {
     addToCart: (params: AddToCartParams) => Promise<void>;
     removeFromCart: (itemId: string) => Promise<void>;
     updateQuantity: (itemId: string, quantity: number) => Promise<void>;
-    clearCart: () => Promise<void>;
+    clearCart: (options?: { silent?: boolean }) => Promise<void>;
     refreshCart: () => Promise<void>;
     itemCount: number;
     isEmpty: boolean;
+    lastAddedProductId: string | null;
+    clearLastAddedProductId: () => void;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -124,10 +128,51 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const { user } = useAuth();
     const { toast } = useToast();
     const previousUserId = useRef<string | null>(null);
+    const [lastAddedProductId, setLastAddedProductId] = useState<string | null>(null);
+    const [tokenPresent, setTokenPresent] = useState<boolean>(() => {
+        if (typeof window === 'undefined') return false;
+        return !!localStorage.getItem('access_token');
+    });
+
+    useEffect(() => {
+        const syncTokenState = () => {
+            if (typeof window === 'undefined') return;
+            const next = !!localStorage.getItem('access_token');
+            setTokenPresent(prev => (prev === next ? prev : next));
+        };
+
+        // Keep cart auth state in sync even when token is modified outside AuthContext.
+        syncTokenState();
+        window.addEventListener('storage', syncTokenState);
+        window.addEventListener('auth-refresh', syncTokenState);
+        window.addEventListener('auth-error', syncTokenState);
+        window.addEventListener('focus', syncTokenState);
+        document.addEventListener('visibilitychange', syncTokenState);
+
+        const intervalId = window.setInterval(syncTokenState, 1000);
+
+        return () => {
+            window.removeEventListener('storage', syncTokenState);
+            window.removeEventListener('auth-refresh', syncTokenState);
+            window.removeEventListener('auth-error', syncTokenState);
+            window.removeEventListener('focus', syncTokenState);
+            document.removeEventListener('visibilitychange', syncTokenState);
+            window.clearInterval(intervalId);
+        };
+    }, []);
+
+    const hasAccessToken = useCallback(() => {
+        return tokenPresent;
+    }, [tokenPresent]);
+
+    const clearLastAddedProductId = useCallback(() => {
+        setLastAddedProductId(null);
+    }, []);
 
     const [cart, setCart] = useState<CartState>({
         items: [],
         summary: DEFAULT_SUMMARY,
+        appliedCouponCode: null,
         isLoading: true,
         error: null,
         lastUpdated: null,
@@ -145,12 +190,15 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
 
         try {
-            if (user) {
+            const isAuthenticated = !!user?.user_id && hasAccessToken();
+
+            if (isAuthenticated) {
                 // Fetch authenticated user cart
                 const response = await getUserCart();
                 setCart({
                     items: response.items.map(transformCartItem),
                     summary: response.summary,
+                    appliedCouponCode: response.applied_coupon_code || null,
                     isLoading: false,
                     error: null,
                     lastUpdated: new Date().toISOString(),
@@ -163,6 +211,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     setCart({
                         items: response.items.map(transformCartItem),
                         summary: response.summary,
+                        appliedCouponCode: response.applied_coupon_code || null,
                         isLoading: false,
                         error: null,
                         lastUpdated: new Date().toISOString(),
@@ -173,6 +222,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     setCart({
                         items: [],
                         summary: DEFAULT_SUMMARY,
+                        appliedCouponCode: null,
                         isLoading: false,
                         error: null,
                         lastUpdated: new Date().toISOString(),
@@ -188,7 +238,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 error: error instanceof Error ? error.message : 'Failed to load cart',
             }));
         }
-    }, [user]);
+    }, [user?.user_id, hasAccessToken]);
 
     /**
      * Handle identity changes
@@ -196,7 +246,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
      *           On logout → reset to empty guest cart view
      */
     useEffect(() => {
-        const currentUserId = user?.user_id || null;
+        const currentUserId = user?.user_id && hasAccessToken() ? user.user_id : null;
 
         // Detect login (null → user_id)
         if (previousUserId.current === null && currentUserId !== null) {
@@ -233,6 +283,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setCart({
                 items: [],
                 summary: DEFAULT_SUMMARY,
+                appliedCouponCode: null,
                 isLoading: false,
                 error: null,
                 lastUpdated: new Date().toISOString(),
@@ -247,13 +298,22 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
 
         previousUserId.current = currentUserId;
-    }, [user?.user_id, fetchCart, toast]);
+    }, [user?.user_id, fetchCart, toast, hasAccessToken]);
 
     /**
      * Add item to cart
      */
     const addToCart = useCallback(async (params: AddToCartParams) => {
         try {
+            // Check if this product already exists in cart (duplicate detection)
+            const existingItem = cart.items.find(
+                (item) =>
+                    item.product_id === params.product_id &&
+                    item.size === (params.size || undefined) &&
+                    item.color === (params.color || undefined)
+            );
+            const isDuplicate = !!existingItem;
+
             setCart(prev => ({ ...prev, isLoading: true, error: null }));
 
             const request = {
@@ -263,11 +323,16 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 color: params.color,
             };
 
-            if (user) {
+            let updatedItems: CartItem[];
+            const isAuthenticated = !!user?.user_id && hasAccessToken();
+
+            if (isAuthenticated) {
                 const response = await addToUserCart(request);
+                updatedItems = response.items.map(transformCartItem);
                 setCart({
-                    items: response.items.map(transformCartItem),
+                    items: updatedItems,
                     summary: response.summary,
+                    appliedCouponCode: response.applied_coupon_code || null,
                     isLoading: false,
                     error: null,
                     lastUpdated: new Date().toISOString(),
@@ -275,9 +340,11 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 });
             } else {
                 const response = await addToGuestCart(request);
+                updatedItems = response.items.map(transformCartItem);
                 setCart({
-                    items: response.items.map(transformCartItem),
+                    items: updatedItems,
                     summary: response.summary,
+                    appliedCouponCode: response.applied_coupon_code || null,
                     isLoading: false,
                     error: null,
                     lastUpdated: new Date().toISOString(),
@@ -285,10 +352,30 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 });
             }
 
-            toast({
-                title: 'Added to cart!',
-                description: `${params.title} has been added to your cart`,
-                duration: 2000,
+            // Track last added product for scroll-to-item
+            setLastAddedProductId(params.product_id);
+
+            // Find new quantity after update
+            const updatedItem = updatedItems.find(
+                (item) =>
+                    item.product_id === params.product_id &&
+                    item.size === (params.size || undefined) &&
+                    item.color === (params.color || undefined)
+            );
+            const newQty = updatedItem?.quantity || 1;
+
+            // Show animated CartToast
+            const { dismiss } = toast({
+                description: React.createElement(CartToast, {
+                    title: params.title,
+                    thumbnail: params.thumbnail,
+                    isQuantityUpdate: isDuplicate,
+                    newQuantity: newQty,
+                    priceCents: params.price_cents,
+                    onDismiss: () => dismiss(),
+                }),
+                duration: 3000,
+                className: `border-l-4 ${isDuplicate ? 'border-l-blue-500' : 'border-l-green-500'}`,
             });
 
         } catch (error) {
@@ -305,7 +392,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 duration: 3000,
             });
         }
-    }, [user, toast]);
+    }, [user?.user_id, toast, cart.items, hasAccessToken]);
 
     /**
      * Remove item from cart
@@ -314,11 +401,14 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         try {
             setCart(prev => ({ ...prev, isLoading: true, error: null }));
 
-            if (user) {
+            const isAuthenticated = !!user?.user_id && hasAccessToken();
+
+            if (isAuthenticated) {
                 const response = await removeFromUserCart(itemId);
                 setCart({
                     items: response.items.map(transformCartItem),
                     summary: response.summary,
+                    appliedCouponCode: response.applied_coupon_code || null,
                     isLoading: false,
                     error: null,
                     lastUpdated: new Date().toISOString(),
@@ -329,6 +419,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 setCart({
                     items: response.items.map(transformCartItem),
                     summary: response.summary,
+                    appliedCouponCode: response.applied_coupon_code || null,
                     isLoading: false,
                     error: null,
                     lastUpdated: new Date().toISOString(),
@@ -354,7 +445,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 duration: 3000,
             });
         }
-    }, [user, toast]);
+    }, [user?.user_id, toast, hasAccessToken]);
 
     /**
      * Update item quantity
@@ -363,11 +454,14 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         try {
             setCart(prev => ({ ...prev, isLoading: true, error: null }));
 
-            if (user) {
+            const isAuthenticated = !!user?.user_id && hasAccessToken();
+
+            if (isAuthenticated) {
                 const response = await updateUserCartItem(itemId, quantity);
                 setCart({
                     items: response.items.map(transformCartItem),
                     summary: response.summary,
+                    appliedCouponCode: response.applied_coupon_code || null,
                     isLoading: false,
                     error: null,
                     lastUpdated: new Date().toISOString(),
@@ -378,6 +472,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 setCart({
                     items: response.items.map(transformCartItem),
                     summary: response.summary,
+                    appliedCouponCode: response.applied_coupon_code || null,
                     isLoading: false,
                     error: null,
                     lastUpdated: new Date().toISOString(),
@@ -399,16 +494,18 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 duration: 3000,
             });
         }
-    }, [user, toast]);
+    }, [user?.user_id, toast, hasAccessToken]);
 
     /**
      * Clear entire cart
      */
-    const clearCart = useCallback(async () => {
+    const clearCart = useCallback(async (options?: { silent?: boolean }) => {
         try {
             setCart(prev => ({ ...prev, isLoading: true, error: null }));
 
-            if (user) {
+            const isAuthenticated = !!user?.user_id && hasAccessToken();
+
+            if (isAuthenticated) {
                 await clearUserCart();
             } else {
                 await clearGuestCart();
@@ -417,16 +514,19 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setCart({
                 items: [],
                 summary: DEFAULT_SUMMARY,
+                appliedCouponCode: null,
                 isLoading: false,
                 error: null,
                 lastUpdated: new Date().toISOString(),
-                cartSource: user ? 'USER' : 'GUEST',
+                cartSource: isAuthenticated ? 'USER' : 'GUEST',
             });
 
-            toast({
-                title: 'Cart cleared',
-                duration: 2000,
-            });
+            if (!options?.silent) {
+                toast({
+                    title: 'Cart cleared',
+                    duration: 2000,
+                });
+            }
 
         } catch (error) {
             console.error('Error clearing cart:', error);
@@ -435,13 +535,15 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 isLoading: false,
                 error: error instanceof Error ? error.message : 'Failed to clear cart',
             }));
-            toast({
-                variant: 'destructive',
-                title: 'Failed to clear cart',
-                duration: 3000,
-            });
+            if (!options?.silent) {
+                toast({
+                    variant: 'destructive',
+                    title: 'Failed to clear cart',
+                    duration: 3000,
+                });
+            }
         }
-    }, [user, toast]);
+    }, [user?.user_id, toast, hasAccessToken]);
 
     /**
      * Refresh cart (fetch from backend)
@@ -463,6 +565,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         refreshCart,
         itemCount,
         isEmpty,
+        lastAddedProductId,
+        clearLastAddedProductId,
     };
 
     return <CartContext.Provider value={value}>{children}</CartContext.Provider>;

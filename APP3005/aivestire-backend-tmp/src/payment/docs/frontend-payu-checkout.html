@@ -1,0 +1,1305 @@
+<!-- ============================================================= -->
+<!-- PAYU PAYMENT INTEGRATION — FRONTEND REDIRECTION FORM EXAMPLE  -->
+<!-- ============================================================= -->
+
+<!--
+  HOW IT WORKS
+  ============
+  1. User clicks "Pay Now".
+  2. Frontend calls POST /payments/initiate (with JWT) to get the PayU payload.
+  3. Backend returns: { key, txnid, amount, productinfo, firstname, email,
+                        phone, surl, furl, hash, action }
+  4. Frontend dynamically builds and auto-submits a hidden HTML form to PayU.
+  5. PayU processes the payment and POSTs back to `surl` (success) or `furl` (failure).
+  6. Backend verifies the hash and marks the order as paid / failed.
+
+  NOTE: The form MUST be submitted as a real browser form POST — not via fetch().
+  PayU performs browser redirects, so they must come from a real form navigation.
+-->
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Secure Checkout — AiVestire</title>
+    <meta name="description" content="Complete your purchase securely with AiVestire powered by PayU payment gateway." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <style>
+      /* ══════════════════════════════════════════════════════════
+         DESIGN TOKENS
+      ══════════════════════════════════════════════════════════ */
+      :root {
+        --gold:          #C9A84C;
+        --gold-light:    #F0D080;
+        --gold-bright:   #FFE066;
+        --gold-dark:     #8B6914;
+        --gold-subtle:   rgba(201, 168, 76, 0.12);
+        --bg-deep:       #05050D;
+        --bg-mid:        #0A0A18;
+        --bg-card:       rgba(14, 14, 26, 0.92);
+        --bg-inner:      rgba(255, 255, 255, 0.035);
+        --bg-inner-hover:rgba(201, 168, 76, 0.07);
+        --border-gold:   rgba(201, 168, 76, 0.2);
+        --border-dim:    rgba(255, 255, 255, 0.06);
+        --border-card:   rgba(201, 168, 76, 0.18);
+        --text-primary:  #F2F2F5;
+        --text-secondary:#9090B0;
+        --text-muted:    #404060;
+        --success:       #34D399;
+        --success-dim:   rgba(52, 211, 153, 0.1);
+        --error:         #F87171;
+        --error-dim:     rgba(248, 113, 113, 0.08);
+        --r-sm:  10px;
+        --r-md:  16px;
+        --r-lg:  22px;
+        --r-xl:  30px;
+        --r-2xl: 40px;
+        --transition: 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+      }
+
+      *, *::before, *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      html { scroll-behavior: smooth; }
+
+      body {
+        font-family: 'Inter', sans-serif;
+        background: var(--bg-deep);
+        color: var(--text-primary);
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        overflow-x: hidden;
+        position: relative;
+        padding: 24px 16px 48px;
+      }
+
+      /* ── Scrollbar ──────────────────────────────────────────── */
+      ::-webkit-scrollbar { width: 4px; }
+      ::-webkit-scrollbar-track { background: transparent; }
+      ::-webkit-scrollbar-thumb { background: rgba(201,168,76,0.3); border-radius: 4px; }
+
+      /* ══════════════════════════════════════════════════════════
+         ANIMATED BACKGROUND
+      ══════════════════════════════════════════════════════════ */
+      .bg-canvas {
+        position: fixed;
+        inset: 0;
+        z-index: 0;
+        overflow: hidden;
+        pointer-events: none;
+      }
+
+      /* Radial noise texture */
+      .bg-canvas::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+        opacity: 0.4;
+      }
+
+      .bg-grid {
+        position: absolute;
+        inset: 0;
+        background-image:
+          linear-gradient(rgba(201,168,76,0.03) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(201,168,76,0.03) 1px, transparent 1px);
+        background-size: 56px 56px;
+      }
+
+      .bg-orb {
+        position: absolute;
+        border-radius: 50%;
+        filter: blur(90px);
+        animation: orbFloat 12s ease-in-out infinite;
+        will-change: transform;
+      }
+
+      .orb-1 {
+        width: 500px; height: 500px;
+        background: radial-gradient(circle at 40% 40%, rgba(201,168,76,0.22) 0%, transparent 65%);
+        top: -200px; left: -180px;
+        animation-duration: 14s;
+      }
+      .orb-2 {
+        width: 380px; height: 380px;
+        background: radial-gradient(circle, rgba(80,40,140,0.18) 0%, transparent 65%);
+        bottom: -120px; right: -120px;
+        animation-duration: 18s;
+        animation-delay: -6s;
+      }
+      .orb-3 {
+        width: 260px; height: 260px;
+        background: radial-gradient(circle, rgba(201,168,76,0.1) 0%, transparent 65%);
+        top: 45%; right: 8%;
+        animation-duration: 20s;
+        animation-delay: -12s;
+      }
+      .orb-4 {
+        width: 180px; height: 180px;
+        background: radial-gradient(circle, rgba(52,211,153,0.06) 0%, transparent 65%);
+        bottom: 20%; left: 5%;
+        animation-duration: 16s;
+        animation-delay: -3s;
+      }
+
+      @keyframes orbFloat {
+        0%, 100% { transform: translate(0, 0) scale(1); }
+        25%  { transform: translate(20px, -40px) scale(1.04); }
+        50%  { transform: translate(-10px, 25px) scale(0.96); }
+        75%  { transform: translate(30px, 15px) scale(1.02); }
+      }
+
+      /* ══════════════════════════════════════════════════════════
+         PAGE WRAPPER
+      ══════════════════════════════════════════════════════════ */
+      .page-wrapper {
+        position: relative;
+        z-index: 1;
+        width: 100%;
+        max-width: 520px;
+        animation: pageEntrance 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+      }
+
+      @keyframes pageEntrance {
+        from { opacity: 0; transform: translateY(40px) scale(0.98); }
+        to   { opacity: 1; transform: translateY(0) scale(1); }
+      }
+
+      @keyframes fadeUp {
+        from { opacity: 0; transform: translateY(16px); }
+        to   { opacity: 1; transform: translateY(0); }
+      }
+
+      @keyframes shimmer {
+        0%   { background-position: -400px 0; }
+        100% { background-position: 400px 0; }
+      }
+
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+
+      @keyframes dotPulse {
+        0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(52,211,153,0.5); }
+        50%       { opacity: 0.7; box-shadow: 0 0 0 5px rgba(52,211,153,0); }
+      }
+
+      @keyframes goldShimmer {
+        0%   { background-position: -200% center; }
+        100% { background-position: 200% center; }
+      }
+
+      /* ══════════════════════════════════════════════════════════
+         BRAND HEADER
+      ══════════════════════════════════════════════════════════ */
+      .brand-header {
+        text-align: center;
+        margin-bottom: 28px;
+        animation: fadeUp 0.7s ease 0.05s both;
+      }
+
+      .brand-logo-wrap {
+        display: inline-flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+        text-decoration: none;
+      }
+
+      .brand-icon-ring {
+        width: 72px;
+        height: 72px;
+        border-radius: 50%;
+        background: radial-gradient(135deg, rgba(201,168,76,0.15) 0%, rgba(201,168,76,0.04) 100%);
+        border: 1.5px solid rgba(201,168,76,0.35);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 10px;
+        box-shadow:
+          0 0 0 6px rgba(201,168,76,0.05),
+          0 16px 40px rgba(0,0,0,0.5),
+          inset 0 1px 0 rgba(255,255,255,0.06);
+        position: relative;
+        overflow: hidden;
+        transition: transform var(--transition), box-shadow var(--transition);
+      }
+
+      .brand-icon-ring:hover {
+        transform: scale(1.05);
+        box-shadow: 0 0 0 10px rgba(201,168,76,0.08), 0 24px 60px rgba(0,0,0,0.5);
+      }
+
+      .brand-icon-ring::before {
+        content: '';
+        position: absolute;
+        inset: -1px;
+        border-radius: 50%;
+        background: conic-gradient(from 0deg, transparent 0%, var(--gold) 25%, transparent 50%, var(--gold-light) 75%, transparent 100%);
+        animation: rotateBorder 4s linear infinite;
+        opacity: 0.4;
+        mask: radial-gradient(farthest-side, transparent calc(100% - 2px), white calc(100% - 1px));
+        -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2px), white calc(100% - 1px));
+      }
+
+      @keyframes rotateBorder {
+        to { transform: rotate(360deg); }
+      }
+
+      .brand-icon-ring img {
+        width: 46px;
+        height: 46px;
+        object-fit: contain;
+        position: relative;
+        z-index: 1;
+        filter: drop-shadow(0 4px 12px rgba(201,168,76,0.5));
+      }
+
+      .brand-name-text {
+        font-family: 'Cormorant Garamond', serif;
+        font-size: 2.1rem;
+        font-weight: 600;
+        letter-spacing: 2px;
+        background: linear-gradient(90deg, var(--gold-light) 0%, var(--gold-bright) 30%, var(--gold) 60%, var(--gold-light) 100%);
+        background-size: 200% auto;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        animation: goldShimmer 4s linear infinite;
+        line-height: 1;
+      }
+
+      .brand-tagline {
+        font-size: 0.68rem;
+        letter-spacing: 3px;
+        text-transform: uppercase;
+        color: var(--text-muted);
+        font-weight: 500;
+        margin-top: 2px;
+      }
+
+      .live-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        margin-top: 10px;
+        background: rgba(52,211,153,0.08);
+        border: 1px solid rgba(52,211,153,0.2);
+        border-radius: 100px;
+        padding: 4px 12px;
+        font-size: 0.65rem;
+        color: var(--success);
+        letter-spacing: 0.5px;
+        font-weight: 600;
+      }
+
+      .live-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--success);
+        animation: dotPulse 2s ease-in-out infinite;
+        flex-shrink: 0;
+      }
+
+      /* ══════════════════════════════════════════════════════════
+         CHECKOUT CARD
+      ══════════════════════════════════════════════════════════ */
+      .checkout-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border-card);
+        border-radius: var(--r-xl);
+        padding: 36px 32px;
+        backdrop-filter: blur(32px) saturate(1.4);
+        -webkit-backdrop-filter: blur(32px) saturate(1.4);
+        box-shadow:
+          0 40px 100px rgba(0, 0, 0, 0.7),
+          0 0 0 1px rgba(255, 255, 255, 0.03),
+          inset 0 1px 0 rgba(255, 255, 255, 0.065),
+          inset 0 -1px 0 rgba(0,0,0,0.2);
+        position: relative;
+        overflow: hidden;
+        animation: fadeUp 0.7s ease 0.12s both;
+      }
+
+      /* Gold accent top bar */
+      .checkout-card::before {
+        content: '';
+        position: absolute;
+        top: 0; left: 0; right: 0;
+        height: 2px;
+        background: linear-gradient(90deg,
+          transparent 0%,
+          var(--gold-dark) 15%,
+          var(--gold) 35%,
+          var(--gold-bright) 50%,
+          var(--gold) 65%,
+          var(--gold-dark) 85%,
+          transparent 100%
+        );
+        opacity: 0.9;
+      }
+
+      /* Soft inner glow */
+      .checkout-card::after {
+        content: '';
+        position: absolute;
+        top: 0; left: 10%; right: 10%;
+        height: 100px;
+        background: radial-gradient(ellipse at top, rgba(201,168,76,0.06) 0%, transparent 70%);
+        pointer-events: none;
+      }
+
+      /* ── Section label ──────────────────────────────────────── */
+      .section-label {
+        font-size: 0.62rem;
+        font-weight: 700;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        color: var(--gold);
+        margin-bottom: 12px;
+        opacity: 0.7;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .section-label::after {
+        content: '';
+        flex: 1;
+        height: 1px;
+        background: linear-gradient(90deg, rgba(201,168,76,0.2), transparent);
+      }
+
+      /* ══════════════════════════════════════════════════════════
+         ORDER SUMMARY
+      ══════════════════════════════════════════════════════════ */
+      .order-summary {
+        background: var(--bg-inner);
+        border: 1px solid var(--border-dim);
+        border-radius: var(--r-lg);
+        padding: 18px 20px;
+        margin-bottom: 24px;
+        position: relative;
+        overflow: hidden;
+        transition: border-color var(--transition);
+      }
+
+      .order-summary:hover {
+        border-color: rgba(201,168,76,0.15);
+      }
+
+      .order-summary-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 16px;
+        padding-bottom: 14px;
+        border-bottom: 1px solid var(--border-dim);
+      }
+
+      .order-icon-wrap {
+        width: 40px;
+        height: 40px;
+        border-radius: var(--r-sm);
+        background: linear-gradient(135deg, rgba(201,168,76,0.15) 0%, rgba(201,168,76,0.05) 100%);
+        border: 1px solid rgba(201,168,76,0.2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+        flex-shrink: 0;
+        box-shadow: 0 4px 12px rgba(201,168,76,0.1);
+      }
+
+      .order-meta { flex: 1; }
+
+      .order-title {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        letter-spacing: 0.2px;
+      }
+
+      .order-number {
+        font-size: 0.7rem;
+        color: var(--text-secondary);
+        margin-top: 2px;
+        font-family: 'Inter', monospace;
+      }
+
+      .order-status {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 0.65rem;
+        color: var(--success);
+        background: var(--success-dim);
+        border: 1px solid rgba(52,211,153,0.15);
+        border-radius: 100px;
+        padding: 3px 9px;
+        font-weight: 600;
+      }
+
+      .summary-rows { display: flex; flex-direction: column; gap: 2px; }
+
+      .summary-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 0;
+        font-size: 0.84rem;
+      }
+
+      .summary-row .lbl { color: var(--text-secondary); }
+      .summary-row .val { color: var(--text-primary); font-weight: 500; }
+
+      .summary-row .val.free {
+        color: var(--success);
+        font-weight: 700;
+        font-size: 0.75rem;
+        background: var(--success-dim);
+        border: 1px solid rgba(52,211,153,0.15);
+        padding: 2px 8px;
+        border-radius: 100px;
+      }
+
+      .summary-sep {
+        height: 1px;
+        background: linear-gradient(90deg, transparent, var(--border-dim) 30%, var(--border-dim) 70%, transparent);
+        margin: 6px 0;
+      }
+
+      .summary-row.total {
+        padding-top: 12px;
+        margin-top: 4px;
+      }
+
+      .summary-row.total .lbl {
+        font-weight: 700;
+        color: var(--text-primary);
+        font-size: 0.9rem;
+      }
+
+      .total-amount {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 1px;
+      }
+
+      .total-amount .currency-label {
+        font-size: 0.58rem;
+        color: var(--text-muted);
+        letter-spacing: 1px;
+        text-transform: uppercase;
+      }
+
+      .total-amount .big-price {
+        font-family: 'Outfit', sans-serif;
+        font-size: 1.55rem;
+        font-weight: 800;
+        background: linear-gradient(90deg, var(--gold-bright) 0%, var(--gold) 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        line-height: 1;
+      }
+
+      /* ══════════════════════════════════════════════════════════
+         PAYMENT METHODS
+      ══════════════════════════════════════════════════════════ */
+      .payment-section { margin-bottom: 22px; }
+
+      .payment-grid {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 8px;
+      }
+
+      .pm-chip {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        padding: 11px 6px;
+        background: var(--bg-inner);
+        border: 1px solid var(--border-dim);
+        border-radius: var(--r-md);
+        transition: all var(--transition);
+        cursor: default;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .pm-chip::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(135deg, rgba(201,168,76,0.08), transparent);
+        opacity: 0;
+        transition: opacity var(--transition);
+      }
+
+      .pm-chip:hover {
+        border-color: rgba(201,168,76,0.3);
+        transform: translateY(-3px);
+        box-shadow: 0 8px 24px rgba(0,0,0,0.3), 0 0 0 1px rgba(201,168,76,0.1);
+      }
+
+      .pm-chip:hover::before { opacity: 1; }
+
+      .pm-ico {
+        width: 30px;
+        height: 30px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 8px;
+        flex-shrink: 0;
+        position: relative;
+        z-index: 1;
+      }
+
+      .pm-ico svg { width: 100%; height: 100%; }
+
+      .pm-lbl {
+        font-size: 0.57rem;
+        color: var(--text-secondary);
+        text-align: center;
+        line-height: 1.2;
+        font-weight: 500;
+        position: relative;
+        z-index: 1;
+        white-space: nowrap;
+      }
+
+      /* ══════════════════════════════════════════════════════════
+         DIVIDER
+      ══════════════════════════════════════════════════════════ */
+      .fine-divider {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin: 20px 0;
+      }
+
+      .fine-divider span {
+        font-size: 0.62rem;
+        color: var(--text-muted);
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        white-space: nowrap;
+      }
+
+      .fine-divider::before,
+      .fine-divider::after {
+        content: '';
+        flex: 1;
+        height: 1px;
+        background: var(--border-dim);
+      }
+
+      /* ══════════════════════════════════════════════════════════
+         SECURITY BADGES
+      ══════════════════════════════════════════════════════════ */
+      .security-row {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 20px;
+        padding: 12px 16px;
+        background: var(--success-dim);
+        border: 1px solid rgba(52,211,153,0.12);
+        border-radius: var(--r-md);
+        margin-bottom: 22px;
+        flex-wrap: wrap;
+      }
+
+      .sec-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.67rem;
+        color: rgba(52,211,153,0.85);
+        font-weight: 600;
+        letter-spacing: 0.3px;
+      }
+
+      .sec-item svg {
+        width: 13px;
+        height: 13px;
+        flex-shrink: 0;
+        stroke: currentColor;
+      }
+
+      .sec-sep {
+        width: 1px;
+        height: 16px;
+        background: rgba(52,211,153,0.2);
+      }
+
+      /* ══════════════════════════════════════════════════════════
+         PAY BUTTON
+      ══════════════════════════════════════════════════════════ */
+      .pay-btn-wrap { position: relative; }
+
+      .pay-btn {
+        width: 100%;
+        position: relative;
+        background: linear-gradient(135deg,
+          var(--gold-light) 0%,
+          var(--gold) 40%,
+          #B8922A 70%,
+          var(--gold-dark) 100%
+        );
+        color: #1A0E00;
+        border: none;
+        border-radius: var(--r-lg);
+        padding: 18px 28px;
+        font-family: 'Outfit', sans-serif;
+        font-size: 1rem;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all var(--transition);
+        letter-spacing: 0.5px;
+        box-shadow:
+          0 12px 40px rgba(201,168,76,0.4),
+          0 4px 16px rgba(201,168,76,0.25),
+          inset 0 1px 0 rgba(255,255,255,0.3),
+          inset 0 -1px 0 rgba(0,0,0,0.2);
+        overflow: hidden;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+      }
+
+      /* Shine sweep */
+      .pay-btn::before {
+        content: '';
+        position: absolute;
+        top: 0; left: -80%;
+        width: 60%;
+        height: 100%;
+        background: linear-gradient(90deg,
+          transparent,
+          rgba(255,255,255,0.35),
+          transparent
+        );
+        transform: skewX(-20deg);
+        transition: left 0.65s ease;
+        pointer-events: none;
+      }
+
+      /* Top highlight */
+      .pay-btn::after {
+        content: '';
+        position: absolute;
+        top: 0; left: 0; right: 0;
+        height: 50%;
+        background: linear-gradient(180deg, rgba(255,255,255,0.18), transparent);
+        border-radius: var(--r-lg) var(--r-lg) 0 0;
+        pointer-events: none;
+      }
+
+      .pay-btn:hover {
+        transform: translateY(-3px);
+        box-shadow:
+          0 20px 60px rgba(201,168,76,0.55),
+          0 8px 24px rgba(201,168,76,0.35),
+          inset 0 1px 0 rgba(255,255,255,0.35);
+      }
+
+      .pay-btn:hover::before { left: 120%; }
+
+      .pay-btn:active {
+        transform: translateY(-1px);
+        box-shadow: 0 8px 24px rgba(201,168,76,0.35);
+      }
+
+      .pay-btn:disabled {
+        opacity: 0.65;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: 0 4px 16px rgba(201,168,76,0.15);
+      }
+
+      .pay-btn:disabled::before { display: none; }
+
+      .btn-inner {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        position: relative;
+        z-index: 1;
+      }
+
+      .btn-icon-wrap {
+        width: 22px;
+        height: 22px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        background: rgba(0,0,0,0.12);
+        border-radius: 6px;
+      }
+
+      .btn-spinner {
+        display: none;
+        width: 20px;
+        height: 20px;
+        border: 2.5px solid rgba(26, 16, 0, 0.2);
+        border-top-color: #1a1000;
+        border-radius: 50%;
+        animation: spin 0.7s linear infinite;
+        flex-shrink: 0;
+      }
+
+      .pay-btn-sub {
+        text-align: center;
+        margin-top: 10px;
+        font-size: 0.68rem;
+        color: var(--text-muted);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 5px;
+      }
+
+      .pay-btn-sub svg {
+        width: 10px;
+        height: 10px;
+        stroke: currentColor;
+        opacity: 0.6;
+      }
+
+      /* ══════════════════════════════════════════════════════════
+         ERROR BANNER
+      ══════════════════════════════════════════════════════════ */
+      .error-banner {
+        display: none;
+        background: var(--error-dim);
+        border: 1px solid rgba(248,113,113,0.2);
+        border-radius: var(--r-sm);
+        padding: 12px 16px;
+        margin-bottom: 18px;
+        font-size: 0.8rem;
+        color: var(--error);
+        gap: 10px;
+        align-items: flex-start;
+        animation: fadeUp 0.3s ease;
+      }
+
+      .error-banner.visible {
+        display: flex;
+      }
+
+      .error-banner svg { flex-shrink: 0; margin-top: 1px; }
+
+      /* ══════════════════════════════════════════════════════════
+         FOOTER
+      ══════════════════════════════════════════════════════════ */
+      .card-footer {
+        margin-top: 24px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .powered-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        background: var(--bg-inner);
+        border: 1px solid var(--border-dim);
+        border-radius: 100px;
+        padding: 6px 14px;
+        font-size: 0.7rem;
+        color: var(--text-secondary);
+      }
+
+      .powered-badge .payu-logo {
+        font-family: 'Outfit', sans-serif;
+        font-weight: 800;
+        font-size: 0.78rem;
+        color: var(--text-primary);
+        letter-spacing: 0.5px;
+      }
+
+      .powered-badge .sep { opacity: 0.3; }
+
+      .footer-links {
+        font-size: 0.65rem;
+        color: var(--text-muted);
+        line-height: 1.7;
+        text-align: center;
+      }
+
+      .footer-links a {
+        color: var(--text-secondary);
+        text-decoration: none;
+        transition: color 0.2s;
+        border-bottom: 1px solid transparent;
+        transition: all 0.2s;
+      }
+
+      .footer-links a:hover {
+        color: var(--gold);
+        border-bottom-color: rgba(201,168,76,0.3);
+      }
+
+      /* ══════════════════════════════════════════════════════════
+         RESPONSIVE — MOBILE FIRST
+      ══════════════════════════════════════════════════════════ */
+      @media (max-width: 480px) {
+        body { padding: 16px 12px 40px; }
+
+        .page-wrapper { max-width: 100%; }
+
+        .checkout-card {
+          padding: 24px 18px;
+          border-radius: var(--r-lg);
+        }
+
+        .brand-icon-ring {
+          width: 60px;
+          height: 60px;
+        }
+
+        .brand-icon-ring img {
+          width: 38px;
+          height: 38px;
+        }
+
+        .brand-name-text { font-size: 1.75rem; }
+
+        .payment-grid {
+          grid-template-columns: repeat(5, 1fr);
+          gap: 6px;
+        }
+
+        .pm-chip { padding: 9px 4px; border-radius: var(--r-sm); }
+        .pm-ico { width: 24px; height: 24px; }
+        .pm-lbl { font-size: 0.52rem; }
+
+        .security-row {
+          gap: 10px;
+          padding: 10px 12px;
+        }
+
+        .sec-sep { display: none; }
+        .sec-item { font-size: 0.62rem; }
+
+        .pay-btn {
+          padding: 16px 20px;
+          font-size: 0.95rem;
+        }
+
+        .total-amount .big-price { font-size: 1.35rem; }
+
+        .order-summary { padding: 14px 16px; }
+
+        .summary-row { font-size: 0.82rem; }
+
+        .brand-tagline { font-size: 0.6rem; letter-spacing: 2px; }
+      }
+
+      @media (max-width: 360px) {
+        .payment-grid { grid-template-columns: repeat(3, 1fr); }
+        .checkout-card { padding: 18px 14px; }
+        .brand-name-text { font-size: 1.5rem; }
+      }
+
+      @media (min-width: 600px) {
+        .page-wrapper { max-width: 500px; }
+        .checkout-card { padding: 42px 38px; }
+        .brand-icon-ring { width: 78px; height: 78px; }
+        .brand-icon-ring img { width: 50px; height: 50px; }
+        .brand-name-text { font-size: 2.3rem; }
+      }
+
+      /* ── Touch feedback for mobile ──────────────────────────── */
+      @media (hover: none) {
+        .pm-chip:active {
+          border-color: rgba(201,168,76,0.3);
+          background: var(--bg-inner-hover);
+          transform: scale(0.97);
+        }
+        .pay-btn:active {
+          transform: scale(0.98);
+          box-shadow: 0 6px 20px rgba(201,168,76,0.3);
+        }
+      }
+    </style>
+  </head>
+  <body>
+
+    <!-- ── Animated Background ─────────────────────────────────── -->
+    <div class="bg-canvas" aria-hidden="true">
+      <div class="bg-grid"></div>
+      <div class="bg-orb orb-1"></div>
+      <div class="bg-orb orb-2"></div>
+      <div class="bg-orb orb-3"></div>
+      <div class="bg-orb orb-4"></div>
+    </div>
+
+    <!-- ── Main Page ────────────────────────────────────────────── -->
+    <div class="page-wrapper">
+
+      <!-- Brand Header -->
+      <header class="brand-header">
+        <a class="brand-logo-wrap" href="/" aria-label="AiVestire Home">
+          <div class="brand-icon-ring">
+            <!-- Inline SVG fallback (gold hanger + AI circuit) -->
+            <svg viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg" width="46" height="46" aria-hidden="true">
+              <defs>
+                <linearGradient id="goldGr" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0%" stop-color="#F0D080"/>
+                  <stop offset="50%" stop-color="#C9A84C"/>
+                  <stop offset="100%" stop-color="#8B6914"/>
+                </linearGradient>
+              </defs>
+              <!-- Hanger hook -->
+              <path d="M40 14 C40 14 44 10 48 14 C52 18 48 22 40 22" stroke="url(#goldGr)" stroke-width="3" stroke-linecap="round" fill="none"/>
+              <!-- Hanger body -->
+              <path d="M40 22 L12 58 Q10 62 14 62 L66 62 Q70 62 68 58 Z" stroke="url(#goldGr)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+              <!-- AI circuit nodes -->
+              <circle cx="20" cy="50" r="2.5" fill="#C9A84C" opacity="0.8"/>
+              <circle cx="35" cy="44" r="2.5" fill="#C9A84C" opacity="0.8"/>
+              <line x1="20" y1="50" x2="35" y2="44" stroke="#C9A84C" stroke-width="1.2" stroke-dasharray="3 2" opacity="0.5"/>
+              <circle cx="50" cy="48" r="2" fill="#F0D080" opacity="0.7"/>
+              <line x1="35" y1="44" x2="50" y2="48" stroke="#C9A84C" stroke-width="1.2" stroke-dasharray="3 2" opacity="0.5"/>
+            </svg>
+          </div>
+          <div class="brand-name-text">AiVestire</div>
+          <div class="brand-tagline">Fashion · Elevated</div>
+        </a>
+        <div class="live-badge">
+          <div class="live-dot"></div>
+          Secure Checkout
+        </div>
+      </header>
+
+      <!-- Checkout Card -->
+      <main class="checkout-card" id="checkout-card">
+
+        <!-- Error Banner -->
+        <div class="error-banner" id="error-banner" role="alert" aria-live="assertive">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <circle cx="12" cy="16.5" r="0.5" fill="currentColor"/>
+          </svg>
+          <span id="error-message">Something went wrong. Please try again.</span>
+        </div>
+
+        <!-- Order Summary -->
+        <div class="section-label">Order Summary</div>
+        <div class="order-summary" id="order-summary" aria-label="Order details">
+          <div class="order-summary-header">
+            <div class="order-icon-wrap" aria-hidden="true">🛍️</div>
+            <div class="order-meta">
+              <div class="order-title">Your Order</div>
+              <div class="order-number" id="display-order-number">#ORD-00001</div>
+            </div>
+            <div class="order-status">
+              <svg width="8" height="8" viewBox="0 0 8 8" aria-hidden="true"><circle cx="4" cy="4" r="4" fill="currentColor"/></svg>
+              Confirmed
+            </div>
+          </div>
+
+          <div class="summary-rows">
+            <div class="summary-row">
+              <span class="lbl">Subtotal</span>
+              <span class="val" id="display-subtotal">₹949.00</span>
+            </div>
+            <div class="summary-row">
+              <span class="lbl">Shipping</span>
+              <span class="val free">FREE</span>
+            </div>
+            <div class="summary-row">
+              <span class="lbl">Taxes (GST 5%)</span>
+              <span class="val" id="display-tax">₹50.00</span>
+            </div>
+            <div class="summary-sep"></div>
+            <div class="summary-row total">
+              <span class="lbl">Total Payable</span>
+              <div class="total-amount">
+                <span class="currency-label">INR</span>
+                <span class="big-price" id="display-amount">₹999.00</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Accepted Payment Methods -->
+        <div class="payment-section">
+          <div class="section-label">Accepted via PayU</div>
+          <div class="payment-grid" role="list" aria-label="Accepted payment methods">
+
+            <!-- Card -->
+            <div class="pm-chip" role="listitem" title="Credit & Debit Cards">
+              <div class="pm-ico">
+                <svg viewBox="0 0 30 30" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <rect width="30" height="30" rx="7" fill="rgba(201,168,76,0.1)"/>
+                  <rect x="4" y="9" width="22" height="14" rx="2.5" stroke="#C9A84C" stroke-width="1.5"/>
+                  <line x1="4" y1="13" x2="26" y2="13" stroke="#C9A84C" stroke-width="1.5"/>
+                  <rect x="6" y="16" width="5" height="2" rx="0.7" fill="#C9A84C" opacity="0.7"/>
+                  <rect x="13" y="16" width="3" height="2" rx="0.7" fill="#C9A84C" opacity="0.4"/>
+                </svg>
+              </div>
+              <span class="pm-lbl">Card</span>
+            </div>
+
+            <!-- Net Banking -->
+            <div class="pm-chip" role="listitem" title="Net Banking">
+              <div class="pm-ico">
+                <svg viewBox="0 0 30 30" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <rect width="30" height="30" rx="7" fill="rgba(96,165,250,0.1)"/>
+                  <path d="M15 5L24 10H6L15 5Z" stroke="#60a5fa" stroke-width="1.4" stroke-linejoin="round" fill="rgba(96,165,250,0.08)"/>
+                  <rect x="7.5" y="11" width="2.5" height="8" rx="0.6" fill="#60a5fa" opacity="0.85"/>
+                  <rect x="13.75" y="11" width="2.5" height="8" rx="0.6" fill="#60a5fa" opacity="0.85"/>
+                  <rect x="20" y="11" width="2.5" height="8" rx="0.6" fill="#60a5fa" opacity="0.85"/>
+                  <line x1="6" y1="20.5" x2="24" y2="20.5" stroke="#60a5fa" stroke-width="1.4"/>
+                </svg>
+              </div>
+              <span class="pm-lbl">NetBank</span>
+            </div>
+
+            <!-- UPI -->
+            <div class="pm-chip" role="listitem" title="UPI — PhonePe, GPay, Paytm">
+              <div class="pm-ico">
+                <svg viewBox="0 0 30 30" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <rect width="30" height="30" rx="7" fill="rgba(139,92,246,0.12)"/>
+                  <text x="50%" y="56%" text-anchor="middle" dominant-baseline="middle" fill="#a78bfa" font-size="10.5" font-weight="800" font-family="Outfit,Inter,sans-serif">UPI</text>
+                </svg>
+              </div>
+              <span class="pm-lbl">UPI</span>
+            </div>
+
+            <!-- Wallets -->
+            <div class="pm-chip" role="listitem" title="Paytm, PhonePe Wallet & more">
+              <div class="pm-ico">
+                <svg viewBox="0 0 30 30" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <rect width="30" height="30" rx="7" fill="rgba(52,211,153,0.1)"/>
+                  <rect x="4" y="11" width="22" height="12" rx="2" stroke="#34d399" stroke-width="1.5"/>
+                  <path d="M21 5H9C7 5 5 7 5 9V11H25V9C25 7 23 5 21 5Z" stroke="#34d399" stroke-width="1.4" fill="rgba(52,211,153,0.08)"/>
+                  <circle cx="20" cy="17" r="2.2" fill="#34d399" opacity="0.8"/>
+                </svg>
+              </div>
+              <span class="pm-lbl">Wallets</span>
+            </div>
+
+            <!-- EMI -->
+            <div class="pm-chip" role="listitem" title="No-cost EMI available">
+              <div class="pm-ico">
+                <svg viewBox="0 0 30 30" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <rect width="30" height="30" rx="7" fill="rgba(251,146,60,0.1)"/>
+                  <text x="50%" y="56%" text-anchor="middle" dominant-baseline="middle" fill="#fb923c" font-size="9.5" font-weight="800" font-family="Outfit,Inter,sans-serif">EMI</text>
+                </svg>
+              </div>
+              <span class="pm-lbl">EMI</span>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Security Row -->
+        <div class="security-row" role="list" aria-label="Security certifications">
+          <div class="sec-item" role="listitem">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" aria-hidden="true">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            </svg>
+            256-bit SSL
+          </div>
+          <div class="sec-sep" aria-hidden="true"></div>
+          <div class="sec-item" role="listitem">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" aria-hidden="true">
+              <rect x="3" y="11" width="18" height="11" rx="2"/>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+            PCI DSS
+          </div>
+          <div class="sec-sep" aria-hidden="true"></div>
+          <div class="sec-item" role="listitem">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" aria-hidden="true">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+            Bank-Grade
+          </div>
+        </div>
+
+        <!-- Pay Button -->
+        <div class="pay-btn-wrap">
+          <button class="pay-btn" id="pay-btn" onclick="initiatePayment()" aria-label="Proceed to pay securely">
+            <div class="btn-inner">
+              <div class="btn-spinner" id="btn-spinner" aria-hidden="true"></div>
+              <div class="btn-icon-wrap" id="btn-icon" aria-hidden="true">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                </svg>
+              </div>
+              <span id="btn-text">Pay Securely — ₹999.00</span>
+            </div>
+          </button>
+          <div class="pay-btn-sub" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            You'll be redirected securely to PayU to complete payment
+          </div>
+        </div>
+
+        <!-- Card Footer -->
+        <div class="card-footer">
+          <div class="powered-badge" aria-label="Secured and powered by PayU">
+            🔐 &nbsp;Secured by&nbsp;
+            <span class="payu-logo">PayU</span>
+            <span class="sep">·</span>
+            End-to-End Encrypted
+          </div>
+          <p class="footer-links">
+            By continuing you agree to our
+            <a href="#" id="terms-link">Terms of Service</a>
+            &amp;
+            <a href="#" id="privacy-link">Privacy Policy</a>
+          </p>
+        </div>
+
+      </main><!-- /checkout-card -->
+    </div><!-- /page-wrapper -->
+
+    <script>
+      // ─── CONFIG: Update these for your app ──────────────────────────────
+      const ORDER_ID   = 'YOUR_INTERNAL_ORDER_UUID'; // e.g. from route params
+      const API_BASE   = 'https://your-backend.com'; // your NestJS backend URL
+      const AUTH_TOKEN = localStorage.getItem('accessToken') ?? '';
+      // ────────────────────────────────────────────────────────────────────
+
+      const btn         = document.getElementById('pay-btn');
+      const btnText     = document.getElementById('btn-text');
+      const btnIcon     = document.getElementById('btn-icon');
+      const btnSpinner  = document.getElementById('btn-spinner');
+      const errorBanner = document.getElementById('error-banner');
+      const errorMsg    = document.getElementById('error-message');
+
+      function showError(message) {
+        errorMsg.textContent = message;
+        errorBanner.classList.add('visible');
+        errorBanner.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+
+      function hideError() {
+        errorBanner.classList.remove('visible');
+      }
+
+      function setLoading(loading) {
+        btn.disabled                 = loading;
+        btnSpinner.style.display     = loading ? 'block' : 'none';
+        btnIcon.style.display        = loading ? 'none'  : 'flex';
+        btnText.textContent          = loading ? 'Processing payment…' : 'Pay Securely — ₹999.00';
+        btn.setAttribute('aria-busy', loading ? 'true' : 'false');
+      }
+
+      /**
+       * Step 1: Call backend to get PayU payload.
+       * Step 2: Build a hidden HTML form and auto-submit it to PayU.
+       */
+      async function initiatePayment() {
+        hideError();
+        setLoading(true);
+
+        try {
+          // ── Call backend ─────────────────────────────────────────────────
+          const response = await fetch(`${API_BASE}/payments/initiate`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${AUTH_TOKEN}`,
+            },
+            body: JSON.stringify({ orderId: ORDER_ID }),
+          });
+
+          if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message ?? 'Payment initiation failed');
+          }
+
+          /** @type {import('./types').CreatePayUOrderResponse} */
+          const payload = await response.json();
+
+          // ── Auto-submit form to PayU ──────────────────────────────────────
+          submitPayUForm(payload);
+
+        } catch (err) {
+          console.error('Payment initiation error:', err);
+          showError(err.message ?? 'Something went wrong. Please try again.');
+          setLoading(false);
+        }
+      }
+
+      /**
+       * Builds a hidden HTML form and posts it directly to PayU's payment page.
+       *
+       * @param {{
+       *   key: string,
+       *   txnid: string,
+       *   amount: string,
+       *   productinfo: string,
+       *   firstname: string,
+       *   email: string,
+       *   phone: string,
+       *   surl: string,
+       *   furl: string,
+       *   hash: string,
+       *   action: string
+       * }} payload
+       */
+      function submitPayUForm(payload) {
+        // The form MUST be a real browser form POST — never use fetch() for this.
+        const form     = document.createElement('form');
+        form.method    = 'POST';
+        form.action    = payload.action;   // PayU endpoint from backend
+        form.style.display = 'none';
+
+        const fields = {
+          key:               payload.key,
+          txnid:             payload.txnid,
+          amount:            payload.amount,
+          productinfo:       payload.productinfo,
+          firstname:         payload.firstname,
+          email:             payload.email,
+          phone:             payload.phone,
+          surl:              payload.surl,
+          furl:              payload.furl,
+          hash:              payload.hash,
+          service_provider:  'payu_paisa',   // required by PayU
+        };
+
+        Object.entries(fields).forEach(([name, value]) => {
+          const input   = document.createElement('input');
+          input.type    = 'hidden';
+          input.name    = name;
+          input.value   = value ?? '';
+          form.appendChild(input);
+        });
+
+        document.body.appendChild(form);
+        form.submit();
+      }
+    </script>
+  </body>
+</html>

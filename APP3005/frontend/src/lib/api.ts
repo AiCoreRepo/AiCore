@@ -31,9 +31,25 @@ export interface TryOnPermission {
   userId: string;
   userEmail: string;
   userName?: string;
-  status: TryOnPermissionStatus;
+  status: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface ProductGroup {
+  group_id: string;
+  creator_id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  parent_id: string | null;
+  created_at: string;
+  updated_at: string;
+  children_groups: ProductGroup[];
+  _count?: {
+    products: number;
+    children?: number;
+  };
 }
 
 export async function login(data: { email: string; password: string }) {
@@ -197,13 +213,18 @@ export async function getDashboardMetrics() {
   return res.json();
 }
 
-export async function getCreatorProducts(page: number = 1, limit: number = 10) {
+export async function getCreatorProducts(page: number = 1, limit: number = 10, groupId?: string) {
   const token = localStorage.getItem('access_token');
   if (!token) {
     throw new Error('No access token found');
   }
 
-  const res = await fetch(`${BASE_URL}/creator-dashboard/products?page=${page}&limit=${limit}`, {
+  let url = `${BASE_URL}/creator-dashboard/products?page=${page}&limit=${limit}`;
+  if (groupId) {
+    url += `&groupId=${groupId}`;
+  }
+
+  const res = await fetch(url, {
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',
@@ -312,6 +333,14 @@ export async function createProduct(data: {
   inventory_count?: number;
   images: string[];
   tags?: Array<{ name: string }>;
+  group_ids?: string[];
+  occasions?: string[];
+  body_shapes?: string[];
+  skin_tones?: string[];
+  sizes?: string[];
+  age_ranges?: string[];
+  category_id?: string;
+  sub_category_id?: string;
 }) {
   const token = localStorage.getItem('access_token');
   if (!token) {
@@ -349,7 +378,15 @@ export async function updateProduct(
     inventory_count?: number;
     images?: string[];
     tags?: Array<{ name: string }>;
+    group_ids?: string[];
     status?: string;
+    occasions?: string[];
+    body_shapes?: string[];
+    skin_tones?: string[];
+    sizes?: string[];
+    age_ranges?: string[];
+    category_id?: string;
+    sub_category_id?: string;
   }
 ) {
   const token = localStorage.getItem('access_token');
@@ -1416,6 +1453,7 @@ export interface CartSummaryAPI {
 export interface CartAPIResponse {
   cart_id: string;
   user_id: string;
+  applied_coupon_code?: string | null;
   items: CartItemAPI[];
   summary: CartSummaryAPI;
   created_at: string;
@@ -1425,6 +1463,7 @@ export interface CartAPIResponse {
 export interface GuestCartAPIResponse {
   guest_cart_id: string;
   session_id: string;
+  applied_coupon_code?: string | null;
   expires_at: string;
   items: Array<CartItemAPI & { guest_cart_item_id: string }>;
   summary: CartSummaryAPI;
@@ -1655,6 +1694,266 @@ export async function mergeCart(): Promise<{ cart: CartAPIResponse; mergeResult:
   if (!res.ok) {
     const bodyText = await res.text();
     handleApiError(res, bodyText, 'Failed to merge cart');
+  }
+  return res.json();
+}
+
+// ============================================================================
+// Product Groups API Functions
+// ============================================================================
+
+export async function getCreatorGroups() {
+  const token = localStorage.getItem('access_token');
+  if (!token) {
+    throw new Error('Please login to view groups');
+  }
+
+  const res = await fetch(`${BASE_URL}/product-groups`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+  });
+
+  if (!res.ok) {
+    const bodyText = await res.text();
+    try {
+      const err = JSON.parse(bodyText);
+      throw new Error(err.message || 'Failed to fetch groups');
+    } catch {
+      throw new Error(bodyText || 'Failed to fetch groups');
+    }
+  }
+  return res.json();
+}
+
+export async function createProductGroup(data: { name: string; description?: string; parent_id?: string }) {
+  const token = localStorage.getItem('access_token');
+  if (!token) {
+    throw new Error('Please login to create groups');
+  }
+
+  const res = await fetch(`${BASE_URL}/product-groups`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!res.ok) {
+    const bodyText = await res.text();
+    try {
+      const err = JSON.parse(bodyText);
+      throw new Error(err.message || 'Failed to create group');
+    } catch {
+      throw new Error(bodyText || 'Failed to create group');
+    }
+  }
+  return res.json();
+}
+
+export async function updateProductGroup(id: string, data: { name?: string; description?: string; parent_id?: string | null }) {
+  const token = localStorage.getItem('access_token');
+  if (!token) {
+    throw new Error('Please login to update groups');
+  }
+
+  const res = await fetch(`${BASE_URL}/product-groups/${id}`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!res.ok) {
+    const bodyText = await res.text();
+    try {
+      const err = JSON.parse(bodyText);
+      throw new Error(err.message || 'Failed to update group');
+    } catch {
+      throw new Error(bodyText || 'Failed to update group');
+    }
+  }
+  return res.json();
+}
+
+export async function deleteProductGroup(id: string) {
+  const token = localStorage.getItem('access_token');
+  if (!token) {
+    throw new Error('Please login to delete groups');
+  }
+
+  const res = await fetch(`${BASE_URL}/product-groups/${id}`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+  });
+
+  if (!res.ok) {
+    const bodyText = await res.text();
+    try {
+      const err = JSON.parse(bodyText);
+      throw new Error(err.message || 'Failed to delete group');
+    } catch {
+      throw new Error(bodyText || 'Failed to delete group');
+    }
+  }
+  return res.json();
+}
+
+// ==========================================
+// CATEGORIES & SUBCATEGORIES
+// ==========================================
+
+export interface Category {
+  category_id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  subcategories?: SubCategory[];
+}
+
+export interface SubCategory {
+  sub_category_id: string;
+  category_id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export async function getCategories() {
+  const res = await fetch(`${BASE_URL}/categories`, {
+    method: 'GET',
+    headers: { 'Content-Type': 'application/json' },
+  });
+  if (!res.ok) throw new Error('Failed to fetch categories');
+  return res.json();
+}
+
+export async function getAdminCategories() {
+  const res = await fetch(`${BASE_URL}/admin/categories`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include'
+  });
+  if (!res.ok) {
+    const txt = await res.text();
+    let msg = 'Failed to fetch admin categories';
+    try { msg = JSON.parse(txt).message; } catch { }
+    throw new Error(msg);
+  }
+  return res.json();
+}
+
+export async function createCategory(data: Partial<Category>) {
+  const res = await fetch(`${BASE_URL}/admin/categories`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include',
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const txt = await res.text();
+    let msg = 'Failed to create category';
+    try { msg = JSON.parse(txt).message; } catch { }
+    throw new Error(msg);
+  }
+  return res.json();
+}
+
+export async function updateCategory(id: string, data: Partial<Category>) {
+  const res = await fetch(`${BASE_URL}/admin/categories/${id}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include',
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const txt = await res.text();
+    let msg = 'Failed to update category';
+    try { msg = JSON.parse(txt).message; } catch { }
+    throw new Error(msg);
+  }
+  return res.json();
+}
+
+export async function deleteCategory(id: string) {
+  const res = await fetch(`${BASE_URL}/admin/categories/${id}`, {
+    method: 'DELETE',
+    credentials: 'include'
+  });
+  if (!res.ok) {
+    const txt = await res.text();
+    let msg = 'Failed to delete category';
+    try { msg = JSON.parse(txt).message; } catch { }
+    throw new Error(msg);
+  }
+  return res.json();
+}
+
+export async function createSubCategory(categoryId: string, data: Partial<SubCategory>) {
+  const res = await fetch(`${BASE_URL}/admin/categories/${categoryId}/subcategories`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include',
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const txt = await res.text();
+    let msg = 'Failed to create subcategory';
+    try { msg = JSON.parse(txt).message; } catch { }
+    throw new Error(msg);
+  }
+  return res.json();
+}
+
+export async function updateSubCategory(id: string, data: Partial<SubCategory>) {
+  const res = await fetch(`${BASE_URL}/admin/subcategories/${id}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include',
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const txt = await res.text();
+    let msg = 'Failed to update subcategory';
+    try { msg = JSON.parse(txt).message; } catch { }
+    throw new Error(msg);
+  }
+  return res.json();
+}
+
+export async function deleteSubCategory(id: string) {
+  const res = await fetch(`${BASE_URL}/admin/subcategories/${id}`, {
+    method: 'DELETE',
+    credentials: 'include'
+  });
+  if (!res.ok) {
+    const txt = await res.text();
+    let msg = 'Failed to delete subcategory';
+    try { msg = JSON.parse(txt).message; } catch { }
+    throw new Error(msg);
   }
   return res.json();
 }

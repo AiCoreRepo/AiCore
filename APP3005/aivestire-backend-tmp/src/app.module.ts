@@ -16,7 +16,7 @@ import { AdminModule } from './admin/admin.module';
 import { AiTryOnModule } from './ai-tryon/ai-tryon.module';
 import { AdminSeederService } from './common/admin-seeder.service';
 import { RecommendationModule } from './recommendation/recommendation.module';
-import { DifferentAnglesGenModule } from './DifferentAnglesGen/different-angles-gen.module';
+import { DifferentAnglesGenModule } from './angles-generation/different-angles-gen.module';
 import { CartModule } from './cart/cart.module';
 import { AddressModule } from './address/address.module';
 import { WishlistModule } from './wishlist/wishlist.module';
@@ -28,6 +28,16 @@ import { PaymentModule } from './payment/payment.module';
 import { EmailModule } from './email/email.module';
 import { AdminAuthModule } from './auth/admin/admin-auth.module';
 import { UserDashboardModule } from './user-dashboard/user-dashboard.module';
+import { CouponsModule } from './coupons/coupons.module';
+import { CouponScopeModule } from './coupon-scopes/coupon-scope.module';
+import { CouponApplyModule } from './coupon-apply/coupon-apply.module';
+import { BirthdayCouponsModule } from './birthday-coupons/birthday-coupons.module';
+import { CreatorCouponsModule } from './creator-coupons/creator-coupons.module';
+import { WalletModule } from './wallet/wallet.module';
+import { ProductGroupsModule } from './product-groups/product-groups.module';
+import { CategoriesModule } from './categories/categories.module';
+import { AdminAnalyticsModule } from './admin-analytics/admin-analytics.module';
+
 
 @Module({
   imports: [
@@ -57,6 +67,15 @@ import { UserDashboardModule } from './user-dashboard/user-dashboard.module';
     EmailModule,
     AdminAuthModule,
     UserDashboardModule,
+    CouponsModule,
+    CouponScopeModule,
+    CouponApplyModule,
+    BirthdayCouponsModule,
+    CreatorCouponsModule,
+    WalletModule,
+    ProductGroupsModule,
+    CategoriesModule,
+    AdminAnalyticsModule,
   ],
   controllers: [AppController],
   providers: [AppService, AdminSeederService],

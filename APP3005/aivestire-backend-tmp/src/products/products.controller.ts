@@ -12,9 +12,11 @@ import {
 } from '@nestjs/common';
 import { ProductsService } from './products.service';
 import { BulkUploadService } from './bulk-upload.service';
+import { CreatorUploadService } from './creator-upload.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { CreateCommentDto } from './dto/create-comment.dto';
+import { CreateProductHierarchyDto, CreatePatternDto, CreateColorVariantDto } from './dto/create-product-hierarchy.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/roles.decorator';
@@ -24,7 +26,95 @@ export class ProductsController {
   constructor(
     private readonly productsService: ProductsService,
     private readonly bulkUploadService: BulkUploadService,
+    private readonly creatorUploadService: CreatorUploadService,
   ) { }
+
+  // ============================================================
+  // CREATOR UPLOAD HIERARCHY ENDPOINTS
+  // Product → Pattern → Color Variant
+  // ============================================================
+
+  /**
+   * POST /products/hierarchy
+   * Create a full product with nested patterns and color variants.
+   * This is the primary upload endpoint for the new guided creator flow.
+   */
+  @Post('hierarchy')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('CREATOR')
+  async createProductHierarchy(
+    @Request() req,
+    @Body() dto: CreateProductHierarchyDto,
+  ) {
+    return this.creatorUploadService.createProductHierarchy(dto, req.user.user_id);
+  }
+
+  /**
+   * GET /products/:id/hierarchy
+   * Get the full Product → Pattern → Color Variant tree for a product.
+   */
+  @Get(':id/hierarchy')
+  async getProductHierarchy(@Param('id') id: string) {
+    return this.creatorUploadService.getProductHierarchy(id);
+  }
+
+  /**
+   * POST /products/:id/patterns
+   * Add a new pattern to an existing product.
+   */
+  @Post(':id/patterns')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('CREATOR')
+  async addPattern(
+    @Param('id') productId: string,
+    @Request() req,
+    @Body() dto: CreatePatternDto,
+  ) {
+    return this.creatorUploadService.addPattern(productId, req.user.user_id, dto);
+  }
+
+  /**
+   * DELETE /products/patterns/:patternId
+   * Remove a pattern (and its color variants) from a product.
+   */
+  @Delete('patterns/:patternId')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('CREATOR')
+  async removePattern(
+    @Param('patternId') patternId: string,
+    @Request() req,
+  ) {
+    return this.creatorUploadService.removePattern(patternId, req.user.user_id);
+  }
+
+  /**
+   * POST /products/patterns/:patternId/variants
+   * Add a new color variant to an existing pattern.
+   */
+  @Post('patterns/:patternId/variants')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('CREATOR')
+  async addColorVariant(
+    @Param('patternId') patternId: string,
+    @Request() req,
+    @Body() dto: CreateColorVariantDto,
+  ) {
+    return this.creatorUploadService.addColorVariant(patternId, req.user.user_id, dto);
+  }
+
+  /**
+   * DELETE /products/variants/:variantId
+   * Remove a color variant from a pattern.
+   */
+  @Delete('variants/:variantId')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('CREATOR')
+  async removeColorVariant(
+    @Param('variantId') variantId: string,
+    @Request() req,
+  ) {
+    return this.creatorUploadService.removeColorVariant(variantId, req.user.user_id);
+  }
 
   /**
    * GET /products/approved
@@ -43,6 +133,7 @@ export class ProductsController {
     @Query('sortBy') sortBy?: string,
     @Query('sizes') sizes?: string,
     @Query('colors') colors?: string,
+    @Query('groupId') groupId?: string,
   ) {
     const pageNum = page ? parseInt(page, 10) : 1;
     const limitNum = limit ? parseInt(limit, 10) : 20;
@@ -59,6 +150,7 @@ export class ProductsController {
       sortBy,
       sizes,
       colors,
+      groupId,
     );
   }
 

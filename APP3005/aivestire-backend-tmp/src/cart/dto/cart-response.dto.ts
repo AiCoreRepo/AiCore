@@ -84,6 +84,9 @@ export class CartResponseDto {
   @ApiProperty()
   updated_at: Date;
 
+  @ApiPropertyOptional()
+  applied_coupon_code?: string | null;
+
   @ApiProperty({ type: [CartItemResponseDto] })
   items: CartItemResponseDto[];
 

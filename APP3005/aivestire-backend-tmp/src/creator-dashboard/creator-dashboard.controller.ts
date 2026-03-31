@@ -55,11 +55,13 @@ export class CreatorDashboardController {
     @CurrentUser() user: { user_id: string },
     @Query('page') page: number = 1,
     @Query('limit') limit: number = 10,
+    @Query('groupId') groupId?: string,
   ) {
     return await this.creatorDashboardService.getCreatorProducts(
       user.user_id,
       page,
       limit,
+      groupId,
     );
   }
 

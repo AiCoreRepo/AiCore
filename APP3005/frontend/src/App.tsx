@@ -16,6 +16,7 @@ import NotFound from "./pages/NotFound";
 import CreatorLogin from "./pages/CreatorLogin";
 import AiTryOn from "./pages/AiTryOn";
 import DashboardPage from "./app/dashboard/page";
+import CreatorCouponsPage from "./app/creator-coupons/page";
 import SettingsPage from "./app/settings/page";
 import WardrobePage from "./app/wardrobe/page";
 import AnalyticsPage from "./app/analytics/page";
@@ -25,9 +26,8 @@ import UserForgotPassword from "./pages/UserForgotPassword";
 import AuraDashboard from "./pages/AuraDashboard";
 import AuraProfile from "./pages/AuraProfile";
 import LetAIDecidePage from "./pages/LetAIDecidePage";
-import BulkUploadPage from "./app/bulk-upload";
+const CreatorUploadPage = lazy(() => import("./app/creator-upload/page"));
 import AdminDashboardPage from "./app/admin-dashboard/page";
-const AtelierApprovalPage = lazy(() => import("./app/admin-approvals/page"));
 const CartPage = lazy(() => import("./pages/CartPage"));
 const PaymentPage = lazy(() => import("./pages/PaymentPage"));
 const WishlistPage = lazy(() => import("./pages/WishlistPage"));
@@ -37,7 +37,18 @@ import AdminTryOnApprovals from "./app/admin-tryon-approvals/page";
 import AdminOrdersPage from "./app/admin-orders/page";
 import ArtisansPage from "./app/admin-artisans/page";
 import ClientelePage from "./app/admin-clientele/page";
+import AdminProductsPage from "./app/admin-products/page";
 import AdminSettingsPage from "./app/admin-settings/page";
+const AdminCreatorDetailPage = lazy(() => import("./app/admin-creator-detail/page"));
+const AdminPayoutProcessPage = lazy(() => import("./app/admin-payout-process/page"));
+const AdminCouponsPage = lazy(() => import("./app/admin-coupons/page"));
+const CreateCouponPage = lazy(() => import("./app/admin-coupons/create"));
+const EditCouponPage = lazy(() => import("./app/admin-coupons/edit"));
+const WalletPage = lazy(() => import("./pages/WalletPage"));
+const AdminWalletPage = lazy(() => import("./pages/AdminWalletPage"));
+const AdminAnalyticsPage = lazy(() => import("./pages/AdminAnalyticsPage"));
+const AdminCategoriesPage = lazy(() => import("./app/admin-categories/page"));
+
 import AdminLogin from "./pages/AdminLogin";
 import AdminSecretConfirm from "./pages/AdminSecretConfirm";
 import AdminCSVUploadPage from "./pages/AdminCSVUploadPage";
@@ -58,6 +69,8 @@ import { ReturnOrderPage } from "./features/orders/ReturnOrderPage";
 import { ReplaceOrderPage } from "./features/orders/ReplaceOrderPage";
 import UserDashboard from "./pages/UserDashboard";
 import PaymentSuccessPage from "./pages/PaymentSuccessPage";
+import PaymentFailurePage from "./pages/PaymentFailurePage";
+
 
 const queryClient = new QueryClient();
 
@@ -111,10 +124,22 @@ const App = () => (
                       <Route path="/my-orders/:orderId/replace" element={<ReplaceOrderPage />} />
                       <Route path="/track-order/:orderId" element={<OrderTrackingPage />} />
 
+                      {/* Wallet Route */}
+                      <Route path="/wallet" element={
+                        <Suspense fallback={<div className="min-h-screen bg-neutral-950 flex items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-2 border-[#D4AF37] border-t-transparent"></div></div>}>
+                          <WalletPage />
+                        </Suspense>
+                      } />
+
                       {/* Protected Creator Routes */}
                       <Route path="/creator-dashboard" element={
                         <ProtectedRoute requiredRole="CREATOR" redirectTo="/login">
                           <DashboardPage />
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/creator-coupons" element={
+                        <ProtectedRoute requiredRole="CREATOR" redirectTo="/login">
+                          <CreatorCouponsPage />
                         </ProtectedRoute>
                       } />
                       <Route path="/settings" element={
@@ -132,10 +157,12 @@ const App = () => (
                           <AnalyticsPage />
                         </ProtectedRoute>
                       } />
-                      <Route path="/bulk-upload" element={
-                        <ProtectedRoute requiredRole="CREATOR" redirectTo="/login">
-                          <BulkUploadPage />
-                        </ProtectedRoute>
+                      <Route path="/creator-upload" element={
+                        <Suspense fallback={<div className="min-h-screen bg-neutral-950 flex items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-2 border-[#D4AF37] border-t-transparent"></div></div>}>
+                          <ProtectedRoute requiredRole="CREATOR" redirectTo="/login">
+                            <CreatorUploadPage />
+                          </ProtectedRoute>
+                        </Suspense>
                       } />
 
                       {/* User Auth Routes */}
@@ -153,18 +180,58 @@ const App = () => (
                       <Route path="/admin-login" element={<AdminLogin />} />
                       <Route path="/admin-secret-confirm" element={<AdminSecretConfirm />} />
                       <Route path="/admin-dashboard" element={<AdminDashboardPage />} />
-                      <Route path="/admin-approvals" element={
+                      <Route path="/admin-categories" element={
                         <Suspense fallback={<div className="min-h-screen bg-neutral-950 flex items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-2 border-[#D4AF37] border-t-transparent"></div></div>}>
-                          <AtelierApprovalPage />
+                          <AdminCategoriesPage />
                         </Suspense>
                       } />
                       <Route path="/admin-tryon-approvals" element={<AdminTryOnApprovals />} />
                       <Route path="/admin-orders" element={<AdminOrdersPage />} />
+                      <Route path="/admin-products" element={
+                        <Suspense fallback={<div className="min-h-screen bg-neutral-950 flex items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-2 border-[#D4AF37] border-t-transparent"></div></div>}>
+                          <AdminProductsPage />
+                        </Suspense>
+                      } />
                       <Route path="/admin-collection" element={<AdminCollectionPage />} />
                       <Route path="/admin-artisans" element={<ArtisansPage />} />
+                      <Route path="/admin-artisans/:creatorId" element={
+                        <Suspense fallback={<div className="min-h-screen bg-neutral-950 flex items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-2 border-[#D4AF37] border-t-transparent"></div></div>}>
+                          <AdminCreatorDetailPage />
+                        </Suspense>
+                      } />
                       <Route path="/admin-clientele" element={<ClientelePage />} />
                       <Route path="/admin-settings" element={<AdminSettingsPage />} />
                       <Route path="/admin-csv-upload" element={<AdminCSVUploadPage />} />
+                      <Route path="/admin-payout-process/:creatorId" element={
+                        <Suspense fallback={<div className="min-h-screen bg-neutral-950 flex items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-2 border-[#D4AF37] border-t-transparent"></div></div>}>
+                          <AdminPayoutProcessPage />
+                        </Suspense>
+                      } />
+                      <Route path="/admin-wallet" element={
+                        <Suspense fallback={<div className="min-h-screen bg-neutral-950 flex items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-2 border-[#D4AF37] border-t-transparent"></div></div>}>
+                          <AdminWalletPage />
+                        </Suspense>
+                      } />
+                      <Route path="/admin-analytics" element={
+                        <Suspense fallback={<div className="min-h-screen bg-neutral-950 flex items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-2 border-[#D4AF37] border-t-transparent"></div></div>}>
+                          <AdminAnalyticsPage />
+                        </Suspense>
+                      } />
+                      <Route path="/admin-coupons" element={
+                        <Suspense fallback={<div className="min-h-screen bg-neutral-950 flex items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-2 border-[#D4AF37] border-t-transparent"></div></div>}>
+                          <AdminCouponsPage />
+                        </Suspense>
+                      } />
+                      <Route path="/admin-coupons/create" element={
+                        <Suspense fallback={<div className="min-h-screen bg-neutral-950 flex items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-2 border-[#D4AF37] border-t-transparent"></div></div>}>
+                          <CreateCouponPage />
+                        </Suspense>
+                      } />
+                      <Route path="/admin-coupons/edit/:id" element={
+                        <Suspense fallback={<div className="min-h-screen bg-neutral-950 flex items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-2 border-[#D4AF37] border-t-transparent"></div></div>}>
+                          <EditCouponPage />
+                        </Suspense>
+                      } />
 
                       {/* Payment Routes */}
                       <Route path="/payment" element={
@@ -173,6 +240,7 @@ const App = () => (
                         </Suspense>
                       } />
                       <Route path="/payment-success" element={<PaymentSuccessPage />} />
+                      <Route path="/payment-failure" element={<PaymentFailurePage />} />
 
                       {/* Legal Pages */}
                       <Route path="/privacy-policy" element={<PrivacyPolicy />} />

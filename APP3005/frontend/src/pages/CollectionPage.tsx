@@ -6,6 +6,7 @@ import { ProductCard } from "@/components/collection/ProductCard";
 import { useInfinitePublicProducts } from "@/hooks/useInfinitePublicProducts";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useAuth } from "@/context/AuthContext";
+import { useCart } from "@/context/CartContext";
 import { auraGate } from "@/utils/auraGate";
 import { ChevronDown, Heart, Search, X, SlidersHorizontal, ArrowUpDown } from "lucide-react";
 import { TryOnInterstitialModal } from "@/components/TryOnInterstitialModal";
@@ -23,6 +24,7 @@ const CollectionPage = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const { user } = useAuth();
+    const { lastAddedProductId, clearLastAddedProductId } = useCart();
 
     // Aura Welcome Modal State
     const [showAuraWelcomeModal, setShowAuraWelcomeModal] = useState(false);
@@ -106,6 +108,33 @@ const CollectionPage = () => {
 
         return () => observer.disconnect();
     }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+    // Scroll-to-last-added-item on back navigation
+    useEffect(() => {
+        if (!lastAddedProductId || isLoading) return;
+
+        // Small delay to ensure DOM is rendered
+        const timeout = setTimeout(() => {
+            const el = document.getElementById(`product-card-${lastAddedProductId}`);
+            if (el) {
+                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                // Apply gold pulse highlight
+                el.style.transition = 'box-shadow 0.3s ease, transform 0.3s ease';
+                el.style.boxShadow = '0 0 0 3px rgba(212, 175, 55, 0.6), 0 8px 24px rgba(212, 175, 55, 0.25)';
+                el.style.transform = 'scale(1.02)';
+                el.style.borderRadius = '12px';
+
+                // Remove highlight after 2s
+                setTimeout(() => {
+                    el.style.boxShadow = '';
+                    el.style.transform = '';
+                }, 2000);
+            }
+            clearLastAddedProductId();
+        }, 500);
+
+        return () => clearTimeout(timeout);
+    }, [lastAddedProductId, isLoading, clearLastAddedProductId]);
 
     // Helper functions
     // ... kept for potential usage or removed if unused. 

@@ -8,15 +8,7 @@ import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { Prisma, ProductStatus, ApprovalStatus } from '@prisma/client';
 import { CloudinaryService } from '../common/cloudinary.service';
-
-function slugify(input: string): string {
-  return input
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9\s-]/g, '')
-    .replace(/\s+/g, '-')
-    .replace(/-+/g, '-');
-}
+import { slugify } from '../common/utils/string.utils';
 
 @Injectable()
 export class ProductsService {
@@ -50,6 +42,8 @@ export class ProductsService {
         price_cents: dto.price_cents,
         currency: dto.currency ?? undefined,
         inventory_count: dto.inventory_count ?? undefined,
+        category_rel: dto.category_id ? { connect: { category_id: dto.category_id } } : undefined,
+        sub_category_rel: dto.sub_category_id ? { connect: { sub_category_id: dto.sub_category_id } } : undefined,
         creator: { connect: { creator_id: dto.creator_id } },
         images: {
           create: imageUrls.map((image, index) => ({
@@ -59,7 +53,19 @@ export class ProductsService {
           })),
         },
       };
-      return await this.prisma.product.create({ data });
+      
+      const product = await this.prisma.product.create({ data });
+
+      if (dto.group_ids && dto.group_ids.length > 0) {
+        await this.prisma.productGroupAssignment.createMany({
+          data: dto.group_ids.map((groupId) => ({
+            product_id: product.product_id,
+            group_id: groupId,
+          })),
+        });
+      }
+
+      return product;
     } catch (e: unknown) {
       throw new BadRequestException(
         e instanceof Error ? e.message : 'Unknown error',
@@ -76,6 +82,8 @@ export class ProductsService {
         currency: dto.currency,
         inventory_count: dto.inventory_count,
         slug: dto.slug,
+        category_rel: dto.category_id ? { connect: { category_id: dto.category_id } } : undefined,
+        sub_category_rel: dto.sub_category_id ? { connect: { sub_category_id: dto.sub_category_id } } : undefined,
       };
 
       Object.keys(updateData).forEach(
@@ -162,6 +170,8 @@ export class ProductsService {
             comments_count: true,
           },
         },
+        category_rel: true,
+        sub_category_rel: true,
       },
     });
 
@@ -169,11 +179,15 @@ export class ProductsService {
       throw new NotFoundException('Product not found');
     }
 
+    const commissionAddon = Math.round(product.price_cents * (product.commission_percentage / 100));
+    const sellingPrice = product.price_cents + commissionAddon;
+
     return {
       product_id: product.product_id,
       title: product.title,
       description: product.description,
-      price_cents: product.price_cents,
+      price_cents: sellingPrice,
+      original_price_cents: product.price_cents,
       currency: product.currency,
       thumbnail: product.images[0]?.url || null,
       images: product.images.map((img) => ({
@@ -182,6 +196,10 @@ export class ProductsService {
         order_index: img.order_index,
       })),
       category: product.category,
+      category_id: product.category_id,
+      sub_category_id: product.sub_category_id,
+      category_name: product.category_rel?.name,
+      sub_category_name: product.sub_category_rel?.name,
       is_featured: product.is_featured,
       likes: product.stats?.likes_count || 0,
       reviews: product.stats?.comments_count || 0,
@@ -211,12 +229,14 @@ export class ProductsService {
     sortBy?: string,
     sizes?: string,
     colors?: string,
+    groupId?: string,
   ) {
     // Fetch all approved products to filter in memory (efficient for < 5000 items)
     const allProducts = await this.prisma.product.findMany({
       where: {
         status: ProductStatus.APPROVED,
         is_deleted: false,
+        ...(groupId ? { group_assignments: { some: { group_id: groupId } } } : {}),
       },
       include: {
         creator: {
@@ -237,6 +257,8 @@ export class ProductsService {
             comments_count: true,
           },
         },
+        category_rel: true,
+        sub_category_rel: true,
       },
       orderBy: { updated_at: 'desc' },
     });
@@ -323,12 +345,17 @@ export class ProductsService {
     const paginatedProducts = filtered.slice(skip, skip + limit);
 
     return {
-      products: paginatedProducts.map((product) => ({
-        product_id: product.product_id,
-        title: product.title,
-        description: product.description,
-        price_cents: product.price_cents,
-        currency: product.currency,
+      products: paginatedProducts.map((product) => {
+        const commissionAddon = Math.round(product.price_cents * (product.commission_percentage / 100));
+        const sellingPrice = product.price_cents + commissionAddon;
+        
+        return {
+          product_id: product.product_id,
+          title: product.title,
+          description: product.description,
+          price_cents: sellingPrice,
+          original_price_cents: product.price_cents,
+          currency: product.currency,
         thumbnail: product.images[0]?.url || null,
         images: product.images.map((img) => ({
           url: img.url,
@@ -336,6 +363,10 @@ export class ProductsService {
           order_index: img.order_index,
         })),
         category: product.category,
+        category_id: product.category_id,
+        sub_category_id: product.sub_category_id,
+        category_name: product.category_rel?.name,
+        sub_category_name: product.sub_category_rel?.name,
         is_featured: product.is_featured,
         likes: product.stats?.likes_count || 0,
         reviews: product.stats?.comments_count || 0,
@@ -346,8 +377,8 @@ export class ProductsService {
           store_slug: product.creator.store_slug,
           verified: product.creator.verified,
         },
-        metadata: product.metadata,
-      })),
+        };
+      }),
       pagination: {
         page,
         limit,

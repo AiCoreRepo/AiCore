@@ -518,7 +518,7 @@ const AdminOrdersPage = () => {
             {/* Mobile sidebar: slide in as overlay */}
             <div
                 className={`
-                    fixed top-0 left-0 h-full z-50 lg:hidden
+                    fixed top-0 left-0 h-full z-50 lg:hidden w-[280px]
                     transition-transform duration-300 ease-in-out
                     ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
                 `}
