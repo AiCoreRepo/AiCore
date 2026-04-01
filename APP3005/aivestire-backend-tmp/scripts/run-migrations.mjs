@@ -10,7 +10,7 @@ import { loadLocalEnvFiles } from './load-env.mjs';
 loadLocalEnvFiles();
 
 const PRISMA_CLI = './node_modules/prisma/build/index.js';
-const KNOWN_PREAPPLIED_MIGRATION = '20260215_add_refund_return_replacement';
+const KNOWN_PREAPPLIED_MIGRATION = '0001_init';
 const KNOWN_FAILED_MIGRATION = '20260228000000_add_coupon_scopes';
 const MAX_RECOVERY_ATTEMPTS = 5;
 
@@ -66,16 +66,61 @@ async function getFailedMigrations() {
   }
 }
 
-async function hasRefundReplacementSchema() {
+async function hasBaselineSchema() {
   const prisma = new PrismaClient();
 
   try {
     const [tableRows, columnRows] = await Promise.all([
       prisma.$queryRaw`
         SELECT
-          to_regclass('public.order_refunds') IS NOT NULL AS has_order_refunds,
-          to_regclass('public.order_returns') IS NOT NULL AS has_order_returns,
-          to_regclass('public.order_replacements') IS NOT NULL AS has_order_replacements
+          EXISTS (
+            SELECT 1
+            FROM information_schema.tables
+            WHERE table_schema = 'public'
+              AND table_name = 'User'
+          ) AS has_user_table,
+          EXISTS (
+            SELECT 1
+            FROM information_schema.tables
+            WHERE table_schema = 'public'
+              AND table_name = 'Creator'
+          ) AS has_creator_table,
+          EXISTS (
+            SELECT 1
+            FROM information_schema.tables
+            WHERE table_schema = 'public'
+              AND table_name = 'Product'
+          ) AS has_product_table,
+          EXISTS (
+            SELECT 1
+            FROM information_schema.tables
+            WHERE table_schema = 'public'
+              AND table_name = 'orders'
+          ) AS has_orders_table,
+          EXISTS (
+            SELECT 1
+            FROM information_schema.tables
+            WHERE table_schema = 'public'
+              AND table_name = 'payment_transactions'
+          ) AS has_payment_transactions_table,
+          EXISTS (
+            SELECT 1
+            FROM information_schema.tables
+            WHERE table_schema = 'public'
+              AND table_name = 'order_refunds'
+          ) AS has_order_refunds,
+          EXISTS (
+            SELECT 1
+            FROM information_schema.tables
+            WHERE table_schema = 'public'
+              AND table_name = 'order_returns'
+          ) AS has_order_returns,
+          EXISTS (
+            SELECT 1
+            FROM information_schema.tables
+            WHERE table_schema = 'public'
+              AND table_name = 'order_replacements'
+          ) AS has_order_replacements
       `,
       prisma.$queryRaw`
         SELECT
@@ -107,7 +152,12 @@ async function hasRefundReplacementSchema() {
     const columns = Array.isArray(columnRows) ? columnRows[0] : null;
 
     return Boolean(
-      tables?.has_order_refunds &&
+      tables?.has_user_table &&
+        tables?.has_creator_table &&
+        tables?.has_product_table &&
+        tables?.has_orders_table &&
+        tables?.has_payment_transactions_table &&
+        tables?.has_order_refunds &&
         tables?.has_order_returns &&
         tables?.has_order_replacements &&
         columns?.has_refund_status &&
@@ -128,13 +178,15 @@ async function main() {
     }
 
     let failedMigrations = [];
-    let refundMigrationRecorded = false;
-    let refundSchemaExists = false;
+    let baselineMigrationRecorded = false;
+    let baselineSchemaExists = false;
 
     try {
       failedMigrations = await getFailedMigrations();
-      refundMigrationRecorded = await isMigrationRecorded(KNOWN_PREAPPLIED_MIGRATION);
-      refundSchemaExists = await hasRefundReplacementSchema();
+      baselineMigrationRecorded = await isMigrationRecorded(
+        KNOWN_PREAPPLIED_MIGRATION,
+      );
+      baselineSchemaExists = await hasBaselineSchema();
     } catch (error) {
       process.stderr.write(
         `[migrate-startup] Unable to inspect migration history after failed deploy: ${String(error?.message || error)}\n`,
@@ -142,9 +194,12 @@ async function main() {
       process.exit(deployStatus);
     }
 
-    if (failedMigrations.includes(KNOWN_PREAPPLIED_MIGRATION) && refundSchemaExists) {
+    if (
+      failedMigrations.includes(KNOWN_PREAPPLIED_MIGRATION) &&
+      baselineSchemaExists
+    ) {
       process.stdout.write(
-        `[migrate-startup] Marking duplicate consolidated migration as applied: ${KNOWN_PREAPPLIED_MIGRATION}\n`,
+        `[migrate-startup] Marking consolidated baseline migration as applied: ${KNOWN_PREAPPLIED_MIGRATION}\n`,
       );
 
       const resolveStatus = runPrismaMigrate([
@@ -180,9 +235,9 @@ async function main() {
       continue;
     }
 
-    if (!refundMigrationRecorded && refundSchemaExists) {
+    if (!baselineMigrationRecorded && baselineSchemaExists) {
       process.stdout.write(
-        `[migrate-startup] Marking known consolidated migration as applied: ${KNOWN_PREAPPLIED_MIGRATION}\n`,
+        `[migrate-startup] Baseline schema detected; marking ${KNOWN_PREAPPLIED_MIGRATION} as applied\n`,
       );
 
       const resolveStatus = runPrismaMigrate([

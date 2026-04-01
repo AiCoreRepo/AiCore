@@ -185,6 +185,9 @@ export class OrderService {
     // Validate all products were found
     OrderValidations.validateProductsFound(products.length, productIds.length);
 
+    // COD and WALLET orders are instantly confirmed/booked. Prepaid wait for payment.
+    const initialStatus = (dto.paymentMethod === PaymentMethod.COD || dto.paymentMethod === PaymentMethod.WALLET) ? OrderStatus.BOOKED : OrderStatus.PENDING;
+
     // Calculate total and prepare order items
     const orderItems = dto.items.map((item) => {
       const product = products.find((p) => p.product_id === item.productId);
@@ -200,7 +203,11 @@ export class OrderService {
         product.title,
       );
 
-      const unitPrice = product.price_cents / 100;
+      // Add-on Pricing Model
+      const creatorPrice = product.price_cents / 100;
+      const commission = creatorPrice * (product.commission_percentage / 100);
+      const unitPrice = creatorPrice + commission; // Buyer pays Creator Price + Commission
+      
       const totalPrice = OrderCalculations.calculateItemTotal(
         item.quantity,
         unitPrice,
@@ -210,13 +217,20 @@ export class OrderService {
         product: {
           connect: { product_id: product.product_id },
         },
+        creator: {
+          connect: { creator_id: product.creator_id },
+        },
         quantity: item.quantity,
         unit_price: unitPrice,
         total_price: totalPrice,
+        selling_price: unitPrice,
+        commission: commission,
+        creator_price: creatorPrice,
         product_name: product.title,
         product_image: product.images[0]?.url || undefined,
         size: item.size || undefined,
         color: item.color || undefined,
+        order_status: initialStatus,
         variant_details:
           item.size || item.color
             ? { size: item.size, color: item.color }
@@ -288,12 +302,6 @@ export class OrderService {
       }
     }
 
-    // COD and WALLET orders are instantly confirmed/booked. Prepaid wait for payment.
-    const initialStatus =
-      dto.paymentMethod === PaymentMethod.COD ||
-      dto.paymentMethod === PaymentMethod.WALLET
-        ? OrderStatus.BOOKED
-        : OrderStatus.PENDING;
     const initialPaymentStatus =
       dto.paymentMethod === PaymentMethod.WALLET
         ? PaymentStatus.COMPLETED
@@ -373,6 +381,22 @@ export class OrderService {
           });
         }
 
+        // Clear ordered items from the user's cart
+        const userCart = await tx.cart.findUnique({
+          where: { user_id: userId },
+        });
+        if (userCart) {
+          for (const item of dto.items) {
+            await tx.cartItem.deleteMany({
+              where: {
+                cart_id: userCart.cart_id,
+                product_id: item.productId,
+                size: item.size || null,
+                color: item.color || null,
+              },
+            });
+          }
+        }
         // Increment coupon usage if one was applied
         if (appliedCouponId) {
           await tx.coupon.update({
@@ -498,6 +522,12 @@ export class OrderService {
         if (!isStatusUnchanged && dto.status === OrderStatus.BOOKED) {
           await this.ensureInventoryDeducted(tx, orderId);
         }
+
+        // Sync the updated status to all OrderItems associated with this order
+        await tx.orderItem.updateMany({
+          where: { order_id: orderId },
+          data: { order_status: dto.status },
+        });
 
         // Create status history
         await tx.orderStatusHistory.create({

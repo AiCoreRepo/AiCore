@@ -179,11 +179,15 @@ export class ProductsService {
       throw new NotFoundException('Product not found');
     }
 
+    const commissionAddon = Math.round(product.price_cents * (product.commission_percentage / 100));
+    const sellingPrice = product.price_cents + commissionAddon;
+
     return {
       product_id: product.product_id,
       title: product.title,
       description: product.description,
-      price_cents: product.price_cents,
+      price_cents: sellingPrice,
+      original_price_cents: product.price_cents,
       currency: product.currency,
       thumbnail: product.images[0]?.url || null,
       images: product.images.map((img) => ({
@@ -341,12 +345,17 @@ export class ProductsService {
     const paginatedProducts = filtered.slice(skip, skip + limit);
 
     return {
-      products: paginatedProducts.map((product) => ({
-        product_id: product.product_id,
-        title: product.title,
-        description: product.description,
-        price_cents: product.price_cents,
-        currency: product.currency,
+      products: paginatedProducts.map((product) => {
+        const commissionAddon = Math.round(product.price_cents * (product.commission_percentage / 100));
+        const sellingPrice = product.price_cents + commissionAddon;
+        
+        return {
+          product_id: product.product_id,
+          title: product.title,
+          description: product.description,
+          price_cents: sellingPrice,
+          original_price_cents: product.price_cents,
+          currency: product.currency,
         thumbnail: product.images[0]?.url || null,
         images: product.images.map((img) => ({
           url: img.url,
@@ -368,8 +377,8 @@ export class ProductsService {
           store_slug: product.creator.store_slug,
           verified: product.creator.verified,
         },
-        metadata: product.metadata,
-      })),
+        };
+      }),
       pagination: {
         page,
         limit,

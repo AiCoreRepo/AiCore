@@ -1,53 +1,62 @@
--- CreateTable
-CREATE TABLE "product_groups" (
-    "group_id" UUID NOT NULL DEFAULT gen_random_uuid(),
-    "creator_id" UUID NOT NULL,
-    "name" TEXT NOT NULL,
-    "slug" TEXT NOT NULL,
-    "description" TEXT,
-    "parent_id" UUID,
-    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMP(3) NOT NULL,
+-- ============================================================
+-- Migration: switch_razorpay_to_payu
+-- Date: 2026-03-24
+-- Description:
+--   Replaces Razorpay with PayU as the payment gateway.
+--   1. Add PAYU value to PaymentGateway enum
+--   2. Add PAYU value to PaymentMethod enum
+--   3. Migrate existing RAZORPAY rows → PAYU
+--   4. Change default gateway on payment_transactions to PAYU
+--   5. Remove RAZORPAY from both enums (safe rename via new type)
+-- ============================================================
 
-    CONSTRAINT "product_groups_pkey" PRIMARY KEY ("group_id")
-);
+-- -------------------------------------------------------
+-- STEP 1: Add PAYU to PaymentGateway enum
+-- -------------------------------------------------------
+ALTER TYPE "PaymentGateway" ADD VALUE IF NOT EXISTS 'PAYU';
 
--- CreateTable
-CREATE TABLE "product_group_assignments" (
-    "assignment_id" UUID NOT NULL DEFAULT gen_random_uuid(),
-    "product_id" UUID NOT NULL,
-    "group_id" UUID NOT NULL,
-    "assigned_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+-- -------------------------------------------------------
+-- STEP 2: Add PAYU to PaymentMethod enum
+-- -------------------------------------------------------
+ALTER TYPE "PaymentMethod" ADD VALUE IF NOT EXISTS 'PAYU';
 
-    CONSTRAINT "product_group_assignments_pkey" PRIMARY KEY ("assignment_id")
-);
+-- -------------------------------------------------------
+-- STEP 3: Migrate existing data
+-- -------------------------------------------------------
+UPDATE "payment_transactions"
+    SET "gateway" = 'PAYU'
+    WHERE "gateway" = 'RAZORPAY';
 
--- CreateIndex
-CREATE INDEX "product_groups_creator_id_idx" ON "product_groups"("creator_id");
+UPDATE "payment_transactions"
+    SET "payment_method" = 'payu'
+    WHERE "payment_method" = 'razorpay';
 
--- CreateIndex
-CREATE INDEX "product_groups_parent_id_idx" ON "product_groups"("parent_id");
+UPDATE "orders"
+    SET "payment_method" = 'PAYU'
+    WHERE "payment_method" = 'RAZORPAY';
 
--- CreateIndex
-CREATE UNIQUE INDEX "product_groups_creator_id_slug_key" ON "product_groups"("creator_id", "slug");
+-- -------------------------------------------------------
+-- STEP 4: Change DEFAULT on payment_transactions.gateway
+-- -------------------------------------------------------
+ALTER TABLE "payment_transactions"
+    ALTER COLUMN "gateway" SET DEFAULT 'PAYU';
 
--- CreateIndex
-CREATE INDEX "product_group_assignments_group_id_idx" ON "product_group_assignments"("group_id");
+-- -------------------------------------------------------
+-- STEP 5: Remove RAZORPAY from PaymentGateway enum
+-- -------------------------------------------------------
+ALTER TYPE "PaymentGateway" RENAME TO "PaymentGateway_old";
+CREATE TYPE "PaymentGateway" AS ENUM ('PAYU', 'COD');
+ALTER TABLE "payment_transactions"
+    ALTER COLUMN "gateway" TYPE "PaymentGateway"
+    USING "gateway"::text::"PaymentGateway";
+DROP TYPE "PaymentGateway_old";
 
--- CreateIndex
-CREATE INDEX "product_group_assignments_product_id_idx" ON "product_group_assignments"("product_id");
-
--- CreateIndex
-CREATE UNIQUE INDEX "product_group_assignments_product_id_group_id_key" ON "product_group_assignments"("product_id", "group_id");
-
--- AddForeignKey
-ALTER TABLE "product_groups" ADD CONSTRAINT "product_groups_parent_id_fkey" FOREIGN KEY ("parent_id") REFERENCES "product_groups"("group_id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "product_groups" ADD CONSTRAINT "product_groups_creator_id_fkey" FOREIGN KEY ("creator_id") REFERENCES "Creator"("creator_id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "product_group_assignments" ADD CONSTRAINT "product_group_assignments_product_id_fkey" FOREIGN KEY ("product_id") REFERENCES "Product"("product_id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "product_group_assignments" ADD CONSTRAINT "product_group_assignments_group_id_fkey" FOREIGN KEY ("group_id") REFERENCES "product_groups"("group_id") ON DELETE CASCADE ON UPDATE CASCADE;
+-- -------------------------------------------------------
+-- STEP 6: Remove RAZORPAY from PaymentMethod enum
+-- -------------------------------------------------------
+ALTER TYPE "PaymentMethod" RENAME TO "PaymentMethod_old";
+CREATE TYPE "PaymentMethod" AS ENUM ('PREPAID', 'COD', 'PAYU', 'WALLET');
+ALTER TABLE "orders"
+    ALTER COLUMN "payment_method" TYPE "PaymentMethod"
+    USING "payment_method"::text::"PaymentMethod";
+DROP TYPE "PaymentMethod_old";

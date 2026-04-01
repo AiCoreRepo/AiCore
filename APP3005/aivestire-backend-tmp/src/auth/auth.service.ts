@@ -461,54 +461,12 @@ export class AuthService {
     const email = payload.email;
     const name = payload.name || email.split('@')[0];
 
+    // Admin login is intentionally disabled on Google auth.
+    // Admins must use env-based secret verification endpoint instead.
     if (dto.role === 'ADMIN') {
-      const adminEmail = process.env.ADMIN_EMAIL;
-      if (!adminEmail || email !== adminEmail) {
-        throw new UnauthorizedException('Access denied. Invalid admin email.');
-      }
-
-      // For admin, just find or create a user record — skip role mismatch checks
-      let user = await this.prisma.user.findUnique({ where: { email } });
-      if (!user) {
-        user = await this.prisma.user.create({
-          data: {
-            email,
-            role: UserRole.ADMIN,
-            status: 'active',
-          },
-        });
-      }
-
-      // Issue tokens for admin
-      const tokens = await this.issueTokens(user.user_id, 'ADMIN');
-      const bcryptMod = await getBcrypt();
-      if (!isBcryptModule(bcryptMod)) {
-        throw new Error('Failed to load bcrypt module');
-      }
-      const refresh_token_hash: string = await bcryptMod.hash(
-        tokens.refresh_token,
-        10,
+      throw new UnauthorizedException(
+        'Admin Google login is disabled. Use /auth/admin/verify-secret with ADMIN_EMAIL and ADMIN_SECRET.',
       );
-      await this.prisma.user.update({
-        where: { user_id: user.user_id },
-        data: { refresh_token_hash, last_login: new Date() },
-      });
-
-      res.cookie(
-        'refresh_token',
-        tokens.refresh_token,
-        REFRESH_TOKEN_COOKIE_OPTIONS,
-      );
-
-      return {
-        access_token: tokens.access_token,
-        user: {
-          user_id: user.user_id,
-          email: user.email,
-          role: 'ADMIN',
-          try_on_permission: user.try_on_permission,
-        },
-      };
     }
 
     // Check if user exists

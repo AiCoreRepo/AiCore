@@ -166,6 +166,7 @@ const CartPage = () => {
         });
         setShowLoginConfirm(false);
     };
+//cache invalidation after order place
 
     return (
         <div className="min-h-screen flex flex-col bg-gray-50">

@@ -58,6 +58,8 @@ model Creator {
   products          Product[]
   creator_coupons   CreatorCoupon[]
   product_groups    ProductGroup[]
+  order_items       OrderItem[]
+  payouts           Payout[]
 }
 
 model CreatorLimit {
@@ -75,6 +77,7 @@ model Product {
   slug              String                   @unique
   description       String?
   price_cents       Int
+  commission_percentage Int                  @default(10)
   currency          String                   @default("INR")
   inventory_count   Int                      @default(0)
   is_deleted        Boolean                  @default(false)
@@ -82,7 +85,7 @@ model Product {
   metadata          Json? // Recommendation attributes
   created_at        DateTime                 @default(now())
   updated_at        DateTime?
-  status            ProductStatus            @default(PENDING)
+  status            ProductStatus            @default(DRAFT)
   category          String?
   category_id       String?                  @db.Uuid
   sub_category_id   String?                  @db.Uuid
@@ -96,6 +99,7 @@ model Product {
   creator           Creator                  @relation(fields: [creator_id], references: [creator_id])
   approvals         ProductApproval[]
   images            ProductImage[]
+  patterns          ProductPattern[]
   stats             ProductStat?
   comments          ProductComment[]
   likes             ProductLike[]
@@ -108,6 +112,59 @@ model Product {
   group_assignments ProductGroupAssignment[]
   category_rel      Category?                @relation(fields: [category_id], references: [category_id])
   sub_category_rel  SubCategory?             @relation(fields: [sub_category_id], references: [sub_category_id])
+}
+
+// ============================================
+// CREATOR UPLOAD HIERARCHY
+// Product → Pattern (Body Shape) → Color Variant (Skin Tone + Stock + Images)
+// ============================================
+
+model ProductPattern {
+  pattern_id   String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  product_id   String   @db.Uuid
+  name         String   // e.g. "Slim Fit", "Relaxed Fit"
+  body_shapes  BodyShape[] // which body shapes this pattern suits
+  display_order Int     @default(0)
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+
+  product       Product              @relation(fields: [product_id], references: [product_id], onDelete: Cascade)
+  color_variants ProductColorVariant[]
+
+  @@index([product_id])
+  @@map("product_patterns")
+}
+
+model ProductColorVariant {
+  variant_id    String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  pattern_id    String     @db.Uuid
+  color         ClothingColor
+  hex_code      String?    // Optional custom hex for display
+  stock         Int        @default(0)
+  skin_tones    SkinTone[] // which skin tones this color suits
+  display_order Int        @default(0)
+  created_at    DateTime   @default(now())
+  updated_at    DateTime   @updatedAt
+
+  pattern ProductPattern          @relation(fields: [pattern_id], references: [pattern_id], onDelete: Cascade)
+  images  ProductColorVariantImage[]
+
+  @@index([pattern_id])
+  @@map("product_color_variants")
+}
+
+model ProductColorVariantImage {
+  image_id      String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  variant_id    String   @db.Uuid
+  url           String
+  order_index   Int      @default(0)
+  is_primary    Boolean  @default(false)
+  uploaded_at   DateTime @default(now())
+
+  variant ProductColorVariant @relation(fields: [variant_id], references: [variant_id], onDelete: Cascade)
+
+  @@index([variant_id])
+  @@map("product_color_variant_images")
 }
 
 model ProductGroup {
@@ -494,6 +551,68 @@ enum AddressType {
   OTHER
 }
 
+// ============================================
+// CREATOR UPLOAD ENUMS
+// ============================================
+
+enum BodyShape {
+  HOURGLASS
+  PEAR
+  APPLE
+  RECTANGLE
+  INVERTED_TRIANGLE
+  OVAL
+  ATHLETIC
+  PETITE
+  PLUS_SIZE
+}
+
+enum SkinTone {
+  FAIR
+  LIGHT
+  MEDIUM
+  OLIVE
+  TAN
+  BROWN
+  DARK_BROWN
+  DEEP
+}
+
+enum ClothingColor {
+  BLACK
+  WHITE
+  GREY
+  CHARCOAL
+  NAVY
+  ROYAL_BLUE
+  SKY_BLUE
+  TEAL
+  GREEN
+  OLIVE_GREEN
+  MINT
+  RED
+  MAROON
+  PINK
+  HOT_PINK
+  CORAL
+  ORANGE
+  YELLOW
+  GOLD
+  BEIGE
+  CREAM
+  BROWN
+  CHOCOLATE
+  CARAMEL
+  LAVENDER
+  PURPLE
+  INDIGO
+  RUST
+  OFF_WHITE
+  MULTI_COLOR
+  PRINTED
+  OTHER
+}
+
 model UserAddress {
   address_id    String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   user_id       String      @db.Uuid
@@ -605,14 +724,28 @@ model OrderItem {
   size            String?
   color           String?
 
+  // Financial Snapshot data
+  creator_id    String      @db.Uuid
+  creator_price Decimal     @db.Decimal(10, 2)
+  commission    Decimal     @db.Decimal(10, 2)
+  selling_price Decimal     @db.Decimal(10, 2)
+  order_status  OrderStatus @default(PENDING)
+  delivered_at  DateTime?
+
   created_at DateTime @default(now())
 
   // Relations
   order   Order   @relation(fields: [order_id], references: [order_id], onDelete: Cascade)
   product Product @relation(fields: [product_id], references: [product_id])
+  creator Creator @relation(fields: [creator_id], references: [creator_id])
 
   @@index([order_id])
   @@index([product_id])
+  @@index([creator_id])
+  @@index([order_status])
+  @@index([delivered_at])
+  @@index([creator_id, order_status])
+  @@index([creator_id, delivered_at])
   @@map("order_items")
 }
 
@@ -838,7 +971,7 @@ enum OrderStatus {
 enum PaymentMethod {
   PREPAID
   COD
-  RAZORPAY
+  PAYU
   WALLET
 }
 
@@ -924,7 +1057,7 @@ enum ReplacementStatus {
 // ============================================
 
 /**
- * Tracks every Razorpay order/payment attempt for an order.
+ * Tracks every PayU transaction attempt for an order.
  * One order can have multiple attempts (e.g., user retries after failure).
  */
 model PaymentTransaction {
@@ -932,21 +1065,21 @@ model PaymentTransaction {
   order_id       String @db.Uuid
 
   // Gateway Info
-  gateway            PaymentGateway @default(RAZORPAY)
-  gateway_order_id   String?        @unique // Razorpay order ID (order_XXXX)
-  gateway_payment_id String? // Razorpay payment ID (pay_XXXX)
+  gateway            PaymentGateway @default(PAYU)
+  gateway_order_id   String?        @unique // PayU txnid
+  gateway_payment_id String? // PayU mihpayid
 
   // Amount
   amount_paise Int // Amount in paise (smallest unit)
   currency     String  @default("INR")
-  receipt      String? // Unique receipt sent to Razorpay
+  receipt      String? // Unique txnid sent to PayU
 
   // Status
   status         PaymentTransactionStatus @default(CREATED)
   payment_method String? // card, upi, netbanking, wallet, etc.
 
   // Refund
-  refund_id   String? // Razorpay refund ID
+  refund_id   String? // PayU refund ID
   refunded_at DateTime?
 
   // Timestamps
@@ -954,7 +1087,7 @@ model PaymentTransaction {
   captured_at DateTime?
   updated_at  DateTime  @updatedAt
 
-  // Metadata (raw Razorpay response)
+  // Metadata (raw PayU postback response)
   metadata Json?
 
   // Relations
@@ -969,7 +1102,7 @@ model PaymentTransaction {
 }
 
 enum PaymentGateway {
-  RAZORPAY
+  PAYU
   COD
 }
 
@@ -1215,4 +1348,57 @@ enum WalletTransactionStatus {
   SUCCESS
   FAILED
   REVERSED
+}
+
+// ============================================
+// PAYOUT SYSTEM
+// ============================================
+
+enum PayoutStatus {
+  PENDING     // Row created, awaiting dispatch
+  PROCESSING  // Request sent to PayU
+  SUCCESS     // Gateway confirmed transfer
+  FAILED      // Gateway rejected transfer
+  CANCELLED   // Admin cancelled before dispatch
+}
+
+enum PayoutType {
+  FULL
+  PARTIAL
+}
+
+model Payout {
+  payout_id          String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  creator_id         String       @db.Uuid
+  amount             Decimal      @db.Decimal(10, 2)
+  payout_type        PayoutType   @default(FULL)
+  status             PayoutStatus @default(PENDING)
+
+  // Gateway fields
+  gateway_status     String?      // Raw PayU status string (success / failed / pending)
+  transaction_id     String?      // PayU transfer_id / mihpayid
+  payment_gateway    String       @default("PAYU")
+
+  // UPI / beneficiary details
+  upi_id             String?
+  phone_number       String?
+
+  // Audit
+  processed_by_admin String?      @db.Uuid // admin user_id (no FK to keep User model clean)
+
+  // Timestamps
+  initiated_at       DateTime     @default(now())
+  completed_at       DateTime?
+  failed_at          DateTime?
+  failure_reason     String?
+  note               String?
+  created_at         DateTime     @default(now())
+
+  creator Creator @relation(fields: [creator_id], references: [creator_id])
+
+  @@index([creator_id])
+  @@index([status])
+  @@index([creator_id, status])
+  @@index([transaction_id])
+  @@map("payouts")
 }

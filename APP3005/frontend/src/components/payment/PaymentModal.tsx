@@ -6,7 +6,7 @@ import {
     Copy, Check, AlertCircle, Sparkles,
 } from 'lucide-react';
 import { paymentApi } from '@/features/orders/api/payment.api';
-import { useRazorpay } from '@/hooks/useRazorpay';
+import { usePayU } from '@/hooks/usePayU';
 import { useToast } from '@/hooks/use-toast';
 
 // ── Brand ─────────────────────────────────────────────────────────────────────
@@ -421,49 +421,16 @@ export const PaymentModal = ({
         return () => { document.body.style.overflow = ''; };
     }, [isOpen]);
 
-    // Razorpay hook
-    const { openCheckout } = useRazorpay({
-        onSuccess: useCallback(async (rzpRes) => {
-            try {
-                await paymentApi.verifyPayment({
-                    razorpay_order_id: rzpRes.razorpay_order_id,
-                    razorpay_payment_id: rzpRes.razorpay_payment_id,
-                    razorpay_signature: rzpRes.razorpay_signature,
-                    order_id: orderId,
-                });
-                setPaid(true);
-                setTimeout(() => { onSuccess(); }, 2000);
-            } catch (err: any) {
-                toast({ title: 'Verification Failed', description: err?.response?.data?.message || 'Contact support.', variant: 'destructive' });
-            } finally {
-                setLoading(false);
-            }
-        }, [orderId, onSuccess, toast]),
+    // PayU hook
+    const { redirectToPayU } = usePayU();
 
-        onDismiss: useCallback(() => {
-            setLoading(false);
-            toast({ title: 'Payment Cancelled', description: 'You can retry anytime.' });
-        }, [toast]),
-
-        onError: useCallback((err: any) => {
-            setLoading(false);
-            toast({ title: 'Payment Failed', description: err?.description || err?.message || 'Please try again.', variant: 'destructive' });
-        }, [toast]),
-    });
-
-    const handleOnlinePay = async (method: string) => {
+    const handleOnlinePay = async (_method: string) => {
         setLoading(true);
         try {
-            const payData = await paymentApi.initiatePayment(orderId);
-            openCheckout({
-                razorpayOrderId: payData.razorpayOrderId,
-                amount: payData.amount,
-                currency: payData.currency,
-                keyId: payData.keyId,
-                orderNumber: payData.orderNumber,
-                prefill: payData.prefill,
-                defaultMethod: method,
-            });
+            const payuPayload = await paymentApi.initiatePayment(orderId);
+            // Full-page redirect to PayU's hosted checkout
+            redirectToPayU(payuPayload);
+            // Note: loading stays true — page is navigating away
         } catch (err: any) {
             setLoading(false);
             toast({ title: 'Failed to initiate payment', description: err?.response?.data?.message || err?.message, variant: 'destructive' });
@@ -591,7 +558,7 @@ export const PaymentModal = ({
                                     <span className="flex items-center gap-1"><Shield className="w-3 h-3" /> 256-bit SSL</span>
                                     <span className="flex items-center gap-1"><Lock className="w-3 h-3" /> PCI DSS</span>
                                     <span className="flex items-center gap-1 font-semibold" style={{ color: GOLD }}>
-                                        <Zap className="w-3 h-3" /> Powered by Razorpay
+                                        <Zap className="w-3 h-3" /> Secured by PayU
                                     </span>
                                 </div>
                             </div>

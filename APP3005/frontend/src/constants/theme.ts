@@ -12,6 +12,7 @@ import {
     MessageSquare,
     Ticket,
     Layers,
+    BarChart,
 } from 'lucide-react';
 
 /**
@@ -97,14 +98,6 @@ export const menuItems: MenuItem[] = [
         // High-level pulse check: Revenue + Aura Counts + Creator Activity (Both Microservices)
     },
     {
-        id: 'approvals',
-        label: 'Atelier Approval',
-        icon: CheckSquare,
-        href: '/admin-approvals',
-        isBeta: false,
-        // Microservice 2 (Creator): The Gatekeeper - Review pending 20-item uploads from creators
-    },
-    {
         id: 'categories',
         label: 'Categories',
         icon: Layers,
@@ -124,7 +117,13 @@ export const menuItems: MenuItem[] = [
         icon: Package,
         href: '/admin-orders',
         isBeta: false,
-        // View and manage all customer orders - approve, track, update status
+    },
+    {
+        id: 'products',
+        label: 'Products Management',
+        icon: ShoppingBag,
+        href: '/admin-products',
+        isBeta: false,
     },
     {
         id: 'collection',
@@ -143,10 +142,10 @@ export const menuItems: MenuItem[] = [
     },
     {
         id: 'artisans',
-        label: 'Artisans',
+        label: 'Creator Management',
         icon: Palette,
         href: '/admin-artisans',
-        isBeta: true,
+        isBeta: false,
         // Microservice 2 (Creator): Creator Management - Designer directory, verify profiles, monitor upload limits
     },
     {
@@ -156,6 +155,13 @@ export const menuItems: MenuItem[] = [
         href: '/admin-clientele',
         isBeta: true,
         // Microservice 1 (Consumer): Buyer Management - User list, check Aura status, help stuck users
+    },
+    {
+        id: 'analytics',
+        label: 'Analytics',
+        icon: BarChart,
+        href: '/admin-analytics',
+        isBeta: false,
     },
     {
         id: 'coupons',

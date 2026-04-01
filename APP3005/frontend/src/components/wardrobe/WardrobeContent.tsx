@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { getCreatorProducts } from "@/lib/api";
 import { Search, Plus, Shirt, Loader2, X } from "lucide-react";
 import { LuxeButton } from "@/components/common/Buttons/LuxeButton";
-import UploadCollectionModal from "@/components/dashboard/UploadCollectionModal";
 import ProductDetailsModal from "@/components/dashboard/ProductDetailsModal";
 
 const WardrobeContent: React.FC = () => {
@@ -11,9 +11,9 @@ const WardrobeContent: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [page, setPage] = useState(1);
     const [hasMore, setHasMore] = useState(true);
+    const navigate = useNavigate();
     const [filter, setFilter] = useState("All");
     const [searchQuery, setSearchQuery] = useState("");
-    const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
     const [selectedProduct, setSelectedProduct] = useState<any | null>(null);
 
     const fetchWardrobe = async (pageNum: number, reset: boolean = false) => {
@@ -114,11 +114,7 @@ const WardrobeContent: React.FC = () => {
                     <h1 className="mb-2 font-serif text-3xl text-luxury-black sm:text-4xl">My Wardrobe</h1>
                     <p className="max-w-2xl text-sm text-stone-500 sm:text-base">Manage your digital collection and curated looks.</p>
                 </div>
-                <LuxeButton
-                    onClick={() => setIsUploadModalOpen(true)}
-                    variant="luxury"
-                    className="flex w-full items-center justify-center gap-2 sm:w-auto"
-                >
+                <LuxeButton onClick={() => navigate('/creator-upload')} variant="luxury" className="flex items-center gap-2">
                     <Plus size={18} />
                     Add New Item
                 </LuxeButton>
@@ -226,13 +222,6 @@ const WardrobeContent: React.FC = () => {
                     <p className="text-stone-400 mt-2">Start uploading your designs to build your digital closet.</p>
                 </div>
             )}
-
-            <UploadCollectionModal
-                open={isUploadModalOpen}
-                onOpenChange={setIsUploadModalOpen}
-                onSuccess={() => fetchWardrobe(1, true)}
-            />
-
             {/* Product Details Modal */}
             {selectedProduct && (
                 <ProductDetailsModal
