@@ -1,4 +1,9 @@
-import { Injectable, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CloudinaryService } from '../common/cloudinary.service';
 
@@ -26,13 +31,67 @@ interface BulkProductData {
 @Injectable()
 export class BulkUploadService {
   private readonly logger = new Logger(BulkUploadService.name);
+  private static readonly MAX_PRODUCTS_PER_BULK_UPLOAD = 10;
+  private static readonly DEFAULT_MAX_PRODUCTS_PER_CREATOR = 30;
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly cloudinaryService: CloudinaryService,
   ) {}
 
-  async bulkCreateProducts(products: BulkProductData[], creatorId: string) {
+  private async getCreatorIdFromUserId(userId: string): Promise<string> {
+    const creator = await this.prisma.creator.findUnique({
+      where: { user_id: userId },
+      select: { creator_id: true },
+    });
+
+    if (!creator) {
+      throw new NotFoundException(
+        'Creator profile not found for this user. Please complete creator onboarding first.',
+      );
+    }
+
+    return creator.creator_id;
+  }
+
+  async bulkCreateProducts(products: BulkProductData[], userId: string) {
+    if (!Array.isArray(products) || products.length === 0) {
+      throw new BadRequestException(
+        'At least one product is required for bulk upload.',
+      );
+    }
+
+    if (
+      products.length > BulkUploadService.MAX_PRODUCTS_PER_BULK_UPLOAD
+    ) {
+      throw new BadRequestException(
+        `Maximum ${BulkUploadService.MAX_PRODUCTS_PER_BULK_UPLOAD} products allowed per bulk upload.`,
+      );
+    }
+
+    const creatorId = await this.getCreatorIdFromUserId(userId);
+    const creatorLimit = await this.prisma.creatorLimit.findUnique({
+      where: { creator_id: creatorId },
+    });
+    const maxProducts =
+      creatorLimit?.max_products ??
+      BulkUploadService.DEFAULT_MAX_PRODUCTS_PER_CREATOR;
+    const currentCount = await this.prisma.product.count({
+      where: {
+        creator_id: creatorId,
+        is_deleted: false,
+      },
+    });
+    const remainingSlots = Math.max(maxProducts - currentCount, 0);
+
+    if (products.length > remainingSlots) {
+      throw new BadRequestException(
+        remainingSlots === 0
+          ? `You have reached the maximum limit of ${maxProducts} products. Please delete an existing product before uploading a new one.`
+          : `This upload exceeds your creator limit. You can upload only ${remainingSlots} more product${remainingSlots === 1 ? '' : 's'} out of your ${maxProducts}-product limit.`,
+      );
+    }
+
     const results = {
       success_count: 0,
       fail_count: 0,

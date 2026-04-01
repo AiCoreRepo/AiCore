@@ -7,7 +7,15 @@ import {
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '../prisma/prisma.service';
 import { RequestRefundDto } from './dto/request-refund.dto';
-import { RefundStatus, PaymentStatus, PaymentMethod } from '@prisma/client';
+import {
+  Prisma,
+  RefundStatus,
+  PaymentStatus,
+  PaymentMethod,
+  WalletTransactionSource,
+  WalletTransactionStatus,
+  WalletTransactionType,
+} from '@prisma/client';
 import { OrderRefundInitiatedEvent } from './events/order-refund-initiated.event';
 import { OrderRefundCompletedEvent } from './events/order-refund-completed.event';
 
@@ -176,6 +184,19 @@ export class RefundService {
     }
 
     const updatedRefund = await this.prisma.$transaction(async (tx) => {
+      const wallet = await tx.wallet.upsert({
+        where: { user_id: refund.order.user_id },
+        update: {},
+        create: {
+          user_id: refund.order.user_id,
+          balance: new Prisma.Decimal(0),
+        },
+      });
+
+      const creditedBalance = new Prisma.Decimal(wallet.balance).plus(
+        new Prisma.Decimal(refund.amount),
+      );
+
       const updated = await tx.orderRefund.update({
         where: { refund_id: refundId },
         data: {
@@ -190,6 +211,25 @@ export class RefundService {
         data: {
           refund_status: RefundStatus.COMPLETED,
           payment_status: PaymentStatus.REFUNDED,
+        },
+      });
+
+      await tx.wallet.update({
+        where: { wallet_id: wallet.wallet_id },
+        data: {
+          balance: creditedBalance,
+        },
+      });
+
+      await tx.walletTransaction.create({
+        data: {
+          wallet_id: wallet.wallet_id,
+          type: WalletTransactionType.CREDIT,
+          source: WalletTransactionSource.REFUND,
+          amount: refund.amount,
+          reference_id: refund.refund_id,
+          description: `Refund credited to wallet for order ${refund.order.order_number}`,
+          status: WalletTransactionStatus.SUCCESS,
         },
       });
 

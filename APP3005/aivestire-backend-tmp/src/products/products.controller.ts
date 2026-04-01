@@ -120,8 +120,8 @@ export class ProductsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('CREATOR')
   async bulkUpload(@Request() req, @Body() body: { products: any[] }) {
-    const creatorId = req.user.user_id;
-    return this.bulkUploadService.bulkCreateProducts(body.products, creatorId);
+    const userId = req.user.user_id;
+    return this.bulkUploadService.bulkCreateProducts(body.products, userId);
   }
 
   /**

@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Upload, Package, XCircle, Loader2, Plus, Image as ImageIcon } from 'lucide-react';
+import { getDashboardMetrics } from '@/lib/api';
 
 interface ProductFormData {
     title: string;
@@ -20,15 +21,55 @@ const skinTones = ['Light', 'Medium', 'Dusky', 'Deep'];
 const sizes = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
 const categories = ['Dress', 'Shirt', 'Pants', 'Skirt', 'Jacket', 'Accessories'];
 const API_BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
+const MAX_PRODUCTS_PER_BULK_UPLOAD = 10;
+const DEFAULT_CREATOR_PRODUCT_LIMIT = 30;
 
 const BulkUploadPage: React.FC = () => {
     const [products, setProducts] = useState<ProductFormData[]>([]);
     const [uploading, setUploading] = useState(false);
     const [uploadResults, setUploadResults] = useState<any>(null);
+    const [remainingSlots, setRemainingSlots] = useState(DEFAULT_CREATOR_PRODUCT_LIMIT);
+    const [productLimit, setProductLimit] = useState(DEFAULT_CREATOR_PRODUCT_LIMIT);
+    const [capacityLoading, setCapacityLoading] = useState(true);
+
+    const maxProductsThisUpload = Math.min(MAX_PRODUCTS_PER_BULK_UPLOAD, Math.max(remainingSlots, 0));
+    const hasReachedCreatorLimit = remainingSlots <= 0;
+
+    useEffect(() => {
+        void loadCreatorCapacity();
+    }, []);
+
+    const loadCreatorCapacity = async () => {
+        try {
+            const metrics = await getDashboardMetrics();
+            const nextProductLimit = typeof metrics.productLimit === 'number'
+                ? metrics.productLimit
+                : DEFAULT_CREATOR_PRODUCT_LIMIT;
+            const nextRemainingSlots = typeof metrics.remainingSlots === 'number'
+                ? Math.max(metrics.remainingSlots, 0)
+                : DEFAULT_CREATOR_PRODUCT_LIMIT;
+
+            setProductLimit(nextProductLimit);
+            setRemainingSlots(nextRemainingSlots);
+        } catch (error) {
+            console.error('Failed to load creator capacity:', error);
+        } finally {
+            setCapacityLoading(false);
+        }
+    };
 
     const handleAddProduct = () => {
-        if (products.length >= 10) {
-            alert('Maximum 10 products allowed per bulk upload');
+        if (hasReachedCreatorLimit) {
+            alert(`You have already used all ${productLimit} collection slots for your creator account.`);
+            return;
+        }
+
+        if (products.length >= maxProductsThisUpload) {
+            if (remainingSlots < MAX_PRODUCTS_PER_BULK_UPLOAD) {
+                alert(`You only have ${remainingSlots} collection slot${remainingSlots === 1 ? '' : 's'} remaining out of ${productLimit}.`);
+            } else {
+                alert(`Maximum ${MAX_PRODUCTS_PER_BULK_UPLOAD} products allowed per bulk upload`);
+            }
             return;
         }
 
@@ -96,6 +137,16 @@ const BulkUploadPage: React.FC = () => {
     };
 
     const handleBulkUpload = async () => {
+        if (hasReachedCreatorLimit) {
+            alert(`You have reached your ${productLimit}-item collection limit. Delete an existing item before uploading a new one.`);
+            return;
+        }
+
+        if (products.length > remainingSlots) {
+            alert(`This upload exceeds your remaining ${remainingSlots} collection slot${remainingSlots === 1 ? '' : 's'}.`);
+            return;
+        }
+
         for (let i = 0; i < products.length; i++) {
             const product = products[i];
             if (!product.title || !product.image_file) {
@@ -154,12 +205,14 @@ const BulkUploadPage: React.FC = () => {
                     errors: [errorMessage],
                     message: 'Upload failed'
                 });
+                await loadCreatorCapacity();
                 return;
             }
 
             const result = await response.json();
             console.log('Upload result:', result);
             setUploadResults(result);
+            await loadCreatorCapacity();
 
             if (result.success_count > 0) {
                 alert(`Successfully uploaded ${result.success_count} products! They are saved as DRAFT and need admin approval.`);
@@ -192,7 +245,20 @@ const BulkUploadPage: React.FC = () => {
                     </h1>
                 </div>
                 <p className="text-muted-foreground">
-                    Upload up to 10 products at once. All products will be saved as drafts for admin approval.
+                    Upload up to {MAX_PRODUCTS_PER_BULK_UPLOAD} products at once, with a total collection limit of {productLimit} items per creator.
+                </p>
+            </div>
+
+            <div className="mb-6 rounded-lg border border-luxury-gold/30 bg-luxury-gold/5 p-4">
+                <p className="text-sm font-medium text-foreground">
+                    {capacityLoading
+                        ? 'Checking creator upload capacity...'
+                        : `Collection capacity: ${productLimit - remainingSlots}/${productLimit} used. ${remainingSlots} slot${remainingSlots === 1 ? '' : 's'} remaining.`}
+                </p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                    {hasReachedCreatorLimit
+                        ? 'You cannot add more collection items until one of your existing products is removed.'
+                        : `You can add up to ${maxProductsThisUpload} product${maxProductsThisUpload === 1 ? '' : 's'} in this bulk upload.`}
                 </p>
             </div>
 
@@ -200,11 +266,11 @@ const BulkUploadPage: React.FC = () => {
             <div className="mb-6">
                 <button
                     onClick={handleAddProduct}
-                    disabled={products.length >= 10}
+                    disabled={capacityLoading || hasReachedCreatorLimit || products.length >= maxProductsThisUpload}
                     className="px-6 py-3 bg-luxury-gold text-luxury-black rounded-lg font-medium hover:bg-luxury-gold/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
                 >
                     <Plus className="w-5 h-5" />
-                    Add Product ({products.length}/10)
+                    Add Product ({products.length}/{maxProductsThisUpload})
                 </button>
             </div>
 
@@ -220,6 +286,7 @@ const BulkUploadPage: React.FC = () => {
                     </p>
                     <button
                         onClick={handleAddProduct}
+                        disabled={capacityLoading || hasReachedCreatorLimit}
                         className="px-6 py-3 bg-luxury-gold text-luxury-black rounded-lg font-medium hover:bg-luxury-gold/90 transition-colors inline-flex items-center gap-2"
                     >
                         <Plus className="w-5 h-5" />
@@ -404,7 +471,7 @@ const BulkUploadPage: React.FC = () => {
                 <div className="mt-8 flex justify-center">
                     <button
                         onClick={handleBulkUpload}
-                        disabled={uploading}
+                        disabled={uploading || hasReachedCreatorLimit || products.length > remainingSlots}
                         className="px-8 py-4 bg-luxury-gold text-luxury-black rounded-lg font-medium text-lg hover:bg-luxury-gold/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
                     >
                         {uploading ? (

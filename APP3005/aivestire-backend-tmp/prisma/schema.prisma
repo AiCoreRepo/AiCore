@@ -532,6 +532,7 @@ model Order {
 
   // Current State
   current_status OrderStatus @default(PENDING)
+  inventory_deducted Boolean @default(false)
 
   // COD Specific
   cod_collected    Boolean   @default(false)

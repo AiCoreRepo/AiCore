@@ -57,7 +57,8 @@ const Login = () => {
       //   description: "You've successfully signed in.",
       // });
       showPopup("Welcome back!", "You've successfully signed in.", "success");
-      navigate("/creator-dashboard");
+      window.dispatchEvent(new Event("auth-refresh"));
+      navigate("/creator-onboarding");
     } catch (error: unknown) {
       toast({
         title: "Error",
@@ -94,7 +95,8 @@ const Login = () => {
         }
 
         showPopup("Welcome back!", "You've successfully signed in.", "success");
-        navigate("/creator-dashboard");
+        window.dispatchEvent(new Event("auth-refresh"));
+        navigate("/creator-onboarding");
       } catch (error: unknown) {
         toast({
           title: "Google Sign-In Failed",

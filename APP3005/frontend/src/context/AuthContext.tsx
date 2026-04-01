@@ -8,6 +8,13 @@ interface User {
   store_name?: string;
   avatar?: string;
   subtitle?: string;
+  paymentDetails?: {
+    gateway: string;
+    method: string;
+    beneficiaryName: string;
+    upiId: string;
+    updatedAt?: string;
+  } | null;
   try_ons_used?: number;
   max_try_ons?: number;
   try_on_permission?: string;

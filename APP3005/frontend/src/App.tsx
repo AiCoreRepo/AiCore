@@ -16,6 +16,7 @@ import NotFound from "./pages/NotFound";
 import CreatorLogin from "./pages/CreatorLogin";
 import AiTryOn from "./pages/AiTryOn";
 import DashboardPage from "./app/dashboard/page";
+import CreatorOnboardingPage from "./app/creator-onboarding/page";
 import CreatorCouponsPage from "./app/creator-coupons/page";
 import SettingsPage from "./app/settings/page";
 import WardrobePage from "./app/wardrobe/page";
@@ -55,6 +56,7 @@ import { SidebarProvider } from "./context/SidebarContext";
 import { ProfileSidebarProvider } from "./context/ProfileSidebarContext";
 import { ProfileSidebarSlide } from "./components/user/ProfileSidebarSlide";
 import { ProtectedRoute } from "./components/ProtectedRoute";
+import { CreatorOnboardingGuard } from "./components/creator/CreatorOnboardingGuard";
 import { useActivityTracking } from "./hooks/useActivityTracking";
 import ProductDetailsPage from "./pages/ProductDetailsPage";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
@@ -139,34 +141,51 @@ const App = () => (
                       } />
 
                       {/* Protected Creator Routes */}
+                      <Route path="/creator-onboarding" element={
+                        <ProtectedRoute requiredRole="CREATOR" redirectTo="/login">
+                          <CreatorOnboardingPage />
+                        </ProtectedRoute>
+                      } />
                       <Route path="/creator-dashboard" element={
                         <ProtectedRoute requiredRole="CREATOR" redirectTo="/login">
-                          <DashboardPage />
+                          <CreatorOnboardingGuard>
+                            <DashboardPage />
+                          </CreatorOnboardingGuard>
                         </ProtectedRoute>
                       } />
                       <Route path="/creator-coupons" element={
                         <ProtectedRoute requiredRole="CREATOR" redirectTo="/login">
-                          <CreatorCouponsPage />
+                          <CreatorOnboardingGuard>
+                            <CreatorCouponsPage />
+                          </CreatorOnboardingGuard>
                         </ProtectedRoute>
                       } />
                       <Route path="/settings" element={
                         <ProtectedRoute requiredRole="CREATOR" redirectTo="/login">
-                          <SettingsPage />
+                          <CreatorOnboardingGuard>
+                            <SettingsPage />
+                          </CreatorOnboardingGuard>
                         </ProtectedRoute>
                       } />
                       <Route path="/wardrobe" element={
                         <ProtectedRoute requiredRole="CREATOR" redirectTo="/login">
-                          <WardrobePage />
+                          <CreatorOnboardingGuard>
+                            <WardrobePage />
+                          </CreatorOnboardingGuard>
                         </ProtectedRoute>
                       } />
                       <Route path="/analytics" element={
                         <ProtectedRoute requiredRole="CREATOR" redirectTo="/login">
-                          <AnalyticsPage />
+                          <CreatorOnboardingGuard>
+                            <AnalyticsPage />
+                          </CreatorOnboardingGuard>
                         </ProtectedRoute>
                       } />
                       <Route path="/bulk-upload" element={
                         <ProtectedRoute requiredRole="CREATOR" redirectTo="/login">
-                          <BulkUploadPage />
+                          <CreatorOnboardingGuard>
+                            <BulkUploadPage />
+                          </CreatorOnboardingGuard>
                         </ProtectedRoute>
                       } />
 

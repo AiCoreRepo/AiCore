@@ -134,6 +134,21 @@ export interface TryOnPermission {
   updatedAt: string;
 }
 
+export interface CreatorTermsStatus {
+  accepted: boolean;
+  acceptedAt: string | null;
+  version: string | null;
+}
+
+export interface CreatorUpiVerificationResponse {
+  provider: "PAYU";
+  isValid: boolean;
+  upiId: string;
+  payerAccountName: string | null;
+  rawMessage?: string;
+  verifiedAt: string;
+}
+
 export interface ProductGroup {
   group_id: string;
   creator_id: string;
@@ -226,6 +241,38 @@ export async function signup(data: {
     error.status = res.status;
     throw error;
   }
+  return res.json();
+}
+
+export async function acceptCreatorTerms(token: string) {
+  const res = await fetch(`${BASE_URL}/creators/accept-terms`, {
+    method: "PATCH",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    credentials: "include",
+  });
+
+  if (!res.ok) {
+    handleApiError(res, await res.text(), "Failed to accept creator terms");
+  }
+
+  return res.json();
+}
+
+export async function getCreatorTermsStatus(token: string): Promise<CreatorTermsStatus> {
+  const res = await fetch(`${BASE_URL}/creators/terms-status`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    credentials: "include",
+  });
+
+  if (!res.ok) {
+    handleApiError(res, await res.text(), "Failed to fetch creator terms status");
+  }
+
   return res.json();
 }
 
@@ -414,6 +461,8 @@ export async function updateProfile(data: {
   name?: string;
   subtitle?: string;
   avatar?: string;
+  paymentBeneficiaryName?: string;
+  paymentUpiId?: string;
 }) {
   const token = localStorage.getItem("access_token");
   if (!token) {
@@ -442,6 +491,30 @@ export async function updateProfile(data: {
     error.status = res.status;
     throw error;
   }
+  return res.json();
+}
+
+export async function verifyCreatorPayoutUpi(
+  upiId: string,
+): Promise<CreatorUpiVerificationResponse> {
+  const token = localStorage.getItem("access_token");
+  if (!token) {
+    throw new Error("No access token found");
+  }
+
+  const res = await fetch(`${BASE_URL}/creator-dashboard/payouts/verify-upi`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ upiId }),
+  });
+
+  if (!res.ok) {
+    handleApiError(res, await res.text(), "Failed to verify creator payout UPI ID");
+  }
+
   return res.json();
 }
 

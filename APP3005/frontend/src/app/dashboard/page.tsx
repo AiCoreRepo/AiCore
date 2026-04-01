@@ -20,18 +20,39 @@ import {
 } from "@/components/ui/alert-dialog";
 import { LayoutDashboard, Shirt, BarChart3, Settings, Menu, Upload, Ticket, FolderTree, AlertCircle } from "lucide-react";
 import { useSidebar } from "@/context/SidebarContext";
+import type { DashboardStats } from "@/types/dashboard";
 
 const MAX_PRODUCTS = 30;
+const defaultStats: DashboardStats = {
+  totalProducts: 0,
+  uploads: 0,
+  likes: 0,
+  totalLikes: 0,
+  totalViews: 0,
+  totalComments: 0,
+  earningsCents: 0,
+  revenueLastMonthCents: 0,
+  soldUnits: 0,
+  averagePriceCents: 0,
+  totalInventoryUnits: 0,
+  soldOutProducts: 0,
+  remainingSlots: MAX_PRODUCTS,
+  productLimit: MAX_PRODUCTS,
+  currency: "INR",
+  statusBreakdown: {
+    active: 0,
+    pending: 0,
+    draft: 0,
+    rejected: 0,
+  },
+  latestImages: [],
+  topProduct: null,
+  lastUploadDaysAgo: null,
+};
 
 const DashboardPage: React.FC = () => {
   const { sidebarWidth, toggleSidebar, isMobile } = useSidebar();
-  const [stats, setStats] = useState<any>({
-    rating: "NA",
-    ranking: "NA",
-    likes: 0,
-    uploads: 0,
-    revenueLastMonthCents: 0,
-  });
+  const [stats, setStats] = useState<DashboardStats>(defaultStats);
   const [uploads, setUploads] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isUploadFormOpen, setIsUploadFormOpen] = useState(false);
@@ -76,12 +97,19 @@ const DashboardPage: React.FC = () => {
     try {
       const metrics = await getDashboardMetrics();
       setStats({
-        rating: metrics.rating ?? metrics.averageRating ?? "NA",
-        ranking: metrics.ranking ?? metrics.rank ?? "NA",
+        ...defaultStats,
+        ...metrics,
         likes: metrics.likes ?? metrics.totalLikes ?? 0,
-        uploads: metrics.uploads ?? metrics.totalUploads ?? 0,
-        revenueLastMonthCents: metrics.revenueLastMonthCents ?? metrics.earnings ?? 0,
+        totalLikes: metrics.totalLikes ?? metrics.likes ?? 0,
+        totalProducts: metrics.totalProducts ?? metrics.totalUploads ?? 0,
+        uploads: metrics.uploads ?? metrics.totalUploads ?? metrics.totalProducts ?? 0,
+        earningsCents: metrics.earningsCents ?? metrics.revenueLastMonthCents ?? 0,
+        revenueLastMonthCents: metrics.revenueLastMonthCents ?? metrics.earningsCents ?? 0,
         latestImages: metrics.latestImages || [],
+        statusBreakdown: {
+          ...defaultStats.statusBreakdown,
+          ...(metrics.statusBreakdown || {}),
+        },
       });
     } catch (err) {
       console.error("Failed to fetch metrics", err);
@@ -103,14 +131,15 @@ const DashboardPage: React.FC = () => {
       minimumFractionDigits: 2
     }).format(priceValue);
 
-    const statusMap: Record<string, "Draft" | "Pending" | "Active"> = {
+    const statusMap: Record<string, "Draft" | "Pending" | "Active" | "Rejected"> = {
       'DRAFT': 'Draft',
       'PENDING': 'Pending',
       'APPROVED': 'Active',
-      'REJECTED': 'Pending',
+      'REJECTED': 'Rejected',
       'Draft': 'Draft',
       'Pending': 'Pending',
       'Active': 'Active',
+      'Rejected': 'Rejected',
     };
     const mappedStatus = statusMap[p.status] || 'Pending';
 
@@ -169,7 +198,7 @@ const DashboardPage: React.FC = () => {
 
   // ── Upload with limit enforcement ────────────────────────────────
   const handleUploadClick = () => {
-    const currentUploads = stats.uploads || 0;
+    const currentUploads = stats.totalProducts || stats.uploads || 0;
     if (currentUploads >= MAX_PRODUCTS) {
       setIsLimitDialogOpen(true);
       return;
@@ -178,20 +207,9 @@ const DashboardPage: React.FC = () => {
     setIsUploadFormOpen(true);
   };
 
-  const handleUploadSuccess = (newProduct?: any) => {
-    if (newProduct) {
-      const mapped = mapProduct(newProduct);
-      setUploads(prev => [mapped, ...prev.slice(0, 9)]);
-      setStats((prev: any) => ({
-        ...prev,
-        uploads: (prev.uploads || 0) + 1,
-        latestImages: [mapped.image, ...(prev.latestImages || [])].slice(0, 5)
-      }));
-      fetchMetricsData();
-      fetchProductsData(currentPage, true);
-    } else {
-      fetchData();
-    }
+  const handleUploadSuccess = () => {
+    setEditingProduct(null);
+    fetchData();
   };
 
   const handlePageChange = (page: number) => {
@@ -212,14 +230,7 @@ const DashboardPage: React.FC = () => {
   const confirmDelete = async () => {
     if (!deletingProduct) return;
     try {
-      const response = await deleteProduct(deletingProduct.product_id);
-      if (response.totalUploads !== undefined) {
-        setStats((prev: any) => ({
-          ...prev,
-          uploads: response.totalUploads,
-          latestImages: response.latestImages || prev.latestImages
-        }));
-      }
+      await deleteProduct(deletingProduct.product_id);
       setIsDeleteDialogOpen(false);
       setDeletingProduct(null);
       fetchData();
@@ -384,7 +395,7 @@ const DashboardPage: React.FC = () => {
                 textAlign: 'center', fontSize: '14px',
                 lineHeight: 1.6, color: 'rgba(44,36,22,0.65)', marginTop: '8px',
               }}>
-                You've uploaded <strong style={{ color: '#C9A75F', fontWeight: 700 }}>{stats.uploads || MAX_PRODUCTS}</strong> of{' '}
+                You've uploaded <strong style={{ color: '#C9A75F', fontWeight: 700 }}>{stats.totalProducts || stats.uploads || MAX_PRODUCTS}</strong> of{' '}
                 <strong style={{ color: '#C9A75F', fontWeight: 700 }}>{MAX_PRODUCTS}</strong> allowed products.
                 <br />
                 Please delete an existing product to make room for a new one.
@@ -401,14 +412,14 @@ const DashboardPage: React.FC = () => {
                   Usage
                 </span>
                 <span style={{ fontSize: '11px', fontWeight: 800, color: '#C9A75F' }}>
-                  {stats.uploads || MAX_PRODUCTS}/{MAX_PRODUCTS}
+                  {stats.totalProducts || stats.uploads || MAX_PRODUCTS}/{MAX_PRODUCTS}
                 </span>
               </div>
               <div style={{ height: '8px', borderRadius: '4px', background: 'rgba(201,165,95,0.12)', overflow: 'hidden' }}>
                 <div style={{
                   height: '100%', borderRadius: '4px',
                   background: 'linear-gradient(90deg, #C9A75F, #D4B76E)',
-                  width: `${Math.min(((stats.uploads || MAX_PRODUCTS) / MAX_PRODUCTS) * 100, 100)}%`,
+                  width: `${Math.min((((stats.totalProducts || stats.uploads || MAX_PRODUCTS)) / MAX_PRODUCTS) * 100, 100)}%`,
                   boxShadow: '0 0 8px rgba(201,165,95,0.4)',
                 }} />
               </div>

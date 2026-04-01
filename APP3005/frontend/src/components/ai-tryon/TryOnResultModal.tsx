@@ -711,10 +711,10 @@ export function TryOnResultModal({
 
     return (
       <div
-        className={`relative min-w-0 rounded-[24px] md:rounded-[28px] ${
+        className={`relative min-w-0 rounded-[24px] border border-[rgba(201,165,92,0.18)] md:rounded-[28px] ${
           isMobileLayout
-            ? "max-h-[28vh] overflow-y-auto p-3.5"
-            : "overflow-hidden p-4 md:p-5"
+            ? "max-h-[46vh] overflow-hidden p-3.5 sm:max-h-[52vh]"
+            : "flex min-h-[18rem] flex-col overflow-hidden p-4 md:max-h-[40vh] md:p-5 lg:max-h-[42vh]"
         } ${className}`}
         style={{
           background:
@@ -731,7 +731,11 @@ export function TryOnResultModal({
               "radial-gradient(circle at top right, rgba(255,255,255,0.92), transparent 35%), linear-gradient(120deg, transparent 0%, rgba(255,255,255,0.2) 35%, transparent 70%)",
           }}
         />
-        <div className="relative min-w-0">
+        <div
+          className={`relative min-w-0 flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain ${
+            isMobileLayout ? "pr-0.5" : "pr-1"
+          }`}
+        >
           <div
             className={`mb-3 flex min-w-0 ${isMobileLayout ? "items-start gap-2.5" : "items-center gap-3 md:mb-4"}`}
           >
@@ -754,19 +758,21 @@ export function TryOnResultModal({
                 Stylist Conversation
               </p>
               <h3
-                className={`${isMobileLayout ? "text-[15px] leading-5" : "text-lg"} font-serif text-[#2f2416]`}
+                className={`${isMobileLayout ? "text-[15px] leading-5" : "text-lg leading-6"} font-serif text-[#2f2416]`}
               >
                 A quick verdict on your try-on
               </h3>
             </div>
           </div>
 
-          <div className={`${isMobileLayout ? "space-y-3" : "space-y-4"}`}>
+          <div
+            className={isMobileLayout ? "space-y-3.5" : "space-y-4 md:space-y-[18px]"}
+          >
             <div
               className={`flex min-w-0 items-start justify-end ${isMobileLayout ? "gap-2" : "gap-3"}`}
             >
               <div
-                className={`chat-pop-right min-w-0 ${isMobileLayout ? "max-w-[calc(100%-3rem)] rounded-[20px] rounded-tr-md px-3 py-3" : "max-w-[85%] rounded-[24px] rounded-tr-md px-4 py-3.5"}`}
+                className={`chat-pop-right min-w-0 w-fit break-words ${isMobileLayout ? "max-w-[calc(100%-3rem)] rounded-[20px] rounded-tr-md px-3 py-3" : "max-w-[86%] rounded-[24px] rounded-tr-md px-4 py-3.5"}`}
                 style={{
                   background:
                     "linear-gradient(135deg, #2f2416 0%, #4a3520 100%)",
@@ -830,7 +836,7 @@ export function TryOnResultModal({
               </div>
 
               <div
-                className={`chat-pop-left min-w-0 flex-1 ${isMobileLayout ? "rounded-[20px] rounded-tl-md px-3.5 py-3.5" : "rounded-[24px] rounded-tl-md px-4 py-4"}`}
+                className={`chat-pop-left min-w-0 flex-1 break-words ${isMobileLayout ? "rounded-[20px] rounded-tl-md px-3.5 py-3.5" : "rounded-[24px] rounded-tl-md px-4 py-4"}`}
                 style={{
                   background: "rgba(255, 251, 244, 0.96)",
                   border: "1px solid rgba(138, 105, 54, 0.12)",
@@ -1069,7 +1075,7 @@ export function TryOnResultModal({
         <div className="relative flex flex-1 flex-col gap-2.5 overflow-y-auto p-3 pb-24 sm:gap-4 sm:p-4 sm:pb-24 md:flex-row md:gap-5 md:overflow-hidden md:p-6 md:pb-6">
           {/* Left Sidebar - AI Insights (Desktop) */}
           {resultImage && !loading && !error && (
-            <div className="hidden xl:flex w-[21rem] flex-col gap-4 slide-right">
+            <div className="hidden min-h-0 flex-col gap-4 slide-right xl:flex xl:w-[22rem] 2xl:w-[24rem]">
               {/* Style Analysis Card */}
               <div
                 className="rounded-2xl p-5"
@@ -1137,7 +1143,7 @@ export function TryOnResultModal({
           )}
 
           {/* Center - Result Image Area */}
-          <div className="relative flex flex-col gap-4 md:flex-1 md:overflow-hidden">
+          <div className="relative flex min-h-0 flex-col gap-4 md:flex-1 md:overflow-hidden">
             {/* Image Display */}
             <div
               className={`relative flex items-center justify-center overflow-hidden rounded-[26px] md:min-h-0 md:flex-1 md:rounded-3xl ${
@@ -1391,7 +1397,7 @@ export function TryOnResultModal({
             {renderComplimentCard("w-full flex-shrink-0 md:hidden", "mobile")}
 
             {renderComplimentCard(
-              "hidden md:block xl:hidden w-full max-w-4xl self-center flex-shrink-0",
+              "hidden w-full flex-shrink-0 self-center md:block xl:hidden md:max-w-4xl lg:max-w-5xl",
             )}
           </div>
 

@@ -17,6 +17,7 @@ import {
   PaymentStatus,
   ChangedByType,
   UserRole,
+  Prisma,
 } from '@prisma/client';
 import { OrderBookedEvent } from '../events/order-booked.event';
 import { OrderShippedEvent } from '../events/order-shipped.event';
@@ -34,6 +35,106 @@ export class OrderService {
     private readonly stateMachine: OrderStateMachineService,
     private readonly eventEmitter: EventEmitter2,
   ) {}
+
+  async ensureInventoryDeducted(
+    tx: Prisma.TransactionClient,
+    orderId: string,
+  ): Promise<void> {
+    const order = await tx.order.findUnique({
+      where: { order_id: orderId },
+      select: {
+        order_id: true,
+        inventory_deducted: true,
+        items: {
+          select: {
+            product_id: true,
+            quantity: true,
+            product: {
+              select: {
+                inventory_count: true,
+                title: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!order) {
+      throw new NotFoundException('Order not found');
+    }
+
+    if (order.inventory_deducted) {
+      return;
+    }
+
+    for (const item of order.items) {
+      OrderValidations.validateInventory(
+        item.product.inventory_count,
+        item.quantity,
+        item.product.title,
+      );
+    }
+
+    for (const item of order.items) {
+      await tx.product.update({
+        where: { product_id: item.product_id },
+        data: {
+          inventory_count: {
+            decrement: item.quantity,
+          },
+        },
+      });
+    }
+
+    await tx.order.update({
+      where: { order_id: orderId },
+      data: { inventory_deducted: true },
+    });
+  }
+
+  private async restoreDeductedInventory(
+    tx: Prisma.TransactionClient,
+    orderId: string,
+  ): Promise<void> {
+    const order = await tx.order.findUnique({
+      where: { order_id: orderId },
+      select: {
+        order_id: true,
+        inventory_deducted: true,
+        items: {
+          select: {
+            product_id: true,
+            quantity: true,
+          },
+        },
+      },
+    });
+
+    if (!order) {
+      throw new NotFoundException('Order not found');
+    }
+
+    if (!order.inventory_deducted) {
+      return;
+    }
+
+    for (const item of order.items) {
+      await tx.product.update({
+        where: { product_id: item.product_id },
+        data: {
+          inventory_count: {
+            increment: item.quantity,
+          },
+        },
+      });
+    }
+
+    await tx.order.update({
+      where: { order_id: orderId },
+      data: { inventory_deducted: false },
+    });
+  }
 
   /**
    * Generate unique order number
@@ -248,6 +349,10 @@ export class OrderService {
           },
         });
 
+        if (initialStatus === OrderStatus.BOOKED) {
+          await this.ensureInventoryDeducted(tx, newOrder.order_id);
+        }
+
         // Deduct wallet balance if paid with wallet
         if (dto.paymentMethod === PaymentMethod.WALLET && userWallet) {
           await tx.wallet.update({
@@ -265,18 +370,6 @@ export class OrderService {
               description: `Payment for Order #${orderNumber}`,
               status: 'SUCCESS'
             }
-          });
-        }
-
-        // Deduct inventory
-        for (const item of dto.items) {
-          await tx.product.update({
-            where: { product_id: item.productId },
-            data: {
-              inventory_count: {
-                decrement: item.quantity,
-              },
-            },
           });
         }
 
@@ -402,6 +495,10 @@ export class OrderService {
           data: updatedData,
         });
 
+        if (!isStatusUnchanged && dto.status === OrderStatus.BOOKED) {
+          await this.ensureInventoryDeducted(tx, orderId);
+        }
+
         // Create status history
         await tx.orderStatusHistory.create({
           data: {
@@ -521,17 +618,7 @@ export class OrderService {
           },
         });
 
-        // Rollback inventory
-        for (const item of currentOrder.items) {
-          await tx.product.update({
-            where: { product_id: item.product_id },
-            data: {
-              inventory_count: {
-                increment: item.quantity,
-              },
-            },
-          });
-        }
+        await this.restoreDeductedInventory(tx, orderId);
 
         return cancelledOrder;
       },

@@ -18,6 +18,7 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
+import { VerifyUpiDto } from './dto/verify-upi.dto';
 
 @Controller('creator-dashboard')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -40,6 +41,17 @@ export class CreatorDashboardController {
     return await this.creatorDashboardService.updateCreatorProfile(
       user.user_id,
       dto,
+    );
+  }
+
+  @Post('payouts/verify-upi')
+  async verifyPayoutUpi(
+    @CurrentUser() user: { user_id: string },
+    @Body() dto: VerifyUpiDto,
+  ) {
+    return await this.creatorDashboardService.verifyCreatorPayoutUpi(
+      user.user_id,
+      dto.upiId,
     );
   }
 

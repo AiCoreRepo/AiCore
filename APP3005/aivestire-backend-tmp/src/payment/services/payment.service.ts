@@ -31,6 +31,7 @@ import {
 import { OrderStatus, PaymentStatus } from '@prisma/client';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { OrderBookedEvent } from '../../order/events/order-booked.event';
+import { OrderService } from '../../order/services/order.service';
 
 @Injectable()
 export class PaymentService {
@@ -40,6 +41,7 @@ export class PaymentService {
     private readonly prisma: PrismaService,
     private readonly razorpayGateway: RazorpayGatewayService,
     private readonly eventEmitter: EventEmitter2,
+    private readonly orderService: OrderService,
   ) {}
 
   // ============================================
@@ -255,6 +257,8 @@ export class PaymentService {
         },
       });
 
+      await this.orderService.ensureInventoryDeducted(tx, transaction.order_id);
+
       // Add status history
       await tx.orderStatusHistory.create({
         data: {
@@ -267,6 +271,8 @@ export class PaymentService {
       });
 
       return updated;
+    }, {
+      isolationLevel: 'Serializable',
     });
 
     this.eventEmitter.emit('order.booked', new OrderBookedEvent(updatedOrder));
@@ -512,6 +518,8 @@ export class PaymentService {
         },
       });
 
+      await this.orderService.ensureInventoryDeducted(tx, transaction.order_id);
+
       await tx.orderStatusHistory.create({
         data: {
           order_id: transaction.order_id,
@@ -523,6 +531,8 @@ export class PaymentService {
       });
 
       return updated;
+    }, {
+      isolationLevel: 'Serializable',
     });
 
     this.eventEmitter.emit('order.booked', new OrderBookedEvent(updatedOrder));

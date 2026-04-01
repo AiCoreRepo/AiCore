@@ -526,19 +526,42 @@ export const OrderDetailPage: React.FC = () => {
 
                     {/* Refund info */}
                     {(order.refund_status || order.refund_amount != null) && (
-                        <div className="mt-4 pt-4 border-t border-[#F5F5F5] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                            {order.refund_status && (
-                                <div>
-                                    <p className="text-[10px] text-[#999] font-medium">Refund Status</p>
-                                    <p className="text-sm font-bold text-purple-600">
-                                        {order.refund_status.replace(/_/g, ' ')}
-                                    </p>
-                                </div>
-                            )}
-                            {order.refund_amount != null && (
-                                <div className="text-right">
-                                    <p className="text-[10px] text-[#999] font-medium">Refund Amount</p>
-                                    <p className="text-base font-bold text-emerald-600">{fmtINR(order.refund_amount)}</p>
+                        <div className="mt-4 pt-4 border-t border-[#F5F5F5] space-y-3">
+                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                                {order.refund_status && (
+                                    <div>
+                                        <p className="text-[10px] text-[#999] font-medium">Refund Status</p>
+                                        <p className="text-sm font-bold text-purple-600">
+                                            {order.refund_status.replace(/_/g, ' ')}
+                                        </p>
+                                    </div>
+                                )}
+                                {order.refund_amount != null && (
+                                    <div className="text-right">
+                                        <p className="text-[10px] text-[#999] font-medium">Refund Amount</p>
+                                        <p className="text-base font-bold text-emerald-600">{fmtINR(order.refund_amount)}</p>
+                                    </div>
+                                )}
+                            </div>
+
+                            {order.refund_status === 'COMPLETED' && (
+                                <div className="flex flex-col gap-3 rounded-xl border border-emerald-100 bg-emerald-50/70 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                                    <div>
+                                        <p className="text-xs font-bold uppercase tracking-[0.16em] text-emerald-700">
+                                            Wallet Credit
+                                        </p>
+                                        <p className="mt-1 text-xs leading-5 text-emerald-800">
+                                            Your approved refund has been credited to your wallet and is visible in Wallet transactions.
+                                        </p>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => navigate('/wallet')}
+                                        className="inline-flex items-center justify-center gap-1.5 rounded-full border border-emerald-200 bg-white px-4 py-2 text-xs font-bold uppercase tracking-[0.14em] text-emerald-700 transition-colors hover:bg-emerald-100"
+                                    >
+                                        View Wallet
+                                        <ChevronRight className="w-3.5 h-3.5" />
+                                    </button>
                                 </div>
                             )}
                         </div>

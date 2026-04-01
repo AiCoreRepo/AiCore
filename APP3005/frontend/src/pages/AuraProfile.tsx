@@ -1096,156 +1096,154 @@ export default function AuraProfile() {
           />
 
           {!hideAuraLibrary && (
-            <div className="mt-8 rounded-[32px] border border-[#E6D8BA] bg-white/85 p-5 shadow-[0_24px_60px_rgba(143,110,47,0.12)] md:p-6">
-            <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#8A6936]">
-                  Aura Library
-                </p>
-                <h3 className="mt-2 text-2xl font-serif text-[#1A1A1A]">
-                  Generated Avatars
-                </h3>
-                <p className="mt-1 text-sm text-charcoal/70">
-                  Recreated avatars stay here in your Aura Profile. Pick any one
-                  for try-ons.
-                </p>
+            <div className="avatar-library-shell">
+              <div className="avatar-library-header">
+                <div className="avatar-library-copy">
+                  <p className="avatar-library-eyebrow">Aura Library</p>
+                  <h3 className="avatar-library-title">Generated Avatars</h3>
+                  <p className="avatar-library-description">
+                    Recreated avatars stay here in your Aura Profile. Pick the
+                    one you want to use for try-ons.
+                  </p>
+                </div>
+                <div className="avatar-library-count">
+                  {avatarHistory.length} saved avatars
+                </div>
               </div>
-              <div className="rounded-full border border-[#E6D8BA] bg-[#FBF7EF] px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-[#8A6936]">
-                {avatarHistory.length} saved
-              </div>
-            </div>
 
-            {avatarHistory.length > 0 ? (
-              <div className="mt-6 grid gap-5 xl:grid-cols-2">
-                {avatarHistory.map((avatarItem) => {
-                  const isSelected =
-                    aura.selected_avatar_id === avatarItem.avatar_id;
-                  const summaryAttributes = [
-                    {
-                      label: "Body Shape",
-                      value: formatAvatarAttributeValue(
-                        avatarItem.attributes.body_shape,
-                      ),
-                    },
-                    {
-                      label: "Body Size",
-                      value: formatAvatarAttributeValue(
-                        avatarItem.attributes.body_size,
-                      ),
-                    },
-                    {
-                      label: "Skin Tone",
-                      value: formatAvatarAttributeValue(
-                        avatarItem.attributes.skin_tone,
-                      ),
-                    },
-                    {
-                      label: "Gender",
-                      value: formatAvatarAttributeValue(
-                        avatarItem.attributes.gender,
-                      ),
-                    },
-                    {
-                      label: "Height",
-                      value: formatAvatarAttributeValue(
-                        avatarItem.attributes.height_cm,
-                        "cm",
-                      ),
-                    },
-                  ].filter(
-                    (
-                      attribute,
-                    ): attribute is { label: string; value: string } =>
-                      Boolean(attribute.value),
-                  );
+              {avatarHistory.length > 0 ? (
+                <div className="avatar-library-list">
+                  {avatarHistory.map((avatarItem) => {
+                    const isSelected =
+                      aura.selected_avatar_id === avatarItem.avatar_id;
+                    const summaryAttributes = [
+                      {
+                        label: "Body Shape",
+                        value: formatAvatarAttributeValue(
+                          avatarItem.attributes.body_shape,
+                        ),
+                      },
+                      {
+                        label: "Body Size",
+                        value: formatAvatarAttributeValue(
+                          avatarItem.attributes.body_size,
+                        ),
+                      },
+                      {
+                        label: "Skin Tone",
+                        value: formatAvatarAttributeValue(
+                          avatarItem.attributes.skin_tone,
+                        ),
+                      },
+                      {
+                        label: "Gender",
+                        value: formatAvatarAttributeValue(
+                          avatarItem.attributes.gender,
+                        ),
+                      },
+                      {
+                        label: "Height",
+                        value: formatAvatarAttributeValue(
+                          avatarItem.attributes.height_cm,
+                          "cm",
+                        ),
+                      },
+                    ].filter(
+                      (
+                        attribute,
+                      ): attribute is { label: string; value: string } =>
+                        Boolean(attribute.value),
+                    );
 
-                  return (
-                    <div
-                      key={avatarItem.avatar_id}
-                      className={`rounded-[28px] border p-4 shadow-[0_18px_40px_rgba(143,110,47,0.08)] transition-all ${isSelected ? "border-[#D4B76E] bg-[#FFF9EC]" : "border-[#EEE2CA] bg-[#FFFCF7]"}`}
-                    >
-                      <div className="relative overflow-hidden rounded-[22px] bg-[#F5EDDD]">
-                        <img
-                          src={avatarItem.model_url}
-                          alt="Generated Aura avatar"
-                          className="h-[240px] w-full object-contain object-center"
-                        />
-                        <div className="absolute left-3 top-3 flex flex-wrap gap-2">
-                          <span className="rounded-full bg-white/90 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#7A5A2A] shadow-sm">
-                            {avatarItem.source === "recreation"
-                              ? "Recreated"
-                              : "Created"}
-                          </span>
-                          <span className="rounded-full bg-[#1F1F1F]/80 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-white shadow-sm">
-                            {avatarItem.generation_type === "generated"
-                              ? "AI Generated"
-                              : "Source Based"}
-                          </span>
-                        </div>
-                        {isSelected && (
-                          <div className="absolute right-3 top-3 rounded-full bg-[#D4B76E] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#1A1A1A] shadow-sm">
-                            Active For Try-Ons
+                    return (
+                      <article
+                        key={avatarItem.avatar_id}
+                        className={`avatar-library-card ${isSelected ? "selected" : ""}`}
+                      >
+                        <div className="avatar-library-preview">
+                          <div className="avatar-library-image-frame">
+                            <img
+                              src={avatarItem.model_url}
+                              alt="Generated Aura avatar"
+                              className="avatar-library-image"
+                            />
                           </div>
-                        )}
-                      </div>
 
-                      <div className="mt-4 flex items-start justify-between gap-3">
-                        <div>
-                          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#8A6936]">
-                            Saved On
-                          </p>
-                          <p className="mt-1 text-base font-semibold text-[#1A1A1A]">
-                            {formatAvatarDate(avatarItem.created_at)}
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            handleSelectAvatar(avatarItem.avatar_id)
-                          }
-                          disabled={
-                            isSelected ||
-                            selectingAvatarId === avatarItem.avatar_id
-                          }
-                          className={`rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] transition-all ${
-                            isSelected
-                              ? "cursor-default border border-[#D4B76E] bg-[#F6E8BA] text-[#6E521F]"
-                              : "border border-[#D4B76E] bg-white text-[#7A5A2A] hover:bg-[#F9F0D9]"
-                          } ${selectingAvatarId === avatarItem.avatar_id ? "opacity-60" : ""}`}
-                        >
-                          {isSelected
-                            ? "Current Avatar"
-                            : selectingAvatarId === avatarItem.avatar_id
-                              ? "Switching..."
-                              : "Use This Avatar"}
-                        </button>
-                      </div>
+                          <div className="avatar-library-badges">
+                            <span className="avatar-library-badge avatar-library-badge-light">
+                              {avatarItem.source === "recreation"
+                                ? "Recreated"
+                                : "Created"}
+                            </span>
+                            <span className="avatar-library-badge avatar-library-badge-dark">
+                              {avatarItem.generation_type === "generated"
+                                ? "AI Generated"
+                                : "Source Based"}
+                            </span>
+                          </div>
 
-                      {summaryAttributes.length > 0 && (
-                        <div className="mt-4 flex flex-wrap gap-2">
-                          {summaryAttributes.map((attribute) => (
-                            <div
-                              key={`${avatarItem.avatar_id}-${attribute.label}`}
-                              className="rounded-full border border-[#E9DDBE] bg-white px-3 py-2 text-xs text-[#4A3A24]"
-                            >
-                              <span className="font-semibold">
-                                {attribute.label}:
-                              </span>{" "}
-                              {attribute.value}
+                          {isSelected && (
+                            <div className="avatar-library-active-pill">
+                              Active For Try-Ons
                             </div>
-                          ))}
+                          )}
                         </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="mt-6 rounded-[24px] border border-dashed border-[#E3D7BC] bg-[#FFFCF7] px-5 py-8 text-center text-sm text-charcoal/70">
-                Your generated avatars will appear here after Aura creation and
-                each recreation.
-              </div>
-            )}
+
+                        <div className="avatar-library-content">
+                          <div className="avatar-library-card-head">
+                            <div className="avatar-library-date-block">
+                              <p className="avatar-library-date-label">
+                                Saved On
+                              </p>
+                              <p className="avatar-library-date-value">
+                                {formatAvatarDate(avatarItem.created_at)}
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleSelectAvatar(avatarItem.avatar_id)
+                              }
+                              disabled={
+                                isSelected ||
+                                selectingAvatarId === avatarItem.avatar_id
+                              }
+                              className={`avatar-library-action ${isSelected ? "active" : ""} ${selectingAvatarId === avatarItem.avatar_id ? "busy" : ""}`}
+                            >
+                              {isSelected
+                                ? "Current Avatar"
+                                : selectingAvatarId === avatarItem.avatar_id
+                                  ? "Switching..."
+                                  : "Use This Avatar"}
+                            </button>
+                          </div>
+
+                          {summaryAttributes.length > 0 && (
+                            <div className="avatar-library-attributes">
+                              {summaryAttributes.map((attribute) => (
+                                <div
+                                  key={`${avatarItem.avatar_id}-${attribute.label}`}
+                                  className="avatar-library-attribute"
+                                >
+                                  <span className="font-semibold">
+                                    {attribute.label}:
+                                  </span>{" "}
+                                  {attribute.value}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="avatar-library-empty">
+                  Your generated avatars will appear here after Aura creation
+                  and each recreation.
+                </div>
+              )}
             </div>
           )}
         </div>

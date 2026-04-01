@@ -4,10 +4,11 @@ import { CreatorDashboardController } from './creator-dashboard.controller';
 import { PrismaModule } from '../prisma/prisma.module';
 import { CloudinaryService } from '../common/cloudinary.service';
 import { ConfigModule } from '@nestjs/config';
+import { PayUVpaService } from './payu-vpa.service';
 
 @Module({
   imports: [PrismaModule, ConfigModule],
-  providers: [CreatorDashboardService, CloudinaryService],
+  providers: [CreatorDashboardService, CloudinaryService, PayUVpaService],
   controllers: [CreatorDashboardController],
   exports: [CreatorDashboardService],
 })

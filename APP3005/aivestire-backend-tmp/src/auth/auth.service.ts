@@ -278,6 +278,7 @@ export class AuthService {
         creatorProfile: {
           select: {
             store_name: true,
+            verification_data: true,
           },
         },
       },
@@ -298,6 +299,8 @@ export class AuthService {
 
     // If the user is a creator, return their creator profile details
     if (user.role === UserRole.CREATOR && user.creatorProfile) {
+      const verificationData = (user.creatorProfile.verification_data as any) || {};
+
       return {
         user_id: user.user_id,
         email: user.email,
@@ -306,6 +309,9 @@ export class AuthService {
         needs_dob_collection: !user.date_of_birth && !user.password_hash,
         try_on_permission: user.try_on_permission,
         store_name: user.creatorProfile.store_name,
+        subtitle: verificationData.subtitle || null,
+        avatar: verificationData.avatar || null,
+        paymentDetails: verificationData.paymentDetails || null,
         try_ons_used: user.try_ons_used,
         max_try_ons: effectiveTryOnLimit,
         avatar_regenerations_used: user.avatar_regenerations_used,

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Heart, MessageCircle, Share2, ChevronLeft, ChevronRight, X, CheckCircle2, Clock, Eye, Send, FileText } from "lucide-react";
+import { Heart, MessageCircle, Share2, ChevronLeft, ChevronRight, X, CheckCircle2, Clock, Eye, Send, FileText, ShieldAlert } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { ActionMenu } from "@/components/common/ActionMenu";
 import ProductDetailsModal from "./ProductDetailsModal";
@@ -13,7 +13,7 @@ interface ProductCardProps {
     description?: string;
     tags: string[];
     revenue: string;
-    status: "Active" | "Pending" | "Draft";
+    status: "Active" | "Pending" | "Draft" | "Rejected";
     isNew?: boolean;
     onEdit?: () => void;
     onDelete?: () => void;
@@ -24,6 +24,7 @@ interface ProductCardProps {
         comments_count: number;
         shares_count?: number;
         tries_count?: number;
+        views?: number;
     };
 }
 
@@ -156,8 +157,8 @@ const ProductCard = ({ image, images = [], title, description, tags, revenue, st
                             <span className="text-[10px] md:text-xs font-medium">{stats?.comments_count || 0}</span>
                         </div>
                         <div className="flex items-center gap-1 md:gap-1.5 text-stone-400">
-                            <Share2 size={12} className="md:w-3.5 md:h-3.5" />
-                            <span className="text-[10px] md:text-xs font-medium">{stats?.shares_count || stats?.tries_count || 0}</span>
+                            <Eye size={12} className="md:w-3.5 md:h-3.5" />
+                            <span className="text-[10px] md:text-xs font-medium">{stats?.views || stats?.tries_count || 0}</span>
                         </div>
                     </div>
                 </div>
@@ -170,9 +171,11 @@ const ProductCard = ({ image, images = [], title, description, tags, revenue, st
                             ? "bg-emerald-50 text-emerald-700 border border-emerald-100"
                             : status === "Draft"
                                 ? "bg-blue-50 text-blue-700 border border-blue-100"
+                                : status === "Rejected"
+                                    ? "bg-rose-50 text-rose-700 border border-rose-100"
                                 : "bg-amber-50 text-amber-700 border border-amber-100"
                             }`}>
-                            {status === "Active" ? <CheckCircle2 size={10} /> : status === "Draft" ? <FileText size={10} /> : <Clock size={10} />}
+                            {status === "Active" ? <CheckCircle2 size={10} /> : status === "Draft" ? <FileText size={10} /> : status === "Rejected" ? <ShieldAlert size={10} /> : <Clock size={10} />}
                             {status}
                         </span>
 

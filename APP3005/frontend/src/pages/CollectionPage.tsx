@@ -13,7 +13,14 @@ import { TryOnInterstitialModal } from "@/components/TryOnInterstitialModal";
 import { TryOnResultModal } from '@/components/ai-tryon/TryOnResultModal';
 import { TryOnUpgradePopup } from '@/components/ai-tryon/TryOnUpgradePopup';
 import { AuraPromptDialog } from '@/components/aura/AuraPromptDialog';
-import { tryOnWithGemini, tryOnWithVertex, generateMoreAngles, getAura, FeedbackContextType } from '@/lib/api';
+import {
+    tryOnWithGemini,
+    tryOnWithVertex,
+    generateMoreAngles,
+    getAura,
+    getProductById,
+    FeedbackContextType,
+} from '@/lib/api';
 import collectionHeaderImage from "@/assets/collectionHeader.jpeg";
 import {
     getTryOnLimitSnapshot,
@@ -336,10 +343,27 @@ const CollectionPage = () => {
             // Use aura.user_id if available, otherwise fallback to user.user_id (though aura is preferred)
             const userId = aura?.user_id || user.user_id;
             let result: TryOnResult;
+            let resolvedProductLabel =
+                selectedTryOnLabel || resolveProductLabel(product.product_id);
 
             if (provider === TRYON_PROVIDER.GEMINI) {
+                let refreshedProduct = product;
+
+                try {
+                    refreshedProduct =
+                        ((await getProductById(product.product_id)) as PublicProduct) ??
+                        product;
+                } catch (refreshError) {
+                    console.warn(
+                        'Failed to refresh product before Gemini try-on, using existing product data.',
+                        refreshError,
+                    );
+                }
+
                 const avatarImage = getAvatarImageUrl(aura);
-                const clothingImage = getProductImageUrl(product);
+                const clothingImage = getProductImageUrl(refreshedProduct);
+                resolvedProductLabel =
+                    refreshedProduct.title || resolvedProductLabel;
 
                 if (!avatarImage || !clothingImage) {
                     throw new Error('Try-on requires both avatar and clothing images');
@@ -369,10 +393,11 @@ const CollectionPage = () => {
                     clearTimeout(feedbackCloseTimerRef.current);
                     feedbackCloseTimerRef.current = null;
                 }
+                setSelectedTryOnLabel(resolvedProductLabel);
                 setFeedbackContext({
                     type: "VIRTUAL_TRYON",
                     referenceId: result.tryOnId ? String(result.tryOnId) : undefined,
-                    label: selectedTryOnLabel || resolveProductLabel(product.product_id),
+                    label: resolvedProductLabel,
                 });
             } else {
                 throw new Error(result.message || 'Try-on failed');

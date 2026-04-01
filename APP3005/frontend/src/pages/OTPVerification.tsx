@@ -77,8 +77,8 @@ export const OTPVerification = () => {
                     // Wait for animation then navigate based on role
                     setTimeout(() => {
                         if (userRole === 'CREATOR') {
-                            // Redirect creators to creator dashboard
-                            navigate('/creator-dashboard');
+                            // Redirect creators to the onboarding flow
+                            navigate('/creator-onboarding');
                         } else {
                             // Redirect buyers to collection page with Aura modal
                             navigate('/collection', {
@@ -91,7 +91,7 @@ export const OTPVerification = () => {
                     // If auto-login fails, redirect based on signup type
                     setTimeout(() => {
                         if (signupType === 'creator') {
-                            navigate('/creator-dashboard');
+                            navigate('/creator-onboarding');
                         } else {
                             navigate('/collection', {
                                 state: { fromSignup: true, showAuraModal: true }
@@ -181,8 +181,8 @@ export const OTPVerification = () => {
                         // Wait for animation then navigate based on role
                         setTimeout(() => {
                             if (userRole === 'CREATOR') {
-                                // Redirect creators to creator dashboard
-                                navigate('/creator-dashboard');
+                                // Redirect creators to the onboarding flow
+                                navigate('/creator-onboarding');
                             } else {
                                 // Redirect buyers to collection page with Aura modal
                                 navigate('/collection', {
@@ -195,7 +195,7 @@ export const OTPVerification = () => {
                         // If auto-login fails, redirect based on signup type
                         setTimeout(() => {
                             if (signupType === 'creator') {
-                                navigate('/creator-dashboard');
+                                navigate('/creator-onboarding');
                             } else {
                                 navigate('/collection', {
                                     state: { fromSignup: true, showAuraModal: true }
