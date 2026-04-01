@@ -67,9 +67,13 @@ export class PayUGatewayService {
     this.key = this.configService.getOrThrow<string>('PAYU_KEY');
     this.salt = this.configService.getOrThrow<string>('PAYU_SALT');
 
-    const isProduction =
-      this.configService.get<string>('NODE_ENV') === 'production' || 
-      this.configService.get<string>('PAYU_ENV') === 'production';
+    const configuredEnvironment = this.configService
+      .get<string>('PAYU_ENV')
+      ?.trim()
+      .toLowerCase();
+    const isProduction = configuredEnvironment
+      ? ['production', 'prod', 'live'].includes(configuredEnvironment)
+      : this.configService.get<string>('NODE_ENV') === 'production';
     this.payuBaseUrl = isProduction
       ? PAYU_CONSTANTS.PROD_URL
       : PAYU_CONSTANTS.TEST_URL;

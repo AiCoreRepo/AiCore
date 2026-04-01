@@ -61,9 +61,9 @@ export class PayUVpaService {
     )
       .trim()
       .toUpperCase();
-    const isProductionEnvironment =
-      configuredEnvironment === 'PRODUCTION' ||
-      this.configService.get<string>('NODE_ENV') === 'production';
+    const isProductionEnvironment = configuredEnvironment
+      ? ['PRODUCTION', 'PROD', 'LIVE'].includes(configuredEnvironment)
+      : this.configService.get<string>('NODE_ENV') === 'production';
 
     this.validationUrl =
       configuredUrl ||
