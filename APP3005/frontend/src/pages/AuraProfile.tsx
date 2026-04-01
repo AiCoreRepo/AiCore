@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast"; // Import toast hook
 import { EditableAttributeCard } from "@/components/aura/EditableAttributeCard";
 import { AvatarDisplay } from "@/components/aura/AvatarDisplay";
+import { AuraFramedImage } from "@/components/aura/AuraFramedImage";
 import { ProcessingModal } from "@/components/aura/ProcessingModal";
 import {
   BODY_SIZE_OPTIONS,
@@ -1161,13 +1162,12 @@ export default function AuraProfile() {
                         className={`avatar-library-card ${isSelected ? "selected" : ""}`}
                       >
                         <div className="avatar-library-preview">
-                          <div className="avatar-library-image-frame">
-                            <img
-                              src={avatarItem.model_url}
-                              alt="Generated Aura avatar"
-                              className="avatar-library-image"
-                            />
-                          </div>
+                          <AuraFramedImage
+                            src={avatarItem.model_url}
+                            alt="Generated Aura avatar"
+                            className="avatar-library-image-frame"
+                            foregroundClassName="avatar-library-image"
+                          />
 
                           <div className="avatar-library-badges">
                             <span className="avatar-library-badge avatar-library-badge-light">

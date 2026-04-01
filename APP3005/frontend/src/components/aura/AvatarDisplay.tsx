@@ -1,4 +1,5 @@
 import React from 'react';
+import { AuraFramedImage } from './AuraFramedImage';
 
 interface AvatarDisplayProps {
     imageUrl: string;
@@ -29,13 +30,13 @@ export const AvatarDisplay: React.FC<AvatarDisplayProps> = ({ imageUrl, userName
                     <div className="sparkle sparkle-5">✦</div>
                     <div className="sparkle sparkle-6">✦</div>
 
-                    <div className="avatar-image-wrapper">
-                        <img
-                            src={imageUrl}
-                            alt={userName ? `${userName}'s Aura` : "User's Aura"}
-                            className="avatar-image"
-                        />
-                    </div>
+                    <AuraFramedImage
+                        src={imageUrl}
+                        alt={userName ? `${userName}'s Aura` : "User's Aura"}
+                        className="avatar-image-wrapper"
+                        foregroundClassName="avatar-image"
+                        loading="eager"
+                    />
                 </div>
 
                 <p className="avatar-display-note">

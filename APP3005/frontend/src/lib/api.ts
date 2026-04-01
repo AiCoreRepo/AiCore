@@ -1,3 +1,8 @@
+import {
+  getTryOnHostErrorMessage,
+  isSupportedTryOnHost,
+} from "@/lib/try-on-environment";
+
 const BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
 
 export interface ApiError extends Error {
@@ -122,6 +127,16 @@ function handleApiError(
   }
 
   throw error;
+}
+
+function assertSupportedTryOnHost(): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  if (!isSupportedTryOnHost()) {
+    throw new Error(getTryOnHostErrorMessage());
+  }
 }
 
 export interface TryOnPermission {
@@ -903,6 +918,8 @@ export async function tryOnWithGemini(data: {
   clothingImage: string;
   additionalParams?: Record<string, unknown>;
 }) {
+  assertSupportedTryOnHost();
+
   const token = localStorage.getItem("access_token");
   if (!token) {
     throw new Error("Please login to use AI Try-On");
@@ -929,6 +946,8 @@ export async function tryOnWithVertex(data: {
   clothingItemId: string;
   additionalParams?: Record<string, unknown>;
 }) {
+  assertSupportedTryOnHost();
+
   const token = localStorage.getItem("access_token");
   if (!token) {
     throw new Error("Please login to use AI Try-On");

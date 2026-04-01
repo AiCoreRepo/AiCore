@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { User, Ruler, Weight, Palette, Sparkles } from 'lucide-react';
 import { getTryOnUsageSnapshot } from '@/lib/try-on-limit';
+import { AuraFramedImage } from '@/components/aura/AuraFramedImage';
 
 interface AuraData {
     aura_id: string;
@@ -62,7 +63,7 @@ export function AuraDisplayCard({ aura, tryOnCount = 0, maxTryOns }: AuraDisplay
             >
                 {/* Avatar Image */}
                 <div
-                    className="relative mb-6 overflow-hidden"
+                    className="relative mb-6 overflow-hidden aspect-[3/4]"
                     style={{
                         borderRadius: '20px',
                         border: '1px solid rgba(212, 175, 55, 0.2)',
@@ -70,16 +71,17 @@ export function AuraDisplayCard({ aura, tryOnCount = 0, maxTryOns }: AuraDisplay
                     }}
                 >
                     {aura.model_url || aura.image_url ? (
-                        <img
+                        <AuraFramedImage
                             src={aura.model_url || aura.image_url || ''}
                             alt="Your Aura Avatar"
-                            className="w-full h-auto object-cover"
-                            style={{ aspectRatio: '3/4' }}
+                            className="h-full w-full"
+                            foregroundClassName="h-full w-full object-contain object-center p-3"
+                            loading="eager"
                         />
                     ) : (
                         <div
                             className="w-full flex items-center justify-center bg-gradient-to-br from-gold/10 to-gold/5"
-                            style={{ aspectRatio: '3/4' }}
+                            style={{ height: '100%' }}
                         >
                             <User className="w-24 h-24 text-gold/40" />
                         </div>

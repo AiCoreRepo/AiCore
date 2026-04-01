@@ -5,6 +5,27 @@ import type { RequestHandler } from 'express';
 import { ValidationPipe } from '@nestjs/common';
 import * as express from 'express';
 
+function normalizeOrigin(origin: string): string {
+  const trimmed = origin.trim();
+  if (!trimmed) {
+    return '';
+  }
+
+  try {
+    const url = new URL(trimmed);
+    const hostname = url.hostname.toLowerCase();
+    const protocol = url.protocol.toLowerCase();
+    const isDefaultPort =
+      (protocol === 'https:' && url.port === '443') ||
+      (protocol === 'http:' && url.port === '80');
+    const portSuffix = url.port && !isDefaultPort ? `:${url.port}` : '';
+
+    return `${protocol}//${hostname}${portSuffix}`;
+  } catch {
+    return trimmed.replace(/\/$/, '').toLowerCase();
+  }
+}
+
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
@@ -28,29 +49,32 @@ async function bootstrap() {
 
   // Parse allowed origins from environment
   const allowedOrigins = (process.env.CORS_ORIGIN?.split(',') ?? [])
-    .map((o) => o.trim())
+    .map((o) => normalizeOrigin(o))
     .filter((o) => o.length > 0);
 
   // Always allow localhost origins for development
-  const localOrigins = [
-    'http://localhost:3001',
-    'http://localhost:5173',
-    'http://localhost:5174',
-    'http://localhost:8080',
-    'http://localhost:8081',
-    'http://localhost:8082',
-    'http://127.0.0.1:5173',
-    'http://127.0.0.1:5174',
-    'http://127.0.0.1:8080',
-    'http://127.0.0.1:8081',
-    'http://127.0.0.1:8082',
-    'https://aivestire.com',
-    'https://www.aivestire.com',
-    'https://uat.aivestire.com',
-    'https://dev.aivestire.com',
-    'https://prod.aivestire.com',
+  const localOrigins = new Set(
+    [
+      'http://localhost:3001',
+      'http://localhost:5173',
+      'http://localhost:5174',
+      'http://localhost:8080',
+      'http://localhost:8081',
+      'http://localhost:8082',
+      'http://127.0.0.1:5173',
+      'http://127.0.0.1:5174',
+      'http://127.0.0.1:8080',
+      'http://127.0.0.1:8081',
+      'http://127.0.0.1:8082',
+      'https://aivestire.com',
+      'https://www.aivestire.com',
+      'https://uat.aivestire.com',
+      'https://dev.aivestire.com',
+      'https://prod.aivestire.com',
+    ].map((origin) => normalizeOrigin(origin)),
+  );
 
-  ];
+  const allowedOriginSet = new Set(allowedOrigins);
 
   // console.log('🔧 CORS Configuration:');
   // console.log(
@@ -64,17 +88,21 @@ async function bootstrap() {
       // Allow requests with no origin (mobile apps, Postman, etc.)
       if (!origin) return callback(null, true);
 
+      const normalizedOrigin = normalizeOrigin(origin);
+
       // Always allow localhost for development
-      if (localOrigins.includes(origin)) {
+      if (localOrigins.has(normalizedOrigin)) {
         return callback(null, true);
       }
 
       // Check if origin is in the allowed list
-      if (allowedOrigins.length > 0) {
-        if (allowedOrigins.includes(origin)) {
+      if (allowedOriginSet.size > 0) {
+        if (allowedOriginSet.has(normalizedOrigin)) {
           callback(null, true);
         } else {
-          console.warn(`⚠️ CORS blocked origin: ${origin}`);
+          console.warn(
+            `⚠️ CORS blocked origin: ${origin} (normalized: ${normalizedOrigin})`,
+          );
           callback(new Error('Not allowed by CORS'));
         }
       } else {

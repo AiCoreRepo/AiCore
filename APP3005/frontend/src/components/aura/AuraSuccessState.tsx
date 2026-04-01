@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import { CheckCircle, ArrowRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { AuraFramedImage } from "./AuraFramedImage";
 
 interface AuraSuccessStateProps {
     avatarUrl?: string;
@@ -61,10 +62,12 @@ export const AuraSuccessState = ({ avatarUrl, onViewDetails }: AuraSuccessStateP
                     className="flex justify-center"
                 >
                     <div className="relative w-full max-w-xs overflow-hidden rounded-[24px] border-2 border-gold bg-[#F5EDDD] shadow-[0_18px_48px_rgba(201,165,95,0.2)] aspect-[2/3]">
-                        <img
+                        <AuraFramedImage
                             src={avatarUrl}
                             alt="Your Aura Avatar"
-                            className="h-full w-full object-contain object-center"
+                            className="h-full w-full"
+                            foregroundClassName="h-full w-full object-contain object-center"
+                            loading="eager"
                         />
                     </div>
                 </motion.div>
