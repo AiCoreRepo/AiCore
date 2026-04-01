@@ -29,10 +29,22 @@ export const SUPPORTED_MIME_TYPES = [
 // Supported File Extensions
 export const SUPPORTED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp'] as const;
 
+const getEnvTimeout = (key: string, fallback: number): number => {
+  const rawValue = process.env[key];
+  if (!rawValue) {
+    return fallback;
+  }
+
+  const parsedValue = Number.parseInt(rawValue, 10);
+  return Number.isFinite(parsedValue) && parsedValue > 0
+    ? parsedValue
+    : fallback;
+};
+
 // API Timeout Settings (in milliseconds)
-export const DEFAULT_TIMEOUT = 60000; // 60 seconds
-export const VERTEX_AI_TIMEOUT = 90000; // 90 seconds
-export const GEMINI_AI_TIMEOUT = 300000; // 300 seconds (5 minutes) - increased further for slow generation
+export const DEFAULT_TIMEOUT = getEnvTimeout('DEFAULT_TIMEOUT', 60000); // 60 seconds
+export const VERTEX_AI_TIMEOUT = getEnvTimeout('VERTEX_AI_TIMEOUT', 90000); // 90 seconds
+export const GEMINI_AI_TIMEOUT = getEnvTimeout('GEMINI_AI_TIMEOUT', 300000); // 300 seconds (5 minutes)
 
 // Retry Configuration
 export const MAX_RETRIES = 3;
