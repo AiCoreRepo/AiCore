@@ -912,7 +912,119 @@ export async function selectAuraAvatarForTryOns(avatarId: string) {
   return res.json();
 }
 
-// Try-on with Gemini AI (fallbacks to Vertex endpoint since Gemini 3D route is disabled)
+type TryOnResultPayload = {
+  success: boolean;
+  resultImage?: string;
+  provider?: string;
+  status?: string;
+  processingTimeMs?: number;
+  metadata?: Record<string, unknown>;
+  tryOnId?: string | number;
+  timestamp?: string;
+  message?: string;
+};
+
+type TryOnQueuedResponse = {
+  success: boolean;
+  status?: string;
+  jobId?: string;
+  job_id?: string;
+  message?: string;
+  timestamp?: string;
+};
+
+type TryOnJobStatusResponse = {
+  success: boolean;
+  status: string;
+  progress: number;
+  result?: TryOnResultPayload;
+  error?: string;
+};
+
+const TRY_ON_JOB_POLL_INTERVAL_MS = 2000;
+const TRY_ON_JOB_TIMEOUT_MS = 10 * 60 * 1000;
+
+function isQueuedTryOnResponse(payload: unknown): payload is TryOnQueuedResponse {
+  if (!payload || typeof payload !== "object") {
+    return false;
+  }
+
+  const queuedPayload = payload as TryOnQueuedResponse;
+  return Boolean(queuedPayload.jobId || queuedPayload.job_id);
+}
+
+function delay(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function pollTryOnJobResult(
+  jobId: string,
+  token: string,
+  defaultMessage: string,
+): Promise<TryOnResultPayload> {
+  const startedAt = Date.now();
+
+  while (Date.now() - startedAt < TRY_ON_JOB_TIMEOUT_MS) {
+    const res = await fetch(`${BASE_URL}/v1/tryon/job/${jobId}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!res.ok) {
+      handleApiError(res, await res.text(), defaultMessage);
+    }
+
+    const payload = (await res.json()) as TryOnJobStatusResponse;
+
+    if (payload.status === "completed") {
+      if (payload.result) {
+        return payload.result;
+      }
+
+      throw new Error(defaultMessage);
+    }
+
+    if (payload.status === "failed") {
+      throw new Error(payload.error || defaultMessage);
+    }
+
+    if (payload.status === "not_found") {
+      throw new Error("Try-on job could not be found.");
+    }
+
+    await delay(TRY_ON_JOB_POLL_INTERVAL_MS);
+  }
+
+  throw new Error(
+    "Try-on processing is taking longer than expected. Please try again shortly.",
+  );
+}
+
+async function resolveQueuedTryOnResponse(
+  res: Response,
+  token: string,
+  defaultMessage: string,
+): Promise<TryOnResultPayload> {
+  if (!res.ok) {
+    handleApiError(res, await res.text(), defaultMessage);
+  }
+
+  const payload = (await res.json()) as TryOnResultPayload | TryOnQueuedResponse;
+
+  if (isQueuedTryOnResponse(payload)) {
+    const jobId = payload.jobId || payload.job_id;
+    if (!jobId) {
+      throw new Error("Try-on job did not return a valid job id.");
+    }
+
+    return pollTryOnJobResult(jobId, token, defaultMessage);
+  }
+
+  return payload;
+}
+
+// Try-on with Gemini AI using async queue polling
 export async function tryOnWithGemini(data: {
   avatarImage: string;
   clothingImage: string;
@@ -925,7 +1037,7 @@ export async function tryOnWithGemini(data: {
     throw new Error("Please login to use AI Try-On");
   }
 
-  const res = await fetch(`${BASE_URL}/v1/tryon/gemini`, {
+  const res = await fetch(`${BASE_URL}/v1/tryon/gemini/start`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -934,13 +1046,10 @@ export async function tryOnWithGemini(data: {
     body: JSON.stringify(data),
   });
 
-  if (!res.ok) {
-    handleApiError(res, await res.text(), "Try-on failed");
-  }
-  return res.json();
+  return resolveQueuedTryOnResponse(res, token, "Try-on failed");
 }
 
-// Try-on with Vertex AI
+// 3D Try-on with Vertex AI using async queue polling
 export async function tryOnWithVertex(data: {
   userId: string;
   clothingItemId: string;
@@ -953,7 +1062,7 @@ export async function tryOnWithVertex(data: {
     throw new Error("Please login to use AI Try-On");
   }
 
-  const res = await fetch(`${BASE_URL}/v1/tryon/3d/vertex`, {
+  const res = await fetch(`${BASE_URL}/v1/tryon/3d/vertex/start`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -962,10 +1071,7 @@ export async function tryOnWithVertex(data: {
     body: JSON.stringify(data),
   });
 
-  if (!res.ok) {
-    handleApiError(res, await res.text(), "Vertex try-on failed");
-  }
-  return res.json();
+  return resolveQueuedTryOnResponse(res, token, "Vertex try-on failed");
 }
 
 export async function submitFeedback(payload: FeedbackPayload) {

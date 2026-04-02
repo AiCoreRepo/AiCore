@@ -32,6 +32,7 @@ export class AuraController {
   ) {}
 
   @Post()
+  @HttpCode(HttpStatus.ACCEPTED)
   @UseGuards(JwtAuthGuard)
   @UseInterceptors(FileInterceptor('photo'))
   async createAura(
@@ -65,6 +66,7 @@ export class AuraController {
   }
 
   @Post('recreate')
+  @HttpCode(HttpStatus.ACCEPTED)
   @UseGuards(JwtAuthGuard)
   @UseInterceptors(FileInterceptor('photo'))
   async recreateAura(

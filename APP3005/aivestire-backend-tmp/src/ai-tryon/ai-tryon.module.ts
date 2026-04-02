@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { BullModule } from '@nestjs/bull';
 import { ConfigModule } from '@nestjs/config';
 import { PrismaModule } from '../prisma/prisma.module';
 import { DirectGeminiTryOnService } from './services/providers/direct-gemini-tryon.service';
@@ -10,9 +11,18 @@ import { TryOnController } from './controllers/tryon.controller';
 import { AuraGuard } from '../common/guards/aura.guard';
 import { CloudinaryService } from '../common/cloudinary.service';
 import { ImageOptimizerService } from '../common/image-optimizer.service';
+import { QUEUE_NAMES } from '../common/constants/queue.constants';
+import { TryOnQueueService } from './tryon-queue.service';
+import { TryOnProcessor } from './tryon.processor';
 
 @Module({
-  imports: [ConfigModule, PrismaModule],
+  imports: [
+    ConfigModule,
+    PrismaModule,
+    BullModule.registerQueue({
+      name: QUEUE_NAMES.TRY_ON_PROCESSING,
+    }),
+  ],
   controllers: [TryOnController],
   providers: [
     DirectGeminiTryOnService,
@@ -23,6 +33,8 @@ import { ImageOptimizerService } from '../common/image-optimizer.service';
     AuraGuard,
     CloudinaryService,
     ImageOptimizerService,
+    TryOnQueueService,
+    TryOnProcessor,
   ],
   exports: [
     DirectGeminiTryOnService,
@@ -30,6 +42,7 @@ import { ImageOptimizerService } from '../common/image-optimizer.service';
     BodyAnalyzerService,
     TryOn3DService,
     ImageOptimizerService,
+    TryOnQueueService,
   ],
 })
 export class AiTryOnModule {}

@@ -8,10 +8,10 @@ import {
   UploadedFile,
   HttpCode,
   HttpStatus,
-  Query,
   Logger,
   UseGuards,
   Request,
+  Param,
 } from '@nestjs/common';
 import {
   FileFieldsInterceptor,
@@ -34,12 +34,14 @@ import {
   TryOnResponseDto,
   TryOnErrorResponseDto,
   HealthCheckResponseDto,
+  TryOnQueuedResponseDto,
+  TryOnJobStatusResponseDto,
 } from '../dto/tryon-response.dto';
 import {
   AnalyzeBodyDto,
   BodyAnalysisResultDto,
 } from '../dto/body-analyzer.dto';
-import { AIProvider } from '../enums/ai-provider.enum';
+import { AIProvider, TryOnStatus } from '../enums/ai-provider.enum';
 import { DirectVertexTryOnService } from '../services/providers/direct-vertex-tryon.service';
 import { DirectGeminiTryOnService } from '../services/providers/direct-gemini-tryon.service';
 import { BodyAnalyzerService } from '../services/body-analyzer.service';
@@ -50,6 +52,7 @@ import type { Aura } from '@prisma/client';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { TryOnPermissionGuard } from '../../auth/guards/tryon-permission.guard';
 import _ from 'lodash';
+import { TryOnQueueService } from '../tryon-queue.service';
 
 @ApiTags('AI Try-On')
 @Controller('v1/tryon')
@@ -61,7 +64,113 @@ export class TryOnController {
     private readonly directVertexService: DirectVertexTryOnService,
     private readonly bodyAnalyzerService: BodyAnalyzerService,
     private readonly tryOn3DService: TryOn3DService,
+    private readonly tryOnQueueService: TryOnQueueService,
   ) {}
+
+  private createQueuedTryOnResponse(
+    jobId: string,
+    message: string,
+  ): TryOnQueuedResponseDto {
+    return {
+      success: true,
+      status: TryOnStatus.PENDING,
+      jobId,
+      message,
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  /**
+   * Queue Vertex AI try-on job for async processing
+   */
+  @Post('vertex/start')
+  @HttpCode(HttpStatus.ACCEPTED)
+  @ApiOperation({
+    summary: 'Queue Vertex AI try-on job',
+    description:
+      'Queues a Vertex AI try-on request and returns immediately with a job ID for polling.',
+  })
+  @ApiResponse({
+    status: 202,
+    description: 'Try-on job queued successfully',
+    type: TryOnQueuedResponseDto,
+  })
+  @UseGuards(JwtAuthGuard, TryOnPermissionGuard)
+  async startTryOnWithVertex(
+    @Body() request: TryOnRequestDto,
+    @Request() req,
+  ): Promise<TryOnQueuedResponseDto> {
+    const job = await this.tryOnQueueService.addDirectTryOnJob({
+      type: 'direct',
+      provider: AIProvider.VERTEX_AI,
+      requestUserId: req.user.user_id,
+      avatarImage: request.avatarImage,
+      clothingImage: request.clothingImage,
+      additionalParams: request.additionalParams,
+    });
+
+    return this.createQueuedTryOnResponse(
+      job.id.toString(),
+      'Vertex try-on job queued successfully',
+    );
+  }
+
+  /**
+   * Queue Gemini AI try-on job for async processing
+   */
+  @Post('gemini/start')
+  @HttpCode(HttpStatus.ACCEPTED)
+  @ApiOperation({
+    summary: 'Queue Gemini AI try-on job',
+    description:
+      'Queues a Gemini AI try-on request and returns immediately with a job ID for polling.',
+  })
+  @ApiResponse({
+    status: 202,
+    description: 'Try-on job queued successfully',
+    type: TryOnQueuedResponseDto,
+  })
+  @UseGuards(JwtAuthGuard)
+  async startTryOnWithGemini(
+    @Body() request: TryOnRequestDto,
+    @Request() req,
+  ): Promise<TryOnQueuedResponseDto> {
+    const job = await this.tryOnQueueService.addDirectTryOnJob({
+      type: 'direct',
+      provider: AIProvider.GEMINI_AI,
+      requestUserId: req.user.user_id,
+      avatarImage: request.avatarImage,
+      clothingImage: request.clothingImage,
+      additionalParams: request.additionalParams,
+    });
+
+    return this.createQueuedTryOnResponse(
+      job.id.toString(),
+      'Gemini try-on job queued successfully',
+    );
+  }
+
+  /**
+   * Return async try-on job status
+   */
+  @Get('job/:jobId')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary: 'Get try-on job status',
+    description:
+      'Returns the status of an async try-on job and includes the final result when completed.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Job status retrieved successfully',
+    type: TryOnJobStatusResponseDto,
+  })
+  async getTryOnJobStatus(
+    @Param('jobId') jobId: string,
+    @Request() req,
+  ): Promise<TryOnJobStatusResponseDto> {
+    return this.tryOnQueueService.getJobStatus(jobId, req.user.user_id);
+  }
 
   /**
    * Virtual try-on using Vertex AI
@@ -279,6 +388,47 @@ export class TryOnController {
       avatarBase64,
       clothingBase64,
       body.additionalParams,
+    );
+  }
+
+  /**
+   * Queue 3D Virtual try-on with Vertex AI
+   */
+  @Post('3d/vertex/start')
+  @HttpCode(HttpStatus.ACCEPTED)
+  @ApiOperation({
+    summary: 'Queue 3D Try-on with Vertex AI',
+    description:
+      'Queues a 3D Vertex AI try-on request and returns immediately with a job ID for polling.',
+  })
+  @ApiResponse({
+    status: 202,
+    description: '3D try-on job queued successfully',
+    type: TryOnQueuedResponseDto,
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'User does not have Aura avatar',
+    type: TryOnErrorResponseDto,
+  })
+  @UseGuards(JwtAuthGuard, AuraGuard, TryOnPermissionGuard)
+  async startTryOn3DWithVertex(
+    @Body() request: TryOn3DRequestDto,
+    @CurrentAura() aura: Aura,
+    @Request() req,
+  ): Promise<TryOnQueuedResponseDto> {
+    const job = await this.tryOnQueueService.addThreeDTryOnJob({
+      type: 'three-d',
+      provider: AIProvider.VERTEX_AI,
+      requestUserId: req.user.user_id,
+      auraId: aura.aura_id,
+      clothingItemId: request.clothingItemId,
+      additionalParams: request.additionalParams,
+    });
+
+    return this.createQueuedTryOnResponse(
+      job.id.toString(),
+      '3D Vertex try-on job queued successfully',
     );
   }
 
