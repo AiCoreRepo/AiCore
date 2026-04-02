@@ -4,6 +4,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import _ from 'lodash';
 import { BaseTryOnService } from '../common/base-tryon.service';
 import { ImageValidatorService } from '../common/image-validator.service';
+import { ImageOptimizerService } from '../../../common/image-optimizer.service';
 import { AIProvider, TryOnErrorCode } from '../../enums/ai-provider.enum';
 import {
   AIServiceException,
@@ -67,6 +68,7 @@ export class DirectGeminiTryOnService extends BaseTryOnService {
   constructor(
     imageValidator: ImageValidatorService,
     private readonly configService: ConfigService,
+    private readonly imageOptimizer: ImageOptimizerService,
   ) {
     super(imageValidator, AIProvider.GEMINI_AI);
 
@@ -231,6 +233,16 @@ export class DirectGeminiTryOnService extends BaseTryOnService {
   ): Promise<string> {
     this.logger.debug('Gemini try-on uses a single generation attempt');
     return this.performTryOn(avatarBase64, clothingBase64, additionalParams);
+  }
+
+  protected async postprocessResult(resultImage: string): Promise<string> {
+    return this.imageOptimizer.normalizeToPortraitCanvas(resultImage, {
+      targetAspectRatio: 2 / 3,
+      maxWidth: 1200,
+      maxHeight: 1800,
+      quality: 90,
+      format: 'jpeg',
+    });
   }
 
   private buildPrompt(additionalParams?: Record<string, any>): string {

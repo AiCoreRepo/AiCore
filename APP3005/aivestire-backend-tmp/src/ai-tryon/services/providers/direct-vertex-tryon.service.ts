@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { BaseTryOnService } from '../common/base-tryon.service';
 import { ImageValidatorService } from '../common/image-validator.service';
+import { ImageOptimizerService } from '../../../common/image-optimizer.service';
 import { AIProvider } from '../../enums/ai-provider.enum';
 import {
   AIServiceException,
@@ -46,6 +47,7 @@ export class DirectVertexTryOnService extends BaseTryOnService {
   constructor(
     imageValidator: ImageValidatorService,
     private readonly configService: ConfigService,
+    private readonly imageOptimizer: ImageOptimizerService,
   ) {
     super(imageValidator, AIProvider.VERTEX_AI);
 
@@ -441,5 +443,15 @@ export class DirectVertexTryOnService extends BaseTryOnService {
       configured: true,
       message: `Direct Vertex AI: ${this.projectId} / ${this.location} / ${this.modelId}`,
     };
+  }
+
+  protected async postprocessResult(resultImage: string): Promise<string> {
+    return this.imageOptimizer.normalizeToPortraitCanvas(resultImage, {
+      targetAspectRatio: 2 / 3,
+      maxWidth: 1200,
+      maxHeight: 1800,
+      quality: 90,
+      format: 'jpeg',
+    });
   }
 }

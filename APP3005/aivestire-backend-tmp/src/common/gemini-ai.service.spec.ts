@@ -68,6 +68,12 @@ describe('GeminiAIService prompt building', () => {
     expect(prompt.instructions.output).toContain(
       'proportionally balanced full-body portrait',
     );
+    expect(prompt.instructions.output).toContain(
+      'Use a vertical portrait composition, approximately 2:3',
+    );
+    expect(prompt.instructions.output).toContain(
+      'must not appear tiny inside a large empty background',
+    );
   });
 
   it('maps aura attributes into person_attributes for full-body reconstruction', () => {
@@ -137,6 +143,9 @@ describe('GeminiAIService prompt building', () => {
       'Do NOT zoom in so tightly that the full hair silhouette is not visible',
     );
     expect(prompt.constraints).toContain(
+      'Do NOT output a horizontal, panoramic, or ultra-wide composition',
+    );
+    expect(prompt.constraints).toContain(
       'Do NOT change face shape, eye shape, nose, lips, jawline, or hairline',
     );
     expect(prompt.constraints).toContain(
@@ -147,6 +156,9 @@ describe('GeminiAIService prompt building', () => {
     );
     expect(prompt.constraints).toContain(
       'Do NOT generate unnatural anatomy, broken limb proportions, merged limbs, duplicated limbs, or misaligned shoulders',
+    );
+    expect(prompt.constraints).toContain(
+      'Do NOT make the person look shrunken, distant, or vertically compressed inside the frame',
     );
     expect(prompt.constraints).toContain(
       'Do NOT shorten, restyle, flatten, tie back, or simplify the hair',

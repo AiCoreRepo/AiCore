@@ -4,6 +4,7 @@ import type bull from 'bull';
 import { PrismaService } from '../prisma/prisma.service';
 import { CloudinaryService } from '../common/cloudinary.service';
 import { GeminiAIService } from '../common/gemini-ai.service';
+import { ImageOptimizerService } from '../common/image-optimizer.service';
 import { AuraJobData } from './aura-queue.service';
 import { AuraStatus } from '@prisma/client';
 import { QUEUE_NAMES, JOB_NAMES } from '../common/constants/queue.constants';
@@ -24,6 +25,7 @@ export class AuraProcessor {
     private readonly prisma: PrismaService,
     private readonly cloudinary: CloudinaryService,
     private readonly geminiAI: GeminiAIService,
+    private readonly imageOptimizer: ImageOptimizerService,
   ) {
     console.log(
       '✅ [AuraProcessor] Processor initialized for queue:',
@@ -48,7 +50,7 @@ export class AuraProcessor {
     try {
       let sourceUploadMs = 0;
       let geminiMs = 0;
-      let generatedUploadMs = 0;
+      let finalUploadMs = 0;
       let dbUpdateMs = 0;
 
       console.log(
@@ -105,21 +107,34 @@ export class AuraProcessor {
       if (imageGeneration.success && imageGeneration.imageBase64) {
         // Generated image - upload to Cloudinary
         await job.progress(50);
-        console.log(`📤 [Aura Processor] Uploading generated avatar...`);
-        const generatedUploadStart = Date.now();
-        const base64Image = `data:image/png;base64,${imageGeneration.imageBase64}`;
+        console.log(
+          `📤 [Aura Processor] Uploading portrait-normalized generated avatar...`,
+        );
+        const finalUploadStart = Date.now();
+        const normalizedAvatarImage =
+          await this.imageOptimizer.normalizeToPortraitCanvas(
+            `data:image/png;base64,${imageGeneration.imageBase64}`,
+            {
+              targetAspectRatio: 2 / 3,
+              maxWidth: 1200,
+              maxHeight: 1800,
+              quality: 92,
+              format: 'jpeg',
+            },
+          );
         const avatarUpload = await this.cloudinary.uploadWithMetadata(
-          base64Image,
+          normalizedAvatarImage,
           {
             userId,
             auraId,
             imageType: 'avatar',
             avatarVariant: 'full',
             source: 'gemini-generated',
+            normalizedAspectRatio: '2:3',
           },
           'avatars',
         );
-        generatedUploadMs = Date.now() - generatedUploadStart;
+        finalUploadMs = Date.now() - finalUploadStart;
         finalAvatarUrl = avatarUpload.secureUrl;
         console.log(`✅ [Aura Processor] Generated avatar uploaded`);
 
@@ -131,8 +146,32 @@ export class AuraProcessor {
       } else {
         // Use original image
         await job.progress(50);
-        console.log(`ℹ️  [Aura Processor] Using original image`);
-        finalAvatarUrl = sourceImageUrl;
+        console.log(
+          `ℹ️  [Aura Processor] Gemini returned no new avatar, uploading portrait-normalized original image`,
+        );
+        const finalUploadStart = Date.now();
+        const normalizedAvatarImage =
+          await this.imageOptimizer.normalizeToPortraitCanvas(sourceImageUrl, {
+            targetAspectRatio: 2 / 3,
+            maxWidth: 1200,
+            maxHeight: 1800,
+            quality: 92,
+            format: 'jpeg',
+          });
+        const avatarUpload = await this.cloudinary.uploadWithMetadata(
+          normalizedAvatarImage,
+          {
+            userId,
+            auraId,
+            imageType: 'avatar',
+            avatarVariant: 'full',
+            source: 'original-normalized',
+            normalizedAspectRatio: '2:3',
+          },
+          'avatars',
+        );
+        finalUploadMs = Date.now() - finalUploadStart;
+        finalAvatarUrl = avatarUpload.secureUrl;
 
         avatarMetadata = {
           type: 'original',
@@ -244,7 +283,7 @@ export class AuraProcessor {
       console.log(`   - Try-on avatar URL: ${updatedAura.tryon_model_url}`);
       console.log(`   - Status: ${updatedAura.status}\n`);
       this.logTiming(
-        `auraId=${auraId} total=${this.formatDuration(Date.now() - totalStartTime)} source_upload=${this.formatDuration(sourceUploadMs)} gemini=${this.formatDuration(geminiMs)} generated_upload=${this.formatDuration(generatedUploadMs)} db_update=${this.formatDuration(dbUpdateMs)} generation_type=${avatarMetadata.type}`,
+        `auraId=${auraId} total=${this.formatDuration(Date.now() - totalStartTime)} source_upload=${this.formatDuration(sourceUploadMs)} gemini=${this.formatDuration(geminiMs)} final_upload=${this.formatDuration(finalUploadMs)} db_update=${this.formatDuration(dbUpdateMs)} generation_type=${avatarMetadata.type}`,
       );
 
       await job.progress(100);

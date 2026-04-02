@@ -57,7 +57,19 @@ describe('buildGeminiTryOnPrompt', () => {
       'The final image must clearly show that the second-image person is wearing the first-image garment.',
     );
     expect(prompt).toContain(
+      'Use a vertical portrait composition, approximately 2:3, never a wide cinematic or landscape frame.',
+    );
+    expect(prompt).toContain(
+      'The person should occupy most of the frame height naturally and must not appear tiny inside a large empty background.',
+    );
+    expect(prompt).toContain(
       'Do not return the second image with only tiny edits while leaving the original outfit in place.',
+    );
+    expect(prompt).toContain(
+      'Do not output a horizontal, panoramic, or ultra-wide composition.',
+    );
+    expect(prompt).toContain(
+      'Do not make the person look shrunken, distant, or vertically compressed inside the frame.',
     );
     expect(prompt).toContain(
       'Do not stretch, squeeze, elongate, shrink, warp, or tilt the face, head, neck, shoulders, torso, arms, hands, hips, legs, or feet.',

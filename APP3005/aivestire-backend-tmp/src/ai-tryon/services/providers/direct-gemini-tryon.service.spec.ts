@@ -2,6 +2,7 @@ import sharp from 'sharp';
 import { ConfigService } from '@nestjs/config';
 import { DirectGeminiTryOnService } from './direct-gemini-tryon.service';
 import { ImageValidatorService } from '../common/image-validator.service';
+import { ImageOptimizerService } from '../../../common/image-optimizer.service';
 
 const generateContentMock = jest.fn();
 const getGenerativeModelMock = jest.fn(() => ({
@@ -45,7 +46,15 @@ describe('DirectGeminiTryOnService', () => {
       ),
     } as unknown as ConfigService;
 
-    const service = new DirectGeminiTryOnService(imageValidator, configService);
+    const imageOptimizer = {
+      normalizeToPortraitCanvas: jest.fn(async (image: string) => image),
+    } as unknown as ImageOptimizerService;
+
+    const service = new DirectGeminiTryOnService(
+      imageValidator,
+      configService,
+      imageOptimizer,
+    );
 
     return {
       service,

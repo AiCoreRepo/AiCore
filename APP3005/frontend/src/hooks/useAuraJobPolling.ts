@@ -58,8 +58,8 @@ export const useAuraJobPolling = (jobId: string | null, enabled: boolean = true)
         setIsPolling(true);
         pollJobStatus();
 
-        // Poll every 2 seconds
-        const interval = setInterval(pollJobStatus, 2000);
+        // Poll every 1 second so we catch queue checkpoints more reliably.
+        const interval = setInterval(pollJobStatus, 1000);
 
         return () => clearInterval(interval);
     }, [jobId, enabled, pollJobStatus]);

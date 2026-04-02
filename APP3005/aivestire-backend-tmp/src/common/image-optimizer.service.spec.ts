@@ -43,4 +43,28 @@ describe('ImageOptimizerService visual similarity', () => {
       service.areImagesVisuallySimilar(first, second),
     ).resolves.toBe(false);
   });
+
+  it('normalizes a wide image into a portrait canvas without stretching', async () => {
+    const wideBuffer = await sharp({
+      create: {
+        width: 160,
+        height: 80,
+        channels: 3,
+        background: { r: 20, g: 40, b: 60 },
+      },
+    })
+      .png()
+      .toBuffer();
+    const wideImage = `data:image/png;base64,${wideBuffer.toString('base64')}`;
+
+    const normalized = await service.normalizeToPortraitCanvas(wideImage, {
+      targetAspectRatio: 2 / 3,
+      maxWidth: 1200,
+      maxHeight: 1800,
+    });
+    const metadata = await service.extractImageMetadata(normalized);
+
+    expect(metadata.height).toBeGreaterThan(metadata.width);
+    expect(metadata.width / metadata.height).toBeCloseTo(2 / 3, 1);
+  });
 });

@@ -186,12 +186,12 @@ export function TryOnGalleryModal({ isOpen, onClose, tryOns }: TryOnGalleryModal
                                             {/* Image with lazy loading */}
                                             <div
                                                 className="relative cursor-pointer"
-                                                style={{ aspectRatio: '3/4' }}
+                                                style={{ aspectRatio: '2/3' }}
                                             >
                                                 <LazyImage
                                                     src={tryOn.resultImage}
                                                     alt={`Try-On ${tryOns.length - index}`}
-                                                    className="w-full h-full object-cover"
+                                                    className="w-full h-full object-contain p-3"
                                                     onClick={() => setSelectedImage(tryOn.resultImage)}
                                                 />
                                                 {/* Hover Overlay */}

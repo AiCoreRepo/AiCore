@@ -269,7 +269,7 @@ export class GeminiAIService {
         clothing:
           'Apply ONLY the full visible outfit from Image 2 faithfully. Keep all colors, patterns, textures, trims, embroidery, silhouette, neckline, sleeves, layering, shoes, jewelry, and accessories that are visible in Image 2 intact. Make the person from Image 1 actually wear the Image 2 outfit naturally on their body. The clothing must look worn by the person, not pasted on, floating, overlaid, or shown as a separate product shot. Scale and fit the outfit to the real person described in person_attributes, not to the mannequin or model proportions seen in Image 2.',
         output:
-          'Full body (head to toe), full head visible with all hair fully in frame, generous headroom above the hair, visible side margin around the hair silhouette, confident standing pose, happy closed-mouth smile, no visible teeth, clean studio background, soft lighting, photorealistic quality, and a proportionally balanced full-body portrait. The final image must clearly show that the person from Image 1 is wearing the full outfit from Image 2.',
+          'Full body (head to toe), full head visible with all hair fully in frame, generous headroom above the hair, visible side margin around the hair silhouette, confident standing pose, happy closed-mouth smile, no visible teeth, clean studio background, soft lighting, photorealistic quality, and a proportionally balanced full-body portrait. Use a vertical portrait composition, approximately 2:3, never a wide cinematic or landscape frame. The person should occupy most of the frame height naturally and must not appear tiny inside a large empty background. The final image must clearly show that the person from Image 1 is wearing the full outfit from Image 2.',
       },
       constraints: [
         'Return exactly one newly generated avatar image',
@@ -277,6 +277,7 @@ export class GeminiAIService {
         'Do NOT crop, trim, cut off, or hide any part of the hair, head, or forehead',
         'Do NOT let the hair, head, or forehead touch the top or side edges of the image',
         'Do NOT zoom in so tightly that the full hair silhouette is not visible',
+        'Do NOT output a horizontal, panoramic, or ultra-wide composition',
         'Do NOT return Image 1 unchanged',
         'Do NOT return Image 2 unchanged',
         'Do NOT leave the original outfit from Image 1 in place with only tiny edits',
@@ -286,6 +287,7 @@ export class GeminiAIService {
         'Do NOT stretch, squeeze, elongate, shrink, warp, or tilt the face, head, neck, shoulders, torso, arms, hands, hips, legs, or feet',
         'Do NOT generate an oversized face, undersized face, floating face, or mismatched face-to-body scale',
         'Do NOT generate unnatural anatomy, broken limb proportions, merged limbs, duplicated limbs, or misaligned shoulders',
+        'Do NOT make the person look shrunken, distant, or vertically compressed inside the frame',
         'Do NOT shorten, restyle, flatten, tie back, or simplify the hair',
         'Do NOT alter ethnicity or body type',
         'Do NOT use the mannequin or clothing-model height, leg length, or body proportions from Image 2',
