@@ -11,7 +11,9 @@ import {
 export interface AuraJobData {
   auraId: string;
   userId: string;
-  imageUrl: string;
+  imageUrl?: string;
+  sourceImageData?: string;
+  sourceImageMimeType?: string;
   generationSource?: 'creation' | 'recreation';
   attributes: {
     height: number;
@@ -28,7 +30,7 @@ export interface AuraJobData {
 export interface JobStatusResponse {
   status: JobStatus;
   progress: number;
-  data?: AuraJobData;
+  data?: Omit<AuraJobData, 'sourceImageData'>;
   result?: any;
   error?: string;
 }
@@ -64,10 +66,15 @@ export class AuraQueueService {
     const state = await job.getState();
     const progress = typeof job.progress() === 'number' ? job.progress() : 0;
 
+    const sanitizedData: Omit<AuraJobData, 'sourceImageData'> = {
+      ...job.data,
+    };
+    delete (sanitizedData as Partial<AuraJobData>).sourceImageData;
+
     return {
       status: state as JobStatus,
       progress,
-      data: job.data,
+      data: sanitizedData,
       result: job.returnvalue,
       error: job.failedReason,
     };

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
@@ -32,11 +32,16 @@ export interface AvatarImageResponse {
 
 @Injectable()
 export class GeminiAIService {
+  private readonly logger = new Logger(GeminiAIService.name);
   private genAI: GoogleGenerativeAI;
   private imageModel: any;
+  private readonly timingLogsEnabled: boolean;
 
   constructor(private configService: ConfigService) {
     const apiKey = this.configService.get<string>('GEMINI_API_KEY');
+    this.timingLogsEnabled =
+      String(this.configService.get<string>('AI_TIMING_LOGS') || '').toLowerCase() ===
+      'true';
     if (!apiKey) {
       console.warn(' GEMINI_API_KEY not configured');
     } else {
@@ -67,27 +72,40 @@ export class GeminiAIService {
       return { success: true, imageBase64: null };
     }
 
+    const totalStartTime = Date.now();
+    let sourceFetchMs = 0;
+    let referenceFetchMs = 0;
+    let promptBuildMs = 0;
+    let apiMs = 0;
+    let responseParseMs = 0;
+
     try {
       console.log(
         '🎨 Generating professional animated avatar with Gemini 2.5 Flash Image...',
       );
 
       console.log('📥 [GeminiAI] Fetching source image...');
+      const sourceFetchStart = Date.now();
       const sourceImage = await this.fetchImageAsInlineData(request.imageUrl);
+      sourceFetchMs = Date.now() - sourceFetchStart;
       console.log(
         `✅ [GeminiAI] Source image fetched: ${sourceImage.data.length} chars`,
       );
 
       console.log('📥 [GeminiAI] Fetching reference try-on clothing image...');
+      const referenceFetchStart = Date.now();
       const clothingImage = await this.fetchImageAsInlineData(
         GEMINI_REFERENCE_TRYON_IMAGE_URL,
       );
+      referenceFetchMs = Date.now() - referenceFetchStart;
       console.log(
         `✅ [GeminiAI] Reference clothing image fetched: ${clothingImage.data.length} chars`,
       );
 
       const { attributes } = request;
+      const promptBuildStart = Date.now();
       const prompt = this.buildAvatarPrompt(attributes);
+      promptBuildMs = Date.now() - promptBuildStart;
 
       console.log(
         ' [GeminiAI] Has structured person attributes:',
@@ -127,10 +145,13 @@ export class GeminiAIService {
 
       const result = await Promise.race([apiPromise, timeoutPromise]);
 
-      const elapsed = ((Date.now() - startTime) / 1000).toFixed(2);
+      apiMs = Date.now() - startTime;
+      const elapsed = (apiMs / 1000).toFixed(2);
       console.log(`⏱️ [GeminiAI] API responded in ${elapsed}s`);
 
+      const responseParseStart = Date.now();
       const response = await result.response;
+      responseParseMs = Date.now() - responseParseStart;
       console.log('📦 [GeminiAI] Processing response...');
 
       // Check for generated image in response
@@ -140,6 +161,10 @@ export class GeminiAIService {
           if (part.inlineData && part.inlineData.data) {
             console.log(
               '✅ [GeminiAI] Professional animated avatar generated!',
+            );
+            const totalMs = Date.now() - totalStartTime;
+            this.logTiming(
+              `success total=${this.formatDuration(totalMs)} source_fetch=${this.formatDuration(sourceFetchMs)} reference_fetch=${this.formatDuration(referenceFetchMs)} prompt=${this.formatDuration(promptBuildMs)} api=${this.formatDuration(apiMs)} response_parse=${this.formatDuration(responseParseMs)}`,
             );
             return {
               success: true,
@@ -154,16 +179,25 @@ export class GeminiAIService {
         'ℹ️ [GeminiAI] Gemini analyzed image but did not generate a new image',
       );
       console.log('💡 [GeminiAI] Returning original photo as avatar');
+      const totalMs = Date.now() - totalStartTime;
+      this.logTiming(
+        `fallback-original total=${this.formatDuration(totalMs)} source_fetch=${this.formatDuration(sourceFetchMs)} reference_fetch=${this.formatDuration(referenceFetchMs)} prompt=${this.formatDuration(promptBuildMs)} api=${this.formatDuration(apiMs)} response_parse=${this.formatDuration(responseParseMs)}`,
+      );
 
       return { success: true, imageBase64: null };
     } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown avatar generation error';
       console.error(
         '❌ [GeminiAI] Error during avatar generation:',
-        error.message,
+        errorMessage,
       );
       console.error('❌ [GeminiAI] Full error:', error);
+      this.logTiming(
+        `failed total=${this.formatDuration(Date.now() - totalStartTime)} source_fetch=${this.formatDuration(sourceFetchMs)} reference_fetch=${this.formatDuration(referenceFetchMs)} prompt=${this.formatDuration(promptBuildMs)} api=${this.formatDuration(apiMs)} response_parse=${this.formatDuration(responseParseMs)} error=${errorMessage}`,
+      );
       // Return success with null to use original image as fallback
-      return { success: true, imageBase64: null, error: error.message };
+      return { success: true, imageBase64: null, error: errorMessage };
     }
   }
 
@@ -286,5 +320,17 @@ export class GeminiAIService {
     }
 
     return Number(matches[0]);
+  }
+
+  private logTiming(message: string): void {
+    if (!this.timingLogsEnabled) {
+      return;
+    }
+
+    this.logger.log(`[AvatarGeminiTiming] ${message}`);
+  }
+
+  private formatDuration(durationMs: number): string {
+    return `${durationMs}ms/${(durationMs / 1000).toFixed(2)}s`;
   }
 }

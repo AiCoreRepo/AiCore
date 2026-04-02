@@ -13,6 +13,8 @@ import { JOB_NAMES, QUEUE_NAMES } from '../common/constants/queue.constants';
 @Processor(QUEUE_NAMES.TRY_ON_PROCESSING)
 export class TryOnProcessor {
   private readonly logger = new Logger(TryOnProcessor.name);
+  private readonly timingLogsEnabled =
+    String(process.env.AI_TIMING_LOGS || '').toLowerCase() === 'true';
 
   constructor(
     private readonly prisma: PrismaService,
@@ -24,6 +26,7 @@ export class TryOnProcessor {
   @Process(JOB_NAMES.PROCESS_DIRECT_TRY_ON)
   async handleDirectTryOn(job: bull.Job<TryOnJobData>) {
     const data = job.data;
+    const totalStartTime = Date.now();
     await job.progress(10);
 
     if (data.type !== 'direct') {
@@ -39,19 +42,30 @@ export class TryOnProcessor {
         ? this.directGeminiService
         : this.directVertexService;
 
-    const result = await service.processTryOn(
-      data.avatarImage,
-      data.clothingImage,
-      data.additionalParams,
-    );
+    try {
+      const result = await service.processTryOn(
+        data.avatarImage,
+        data.clothingImage,
+        data.additionalParams,
+      );
 
-    await job.progress(100);
-    return result;
+      await job.progress(100);
+      this.logTiming(
+        `jobId=${job.id} type=direct provider=${data.provider} total=${this.formatDuration(Date.now() - totalStartTime)} status=success`,
+      );
+      return result;
+    } catch (error) {
+      this.logTiming(
+        `jobId=${job.id} type=direct provider=${data.provider} total=${this.formatDuration(Date.now() - totalStartTime)} status=failed error=${error instanceof Error ? error.message : 'unknown error'}`,
+      );
+      throw error;
+    }
   }
 
   @Process(JOB_NAMES.PROCESS_3D_TRY_ON)
   async handleThreeDTryOn(job: bull.Job<TryOnJobData>) {
     const data = job.data;
+    const totalStartTime = Date.now();
     await job.progress(10);
 
     if (data.type !== 'three-d') {
@@ -72,13 +86,35 @@ export class TryOnProcessor {
 
     await job.progress(20);
 
-    const result = await this.tryOn3DService.tryOnWithVertex(
-      aura,
-      data.clothingItemId,
-      data.additionalParams,
-    );
+    try {
+      const result = await this.tryOn3DService.tryOnWithVertex(
+        aura,
+        data.clothingItemId,
+        data.additionalParams,
+      );
 
-    await job.progress(100);
-    return result;
+      await job.progress(100);
+      this.logTiming(
+        `jobId=${job.id} type=three-d provider=${data.provider} auraId=${data.auraId} total=${this.formatDuration(Date.now() - totalStartTime)} status=success`,
+      );
+      return result;
+    } catch (error) {
+      this.logTiming(
+        `jobId=${job.id} type=three-d provider=${data.provider} auraId=${data.auraId} total=${this.formatDuration(Date.now() - totalStartTime)} status=failed error=${error instanceof Error ? error.message : 'unknown error'}`,
+      );
+      throw error;
+    }
+  }
+
+  private logTiming(message: string): void {
+    if (!this.timingLogsEnabled) {
+      return;
+    }
+
+    this.logger.log(`[TryOnTiming] ${message}`);
+  }
+
+  private formatDuration(durationMs: number): string {
+    return `${durationMs}ms/${(durationMs / 1000).toFixed(2)}s`;
   }
 }

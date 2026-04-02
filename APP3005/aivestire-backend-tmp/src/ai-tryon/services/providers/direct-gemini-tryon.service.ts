@@ -62,6 +62,7 @@ export class DirectGeminiTryOnService extends BaseTryOnService {
   private readonly apiKey: string;
   private readonly modelId: string;
   private readonly genAI: GoogleGenerativeAI | null;
+  private readonly timingLogsEnabled: boolean;
 
   constructor(
     imageValidator: ImageValidatorService,
@@ -72,6 +73,9 @@ export class DirectGeminiTryOnService extends BaseTryOnService {
     this.apiKey =
       this.configService.get<string>(CONFIG_KEYS.GEMINI_API_KEY) || '';
     this.modelId = GEMINI_TRYON_CONFIG.DEFAULT_MODEL;
+    this.timingLogsEnabled =
+      String(this.configService.get<string>('AI_TIMING_LOGS') || '').toLowerCase() ===
+      'true';
 
     this.genAI = this.apiKey ? new GoogleGenerativeAI(this.apiKey) : null;
 
@@ -99,27 +103,59 @@ export class DirectGeminiTryOnService extends BaseTryOnService {
 
     this.logger.log('🟢 DIRECT GEMINI AI - Starting try-on process...');
 
-    const avatarData = await extractImageData(avatarBase64);
-    const originalClothingData = await extractImageData(clothingBase64);
-    const clothingData = await this.maskClothingModel(
-      originalClothingData,
-      additionalParams,
-    );
-    const prompt = this.buildPrompt(additionalParams);
+    const totalStartTime = Date.now();
+    let avatarExtractMs = 0;
+    let clothingExtractMs = 0;
+    let maskMs = 0;
+    let promptMs = 0;
 
     try {
+      const avatarExtractStart = Date.now();
+      const avatarData = await extractImageData(avatarBase64);
+      avatarExtractMs = Date.now() - avatarExtractStart;
+
+      const clothingExtractStart = Date.now();
+      const originalClothingData = await extractImageData(clothingBase64);
+      clothingExtractMs = Date.now() - clothingExtractStart;
+
+      const maskStart = Date.now();
+      const clothingData = await this.maskClothingModel(
+        originalClothingData,
+        additionalParams,
+      );
+      maskMs = Date.now() - maskStart;
+
+      const promptStart = Date.now();
+      const prompt = this.buildPrompt(additionalParams);
+      promptMs = Date.now() - promptStart;
+
+      const generationStart = Date.now();
       const primaryImage = await this.generateTryOnWithModel(
         this.modelId,
         prompt,
         avatarData,
         clothingData,
       );
+      const generationMs = Date.now() - generationStart;
+
+      const outputBuildStart = Date.now();
       const outputMimeType = this.getOutputMimeType(additionalParams);
+      const resultDataUri = buildDataUri(primaryImage, outputMimeType);
+      const outputBuildMs = Date.now() - outputBuildStart;
+      const totalMs = Date.now() - totalStartTime;
 
       this.logger.log('✅ DIRECT GEMINI AI - Try-on completed successfully');
+      this.logTiming(
+        `success total=${this.formatDuration(totalMs)} model=${this.formatDuration(generationMs)} avatar_extract=${this.formatDuration(avatarExtractMs)} clothing_extract=${this.formatDuration(clothingExtractMs)} mask=${this.formatDuration(maskMs)} prompt=${this.formatDuration(promptMs)} output=${this.formatDuration(outputBuildMs)}`,
+      );
 
-      return buildDataUri(primaryImage, outputMimeType);
+      return resultDataUri;
     } catch (error) {
+      const totalMs = Date.now() - totalStartTime;
+      this.logTiming(
+        `failed total=${this.formatDuration(totalMs)} avatar_extract=${this.formatDuration(avatarExtractMs)} clothing_extract=${this.formatDuration(clothingExtractMs)} mask=${this.formatDuration(maskMs)} prompt=${this.formatDuration(promptMs)} error=${error instanceof Error ? error.message : 'unknown error'}`,
+      );
+
       if (error instanceof TimeoutException) {
         throw new AIServiceException(
           TryOnErrorCode.TIMEOUT_ERROR,
@@ -374,5 +410,17 @@ export class DirectGeminiTryOnService extends BaseTryOnService {
       );
       return clothingData;
     }
+  }
+
+  private logTiming(message: string): void {
+    if (!this.timingLogsEnabled) {
+      return;
+    }
+
+    this.logger.log(`[GeminiTryOnTiming] ${message}`);
+  }
+
+  private formatDuration(durationMs: number): string {
+    return `${durationMs}ms/${(durationMs / 1000).toFixed(2)}s`;
   }
 }

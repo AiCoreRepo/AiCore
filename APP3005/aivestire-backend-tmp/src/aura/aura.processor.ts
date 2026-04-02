@@ -17,6 +17,9 @@ import {
 @Injectable()
 @Processor(QUEUE_NAMES.AURA_GENERATION)
 export class AuraProcessor {
+  private readonly timingLogsEnabled =
+    String(process.env.AI_TIMING_LOGS || '').toLowerCase() === 'true';
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly cloudinary: CloudinaryService,
@@ -30,21 +33,70 @@ export class AuraProcessor {
 
   @Process(JOB_NAMES.GENERATE_AVATARS)
   async handleAuraGeneration(job: bull.Job<AuraJobData>) {
-    const { auraId, userId, imageUrl, attributes, generationSource } = job.data;
+    const {
+      auraId,
+      userId,
+      imageUrl,
+      sourceImageData,
+      sourceImageMimeType,
+      attributes,
+      generationSource,
+    } = job.data;
+
+    const totalStartTime = Date.now();
 
     try {
+      let sourceUploadMs = 0;
+      let geminiMs = 0;
+      let generatedUploadMs = 0;
+      let dbUpdateMs = 0;
+
       console.log(
         `\n🚀 [Aura Processor] Starting avatar generation for Aura: ${auraId}`,
       );
 
+      let sourceImageUrl = imageUrl || '';
+
+      if (sourceImageData) {
+        await job.progress(10);
+        console.log(`📤 [Aura Processor] Uploading source image...`);
+        const sourceUploadStart = Date.now();
+        const sourceUpload = await this.cloudinary.uploadWithMetadata(
+          sourceImageData,
+          {
+            userId,
+            auraId,
+            imageType: 'avatar',
+            avatarVariant: 'source',
+            source: sourceImageMimeType || 'user-upload',
+          },
+          'avatars/source',
+        );
+        sourceUploadMs = Date.now() - sourceUploadStart;
+        sourceImageUrl = sourceUpload.secureUrl;
+
+        await this.prisma.aura.update({
+          where: { aura_id: auraId },
+          data: {
+            image_url: sourceImageUrl,
+          },
+        });
+      }
+
+      if (!sourceImageUrl) {
+        throw new Error('No source image available for avatar generation');
+      }
+
       // Generate avatar image directly using Gemini AI
       await job.progress(20);
       console.log(`🎨 [Aura Processor] Generating avatar with Gemini...`);
+      const geminiStart = Date.now();
 
       const imageGeneration = await this.geminiAI.generateAvatarImage({
-        imageUrl,
+        imageUrl: sourceImageUrl,
         attributes,
       });
+      geminiMs = Date.now() - geminiStart;
 
       let finalAvatarUrl: string;
       let tryOnAvatarUrl: string;
@@ -54,6 +106,7 @@ export class AuraProcessor {
         // Generated image - upload to Cloudinary
         await job.progress(50);
         console.log(`📤 [Aura Processor] Uploading generated avatar...`);
+        const generatedUploadStart = Date.now();
         const base64Image = `data:image/png;base64,${imageGeneration.imageBase64}`;
         const avatarUpload = await this.cloudinary.uploadWithMetadata(
           base64Image,
@@ -66,6 +119,7 @@ export class AuraProcessor {
           },
           'avatars',
         );
+        generatedUploadMs = Date.now() - generatedUploadStart;
         finalAvatarUrl = avatarUpload.secureUrl;
         console.log(`✅ [Aura Processor] Generated avatar uploaded`);
 
@@ -78,7 +132,7 @@ export class AuraProcessor {
         // Use original image
         await job.progress(50);
         console.log(`ℹ️  [Aura Processor] Using original image`);
-        finalAvatarUrl = imageUrl;
+        finalAvatarUrl = sourceImageUrl;
 
         avatarMetadata = {
           type: 'original',
@@ -122,6 +176,7 @@ export class AuraProcessor {
       // Update database
       console.log(`💾 [Aura Processor] Updating database...`);
       await job.progress(90);
+      const dbUpdateStart = Date.now();
 
       const existingAura = await this.prisma.aura.findUnique({
         where: { aura_id: auraId },
@@ -171,6 +226,7 @@ export class AuraProcessor {
         where: { aura_id: auraId },
         data: {
           status: AuraStatus.READY,
+          image_url: sourceImageUrl,
           model_url: finalAvatarUrl,
           tryon_model_url: tryOnAvatarUrl,
           generated_avatar_urls: generatedAvatarUrls,
@@ -181,11 +237,15 @@ export class AuraProcessor {
           ) as any,
         },
       });
+      dbUpdateMs = Date.now() - dbUpdateStart;
 
       console.log(`✅ [Aura Processor] Avatar ready: ${auraId}`);
       console.log(`   - URL: ${updatedAura.model_url}`);
       console.log(`   - Try-on avatar URL: ${updatedAura.tryon_model_url}`);
       console.log(`   - Status: ${updatedAura.status}\n`);
+      this.logTiming(
+        `auraId=${auraId} total=${this.formatDuration(Date.now() - totalStartTime)} source_upload=${this.formatDuration(sourceUploadMs)} gemini=${this.formatDuration(geminiMs)} generated_upload=${this.formatDuration(generatedUploadMs)} db_update=${this.formatDuration(dbUpdateMs)} generation_type=${avatarMetadata.type}`,
+      );
 
       await job.progress(100);
 
@@ -207,6 +267,9 @@ export class AuraProcessor {
       };
     } catch (error) {
       console.error(`❌ [Aura Processor] Error for Aura: ${auraId}`, error);
+      this.logTiming(
+        `auraId=${auraId} total=${this.formatDuration(Date.now() - totalStartTime)} status=failed error=${error instanceof Error ? error.message : 'unknown error'}`,
+      );
 
       await this.prisma.aura.update({
         where: { aura_id: auraId },
@@ -215,5 +278,17 @@ export class AuraProcessor {
 
       throw error;
     }
+  }
+
+  private logTiming(message: string): void {
+    if (!this.timingLogsEnabled) {
+      return;
+    }
+
+    console.log(`[AuraTiming] ${message}`);
+  }
+
+  private formatDuration(durationMs: number): string {
+    return `${durationMs}ms/${(durationMs / 1000).toFixed(2)}s`;
   }
 }

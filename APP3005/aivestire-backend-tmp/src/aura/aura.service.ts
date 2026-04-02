@@ -111,19 +111,12 @@ export class AuraService {
     }
 
     try {
-      // Convert buffer to base64 data URI for Cloudinary
       const base64Image = `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
-
-      // Upload to Cloudinary
-      console.log('📤 Uploading image to Cloudinary...');
-      const imageUrl = await this.cloudinary.uploadImage(base64Image);
-      console.log('✅ Image uploaded:', imageUrl);
 
       // Create Aura record with PENDING status
       const aura = await this.prisma.aura.create({
         data: {
           user_id: userId,
-          image_url: imageUrl,
           height_cm: attributes.height,
           weight_kg: attributes.weight,
           skin_tone: attributes.skinTone,
@@ -143,7 +136,8 @@ export class AuraService {
       const job = await this.auraQueue.addAuraGenerationJob({
         auraId: aura.aura_id,
         userId: aura.user_id,
-        imageUrl: aura.image_url || '',
+        sourceImageData: base64Image,
+        sourceImageMimeType: file.mimetype,
         generationSource: 'creation',
         attributes: {
           height: attributes.height ?? 170,
@@ -219,12 +213,15 @@ export class AuraService {
     }
 
     let sourceImageUrl = existingAura.image_url || '';
+    let sourceImageData: string | undefined;
+    let sourceImageMimeType: string | undefined;
+
     if (file) {
-      const base64Image = `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
-      sourceImageUrl = await this.cloudinary.uploadImage(base64Image);
+      sourceImageData = `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
+      sourceImageMimeType = file.mimetype;
     }
 
-    if (!sourceImageUrl) {
+    if (!sourceImageUrl && !sourceImageData) {
       throw new BadRequestException(
         'No source image available for regeneration.',
       );
@@ -232,7 +229,6 @@ export class AuraService {
 
     const updatePayload = {
       status: AuraStatus.PENDING as AuraStatus,
-      ...(file ? { image_url: sourceImageUrl } : {}),
       ...(attributes.height ? { height_cm: attributes.height } : {}),
       ...(attributes.weight ? { weight_kg: attributes.weight } : {}),
       ...(attributes.skinTone ? { skin_tone: attributes.skinTone } : {}),
@@ -276,6 +272,8 @@ export class AuraService {
         auraId: existingAura.aura_id,
         userId,
         imageUrl: sourceImageUrl,
+        sourceImageData,
+        sourceImageMimeType,
         generationSource: 'recreation',
         attributes: {
           height: this.getAuraAttributeNumber(
