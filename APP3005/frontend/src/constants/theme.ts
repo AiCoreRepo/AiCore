@@ -126,6 +126,13 @@ export const menuItems: MenuItem[] = [
         isBeta: false,
     },
     {
+        id: 'inventory',
+        label: 'Inventory Management',
+        icon: Package, // Keep package icon for stock tracking
+        href: '/admin-inventory',
+        isBeta: false,
+    },
+    {
         id: 'collection',
         label: 'The Collection',
         icon: ShoppingBag,
@@ -156,13 +163,7 @@ export const menuItems: MenuItem[] = [
         isBeta: true,
         // Microservice 1 (Consumer): Buyer Management - User list, check Aura status, help stuck users
     },
-    {
-        id: 'analytics',
-        label: 'Analytics',
-        icon: BarChart,
-        href: '/admin-analytics',
-        isBeta: false,
-    },
+
     {
         id: 'coupons',
         label: 'Coupons & Referrals',

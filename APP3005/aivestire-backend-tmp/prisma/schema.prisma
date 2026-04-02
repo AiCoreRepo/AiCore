@@ -90,6 +90,7 @@ model Product {
   category_id       String?                  @db.Uuid
   sub_category_id   String?                  @db.Uuid
   is_featured       Boolean                  @default(false)
+  stock_label_override String?               // Admin override: 'LOW' | 'OK' | 'HIGH' | null (auto-computed)
   // Recommendation attribute columns
   occasions         String[]                 @default([])
   body_shapes       String[]                 @default([])
