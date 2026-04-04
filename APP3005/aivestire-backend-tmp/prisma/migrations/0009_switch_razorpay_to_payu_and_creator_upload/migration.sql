@@ -61,7 +61,7 @@ EXCEPTION WHEN duplicate_object THEN null;
 END $$;
 
 -- Product Patterns
-CREATE TABLE "product_patterns" (
+CREATE TABLE IF NOT EXISTS "product_patterns" (
     "pattern_id"    UUID NOT NULL DEFAULT gen_random_uuid(),
     "product_id"    UUID NOT NULL,
     "name"          TEXT NOT NULL,
@@ -72,10 +72,10 @@ CREATE TABLE "product_patterns" (
 
     CONSTRAINT "product_patterns_pkey" PRIMARY KEY ("pattern_id")
 );
-CREATE INDEX "product_patterns_product_id_idx" ON "product_patterns"("product_id");
+CREATE INDEX IF NOT EXISTS "product_patterns_product_id_idx" ON "product_patterns"("product_id");
 
 -- Product Color Variants
-CREATE TABLE "product_color_variants" (
+CREATE TABLE IF NOT EXISTS "product_color_variants" (
     "variant_id"    UUID NOT NULL DEFAULT gen_random_uuid(),
     "pattern_id"    UUID NOT NULL,
     "color"         "ClothingColor" NOT NULL,
@@ -88,10 +88,10 @@ CREATE TABLE "product_color_variants" (
 
     CONSTRAINT "product_color_variants_pkey" PRIMARY KEY ("variant_id")
 );
-CREATE INDEX "product_color_variants_pattern_id_idx" ON "product_color_variants"("pattern_id");
+CREATE INDEX IF NOT EXISTS "product_color_variants_pattern_id_idx" ON "product_color_variants"("pattern_id");
 
 -- Product Color Variant Images
-CREATE TABLE "product_color_variant_images" (
+CREATE TABLE IF NOT EXISTS "product_color_variant_images" (
     "image_id"    UUID NOT NULL DEFAULT gen_random_uuid(),
     "variant_id"  UUID NOT NULL,
     "url"         TEXT NOT NULL,
@@ -101,17 +101,59 @@ CREATE TABLE "product_color_variant_images" (
 
     CONSTRAINT "product_color_variant_images_pkey" PRIMARY KEY ("image_id")
 );
-CREATE INDEX "product_color_variant_images_variant_id_idx" ON "product_color_variant_images"("variant_id");
+CREATE INDEX IF NOT EXISTS "product_color_variant_images_variant_id_idx" ON "product_color_variant_images"("variant_id");
 
 -- Foreign Keys for upload hierarchy
-ALTER TABLE "product_patterns" ADD CONSTRAINT "product_patterns_product_id_fkey"
-    FOREIGN KEY ("product_id") REFERENCES "Product"("product_id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'product_patterns_product_id_fkey'
+    ) THEN
+        ALTER TABLE "product_patterns"
+        ADD CONSTRAINT "product_patterns_product_id_fkey"
+        FOREIGN KEY ("product_id")
+        REFERENCES "Product"("product_id")
+        ON DELETE CASCADE
+        ON UPDATE CASCADE;
+    END IF;
+END
+$$;
 
-ALTER TABLE "product_color_variants" ADD CONSTRAINT "product_color_variants_pattern_id_fkey"
-    FOREIGN KEY ("pattern_id") REFERENCES "product_patterns"("pattern_id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'product_color_variants_pattern_id_fkey'
+    ) THEN
+        ALTER TABLE "product_color_variants"
+        ADD CONSTRAINT "product_color_variants_pattern_id_fkey"
+        FOREIGN KEY ("pattern_id")
+        REFERENCES "product_patterns"("pattern_id")
+        ON DELETE CASCADE
+        ON UPDATE CASCADE;
+    END IF;
+END
+$$;
 
-ALTER TABLE "product_color_variant_images" ADD CONSTRAINT "product_color_variant_images_variant_id_fkey"
-    FOREIGN KEY ("variant_id") REFERENCES "product_color_variants"("variant_id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'product_color_variant_images_variant_id_fkey'
+    ) THEN
+        ALTER TABLE "product_color_variant_images"
+        ADD CONSTRAINT "product_color_variant_images_variant_id_fkey"
+        FOREIGN KEY ("variant_id")
+        REFERENCES "product_color_variants"("variant_id")
+        ON DELETE CASCADE
+        ON UPDATE CASCADE;
+    END IF;
+END
+$$;
 
 -- ════════════════════════════════════════════════
 -- PART C: Creator Coupons
@@ -122,7 +164,7 @@ DO $$ BEGIN
 EXCEPTION WHEN duplicate_object THEN null;
 END $$;
 
-CREATE TABLE "creator_coupons" (
+CREATE TABLE IF NOT EXISTS "creator_coupons" (
     "creator_coupon_id" UUID NOT NULL DEFAULT gen_random_uuid(),
     "title"             TEXT NOT NULL,
     "code"              TEXT NOT NULL,
@@ -146,18 +188,46 @@ CREATE TABLE "creator_coupons" (
     CONSTRAINT "creator_coupons_pkey" PRIMARY KEY ("creator_coupon_id")
 );
 
-CREATE UNIQUE INDEX "creator_coupons_code_key" ON "creator_coupons"("code");
-CREATE INDEX "creator_coupons_status_idx" ON "creator_coupons"("status");
-CREATE INDEX "creator_coupons_code_idx" ON "creator_coupons"("code");
-CREATE INDEX "creator_coupons_start_date_idx" ON "creator_coupons"("start_date");
-CREATE INDEX "creator_coupons_end_date_idx" ON "creator_coupons"("end_date");
-CREATE INDEX "creator_coupons_is_deleted_idx" ON "creator_coupons"("is_deleted");
-CREATE INDEX "creator_coupons_creator_id_idx" ON "creator_coupons"("creator_id");
-CREATE INDEX "creator_coupons_product_id_idx" ON "creator_coupons"("product_id");
-CREATE INDEX "creator_coupons_approval_status_idx" ON "creator_coupons"("approval_status");
+CREATE UNIQUE INDEX IF NOT EXISTS "creator_coupons_code_key" ON "creator_coupons"("code");
+CREATE INDEX IF NOT EXISTS "creator_coupons_status_idx" ON "creator_coupons"("status");
+CREATE INDEX IF NOT EXISTS "creator_coupons_code_idx" ON "creator_coupons"("code");
+CREATE INDEX IF NOT EXISTS "creator_coupons_start_date_idx" ON "creator_coupons"("start_date");
+CREATE INDEX IF NOT EXISTS "creator_coupons_end_date_idx" ON "creator_coupons"("end_date");
+CREATE INDEX IF NOT EXISTS "creator_coupons_is_deleted_idx" ON "creator_coupons"("is_deleted");
+CREATE INDEX IF NOT EXISTS "creator_coupons_creator_id_idx" ON "creator_coupons"("creator_id");
+CREATE INDEX IF NOT EXISTS "creator_coupons_product_id_idx" ON "creator_coupons"("product_id");
+CREATE INDEX IF NOT EXISTS "creator_coupons_approval_status_idx" ON "creator_coupons"("approval_status");
 
-ALTER TABLE "creator_coupons" ADD CONSTRAINT "creator_coupons_creator_id_fkey"
-    FOREIGN KEY ("creator_id") REFERENCES "Creator"("creator_id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'creator_coupons_creator_id_fkey'
+    ) THEN
+        ALTER TABLE "creator_coupons"
+        ADD CONSTRAINT "creator_coupons_creator_id_fkey"
+        FOREIGN KEY ("creator_id")
+        REFERENCES "Creator"("creator_id")
+        ON DELETE CASCADE
+        ON UPDATE CASCADE;
+    END IF;
+END
+$$;
 
-ALTER TABLE "creator_coupons" ADD CONSTRAINT "creator_coupons_product_id_fkey"
-    FOREIGN KEY ("product_id") REFERENCES "Product"("product_id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'creator_coupons_product_id_fkey'
+    ) THEN
+        ALTER TABLE "creator_coupons"
+        ADD CONSTRAINT "creator_coupons_product_id_fkey"
+        FOREIGN KEY ("product_id")
+        REFERENCES "Product"("product_id")
+        ON DELETE CASCADE
+        ON UPDATE CASCADE;
+    END IF;
+END
+$$;

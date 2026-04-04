@@ -12,6 +12,7 @@ import {
   UseGuards,
   Request,
   Param,
+  Res,
 } from '@nestjs/common';
 import {
   FileFieldsInterceptor,
@@ -53,11 +54,14 @@ import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { TryOnPermissionGuard } from '../../auth/guards/tryon-permission.guard';
 import _ from 'lodash';
 import { TryOnQueueService } from '../tryon-queue.service';
+import type { Response } from 'express';
+import { TryOnException } from '../exceptions/tryon.exceptions';
 
 @ApiTags('AI Try-On')
 @Controller('v1/tryon')
 export class TryOnController {
   private readonly logger = new Logger(TryOnController.name);
+  private static readonly STREAM_HEARTBEAT_INTERVAL_MS = 15000;
 
   constructor(
     private readonly directGeminiService: DirectGeminiTryOnService,
@@ -148,6 +152,92 @@ export class TryOnController {
       job.id.toString(),
       'Gemini try-on job queued successfully',
     );
+  }
+
+  /**
+   * Stream Gemini AI try-on response with keepalive chunks
+   */
+  @Post('gemini/stream')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary: 'Stream Gemini AI try-on response',
+    description:
+      'Streams Gemini try-on progress and final result using server-sent events over a POST request.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Streamed try-on response',
+  })
+  async streamTryOnWithGemini(
+    @Body() request: TryOnRequestDto,
+    @Res() res: Response,
+  ): Promise<void> {
+    const startedAt = Date.now();
+    let clientClosed = false;
+
+    this.prepareStreamResponse(res);
+
+    const heartbeat = setInterval(() => {
+      this.writeStreamEvent(res, 'keepalive', {
+        timestamp: new Date().toISOString(),
+      });
+    }, TryOnController.STREAM_HEARTBEAT_INTERVAL_MS);
+
+    res.on('close', () => {
+      clientClosed = true;
+      clearInterval(heartbeat);
+    });
+
+    this.writeStreamEvent(res, 'ready', {
+      success: true,
+      timestamp: new Date().toISOString(),
+      message: 'Gemini stream connected',
+    });
+
+    try {
+      const result = await this.directGeminiService.processTryOnStream(
+        request.avatarImage,
+        request.clothingImage,
+        request.additionalParams,
+        async (event) => {
+          if (clientClosed) {
+            return;
+          }
+
+          if (event.type === 'status') {
+            this.writeStreamEvent(res, 'status', event);
+            return;
+          }
+
+          if (event.type === 'preview') {
+            this.writeStreamEvent(res, 'preview', event);
+            return;
+          }
+
+          this.writeStreamEvent(res, 'chunk', event);
+        },
+      );
+
+      if (!clientClosed) {
+        this.writeStreamEvent(res, 'result', result);
+      }
+    } catch (error) {
+      this.logger.error(
+        `Gemini streaming try-on failed after ${Date.now() - startedAt}ms: ${error instanceof Error ? error.message : 'unknown error'}`,
+      );
+
+      if (!clientClosed) {
+        this.writeStreamEvent(res, 'error', this.buildStreamErrorPayload(error));
+      }
+    } finally {
+      clearInterval(heartbeat);
+      if (!clientClosed && !res.writableEnded) {
+        this.writeStreamEvent(res, 'done', {
+          timestamp: new Date().toISOString(),
+        });
+        res.end();
+      }
+    }
   }
 
   /**
@@ -560,6 +650,69 @@ export class TryOnController {
     this.logger.log(`🔐 Extracted userId: ${userId}`);
     this.logger.log(`📸 Fetching try-on history for user ${userId}`);
     return this.tryOn3DService.getTryOnHistory(userId);
+  }
+
+  private prepareStreamResponse(res: Response): void {
+    res.status(200);
+    res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
+
+    if (typeof res.flushHeaders === 'function') {
+      res.flushHeaders();
+    }
+  }
+
+  private writeStreamEvent(
+    res: Response,
+    eventName: string,
+    payload: object,
+  ): void {
+    if (res.writableEnded) {
+      return;
+    }
+
+    const json = JSON.stringify(payload);
+    const lines = json.split(/\r?\n/);
+    res.write(`event: ${eventName}\n`);
+    for (const line of lines) {
+      res.write(`data: ${line}\n`);
+    }
+    res.write('\n');
+
+    const flush = (res as Response & { flush?: () => void }).flush;
+    if (typeof flush === 'function') {
+      flush.call(res);
+    }
+  }
+
+  private buildStreamErrorPayload(error: unknown): Record<string, unknown> {
+    const timestamp = new Date().toISOString();
+
+    if (error instanceof TryOnException) {
+      const response = error.getResponse();
+      const payload =
+        typeof response === 'object' && response !== null
+          ? (response as Record<string, unknown>)
+          : {};
+
+      return {
+        message:
+          typeof payload.message === 'string'
+            ? payload.message
+            : error.message || 'Gemini try-on failed',
+        errorCode: error.errorCode,
+        statusCode: error.getStatus(),
+        details: payload.details ?? error.details,
+        timestamp,
+      };
+    }
+
+    return {
+      message: error instanceof Error ? error.message : 'Gemini try-on failed',
+      timestamp,
+    };
   }
 
   /**

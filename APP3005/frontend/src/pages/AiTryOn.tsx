@@ -19,6 +19,7 @@ import {
   getTryOnHistory,
   requestTryOnAccess,
   FeedbackContextType,
+  type StreamEventHandler,
 } from "@/lib/api";
 import { Sparkles, AlertCircle, Images, Lock, Clock } from "lucide-react";
 import "@/components/ai-tryon/ai-tryon-styles.css";
@@ -35,6 +36,7 @@ import {
   shouldShowMultipleTryOnProviders,
   type TryOnProvider,
 } from "@/lib/try-on-environment";
+import { normalizeTryOnImageData } from "@/lib/try-on-image";
 import _ from "lodash";
 import type { PublicProduct } from "@/hooks/usePublicProducts";
 
@@ -123,8 +125,14 @@ const AiTryOn = () => {
   const [selectedProduct, setSelectedProduct] = useState<string | null>(null);
   const [currentProductId, setCurrentProductId] = useState<string | null>(null);
   const [tryOnLoading, setTryOnLoading] = useState(false);
+  const [tryOnStreamStatus, setTryOnStreamStatus] = useState<string | null>(null);
+  const [tryOnStreamProgress, setTryOnStreamProgress] = useState(0);
+  const [tryOnStreamMessages, setTryOnStreamMessages] = useState<string[]>([]);
   const [showResultModal, setShowResultModal] = useState(false);
   const [resultImage, setResultImage] = useState<string | null>(null);
+  const [streamPreviewImage, setStreamPreviewImage] = useState<string | null>(
+    null,
+  );
   const [originalTryOnImage, setOriginalTryOnImage] = useState<string | null>(
     null,
   ); // Stores the FIRST try-on result for face consistency
@@ -255,15 +263,44 @@ const AiTryOn = () => {
     }
 
     try {
+      const useStreamFeed = provider === TRYON_PROVIDER.GEMINI;
       if (feedbackCloseTimerRef.current) {
         clearTimeout(feedbackCloseTimerRef.current);
         feedbackCloseTimerRef.current = null;
       }
 
       const fallbackProductLabel = sourceProduct?.title || resolveProductLabel(productId);
+      const pushTryOnStreamMessage = (message: string) => {
+        if (!useStreamFeed) {
+          return;
+        }
+
+        const nextMessage = message.trim();
+        if (!nextMessage) {
+          return;
+        }
+
+        setTryOnStreamMessages((prev) => {
+          if (prev[prev.length - 1] === nextMessage) {
+            return prev;
+          }
+
+          return [...prev.slice(-5), nextMessage];
+        });
+      };
+
       setSelectedProduct(productId);
       setCurrentProductId(productId); // Store productId for angle generation
       setTryOnLoading(true);
+      setResultImage(null);
+      setStreamPreviewImage(null);
+      setOriginalTryOnImage(null);
+      setGeneratedImages([]);
+      setTryOnStreamStatus("Preparing your Gemini try-on");
+      setTryOnStreamProgress(6);
+      setTryOnStreamMessages(
+        useStreamFeed ? ["Preparing your Gemini try-on"] : [],
+      );
       setTryOnError(null);
       setShowFeedbackSheet(false);
       setShowResultModal(true);
@@ -288,11 +325,55 @@ const AiTryOn = () => {
           throw new Error("Try-on requires both avatar and clothing images");
         }
 
-        result = await tryOnWithGemini({
-          avatarImage,
-          clothingImage,
-          additionalParams: buildGeminiTryOnAdditionalParams(aura),
-        });
+        const handleStreamEvent: StreamEventHandler = (eventName, payload) => {
+          if (!payload || typeof payload !== "object") {
+            return;
+          }
+
+          const streamPayload = payload as {
+            message?: string;
+            text?: string;
+            progress?: number;
+            resultImage?: string;
+          };
+
+          if (eventName === "status") {
+            if (streamPayload.message) {
+              setTryOnStreamStatus(streamPayload.message);
+              pushTryOnStreamMessage(streamPayload.message);
+            }
+            if (typeof streamPayload.progress === "number") {
+              setTryOnStreamProgress((prev) =>
+                Math.max(prev, Math.min(streamPayload.progress, 95)),
+              );
+            }
+          } else if (eventName === "chunk" && streamPayload.text) {
+            setTryOnStreamStatus(streamPayload.text);
+            pushTryOnStreamMessage(streamPayload.text);
+          } else if (eventName === "preview") {
+            const nextPreviewImage = normalizeTryOnImageData(
+              streamPayload.resultImage,
+            );
+            if (nextPreviewImage) {
+              setStreamPreviewImage(nextPreviewImage);
+              setTryOnStreamProgress((prev) => Math.max(prev, 78));
+            }
+          } else if (eventName === "ready") {
+            setTryOnStreamStatus("Gemini stream connected");
+            pushTryOnStreamMessage("Gemini stream connected");
+          }
+        };
+
+        result = await tryOnWithGemini(
+          {
+            avatarImage,
+            clothingImage,
+            additionalParams: buildGeminiTryOnAdditionalParams(aura),
+          },
+          {
+            onEvent: handleStreamEvent,
+          },
+        );
       } else {
         result = await tryOnWithVertex({
           userId: aura.user_id,
@@ -302,12 +383,16 @@ const AiTryOn = () => {
 
       if (result.success && result.resultImage) {
         // Ensure the image has the data URI prefix
-        const imageData = result.resultImage.startsWith("data:")
-          ? result.resultImage
-          : `data:image/jpeg;base64,${result.resultImage}`;
+        const imageData = normalizeTryOnImageData(result.resultImage);
+        if (!imageData) {
+          throw new Error("Try-on completed without a valid image payload");
+        }
         setResultImage(imageData);
         setOriginalTryOnImage(imageData); // Store original for face consistency in angle generation
         setGeneratedImages([imageData]);
+        setTryOnStreamProgress(100);
+        setTryOnStreamStatus("Try-on completed");
+        pushTryOnStreamMessage("Try-on completed");
         if (feedbackCloseTimerRef.current) {
           clearTimeout(feedbackCloseTimerRef.current);
           feedbackCloseTimerRef.current = null;
@@ -335,6 +420,10 @@ const AiTryOn = () => {
       );
     } finally {
       setTryOnLoading(false);
+      setStreamPreviewImage(null);
+      setTryOnStreamProgress(0);
+      setTryOnStreamStatus(null);
+      setTryOnStreamMessages([]);
       setSelectedProduct(null);
     }
   };
@@ -383,9 +472,10 @@ const AiTryOn = () => {
       });
 
       if (result.success && result.resultImage) {
-        const imageData = result.resultImage.startsWith("data:")
-          ? result.resultImage
-          : `data:image/jpeg;base64,${result.resultImage}`;
+        const imageData = normalizeTryOnImageData(result.resultImage);
+        if (!imageData) {
+          throw new Error("Angle generation completed without a valid image payload");
+        }
         setResultImage(imageData);
         setGeneratedImages((prev) => [...prev, imageData]);
         // Refresh user data to update try-on count
@@ -424,6 +514,7 @@ const AiTryOn = () => {
   const closeResultModal = () => {
     setShowResultModal(false);
     setResultImage(null);
+    setStreamPreviewImage(null);
     setTryOnError(null);
 
     if (!showFeedbackSheet && !feedbackContext) {
@@ -750,7 +841,11 @@ const AiTryOn = () => {
         isOpen={showResultModal}
         onClose={closeResultModal}
         resultImage={resultImage}
+        streamPreviewImage={streamPreviewImage}
         loading={tryOnLoading}
+        loadingStatusLabel={tryOnStreamStatus}
+        loadingProgressHint={tryOnStreamProgress}
+        loadingStreamMessages={tryOnStreamMessages}
         error={tryOnError}
         comparisonImage={originalTryOnImage}
         onGenerateMoreAngles={handleGenerateMoreAngles}

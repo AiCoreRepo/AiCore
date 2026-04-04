@@ -255,6 +255,29 @@ export const GEMINI_TRYON_CONFIG = {
   DEFAULT_MIME_TYPE: 'image/jpeg',
 } as const;
 
+export const TRYON_INPUT_IMAGE_OPTIMIZATION = {
+  AVATAR: {
+    maxWidth: 896,
+    maxHeight: 1344,
+    quality: 78,
+    format: 'jpeg',
+  },
+  CLOTHING: {
+    maxWidth: 1024,
+    maxHeight: 1365,
+    quality: 74,
+    format: 'jpeg',
+  },
+} as const;
+
+export const TRYON_RESULT_IMAGE_OUTPUT = {
+  TARGET_ASPECT_RATIO: 2 / 3,
+  MAX_WIDTH: 960,
+  MAX_HEIGHT: 1440,
+  QUALITY: 72,
+  FORMAT: 'jpeg',
+} as const;
+
 export const GEMINI_TRYON_OUTPUT_VALIDATION = {
   MAX_LANDSCAPE_RATIO: 1.2,
   MAX_AVATAR_SIMILARITY: 0.985,

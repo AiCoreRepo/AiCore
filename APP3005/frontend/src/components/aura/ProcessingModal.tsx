@@ -12,6 +12,7 @@ interface ProcessingModalProps {
     isOpen: boolean;
     progress: number;
     estimatedTime: number;
+    statusMessage?: string | null;
 }
 
 const BASE_STEPS: ProcessingStep[] = [
@@ -32,7 +33,7 @@ const getSoftProgressCap = (serverProgress: number): number => {
     return 12;
 };
 
-export const ProcessingModal = ({ isOpen, progress, estimatedTime }: ProcessingModalProps) => {
+export const ProcessingModal = ({ isOpen, progress, estimatedTime, statusMessage }: ProcessingModalProps) => {
     const [steps, setSteps] = useState<ProcessingStep[]>(BASE_STEPS);
     const [displayProgress, setDisplayProgress] = useState(0);
 
@@ -146,6 +147,12 @@ export const ProcessingModal = ({ isOpen, progress, estimatedTime }: ProcessingM
                             <h2 className="mb-5 text-center text-xl font-serif text-charcoal sm:mb-6 sm:text-2xl">
                                 Creating Your Aura
                             </h2>
+
+                            {statusMessage && (
+                                <p className="mb-4 -mt-2 text-center text-sm text-grey-soft sm:mb-5">
+                                    {statusMessage}
+                                </p>
+                            )}
 
                             {/* Progress Bar */}
                             <div className="mb-6">

@@ -29,8 +29,12 @@ interface TryOnResultModalProps {
   isOpen: boolean;
   onClose: () => void;
   resultImage: string | null;
+  streamPreviewImage?: string | null;
   comparisonImage?: string | null;
   loading: boolean;
+  loadingStatusLabel?: string | null;
+  loadingProgressHint?: number | null;
+  loadingStreamMessages?: string[];
   error: string | null;
   onGenerateMoreAngles?: () => void;
   generatingAngles?: boolean;
@@ -59,7 +63,11 @@ export function TryOnResultModal({
   isOpen,
   onClose,
   resultImage,
+  streamPreviewImage = null,
   loading,
+  loadingStatusLabel,
+  loadingProgressHint,
+  loadingStreamMessages = [],
   error,
   onGenerateMoreAngles,
   generatingAngles = false,
@@ -106,18 +114,21 @@ export function TryOnResultModal({
   const navigate = useNavigate();
   const displayUserName = userName?.trim() || "You";
   const displayGarmentTitle = garmentTitle?.trim() || "this look";
+  const displayImage = resultImage || streamPreviewImage;
   const carouselImages =
     generatedImages.length > 0
       ? generatedImages
-      : resultImage
-        ? [resultImage]
+      : displayImage
+        ? [displayImage]
         : [];
-  const hasMultipleGeneratedImages = carouselImages.length > 1;
-  const activeImageIndex = resultImage
-    ? Math.max(carouselImages.indexOf(resultImage), 0)
+  const hasMultipleGeneratedImages =
+    generatedImages.length > 1 && !loading && !generatingAngles;
+  const activeImageIndex = displayImage
+    ? Math.max(carouselImages.indexOf(displayImage), 0)
     : 0;
-  const activeDisplayImage = carouselImages[currentImageIndex] || resultImage;
+  const activeDisplayImage = carouselImages[currentImageIndex] || displayImage;
   const isProcessingState = loading || generatingAngles;
+  const hasStreamPreview = Boolean(streamPreviewImage);
   const showMobileActionBar =
     Boolean(resultImage) && !loading && !generatingAngles && !error;
   const userPrompt = garmentTitle
@@ -139,6 +150,7 @@ export function TryOnResultModal({
     { id: 3, label: "Rendering Result", icon: "✨", status: "pending" },
     { id: 4, label: "Finalizing", icon: "🎨", status: "pending" },
   ];
+  const hasLiveStreamMessages = loadingStreamMessages.length > 0;
 
   // Reset the conversation only for a fresh try-on, not for angle generation.
   useEffect(() => {
@@ -272,6 +284,13 @@ export function TryOnResultModal({
           current += increment;
         }
 
+        if (
+          typeof loadingProgressHint === "number" &&
+          Number.isFinite(loadingProgressHint)
+        ) {
+          current = Math.max(current, Math.min(loadingProgressHint, 95));
+        }
+
         // Update Ref & State
         progressRef.current = current;
         setLoadingProgress(Math.floor(current));
@@ -298,14 +317,14 @@ export function TryOnResultModal({
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [loading, generatingAngles, resultImage]);
+  }, [loading, generatingAngles, resultImage, loadingProgressHint]);
 
   // Reset state when loading starts or image changes
   useEffect(() => {
-    if (loading || generatingAngles || !resultImage) {
+    if (loading || generatingAngles || !displayImage) {
       setImageRevealed(false);
     }
-  }, [loading, generatingAngles, resultImage]);
+  }, [loading, generatingAngles, displayImage]);
 
   // Trigger animations and compliment when ready
   useEffect(() => {
@@ -1157,14 +1176,101 @@ export function TryOnResultModal({
                 boxShadow: "inset 0 2px 16px rgba(0, 0, 0, 0.06)",
               }}
             >
+              {activeDisplayImage && !error && (
+                <>
+                  {hasMultipleGeneratedImages && (
+                    <div className="absolute left-2.5 right-2.5 top-2.5 z-10 flex items-center justify-between gap-2 sm:left-3 sm:right-3 sm:top-3 md:left-5 md:right-5 md:top-5">
+                      <span className="rounded-full bg-[rgba(44,36,22,0.68)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-white backdrop-blur">
+                        Swipe to view generated angles
+                      </span>
+                      <span className="rounded-full border border-white/60 bg-white/90 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#6f5a42] shadow-[0_10px_22px_rgba(28,21,14,0.12)] backdrop-blur">
+                        {currentImageIndex + 1} / {carouselImages.length}
+                      </span>
+                    </div>
+                  )}
+
+                  {hasMultipleGeneratedImages ? (
+                    <div className="h-full w-full p-1.5 sm:p-2.5 md:p-4">
+                      <Carousel
+                        setApi={setCarouselApi}
+                        opts={{ loop: true, align: "start" }}
+                        className="h-full w-full"
+                      >
+                        <CarouselContent className="h-full">
+                          {carouselImages.map((image, index) => (
+                            <CarouselItem
+                              key={`${image}-${index}`}
+                              className="h-full"
+                            >
+                              <button
+                                type="button"
+                                className="group flex h-full w-full items-center justify-center rounded-[20px] p-0 md:rounded-[26px]"
+                                onClick={() => setIsLightboxOpen(true)}
+                                title="Tap to view full size"
+                              >
+                                <img
+                                  src={image}
+                                  alt={`Generated angle ${index + 1}`}
+                                  className={`h-full w-full rounded-[20px] object-contain transition-all duration-500 group-hover:scale-[1.02] md:rounded-[26px] ${imageRevealed ? "modal-appear" : ""}`}
+                                  style={{
+                                    boxShadow:
+                                      "0 16px 48px rgba(0, 0, 0, 0.12)",
+                                    maxWidth: "100%",
+                                    maxHeight: "100%",
+                                  }}
+                                />
+                              </button>
+                            </CarouselItem>
+                          ))}
+                        </CarouselContent>
+                        <CarouselPrevious className="left-2 top-1/2 h-9 w-9 -translate-y-1/2 border-white/60 bg-white/92 text-[#2f2416] shadow-[0_12px_28px_rgba(28,21,14,0.12)] hover:bg-white md:left-3" />
+                        <CarouselNext className="right-2 top-1/2 h-9 w-9 -translate-y-1/2 border-white/60 bg-white/92 text-[#2f2416] shadow-[0_12px_28px_rgba(28,21,14,0.12)] hover:bg-white md:right-3" />
+                      </Carousel>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      className={`group flex h-full w-full items-center justify-center p-1.5 sm:p-2.5 md:p-4 ${
+                        isProcessingState ? "cursor-default" : "cursor-pointer"
+                      }`}
+                      onClick={() => {
+                        if (!isProcessingState) {
+                          setIsLightboxOpen(true);
+                        }
+                      }}
+                      title={
+                        isProcessingState
+                          ? "Live preview updating"
+                          : "Click to view full size"
+                      }
+                    >
+                      <img
+                        src={activeDisplayImage}
+                        alt={isProcessingState ? "Live try-on preview" : "Try-On Result"}
+                        className={`h-full w-full rounded-[20px] object-contain transition-all duration-500 md:rounded-[26px] ${
+                          imageRevealed && !isProcessingState ? "modal-appear" : ""
+                        } ${isProcessingState ? "" : "group-hover:scale-[1.02]"}`}
+                        style={{
+                          boxShadow: "0 16px 48px rgba(0, 0, 0, 0.12)",
+                          maxWidth: "100%",
+                          maxHeight: "100%",
+                          opacity: isProcessingState ? 0.96 : 1,
+                        }}
+                      />
+                    </button>
+                  )}
+                </>
+              )}
+
               {/* Loading State - Game-Like Queue Animation (Compact Version) */}
               {(loading || generatingAngles) && (
                 <div
                   className="absolute inset-0 z-20 flex flex-col items-center justify-start overflow-y-auto px-4 py-5 pb-8 sm:justify-center sm:p-6 slide-up"
                   style={{
-                    background:
-                      "linear-gradient(135deg, #fcfaf7 0%, #f7f5f2 100%)",
-                    backdropFilter: "blur(24px)",
+                    background: hasStreamPreview
+                      ? "linear-gradient(180deg, rgba(252,250,247,0.10) 0%, rgba(247,245,242,0.42) 58%, rgba(247,245,242,0.84) 100%)"
+                      : "linear-gradient(135deg, #fcfaf7 0%, #f7f5f2 100%)",
+                    backdropFilter: hasStreamPreview ? "blur(10px)" : "blur(24px)",
                   }}
                 >
                   {/* Animated Icon - Smaller */}
@@ -1189,63 +1295,132 @@ export function TryOnResultModal({
                       : "Creating Your Look"}
                   </h3>
                   <p className="mb-5 max-w-md text-center text-sm text-gray-500 sm:mb-6">
-                    {LOADING_QUOTES[currentQuoteIndex]}
+                    {loadingStatusLabel?.trim()
+                      ? loadingStatusLabel
+                      : LOADING_QUOTES[currentQuoteIndex]}
                   </p>
 
-                  {/* Process Steps - Compact Grid */}
-                  <div className="mb-5 w-full max-w-xl sm:mb-6">
-                    <div className="grid grid-cols-2 gap-2 md:grid-cols-4 md:gap-3">
-                      {processSteps.map((step, idx) => {
-                        const status = getStepStatus(idx);
-                        return (
-                          <div
-                            key={step.id}
-                            className="flex flex-col items-center gap-1.5 rounded-xl p-2.5 transition-all duration-500 sm:p-3"
-                            style={{
-                              background:
-                                status === "complete"
-                                  ? "linear-gradient(135deg, #c9a55c 0%, #d4b896 100%)"
-                                  : status === "active"
-                                    ? "linear-gradient(135deg, rgba(201, 165, 92, 0.15) 0%, rgba(212, 184, 150, 0.15) 100%)"
-                                    : "rgba(0,0,0,0.03)",
-                              border:
-                                status === "active"
-                                  ? "1.5px solid #c9a55c"
-                                  : "1.5px solid transparent",
-                              boxShadow:
-                                status === "complete"
-                                  ? "0 3px 12px rgba(201, 165, 92, 0.25)"
-                                  : status === "active"
-                                    ? "0 3px 12px rgba(201, 165, 92, 0.15)"
-                                    : "none",
-                            }}
-                          >
-                            <div className="text-xl mb-0.5">
-                              {status === "complete" ? (
-                                <CheckCircle2 className="w-5 h-5 text-white checkmark-animate" />
-                              ) : status === "active" ? (
-                                <Loader2 className="w-5 h-5 text-[#c9a55c] animate-spin" />
-                              ) : (
-                                <span className="opacity-40 text-lg">
-                                  {step.icon}
-                                </span>
-                              )}
-                            </div>
-                            <span
-                              className={`text-[10px] md:text-xs font-semibold text-center ${
-                                status === "complete"
-                                  ? "text-white"
-                                  : status === "active"
-                                    ? "text-gray-900"
-                                    : "text-gray-400"
-                              }`}
-                            >
-                              {step.label}
-                            </span>
-                          </div>
-                        );
-                      })}
+                  {hasStreamPreview && (
+                    <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-[#d7bc83]/50 bg-[rgba(255,255,255,0.82)] px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#8a6936] shadow-[0_10px_26px_rgba(122,94,46,0.10)]">
+                      <span className="h-2 w-2 rounded-full bg-[#c9a55c] animate-pulse" />
+                      Live Preview Visible
                     </div>
+                  )}
+
+                  {/* Stream Output / Process Steps */}
+                  <div className="mb-5 w-full max-w-xl sm:mb-6">
+                    {hasLiveStreamMessages ? (
+                      <div
+                        className="rounded-2xl border px-3 py-3 text-left sm:px-4 sm:py-4"
+                        style={{
+                          background:
+                            "linear-gradient(180deg, rgba(255,255,255,0.78) 0%, rgba(247,244,239,0.92) 100%)",
+                          borderColor: "rgba(201, 165, 92, 0.22)",
+                          boxShadow: "0 8px 28px rgba(122, 94, 46, 0.10)",
+                        }}
+                      >
+                        <div className="mb-3 flex items-center justify-between gap-3">
+                          <div>
+                            <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-[#8a6936]">
+                              Live Stream
+                            </p>
+                            <p className="mt-1 text-xs text-gray-500">
+                              Gemini generation output is shown as it arrives.
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2 rounded-full bg-[#f6efe3] px-2.5 py-1 text-[11px] font-semibold text-[#8a6936]">
+                            <span className="h-2 w-2 rounded-full bg-[#c9a55c] animate-pulse" />
+                            Live
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          {loadingStreamMessages.map((message, index) => {
+                            const isLatest = index === loadingStreamMessages.length - 1;
+                            return (
+                              <div
+                                key={`${message}-${index}`}
+                                className="rounded-xl px-3 py-2.5 transition-all duration-300"
+                                style={{
+                                  background: isLatest
+                                    ? "linear-gradient(135deg, rgba(201, 165, 92, 0.14) 0%, rgba(212, 184, 150, 0.22) 100%)"
+                                    : "rgba(255,255,255,0.72)",
+                                  border: isLatest
+                                    ? "1px solid rgba(201, 165, 92, 0.28)"
+                                    : "1px solid rgba(122, 94, 46, 0.08)",
+                                }}
+                              >
+                                <div className="flex items-start gap-2.5">
+                                  <div className="mt-1 flex h-2.5 w-2.5 shrink-0 rounded-full bg-[#c9a55c]" />
+                                  <p
+                                    className={`text-sm leading-5 ${
+                                      isLatest
+                                        ? "font-medium text-[#4e3a20]"
+                                        : "text-gray-600"
+                                    }`}
+                                  >
+                                    {message}
+                                  </p>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-2 md:grid-cols-4 md:gap-3">
+                        {processSteps.map((step, idx) => {
+                          const status = getStepStatus(idx);
+                          return (
+                            <div
+                              key={step.id}
+                              className="flex flex-col items-center gap-1.5 rounded-xl p-2.5 transition-all duration-500 sm:p-3"
+                              style={{
+                                background:
+                                  status === "complete"
+                                    ? "linear-gradient(135deg, #c9a55c 0%, #d4b896 100%)"
+                                    : status === "active"
+                                      ? "linear-gradient(135deg, rgba(201, 165, 92, 0.15) 0%, rgba(212, 184, 150, 0.15) 100%)"
+                                      : "rgba(0,0,0,0.03)",
+                                border:
+                                  status === "active"
+                                    ? "1.5px solid #c9a55c"
+                                    : "1.5px solid transparent",
+                                boxShadow:
+                                  status === "complete"
+                                    ? "0 3px 12px rgba(201, 165, 92, 0.25)"
+                                    : status === "active"
+                                      ? "0 3px 12px rgba(201, 165, 92, 0.15)"
+                                      : "none",
+                              }}
+                            >
+                              <div className="text-xl mb-0.5">
+                                {status === "complete" ? (
+                                  <CheckCircle2 className="w-5 h-5 text-white checkmark-animate" />
+                                ) : status === "active" ? (
+                                  <Loader2 className="w-5 h-5 text-[#c9a55c] animate-spin" />
+                                ) : (
+                                  <span className="opacity-40 text-lg">
+                                    {step.icon}
+                                  </span>
+                                )}
+                              </div>
+                              <span
+                                className={`text-[10px] md:text-xs font-semibold text-center ${
+                                  status === "complete"
+                                    ? "text-white"
+                                    : status === "active"
+                                      ? "text-gray-900"
+                                      : "text-gray-400"
+                                }`}
+                              >
+                                {step.label}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
 
                   {/* Progress Bar - Compact */}
@@ -1320,78 +1495,6 @@ export function TryOnResultModal({
                 </div>
               )}
 
-              {/* Result Image */}
-              {resultImage && !loading && !error && (
-                <>
-                  {hasMultipleGeneratedImages && (
-                    <div className="absolute left-2.5 right-2.5 top-2.5 z-10 flex items-center justify-between gap-2 sm:left-3 sm:right-3 sm:top-3 md:left-5 md:right-5 md:top-5">
-                      <span className="rounded-full bg-[rgba(44,36,22,0.68)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-white backdrop-blur">
-                        Swipe to view generated angles
-                      </span>
-                      <span className="rounded-full border border-white/60 bg-white/90 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#6f5a42] shadow-[0_10px_22px_rgba(28,21,14,0.12)] backdrop-blur">
-                        {currentImageIndex + 1} / {carouselImages.length}
-                      </span>
-                    </div>
-                  )}
-
-                  {hasMultipleGeneratedImages ? (
-                    <div className="h-full w-full p-1.5 sm:p-2.5 md:p-4">
-                      <Carousel
-                        setApi={setCarouselApi}
-                        opts={{ loop: true, align: "start" }}
-                        className="h-full w-full"
-                      >
-                        <CarouselContent className="h-full">
-                          {carouselImages.map((image, index) => (
-                            <CarouselItem
-                              key={`${image}-${index}`}
-                              className="h-full"
-                            >
-                              <button
-                                type="button"
-                                className="group flex h-full w-full items-center justify-center rounded-[20px] p-0 md:rounded-[26px]"
-                                onClick={() => setIsLightboxOpen(true)}
-                                title="Tap to view full size"
-                              >
-                                <img
-                                  src={image}
-                                  alt={`Generated angle ${index + 1}`}
-                                  className={`h-full w-full rounded-[20px] object-contain transition-all duration-500 group-hover:scale-[1.02] md:rounded-[26px] ${imageRevealed ? "modal-appear" : ""}`}
-                                  style={{
-                                    boxShadow:
-                                      "0 16px 48px rgba(0, 0, 0, 0.12)",
-                                    maxWidth: "100%",
-                                    maxHeight: "100%",
-                                  }}
-                                />
-                              </button>
-                            </CarouselItem>
-                          ))}
-                        </CarouselContent>
-                        <CarouselPrevious className="left-2 top-1/2 h-9 w-9 -translate-y-1/2 border-white/60 bg-white/92 text-[#2f2416] shadow-[0_12px_28px_rgba(28,21,14,0.12)] hover:bg-white md:left-3" />
-                        <CarouselNext className="right-2 top-1/2 h-9 w-9 -translate-y-1/2 border-white/60 bg-white/92 text-[#2f2416] shadow-[0_12px_28px_rgba(28,21,14,0.12)] hover:bg-white md:right-3" />
-                      </Carousel>
-                    </div>
-                  ) : (
-                    <div
-                      className="group flex h-full w-full cursor-pointer items-center justify-center p-1.5 sm:p-2.5 md:p-4"
-                      onClick={() => setIsLightboxOpen(true)}
-                      title="Click to view full size"
-                    >
-                      <img
-                        src={resultImage}
-                        alt="Try-On Result"
-                        className={`h-full w-full rounded-[20px] object-contain transition-all duration-500 group-hover:scale-[1.02] md:rounded-[26px] ${imageRevealed ? "modal-appear" : ""}`}
-                        style={{
-                          boxShadow: "0 16px 48px rgba(0, 0, 0, 0.12)",
-                          maxWidth: "100%",
-                          maxHeight: "100%",
-                        }}
-                      />
-                    </div>
-                  )}
-                </>
-              )}
             </div>
 
             {renderComplimentCard("w-full flex-shrink-0 md:hidden", "mobile")}

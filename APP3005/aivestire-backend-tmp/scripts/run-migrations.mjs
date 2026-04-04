@@ -11,8 +11,18 @@ loadLocalEnvFiles();
 
 const PRISMA_CLI = './node_modules/prisma/build/index.js';
 const KNOWN_PREAPPLIED_MIGRATION = '0001_init';
-const KNOWN_FAILED_MIGRATION = '20260228000000_add_coupon_scopes';
-const MAX_RECOVERY_ATTEMPTS = 5;
+const MAX_RECOVERY_ATTEMPTS = 10;
+
+const REPLACEMENT_MIGRATION_CHECKS = {
+  '0002_create_coupons_table': hasCouponBaseSchema,
+  '0003_add_coupon_scopes': hasCouponScopeSchema,
+  '0004_add_coupon_applied_and_birthday_anniversary':
+    hasCouponAnniversarySchema,
+  '0005_add_wallet_system': hasWalletSchema,
+  '0006_add_product_recommendation_attributes':
+    hasProductRecommendationSchema,
+  '0007_add_categories_and_product_groups': hasCategoryAndGroupSchema,
+};
 
 function runPrismaMigrate(args) {
   const result = spawnSync('node', [PRISMA_CLI, 'migrate', ...args], {
@@ -27,21 +37,281 @@ function runPrismaMigrate(args) {
   return result.status ?? 1;
 }
 
-async function isMigrationRecorded(migrationName) {
+function firstRow(rows) {
+  return Array.isArray(rows) && rows.length > 0 ? rows[0] : null;
+}
+
+async function withPrisma(callback) {
   const prisma = new PrismaClient();
 
   try {
-    const rows = await prisma.$queryRaw`
-      SELECT 1
-      FROM "_prisma_migrations"
-      WHERE migration_name = ${migrationName}
-      LIMIT 1
-    `;
-
-    return Array.isArray(rows) && rows.length > 0;
+    return await callback(prisma);
   } finally {
     await prisma.$disconnect();
   }
+}
+
+async function tableExists(prisma, tableName) {
+  const rows = await prisma.$queryRaw`
+    SELECT EXISTS (
+      SELECT 1
+      FROM information_schema.tables
+      WHERE table_schema = 'public'
+        AND table_name = ${tableName}
+    ) AS present
+  `;
+
+  return Boolean(firstRow(rows)?.present);
+}
+
+async function columnExists(prisma, tableName, columnName) {
+  const rows = await prisma.$queryRaw`
+    SELECT EXISTS (
+      SELECT 1
+      FROM information_schema.columns
+      WHERE table_schema = 'public'
+        AND table_name = ${tableName}
+        AND column_name = ${columnName}
+    ) AS present
+  `;
+
+  return Boolean(firstRow(rows)?.present);
+}
+
+async function enumExists(prisma, enumName) {
+  const rows = await prisma.$queryRaw`
+    SELECT EXISTS (
+      SELECT 1
+      FROM pg_type
+      WHERE typname = ${enumName}
+    ) AS present
+  `;
+
+  return Boolean(firstRow(rows)?.present);
+}
+
+async function enumValueExists(prisma, enumName, enumValue) {
+  const rows = await prisma.$queryRaw`
+    SELECT EXISTS (
+      SELECT 1
+      FROM pg_enum enum_value
+      INNER JOIN pg_type enum_type ON enum_value.enumtypid = enum_type.oid
+      WHERE enum_type.typname = ${enumName}
+        AND enum_value.enumlabel = ${enumValue}
+    ) AS present
+  `;
+
+  return Boolean(firstRow(rows)?.present);
+}
+
+async function constraintExists(prisma, constraintName) {
+  const rows = await prisma.$queryRaw`
+    SELECT EXISTS (
+      SELECT 1
+      FROM pg_constraint
+      WHERE conname = ${constraintName}
+    ) AS present
+  `;
+
+  return Boolean(firstRow(rows)?.present);
+}
+
+async function getAppliedMigrationNames() {
+  return withPrisma(async (prisma) => {
+    const rows = await prisma.$queryRaw`
+      SELECT migration_name
+      FROM "_prisma_migrations"
+      WHERE finished_at IS NOT NULL
+        AND rolled_back_at IS NULL
+    `;
+
+    return new Set(
+      Array.isArray(rows)
+        ? rows
+            .map((row) => row?.migration_name)
+            .filter((migrationName) => typeof migrationName === 'string')
+        : [],
+    );
+  });
+}
+
+async function getReplacementMigrationsToResolve(appliedMigrationNames) {
+  return withPrisma(async (prisma) => {
+    const migrationsToResolve = [];
+
+    for (const [migrationName, check] of Object.entries(
+      REPLACEMENT_MIGRATION_CHECKS,
+    )) {
+      if (appliedMigrationNames.has(migrationName)) {
+        continue;
+      }
+
+      if (await check(prisma)) {
+        migrationsToResolve.push(migrationName);
+      }
+    }
+
+    return migrationsToResolve;
+  });
+}
+
+async function hasCouponBaseSchema(prisma) {
+  const [
+    hasCouponType,
+    hasCouponStatus,
+    hasCouponsTable,
+    hasAllowedPincodesTable,
+    hasCouponAllowedPincodesForeignKey,
+  ] = await Promise.all([
+    enumExists(prisma, 'CouponType'),
+    enumExists(prisma, 'CouponStatus'),
+    tableExists(prisma, 'coupons'),
+    tableExists(prisma, 'coupon_allowed_pincodes'),
+    constraintExists(prisma, 'coupon_allowed_pincodes_coupon_id_fkey'),
+  ]);
+
+  return Boolean(
+    hasCouponType &&
+      hasCouponStatus &&
+      hasCouponsTable &&
+      hasAllowedPincodesTable &&
+      hasCouponAllowedPincodesForeignKey,
+  );
+}
+
+async function hasCouponScopeSchema(prisma) {
+  const [
+    hasCouponScopeType,
+    hasIsOneTimePerUser,
+    hasIsStackable,
+    hasIsDeleted,
+    hasCouponScopesTable,
+    hasCouponScopesForeignKey,
+  ] = await Promise.all([
+    enumExists(prisma, 'CouponScopeType'),
+    columnExists(prisma, 'coupons', 'is_one_time_per_user'),
+    columnExists(prisma, 'coupons', 'is_stackable'),
+    columnExists(prisma, 'coupons', 'is_deleted'),
+    tableExists(prisma, 'coupon_scopes'),
+    constraintExists(prisma, 'coupon_scopes_coupon_id_fkey'),
+  ]);
+
+  return Boolean(
+    hasCouponScopeType &&
+      hasIsOneTimePerUser &&
+      hasIsStackable &&
+      hasIsDeleted &&
+      hasCouponScopesTable &&
+      hasCouponScopesForeignKey,
+  );
+}
+
+async function hasCouponAnniversarySchema(prisma) {
+  const [
+    hasAppliedCouponCodeOnCarts,
+    hasAppliedCouponCodeOnGuestCarts,
+    hasUserBirthdayScope,
+    hasCompanyAnniversaryScope,
+    hasCompanyAnniversaryDate,
+  ] = await Promise.all([
+    columnExists(prisma, 'carts', 'applied_coupon_code'),
+    columnExists(prisma, 'guest_carts', 'applied_coupon_code'),
+    enumValueExists(prisma, 'CouponScopeType', 'USER_BIRTHDAY'),
+    enumValueExists(prisma, 'CouponScopeType', 'COMPANY_ANNIVERSARY'),
+    columnExists(prisma, 'coupon_scopes', 'company_anniversary_date'),
+  ]);
+
+  return Boolean(
+    hasAppliedCouponCodeOnCarts &&
+      hasAppliedCouponCodeOnGuestCarts &&
+      hasUserBirthdayScope &&
+      hasCompanyAnniversaryScope &&
+      hasCompanyAnniversaryDate,
+  );
+}
+
+async function hasWalletSchema(prisma) {
+  const [
+    hasWalletTransactionType,
+    hasWalletTransactionSource,
+    hasWalletTransactionStatus,
+    hasWalletsTable,
+    hasWalletTransactionsTable,
+    hasWalletUserForeignKey,
+    hasWalletTransactionForeignKey,
+    hasWalletPaymentMethod,
+  ] = await Promise.all([
+    enumExists(prisma, 'WalletTransactionType'),
+    enumExists(prisma, 'WalletTransactionSource'),
+    enumExists(prisma, 'WalletTransactionStatus'),
+    tableExists(prisma, 'wallets'),
+    tableExists(prisma, 'wallet_transactions'),
+    constraintExists(prisma, 'wallets_user_id_fkey'),
+    constraintExists(prisma, 'wallet_transactions_wallet_id_fkey'),
+    enumValueExists(prisma, 'PaymentMethod', 'WALLET'),
+  ]);
+
+  return Boolean(
+    hasWalletTransactionType &&
+      hasWalletTransactionSource &&
+      hasWalletTransactionStatus &&
+      hasWalletsTable &&
+      hasWalletTransactionsTable &&
+      hasWalletUserForeignKey &&
+      hasWalletTransactionForeignKey &&
+      hasWalletPaymentMethod,
+  );
+}
+
+async function hasProductRecommendationSchema(prisma) {
+  const [
+    hasOccasions,
+    hasBodyShapes,
+    hasSkinTones,
+    hasSizes,
+    hasAgeRanges,
+  ] = await Promise.all([
+    columnExists(prisma, 'Product', 'occasions'),
+    columnExists(prisma, 'Product', 'body_shapes'),
+    columnExists(prisma, 'Product', 'skin_tones'),
+    columnExists(prisma, 'Product', 'sizes'),
+    columnExists(prisma, 'Product', 'age_ranges'),
+  ]);
+
+  return Boolean(
+    hasOccasions &&
+      hasBodyShapes &&
+      hasSkinTones &&
+      hasSizes &&
+      hasAgeRanges,
+  );
+}
+
+async function hasCategoryAndGroupSchema(prisma) {
+  const [
+    hasCategoriesTable,
+    hasSubCategoriesTable,
+    hasCategoryId,
+    hasSubCategoryId,
+    hasProductGroupsTable,
+    hasProductGroupAssignmentsTable,
+  ] = await Promise.all([
+    tableExists(prisma, 'categories'),
+    tableExists(prisma, 'sub_categories'),
+    columnExists(prisma, 'Product', 'category_id'),
+    columnExists(prisma, 'Product', 'sub_category_id'),
+    tableExists(prisma, 'product_groups'),
+    tableExists(prisma, 'product_group_assignments'),
+  ]);
+
+  return Boolean(
+    hasCategoriesTable &&
+      hasSubCategoriesTable &&
+      hasCategoryId &&
+      hasSubCategoryId &&
+      hasProductGroupsTable &&
+      hasProductGroupAssignmentsTable,
+  );
 }
 
 async function getFailedMigrations() {
@@ -67,9 +337,7 @@ async function getFailedMigrations() {
 }
 
 async function hasBaselineSchema() {
-  const prisma = new PrismaClient();
-
-  try {
+  return withPrisma(async (prisma) => {
     const [tableRows, columnRows] = await Promise.all([
       prisma.$queryRaw`
         SELECT
@@ -164,9 +432,7 @@ async function hasBaselineSchema() {
         columns?.has_return_status &&
         columns?.has_replace_status,
     );
-  } finally {
-    await prisma.$disconnect();
-  }
+  });
 }
 
 async function main() {
@@ -178,15 +444,19 @@ async function main() {
     }
 
     let failedMigrations = [];
+    let appliedMigrationNames = new Set();
     let baselineMigrationRecorded = false;
     let baselineSchemaExists = false;
+    let replacementMigrationsToResolve = [];
 
     try {
       failedMigrations = await getFailedMigrations();
-      baselineMigrationRecorded = await isMigrationRecorded(
-        KNOWN_PREAPPLIED_MIGRATION,
-      );
+      appliedMigrationNames = await getAppliedMigrationNames();
+      baselineMigrationRecorded =
+        appliedMigrationNames.has(KNOWN_PREAPPLIED_MIGRATION);
       baselineSchemaExists = await hasBaselineSchema();
+      replacementMigrationsToResolve =
+        await getReplacementMigrationsToResolve(appliedMigrationNames);
     } catch (error) {
       process.stderr.write(
         `[migrate-startup] Unable to inspect migration history after failed deploy: ${String(error?.message || error)}\n`,
@@ -216,19 +486,21 @@ async function main() {
       continue;
     }
 
-    if (failedMigrations.includes(KNOWN_FAILED_MIGRATION)) {
+    if (replacementMigrationsToResolve.length > 0) {
       process.stdout.write(
-        `[migrate-startup] Marking failed migration as rolled back: ${KNOWN_FAILED_MIGRATION}\n`,
+        `[migrate-startup] Marking replacement migrations as applied because their schema already exists: ${replacementMigrationsToResolve.join(', ')}\n`,
       );
 
-      const rollbackStatus = runPrismaMigrate([
-        'resolve',
-        '--rolled-back',
-        KNOWN_FAILED_MIGRATION,
-      ]);
+      for (const migrationName of replacementMigrationsToResolve) {
+        const resolveStatus = runPrismaMigrate([
+          'resolve',
+          '--applied',
+          migrationName,
+        ]);
 
-      if (rollbackStatus !== 0) {
-        process.exit(rollbackStatus);
+        if (resolveStatus !== 0) {
+          process.exit(resolveStatus);
+        }
       }
 
       process.stdout.write('[migrate-startup] Retrying prisma migrate deploy\n');

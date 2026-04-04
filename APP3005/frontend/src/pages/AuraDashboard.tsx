@@ -4,8 +4,11 @@ import { HeroImageSection } from "@/components/aura/HeroImageSection";
 import { AuraFormCard } from "@/components/aura/AuraFormCard";
 import { ProcessingModal } from "@/components/aura/ProcessingModal";
 import { AuraSuccessState } from "@/components/aura/AuraSuccessState";
-import { useAuraJobPolling } from "@/hooks/useAuraJobPolling";
-import { FeedbackContextType } from "@/lib/api";
+import {
+  FeedbackContextType,
+  createAuraWithStream,
+  type StreamEventHandler,
+} from "@/lib/api";
 
 interface BodyAttributes {
   height?: number;
@@ -32,41 +35,32 @@ const AuraDashboard = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | undefined>(undefined);
-  const [jobId, setJobId] = useState<string | null>(null);
+  const [processingProgress, setProcessingProgress] = useState(0);
+  const [processingStatusMessage, setProcessingStatusMessage] = useState<string | null>(null);
   const [creationContext, setCreationContext] = useState<AuraCreationFeedbackContext | null>(null);
   const location = useLocation();
   const navigate = useNavigate();
   const locationState = location.state as AuraDashboardLocationState | null;
   const prefilledDob = locationState?.prefilledDob;
-
-  // Use real job polling hook
-  const { jobStatus, isPolling } = useAuraJobPolling(jobId, !!jobId);
-
-  // Calculate progress and estimated time from job status
-  const progress = jobStatus?.progress || 0;
-  const estimatedTime = Math.max(0, Math.ceil((100 - progress) / 5)); // Rough estimate
+  const progress = processingProgress;
+  const estimatedTime = Math.max(0, Math.ceil((100 - progress) / 5));
 
   const handleCreateAura = async (photoFile: File, attributes: BodyAttributes) => {
-    // Get auth token first
-    const token = localStorage.getItem('access_token');
-
-    // Check if user is authenticated
-    if (!token) {
+    if (!localStorage.getItem('access_token')) {
       alert('Please log in to create your Aura');
       window.location.href = '/user-login';
       return;
     }
 
     setIsProcessing(true);
-    setJobId(null); // Reset job ID
+    setProcessingProgress(8);
+    setProcessingStatusMessage("Uploading and validating your photo");
     setCreationContext(null);
 
     try {
-      // Create FormData with photo and attributes
       const formData = new FormData();
       formData.append('photo', photoFile);
 
-      // Append attributes
       if (attributes.height) formData.append('height', attributes.height.toString());
       if (attributes.weight) formData.append('weight', attributes.weight.toString());
       if (attributes.skinTone) formData.append('skinTone', attributes.skinTone);
@@ -76,89 +70,82 @@ const AuraDashboard = () => {
       if (attributes.ageRange) formData.append('ageRange', attributes.ageRange);
       if (attributes.hairStyle) formData.append('hairStyle', attributes.hairStyle);
 
-      // Call API
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/aura`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-        body: formData,
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-
-        // Handle specific error cases
-        if (response.status === 401) {
-          alert('Your session has expired. Please log in again.');
-          localStorage.removeItem('access_token');
-          window.location.href = '/user-login';
+      const handleStreamEvent: StreamEventHandler = (eventName, payload) => {
+        if (!payload || typeof payload !== "object") {
           return;
         }
 
-        throw new Error(error.message || 'Failed to create Aura');
-      }
+        const streamPayload = payload as {
+          aura_id?: string;
+          progress?: number;
+          message?: string;
+          status?: string;
+          error?: string;
+        };
 
-      const data = await response.json();
-      console.log('📦 Full API response:', data);
-      console.log('🔑 job_id from response:', data.job_id);
-      setCreationContext({
-        type: "AVATAR_CREATION",
-        referenceId: data.aura_id,
-        label: "Avatar Creation",
+        if (eventName === "accepted" && streamPayload.aura_id) {
+          setCreationContext({
+            type: "AVATAR_CREATION",
+            referenceId: streamPayload.aura_id,
+            label: "Avatar Creation",
+          });
+        }
+
+        if (typeof streamPayload.progress === "number") {
+          setProcessingProgress((prev) =>
+            Math.max(prev, Math.min(streamPayload.progress, 100)),
+          );
+        }
+
+        if (streamPayload.message) {
+          setProcessingStatusMessage(streamPayload.message);
+        } else if (eventName === "status" && streamPayload.status) {
+          const statusMessageMap: Record<string, string> = {
+            waiting: "Queued for avatar generation",
+            active: "Generating your Aura with Gemini",
+            completed: "Aura generation completed",
+            failed: streamPayload.error || "Aura generation failed",
+          };
+          setProcessingStatusMessage(
+            statusMessageMap[streamPayload.status] || "Processing your Aura",
+          );
+        }
+      };
+
+      const result = await createAuraWithStream(formData, {
+        onEvent: handleStreamEvent,
       });
 
-      // Start polling with the job_id from response
-      if (data.job_id) {
-        console.log('✅ Aura creation started, job_id:', data.job_id);
-        setJobId(data.job_id);
-      } else {
-        console.error('❌ No job_id in response! Cannot start polling.');
-        console.error('Response data:', JSON.stringify(data, null, 2));
-      }
+      const completedAuraId =
+        result.auraId || result.aura?.aura_id || creationContext?.referenceId;
+      setAvatarUrl(result.avatar?.url);
+      setProcessingProgress(100);
+      setProcessingStatusMessage("Aura generation completed");
+      window.dispatchEvent(new Event('aura-updated'));
 
-      // Note: isProcessing will be managed by polling status below
-
+      setTimeout(() => {
+        setIsProcessing(false);
+        setProcessingProgress(0);
+        setProcessingStatusMessage(null);
+        navigate("/aura-profile", {
+          state: {
+            feedbackContext: {
+              type: "AVATAR_CREATION",
+              referenceId: completedAuraId,
+              label: "Avatar Creation",
+            },
+            hideAuraLibrary: true,
+          },
+        });
+      }, 700);
     } catch (error) {
       console.error('Error creating Aura:', error);
       setIsProcessing(false);
-      setJobId(null);
+      setProcessingProgress(0);
+      setProcessingStatusMessage(null);
       alert(error instanceof Error ? error.message : 'Failed to create Aura. Please try again.');
     }
   };
-
-  // Handle job completion
-  if (jobStatus?.status === 'completed' && isProcessing) {
-    console.log('✅ Avatar generation completed!');
-
-    // Notify Navbar to refresh Aura status
-    window.dispatchEvent(new Event('aura-updated'));
-
-    // Redirect to profile page
-    setTimeout(() => {
-      setIsProcessing(false);
-      setJobId(null);
-      const feedbackContext = {
-        ...creationContext,
-        referenceId: jobStatus?.result?.auraId || creationContext?.referenceId,
-      };
-
-      navigate("/aura-profile", {
-        state: {
-          ...(feedbackContext ? { feedbackContext } : {}),
-          hideAuraLibrary: true,
-        },
-      });
-    }, 1000);
-  }
-
-  // Handle job failure
-  if (jobStatus?.status === 'failed' && isProcessing) {
-    console.error('❌ Avatar generation failed:', jobStatus.error);
-    setIsProcessing(false);
-    setJobId(null);
-    alert('Avatar generation failed. Please try again.');
-  }
 
   return (
     <div className="flex min-h-screen min-h-[100dvh] flex-col lg:flex-row overflow-x-hidden lg:overflow-hidden">
@@ -185,6 +172,7 @@ const AuraDashboard = () => {
         isOpen={isProcessing}
         progress={progress}
         estimatedTime={estimatedTime}
+        statusMessage={processingStatusMessage}
       />
     </div>
   );

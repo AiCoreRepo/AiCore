@@ -10,9 +10,14 @@ import {
   ConfigurationException,
 } from '../../exceptions/tryon.exceptions';
 import { TryOnErrorCode } from '../../enums/ai-provider.enum';
-import { VERTEX_AI_TIMEOUT } from '../../constants/tryon.constants';
+import {
+  TRYON_INPUT_IMAGE_OPTIMIZATION,
+  TRYON_RESULT_IMAGE_OUTPUT,
+  VERTEX_AI_TIMEOUT,
+} from '../../constants/tryon.constants';
 import * as fs from 'fs';
 import * as path from 'path';
+import type { CompressionOptions } from '../../../common/image-optimizer.service';
 
 // Google Auth types
 interface ServiceAccountCredentials {
@@ -70,6 +75,32 @@ export class DirectVertexTryOnService extends BaseTryOnService {
     } else {
       this.logger.warn('⚠️ Direct Vertex AI service not fully configured');
     }
+  }
+
+  protected async optimizePreprocessedImages({
+    avatarBase64,
+    clothingBase64,
+  }: {
+    avatarBase64: string;
+    clothingBase64: string;
+  }): Promise<{ avatarBase64: string; clothingBase64: string }> {
+    const [optimizedAvatar, optimizedClothing] = await Promise.all([
+      this.optimizeInputImage(
+        'avatar',
+        avatarBase64,
+        TRYON_INPUT_IMAGE_OPTIMIZATION.AVATAR,
+      ),
+      this.optimizeInputImage(
+        'clothing',
+        clothingBase64,
+        TRYON_INPUT_IMAGE_OPTIMIZATION.CLOTHING,
+      ),
+    ]);
+
+    return {
+      avatarBase64: optimizedAvatar,
+      clothingBase64: optimizedClothing,
+    };
   }
 
   /**
@@ -286,7 +317,9 @@ export class DirectVertexTryOnService extends BaseTryOnService {
         sampleCount: additionalParams?.sample_count ?? 1,
         outputOptions: {
           mimeType: 'image/jpeg',
-          compressionQuality: additionalParams?.compression_quality ?? 90,
+          compressionQuality:
+            additionalParams?.compression_quality ??
+            TRYON_RESULT_IMAGE_OUTPUT.QUALITY,
         },
       },
     };
@@ -447,11 +480,26 @@ export class DirectVertexTryOnService extends BaseTryOnService {
 
   protected async postprocessResult(resultImage: string): Promise<string> {
     return this.imageOptimizer.normalizeToPortraitCanvas(resultImage, {
-      targetAspectRatio: 2 / 3,
-      maxWidth: 1200,
-      maxHeight: 1800,
-      quality: 90,
-      format: 'jpeg',
+      targetAspectRatio: TRYON_RESULT_IMAGE_OUTPUT.TARGET_ASPECT_RATIO,
+      maxWidth: TRYON_RESULT_IMAGE_OUTPUT.MAX_WIDTH,
+      maxHeight: TRYON_RESULT_IMAGE_OUTPUT.MAX_HEIGHT,
+      quality: TRYON_RESULT_IMAGE_OUTPUT.QUALITY,
+      format: TRYON_RESULT_IMAGE_OUTPUT.FORMAT,
     });
+  }
+
+  private async optimizeInputImage(
+    label: 'avatar' | 'clothing',
+    imageDataUri: string,
+    options: CompressionOptions,
+  ): Promise<string> {
+    try {
+      return await this.imageOptimizer.compressImage(imageDataUri, options);
+    } catch (error) {
+      this.logger.warn(
+        `Failed to optimize ${label} image for Vertex try-on, using original input: ${error instanceof Error ? error.message : 'unknown error'}`,
+      );
+      return imageDataUri;
+    }
   }
 }

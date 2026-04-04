@@ -47,11 +47,9 @@ export function getTryOnHostErrorMessage(): string {
 }
 
 export function shouldShowMultipleTryOnProviders(): boolean {
-  return !isProductionTryOnHost();
+  return false;
 }
 
 export function getDefaultTryOnProvider(): TryOnProvider {
-  return isProductionTryOnHost()
-    ? TRYON_PROVIDER.GEMINI
-    : TRYON_PROVIDER.VERTEX;
+  return TRYON_PROVIDER.GEMINI;
 }

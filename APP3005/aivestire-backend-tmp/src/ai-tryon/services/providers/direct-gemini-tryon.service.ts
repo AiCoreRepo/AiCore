@@ -5,11 +5,18 @@ import _ from 'lodash';
 import { BaseTryOnService } from '../common/base-tryon.service';
 import { ImageValidatorService } from '../common/image-validator.service';
 import { ImageOptimizerService } from '../../../common/image-optimizer.service';
-import { AIProvider, TryOnErrorCode } from '../../enums/ai-provider.enum';
+import {
+  AIProvider,
+  TryOnErrorCode,
+  TryOnStatus,
+} from '../../enums/ai-provider.enum';
+import { TryOnResponseDto } from '../../dto/tryon-response.dto';
 import {
   AIServiceException,
   ConfigurationException,
+  RateLimitException,
   TimeoutException,
+  TryOnException,
 } from '../../exceptions/tryon.exceptions';
 import {
   buildGeminiTryOnPrompt,
@@ -20,7 +27,10 @@ import {
   GEMINI_TRYON_CONFIG,
   GEMINI_CLOTHING_MODEL_MASK,
   GEMINI_TRYON_ERROR_MESSAGES,
+  TRYON_INPUT_IMAGE_OPTIMIZATION,
+  TRYON_RESULT_IMAGE_OUTPUT,
 } from '../../constants/tryon.constants';
+import type { CompressionOptions } from '../../../common/image-optimizer.service';
 import {
   buildDataUri,
   extractImageData,
@@ -32,6 +42,10 @@ const ADDITIONAL_PARAM_KEYS = {
   OUTPUT_MIME_TYPE: 'outputMimeType',
   MASK_CLOTHING_MODEL: 'maskClothingModel',
 } as const;
+
+const DEFAULT_GEMINI_RATE_LIMIT_COOLDOWN_MS = 60_000;
+const GEMINI_RATE_LIMIT_MESSAGE =
+  'Gemini try-on is temporarily unavailable because the current Gemini quota has been exhausted. Please retry later or use Vertex try-on if available.';
 
 interface GeminiPart {
   inlineData?: GeminiInlineData;
@@ -54,6 +68,27 @@ interface GeminiGenerateResult {
   response: GeminiResponse;
 }
 
+type GeminiTryOnStreamEvent =
+  | {
+      type: 'status';
+      phase: string;
+      progress: number;
+      message: string;
+      timestamp: string;
+    }
+  | {
+      type: 'chunk';
+      text: string;
+      timestamp: string;
+    }
+  | {
+      type: 'preview';
+      resultImage: string;
+      mimeType: string;
+      progress: number;
+      timestamp: string;
+    };
+
 /**
  * Direct Gemini AI Try-On Service
  * Calls Gemini AI directly without FastAPI intermediary
@@ -64,6 +99,8 @@ export class DirectGeminiTryOnService extends BaseTryOnService {
   private readonly modelId: string;
   private readonly genAI: GoogleGenerativeAI | null;
   private readonly timingLogsEnabled: boolean;
+  private readonly rateLimitCooldownMs: number;
+  private rateLimitUntil = 0;
 
   constructor(
     imageValidator: ImageValidatorService,
@@ -78,6 +115,10 @@ export class DirectGeminiTryOnService extends BaseTryOnService {
     this.timingLogsEnabled =
       String(this.configService.get<string>('AI_TIMING_LOGS') || '').toLowerCase() ===
       'true';
+    this.rateLimitCooldownMs = this.parsePositiveInteger(
+      this.configService.get<string>('GEMINI_RATE_LIMIT_COOLDOWN_MS'),
+      DEFAULT_GEMINI_RATE_LIMIT_COOLDOWN_MS,
+    );
 
     this.genAI = this.apiKey ? new GoogleGenerativeAI(this.apiKey) : null;
 
@@ -92,6 +133,15 @@ export class DirectGeminiTryOnService extends BaseTryOnService {
   /**
    * Perform virtual try-on by calling Gemini AI directly
    */
+  async processTryOn(
+    avatarImage: string,
+    clothingImage: string,
+    additionalParams?: Record<string, any>,
+  ): Promise<TryOnResponseDto> {
+    this.throwIfRateLimited();
+    return super.processTryOn(avatarImage, clothingImage, additionalParams);
+  }
+
   protected async performTryOn(
     avatarBase64: string,
     clothingBase64: string,
@@ -103,6 +153,7 @@ export class DirectGeminiTryOnService extends BaseTryOnService {
       });
     }
 
+    this.throwIfRateLimited();
     this.logger.log('🟢 DIRECT GEMINI AI - Starting try-on process...');
 
     const totalStartTime = Date.now();
@@ -158,43 +209,33 @@ export class DirectGeminiTryOnService extends BaseTryOnService {
         `failed total=${this.formatDuration(totalMs)} avatar_extract=${this.formatDuration(avatarExtractMs)} clothing_extract=${this.formatDuration(clothingExtractMs)} mask=${this.formatDuration(maskMs)} prompt=${this.formatDuration(promptMs)} error=${error instanceof Error ? error.message : 'unknown error'}`,
       );
 
-      if (error instanceof TimeoutException) {
-        throw new AIServiceException(
-          TryOnErrorCode.TIMEOUT_ERROR,
-          GEMINI_TRYON_ERROR_MESSAGES.REQUEST_TIMEOUT,
-          504,
-          { timeout: GEMINI_AI_TIMEOUT },
-        );
-      }
-
-      if (error instanceof AIServiceException) {
-        throw error;
-      }
-
-      const errorMessage =
-        error instanceof Error
-          ? error.message
-          : GEMINI_TRYON_ERROR_MESSAGES.REQUEST_FAILED;
-
-      throw new AIServiceException(
-        TryOnErrorCode.AI_SERVICE_ERROR,
-        GEMINI_TRYON_ERROR_MESSAGES.REQUEST_FAILED,
-        500,
-        { error: errorMessage },
-      );
+      throw this.mapProviderError(error);
     }
   }
 
-  /**
-   * Override preprocess: keep URLs for direct Gemini fetch
-   */
-  protected async preprocessImages(
-    avatarImage: string,
-    clothingImage: string,
-  ): Promise<{ avatarBase64: string; clothingBase64: string }> {
+  protected async optimizePreprocessedImages({
+    avatarBase64,
+    clothingBase64,
+  }: {
+    avatarBase64: string;
+    clothingBase64: string;
+  }): Promise<{ avatarBase64: string; clothingBase64: string }> {
+    const [optimizedAvatar, optimizedClothing] = await Promise.all([
+      this.optimizeInputImage(
+        'avatar',
+        avatarBase64,
+        TRYON_INPUT_IMAGE_OPTIMIZATION.AVATAR,
+      ),
+      this.optimizeInputImage(
+        'clothing',
+        clothingBase64,
+        TRYON_INPUT_IMAGE_OPTIMIZATION.CLOTHING,
+      ),
+    ]);
+
     return {
-      avatarBase64: avatarImage,
-      clothingBase64: clothingImage,
+      avatarBase64: optimizedAvatar,
+      clothingBase64: optimizedClothing,
     };
   }
 
@@ -202,7 +243,91 @@ export class DirectGeminiTryOnService extends BaseTryOnService {
    * Check if the service is available
    */
   async isAvailable(): Promise<boolean> {
-    return this.isConfigured();
+    return this.isConfigured() && !this.getRemainingRateLimitSeconds();
+  }
+
+  async processTryOnStream(
+    avatarImage: string,
+    clothingImage: string,
+    additionalParams?: Record<string, any>,
+    onEvent?: (event: GeminiTryOnStreamEvent) => Promise<void> | void,
+  ): Promise<TryOnResponseDto> {
+    const startTime = Date.now();
+
+    try {
+      this.throwIfRateLimited();
+      await this.emitStreamEvent(onEvent, {
+        type: 'status',
+        phase: 'validating',
+        progress: 5,
+        message: 'Validating try-on images',
+        timestamp: new Date().toISOString(),
+      });
+      await this.validateImages(avatarImage, clothingImage);
+
+      await this.emitStreamEvent(onEvent, {
+        type: 'status',
+        phase: 'preprocessing',
+        progress: 15,
+        message: 'Preparing input images',
+        timestamp: new Date().toISOString(),
+      });
+      const { avatarBase64, clothingBase64 } = await this.preprocessImages(
+        avatarImage,
+        clothingImage,
+      );
+
+      await this.emitStreamEvent(onEvent, {
+        type: 'status',
+        phase: 'generating',
+        progress: 30,
+        message: 'Generating Gemini try-on',
+        timestamp: new Date().toISOString(),
+      });
+      const resultImage = await this.performTryOnStreamed(
+        avatarBase64,
+        clothingBase64,
+        additionalParams,
+        onEvent,
+      );
+
+      await this.emitStreamEvent(onEvent, {
+        type: 'status',
+        phase: 'postprocessing',
+        progress: 85,
+        message: 'Finalizing portrait output',
+        timestamp: new Date().toISOString(),
+      });
+      const finalImage = await this.postprocessResult(resultImage);
+      const processingTimeMs = Date.now() - startTime;
+
+      await this.emitStreamEvent(onEvent, {
+        type: 'status',
+        phase: 'completed',
+        progress: 100,
+        message: 'Try-on completed',
+        timestamp: new Date().toISOString(),
+      });
+
+      return {
+        success: true,
+        resultImage: finalImage,
+        provider: this.provider,
+        status: TryOnStatus.SUCCESS,
+        processingTimeMs,
+        metadata: {
+          ...additionalParams,
+          timestamp: new Date().toISOString(),
+        },
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      const processingTimeMs = Date.now() - startTime;
+      this.logger.error(
+        `Streamed try-on failed after ${processingTimeMs}ms: ${error instanceof Error ? error.message : 'unknown error'}`,
+      );
+      throw error;
+    }
   }
 
   /**
@@ -213,6 +338,14 @@ export class DirectGeminiTryOnService extends BaseTryOnService {
       return {
         configured: false,
         message: GEMINI_TRYON_ERROR_MESSAGES.MISSING_API_KEY,
+      };
+    }
+
+    const retryAfterSeconds = this.getRemainingRateLimitSeconds();
+    if (retryAfterSeconds) {
+      return {
+        configured: true,
+        message: `Direct Gemini AI: ${this.modelId} (rate limited, retry in ${retryAfterSeconds}s)`,
       };
     }
 
@@ -237,12 +370,27 @@ export class DirectGeminiTryOnService extends BaseTryOnService {
 
   protected async postprocessResult(resultImage: string): Promise<string> {
     return this.imageOptimizer.normalizeToPortraitCanvas(resultImage, {
-      targetAspectRatio: 2 / 3,
-      maxWidth: 1200,
-      maxHeight: 1800,
-      quality: 90,
-      format: 'jpeg',
+      targetAspectRatio: TRYON_RESULT_IMAGE_OUTPUT.TARGET_ASPECT_RATIO,
+      maxWidth: TRYON_RESULT_IMAGE_OUTPUT.MAX_WIDTH,
+      maxHeight: TRYON_RESULT_IMAGE_OUTPUT.MAX_HEIGHT,
+      quality: TRYON_RESULT_IMAGE_OUTPUT.QUALITY,
+      format: TRYON_RESULT_IMAGE_OUTPUT.FORMAT,
     });
+  }
+
+  private async optimizeInputImage(
+    label: 'avatar' | 'clothing',
+    imageDataUri: string,
+    options: CompressionOptions,
+  ): Promise<string> {
+    try {
+      return await this.imageOptimizer.compressImage(imageDataUri, options);
+    } catch (error) {
+      this.logger.warn(
+        `Failed to optimize ${label} image for Gemini try-on, using original input: ${error instanceof Error ? error.message : 'unknown error'}`,
+      );
+      return imageDataUri;
+    }
   }
 
   private buildPrompt(additionalParams?: Record<string, any>): string {
@@ -272,6 +420,10 @@ export class DirectGeminiTryOnService extends BaseTryOnService {
   }
 
   private extractTryOnImage(response: GeminiResponse): string {
+    return this.extractTryOnImagePart(response).data;
+  }
+
+  private extractTryOnImagePart(response: GeminiResponse): GeminiInlineData {
     if (!response || !response.candidates) {
       throw new AIServiceException(
         TryOnErrorCode.PROCESSING_FAILED,
@@ -288,12 +440,18 @@ export class DirectGeminiTryOnService extends BaseTryOnService {
     const imageParts = _.filter(parts, (part) =>
       _.get(part, 'inlineData.data'),
     );
-    const imageDataList = _.map(
-      imageParts,
-      (part) => part.inlineData?.data ?? '',
+    const imageDataList = _.map(imageParts, (part) => ({
+      data: part.inlineData?.data ?? '',
+      mimeType:
+        part.inlineData?.mimeType || GEMINI_TRYON_CONFIG.DEFAULT_MIME_TYPE,
+    }));
+
+    const validImageDataList = _.filter(
+      imageDataList,
+      (imageData) => !!imageData.data,
     );
 
-    if (!imageDataList.length) {
+    if (!validImageDataList.length) {
       throw new AIServiceException(
         TryOnErrorCode.PROCESSING_FAILED,
         GEMINI_TRYON_ERROR_MESSAGES.NO_IMAGE_DATA,
@@ -302,10 +460,13 @@ export class DirectGeminiTryOnService extends BaseTryOnService {
       );
     }
 
-    const [bestImage] = _.orderBy(imageDataList, (data) => data.length, [
-      'desc',
-    ]);
-    return bestImage || imageDataList[0];
+    const [bestImage] = _.orderBy(
+      validImageDataList,
+      (imageData) => imageData.data.length,
+      ['desc'],
+    );
+
+    return bestImage || validImageDataList[0];
   }
 
   private async generateTryOnWithModel(
@@ -350,6 +511,207 @@ export class DirectGeminiTryOnService extends BaseTryOnService {
 
     const imageBase64 = this.extractTryOnImage(response);
     return imageBase64;
+  }
+
+  private async performTryOnStreamed(
+    avatarBase64: string,
+    clothingBase64: string,
+    additionalParams?: Record<string, any>,
+    onEvent?: (event: GeminiTryOnStreamEvent) => Promise<void> | void,
+  ): Promise<string> {
+    if (!this.isConfigured() || !this.genAI) {
+      throw new ConfigurationException(ERROR_MESSAGES.MISSING_API_KEY, {
+        configKey: CONFIG_KEYS.GEMINI_API_KEY,
+      });
+    }
+
+    this.throwIfRateLimited();
+    const totalStartTime = Date.now();
+    let avatarExtractMs = 0;
+    let clothingExtractMs = 0;
+    let maskMs = 0;
+    let promptMs = 0;
+
+    try {
+      const avatarExtractStart = Date.now();
+      const avatarData = await extractImageData(avatarBase64);
+      avatarExtractMs = Date.now() - avatarExtractStart;
+
+      const clothingExtractStart = Date.now();
+      const originalClothingData = await extractImageData(clothingBase64);
+      clothingExtractMs = Date.now() - clothingExtractStart;
+
+      const maskStart = Date.now();
+      const clothingData = await this.maskClothingModel(
+        originalClothingData,
+        additionalParams,
+      );
+      maskMs = Date.now() - maskStart;
+
+      const promptStart = Date.now();
+      const prompt = this.buildPrompt(additionalParams);
+      promptMs = Date.now() - promptStart;
+
+      await this.emitStreamEvent(onEvent, {
+        type: 'status',
+        phase: 'generating',
+        progress: 40,
+        message: 'Connected to Gemini stream',
+        timestamp: new Date().toISOString(),
+      });
+
+      const generationStart = Date.now();
+      const primaryImage = await this.generateTryOnWithModelStream(
+        this.modelId,
+        prompt,
+        avatarData,
+        clothingData,
+        onEvent,
+      );
+      const generationMs = Date.now() - generationStart;
+
+      const totalMs = Date.now() - totalStartTime;
+      this.logTiming(
+        `stream_success total=${this.formatDuration(totalMs)} model=${this.formatDuration(generationMs)} avatar_extract=${this.formatDuration(avatarExtractMs)} clothing_extract=${this.formatDuration(clothingExtractMs)} mask=${this.formatDuration(maskMs)} prompt=${this.formatDuration(promptMs)}`,
+      );
+
+      return buildDataUri(
+        primaryImage,
+        this.getOutputMimeType(additionalParams),
+      );
+    } catch (error) {
+      const totalMs = Date.now() - totalStartTime;
+      this.logTiming(
+        `stream_failed total=${this.formatDuration(totalMs)} avatar_extract=${this.formatDuration(avatarExtractMs)} clothing_extract=${this.formatDuration(clothingExtractMs)} mask=${this.formatDuration(maskMs)} prompt=${this.formatDuration(promptMs)} error=${error instanceof Error ? error.message : 'unknown error'}`,
+      );
+
+      throw this.mapProviderError(error);
+    }
+  }
+
+  private async generateTryOnWithModelStream(
+    modelId: string,
+    prompt: string,
+    avatarData: GeminiInlineData,
+    clothingData: GeminiInlineData,
+    onEvent?: (event: GeminiTryOnStreamEvent) => Promise<void> | void,
+  ): Promise<string> {
+    if (!this.genAI) {
+      throw new AIServiceException(
+        TryOnErrorCode.AI_SERVICE_ERROR,
+        GEMINI_TRYON_ERROR_MESSAGES.REQUEST_FAILED,
+        500,
+      );
+    }
+
+    const model = this.genAI.getGenerativeModel({
+      model: modelId,
+      generationConfig: {
+        temperature: 0.2,
+      } as any,
+    });
+
+    const request = [
+      {
+        inlineData: {
+          data: clothingData.data,
+          mimeType: clothingData.mimeType,
+        },
+      },
+      {
+        inlineData: {
+          data: avatarData.data,
+          mimeType: avatarData.mimeType,
+        },
+      },
+      { text: prompt },
+    ];
+
+    const streamMethod = (model as any).generateContentStream;
+    if (typeof streamMethod !== 'function') {
+      await this.emitStreamEvent(onEvent, {
+        type: 'status',
+        phase: 'fallback',
+        progress: 45,
+        message: 'Gemini SDK stream method unavailable, using standard generation',
+        timestamp: new Date().toISOString(),
+      });
+      return this.generateTryOnWithModel(
+        modelId,
+        prompt,
+        avatarData,
+        clothingData,
+      );
+    }
+
+    const streamPromise = (async () => {
+      const streamed = await streamMethod.call(model, request);
+      const stream = streamed?.stream;
+      let streamedImage: GeminiInlineData | null = null;
+
+      if (stream && typeof stream[Symbol.asyncIterator] === 'function') {
+        for await (const chunk of stream as AsyncIterable<any>) {
+          const chunkText = this.extractTextFromChunk(chunk);
+          if (chunkText) {
+            await this.emitStreamEvent(onEvent, {
+              type: 'chunk',
+              text: chunkText,
+              timestamp: new Date().toISOString(),
+            });
+          }
+
+          const chunkImage = this.tryExtractImagePartFromPayload(chunk);
+          if (chunkImage && chunkImage.data !== streamedImage?.data) {
+            streamedImage = chunkImage;
+            await this.emitStreamEvent(onEvent, {
+              type: 'preview',
+              resultImage: buildDataUri(chunkImage.data, chunkImage.mimeType),
+              mimeType: chunkImage.mimeType,
+              progress: 72,
+              timestamp: new Date().toISOString(),
+            });
+          }
+        }
+      }
+
+      if (streamed?.response) {
+        const finalResponse = await streamed.response;
+        const finalImage = this.tryExtractImagePartFromPayload(
+          finalResponse as GeminiResponse,
+        );
+        if (finalImage) {
+          if (finalImage.data !== streamedImage?.data) {
+            await this.emitStreamEvent(onEvent, {
+              type: 'preview',
+              resultImage: buildDataUri(finalImage.data, finalImage.mimeType),
+              mimeType: finalImage.mimeType,
+              progress: 82,
+              timestamp: new Date().toISOString(),
+            });
+          }
+          return finalImage.data;
+        }
+
+        if (streamedImage) {
+          this.logger.warn(
+            'Gemini stream final response omitted inline image data; using image captured from streamed chunks',
+          );
+          return streamedImage.data;
+        }
+      }
+
+      if (streamedImage) {
+        return streamedImage.data;
+      }
+
+      throw new AIServiceException(
+        TryOnErrorCode.PROCESSING_FAILED,
+        GEMINI_TRYON_ERROR_MESSAGES.NO_IMAGE_DATA,
+        500,
+      );
+    })();
+
+    return this.withTimeout(streamPromise, GEMINI_AI_TIMEOUT);
   }
 
   private async maskClothingModel(
@@ -434,5 +796,196 @@ export class DirectGeminiTryOnService extends BaseTryOnService {
 
   private formatDuration(durationMs: number): string {
     return `${durationMs}ms/${(durationMs / 1000).toFixed(2)}s`;
+  }
+
+  private async emitStreamEvent(
+    onEvent: ((event: GeminiTryOnStreamEvent) => Promise<void> | void) | undefined,
+    event: GeminiTryOnStreamEvent,
+  ): Promise<void> {
+    if (!onEvent) {
+      return;
+    }
+
+    await onEvent(event);
+  }
+
+  private extractTextFromChunk(chunk: any): string {
+    try {
+      if (typeof chunk?.text === 'function') {
+        const text = chunk.text();
+        return _.isString(text) ? text : '';
+      }
+
+      const parts = _.flatMap(
+        chunk?.candidates ?? [],
+        (candidate) => candidate?.content?.parts ?? [],
+      );
+      return _.chain(parts)
+        .map((part) => part?.text)
+        .filter(_.isString)
+        .join('\n')
+        .trim()
+        .value();
+    } catch {
+      return '';
+    }
+  }
+
+  private tryExtractImagePartFromPayload(
+    payload: unknown,
+  ): GeminiInlineData | null {
+    try {
+      return this.extractTryOnImagePart(payload as GeminiResponse);
+    } catch {
+      return null;
+    }
+  }
+
+  private mapProviderError(error: unknown): TryOnException {
+    if (error instanceof TimeoutException) {
+      return new AIServiceException(
+        TryOnErrorCode.TIMEOUT_ERROR,
+        GEMINI_TRYON_ERROR_MESSAGES.REQUEST_TIMEOUT,
+        504,
+        { timeout: GEMINI_AI_TIMEOUT },
+      );
+    }
+
+    if (error instanceof TryOnException) {
+      return error;
+    }
+
+    if (this.isRateLimitError(error)) {
+      const retryAfterSeconds =
+        this.getRetryAfterSeconds(error) ??
+        Math.max(1, Math.ceil(this.rateLimitCooldownMs / 1000));
+      this.rateLimitUntil = Math.max(
+        this.rateLimitUntil,
+        Date.now() + retryAfterSeconds * 1000,
+      );
+
+      this.logger.warn(
+        `Gemini quota exhausted, entering cooldown for ${retryAfterSeconds}s: ${this.getProviderErrorMessage(error)}`,
+      );
+
+      return new RateLimitException(
+        GEMINI_RATE_LIMIT_MESSAGE,
+        retryAfterSeconds,
+      );
+    }
+
+    const errorMessage = this.getProviderErrorMessage(error);
+    return new AIServiceException(
+      TryOnErrorCode.AI_SERVICE_ERROR,
+      GEMINI_TRYON_ERROR_MESSAGES.REQUEST_FAILED,
+      500,
+      { error: errorMessage },
+    );
+  }
+
+  private throwIfRateLimited(): void {
+    const retryAfterSeconds = this.getRemainingRateLimitSeconds();
+    if (!retryAfterSeconds) {
+      return;
+    }
+
+    throw new RateLimitException(GEMINI_RATE_LIMIT_MESSAGE, retryAfterSeconds);
+  }
+
+  private getRemainingRateLimitSeconds(): number | null {
+    const remainingMs = this.rateLimitUntil - Date.now();
+    if (remainingMs <= 0) {
+      return null;
+    }
+
+    return Math.max(1, Math.ceil(remainingMs / 1000));
+  }
+
+  private isRateLimitError(error: unknown): boolean {
+    const statusCode = this.getProviderStatusCode(error);
+    if (statusCode === 429) {
+      return true;
+    }
+
+    const message = this.getProviderErrorMessage(error).toLowerCase();
+    return (
+      message.includes('too many requests') ||
+      message.includes('rate limit') ||
+      message.includes('current quota') ||
+      message.includes('quota exceeded') ||
+      message.includes('resource exhausted')
+    );
+  }
+
+  private getProviderStatusCode(error: unknown): number | null {
+    const rawValues = [
+      _.get(error, 'status'),
+      _.get(error, 'statusCode'),
+      _.get(error, 'response.status'),
+      _.get(error, 'response.statusCode'),
+      _.get(error, 'error.status'),
+      _.get(error, 'error.statusCode'),
+      _.get(error, 'cause.status'),
+      _.get(error, 'cause.statusCode'),
+    ];
+
+    for (const rawValue of rawValues) {
+      const parsedValue = this.parsePositiveInteger(rawValue, 0);
+      if (parsedValue > 0) {
+        return parsedValue;
+      }
+    }
+
+    return null;
+  }
+
+  private getRetryAfterSeconds(error: unknown): number | null {
+    const rawValues = [
+      _.get(error, 'retryAfter'),
+      _.get(error, 'retryAfterSeconds'),
+      _.get(error, 'details.retryAfter'),
+      _.get(error, 'response.retryAfter'),
+      _.get(error, 'response.headers.retry-after'),
+      _.get(error, 'headers.retry-after'),
+    ];
+
+    for (const rawValue of rawValues) {
+      const parsedValue = this.parsePositiveInteger(rawValue, 0);
+      if (parsedValue > 0) {
+        return parsedValue;
+      }
+    }
+
+    return null;
+  }
+
+  private getProviderErrorMessage(error: unknown): string {
+    if (error instanceof Error && error.message) {
+      return error.message;
+    }
+
+    const rawMessage =
+      _.get(error, 'message') ??
+      _.get(error, 'response.message') ??
+      _.get(error, 'error.message');
+
+    return _.isString(rawMessage) && rawMessage.trim()
+      ? rawMessage
+      : GEMINI_TRYON_ERROR_MESSAGES.REQUEST_FAILED;
+  }
+
+  private parsePositiveInteger(value: unknown, fallback: number): number {
+    if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
+      return Math.floor(value);
+    }
+
+    if (typeof value === 'string') {
+      const parsedValue = Number.parseInt(value, 10);
+      if (Number.isFinite(parsedValue) && parsedValue > 0) {
+        return parsedValue;
+      }
+    }
+
+    return fallback;
   }
 }

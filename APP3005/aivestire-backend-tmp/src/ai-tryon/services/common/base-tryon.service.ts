@@ -135,16 +135,26 @@ export abstract class BaseTryOnService {
   ): Promise<{ avatarBase64: string; clothingBase64: string }> {
     this.logger.debug('Preprocessing images...');
 
-    // Convert URLs to base64 if needed
-    const avatarBase64 = avatarImage.startsWith('http')
-      ? await this.imageValidator.urlToBase64(avatarImage)
-      : avatarImage;
+    const [avatarBase64, clothingBase64] = await Promise.all([
+      avatarImage.startsWith('http')
+        ? this.imageValidator.urlToBase64(avatarImage)
+        : Promise.resolve(avatarImage),
+      clothingImage.startsWith('http')
+        ? this.imageValidator.urlToBase64(clothingImage)
+        : Promise.resolve(clothingImage),
+    ]);
 
-    const clothingBase64 = clothingImage.startsWith('http')
-      ? await this.imageValidator.urlToBase64(clothingImage)
-      : clothingImage;
+    return this.optimizePreprocessedImages({
+      avatarBase64,
+      clothingBase64,
+    });
+  }
 
-    return { avatarBase64, clothingBase64 };
+  protected async optimizePreprocessedImages(images: {
+    avatarBase64: string;
+    clothingBase64: string;
+  }): Promise<{ avatarBase64: string; clothingBase64: string }> {
+    return images;
   }
 
   /**

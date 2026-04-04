@@ -44,9 +44,13 @@ function parseApiErrorBody(bodyText: string, defaultMessage: string) {
       code:
         typeof err?.code === "string"
           ? err.code
-          : typeof err?.message?.code === "string"
-            ? err.message.code
-            : undefined,
+          : typeof err?.errorCode === "string"
+            ? err.errorCode
+            : typeof err?.message?.code === "string"
+              ? err.message.code
+              : typeof err?.message?.errorCode === "string"
+                ? err.message.errorCode
+                : undefined,
       tryOnsUsed:
         typeof err?.tryOnsUsed === "number"
           ? err.tryOnsUsed
@@ -137,6 +141,39 @@ function assertSupportedTryOnHost(): void {
   if (!isSupportedTryOnHost()) {
     throw new Error(getTryOnHostErrorMessage());
   }
+}
+
+function createStreamApiError(
+  payload: unknown,
+  defaultMessage: string,
+): ApiError {
+  if (payload && typeof payload === "object") {
+    const data = payload as Record<string, unknown>;
+    const error = new Error(
+      typeof data.message === "string" && data.message.trim()
+        ? data.message
+        : defaultMessage,
+    ) as ApiError;
+
+    error.status =
+      typeof data.statusCode === "number"
+        ? data.statusCode
+        : typeof data.status === "number"
+          ? data.status
+          : undefined;
+    error.code =
+      typeof data.errorCode === "string"
+        ? data.errorCode
+        : typeof data.code === "string"
+          ? data.code
+          : undefined;
+    error.details = "details" in data ? data.details : payload;
+    return error;
+  }
+
+  return new Error(
+    typeof payload === "string" && payload.trim() ? payload : defaultMessage,
+  ) as ApiError;
 }
 
 export interface TryOnPermission {
@@ -941,6 +978,33 @@ type TryOnJobStatusResponse = {
   error?: string;
 };
 
+type TryOnStreamEvent = {
+  event: string;
+  data: string;
+};
+
+type AuraStreamResultPayload = {
+  success: boolean;
+  auraId?: string;
+  avatar?: {
+    avatarId?: string;
+    url?: string;
+    tryOnUrl?: string;
+    type?: string;
+  };
+  aura?: {
+    aura_id?: string;
+    status?: string;
+    model_url?: string;
+    tryon_model_url?: string;
+  };
+};
+
+export type StreamEventHandler = (
+  eventName: string,
+  payload: unknown,
+) => void | Promise<void>;
+
 const TRY_ON_JOB_POLL_INTERVAL_MS = 2000;
 const TRY_ON_JOB_TIMEOUT_MS = 10 * 60 * 1000;
 
@@ -955,6 +1019,57 @@ function isQueuedTryOnResponse(payload: unknown): payload is TryOnQueuedResponse
 
 function delay(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function parseTryOnStreamFrame(frame: string): TryOnStreamEvent | null {
+  let eventName = "message";
+  const dataLines: string[] = [];
+
+  for (const line of frame.split("\n")) {
+    if (!line || line.startsWith(":")) {
+      continue;
+    }
+
+    if (line.startsWith("event:")) {
+      eventName = line.slice("event:".length).trim();
+      continue;
+    }
+
+    if (line.startsWith("data:")) {
+      dataLines.push(line.slice("data:".length).trimStart());
+    }
+  }
+
+  if (!dataLines.length) {
+    return null;
+  }
+
+  return {
+    event: eventName,
+    data: dataLines.join("\n"),
+  };
+}
+
+function consumeTryOnStreamFrames(buffer: string): {
+  events: TryOnStreamEvent[];
+  rest: string;
+} {
+  const normalized = buffer.replace(/\r\n/g, "\n");
+  const frames = normalized.split("\n\n");
+  const rest = frames.pop() ?? "";
+  const events = frames
+    .map((frame) => parseTryOnStreamFrame(frame))
+    .filter((event): event is TryOnStreamEvent => Boolean(event));
+
+  return { events, rest };
+}
+
+function parseTryOnStreamPayload(data: string): unknown {
+  try {
+    return JSON.parse(data);
+  } catch {
+    return data;
+  }
 }
 
 async function pollTryOnJobResult(
@@ -1024,12 +1139,99 @@ async function resolveQueuedTryOnResponse(
   return payload;
 }
 
-// Try-on with Gemini AI using async queue polling
+async function resolveStreamedResult<T>(
+  res: Response,
+  defaultMessage: string,
+  onEvent?: StreamEventHandler,
+): Promise<T> {
+  if (!res.ok) {
+    handleApiError(res, await res.text(), defaultMessage);
+  }
+
+  const contentType = res.headers.get("content-type") || "";
+  if (!contentType.includes("text/event-stream")) {
+    return (await res.json()) as T;
+  }
+
+  if (!res.body) {
+    throw new Error("Streaming response body is not available.");
+  }
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let finalResult: T | null = null;
+  let streamError: ApiError | null = null;
+
+  try {
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) {
+        break;
+      }
+
+      buffer += decoder.decode(value, { stream: true });
+      const parsed = consumeTryOnStreamFrames(buffer);
+      buffer = parsed.rest;
+
+      for (const event of parsed.events) {
+        const payload = parseTryOnStreamPayload(event.data);
+        await onEvent?.(event.event, payload);
+
+        if (event.event === "result") {
+          if (payload && typeof payload === "object") {
+            finalResult = payload as T;
+          }
+          continue;
+        }
+
+        if (event.event === "error") {
+          streamError = createStreamApiError(
+            payload ?? event.data,
+            defaultMessage,
+          );
+        }
+      }
+    }
+
+    buffer += decoder.decode();
+    const parsed = consumeTryOnStreamFrames(`${buffer}\n\n`);
+    for (const event of parsed.events) {
+      const payload = parseTryOnStreamPayload(event.data);
+      await onEvent?.(event.event, payload);
+
+      if (event.event === "result") {
+        if (payload && typeof payload === "object") {
+          finalResult = payload as T;
+        }
+      } else if (event.event === "error") {
+        streamError = createStreamApiError(
+          payload ?? event.data,
+          defaultMessage,
+        );
+      }
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  if (streamError) {
+    throw streamError;
+  }
+
+  if (finalResult) {
+    return finalResult;
+  }
+
+  throw new Error(defaultMessage);
+}
+
+// Try-on with Gemini AI using streamed SSE response
 export async function tryOnWithGemini(data: {
   avatarImage: string;
   clothingImage: string;
   additionalParams?: Record<string, unknown>;
-}) {
+}, options?: { onEvent?: StreamEventHandler }) {
   assertSupportedTryOnHost();
 
   const token = localStorage.getItem("access_token");
@@ -1037,16 +1239,71 @@ export async function tryOnWithGemini(data: {
     throw new Error("Please login to use AI Try-On");
   }
 
-  const res = await fetch(`${BASE_URL}/v1/tryon/gemini/start`, {
+  const res = await fetch(`${BASE_URL}/v1/tryon/gemini/stream`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      Accept: "text/event-stream",
       Authorization: `Bearer ${token}`,
     },
     body: JSON.stringify(data),
   });
 
-  return resolveQueuedTryOnResponse(res, token, "Try-on failed");
+  return resolveStreamedResult<TryOnResultPayload>(
+    res,
+    "Try-on failed",
+    options?.onEvent,
+  );
+}
+
+export async function createAuraWithStream(
+  formData: FormData,
+  options?: { onEvent?: StreamEventHandler },
+) {
+  const token = localStorage.getItem("access_token");
+  if (!token) {
+    throw new Error("Please login to create your Aura");
+  }
+
+  const res = await fetch(`${BASE_URL}/aura/stream`, {
+    method: "POST",
+    headers: {
+      Accept: "text/event-stream",
+      Authorization: `Bearer ${token}`,
+    },
+    body: formData,
+  });
+
+  return resolveStreamedResult<AuraStreamResultPayload>(
+    res,
+    "Failed to create Aura",
+    options?.onEvent,
+  );
+}
+
+export async function recreateAuraWithStream(
+  formData: FormData,
+  options?: { onEvent?: StreamEventHandler },
+) {
+  const token = localStorage.getItem("access_token");
+  if (!token) {
+    throw new Error("Please login to recreate your Aura");
+  }
+
+  const res = await fetch(`${BASE_URL}/aura/recreate/stream`, {
+    method: "POST",
+    headers: {
+      Accept: "text/event-stream",
+      Authorization: `Bearer ${token}`,
+    },
+    body: formData,
+  });
+
+  return resolveStreamedResult<AuraStreamResultPayload>(
+    res,
+    "Failed to recreate Aura",
+    options?.onEvent,
+  );
 }
 
 // 3D Try-on with Vertex AI using async queue polling

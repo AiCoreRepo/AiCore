@@ -14,7 +14,12 @@ import {
 import "@/components/aura/aura-styles.css";
 import { updateBirthdayApi } from "@/api/coupons.api";
 import { FeedbackBottomSheet } from "@/components/feedback/FeedbackBottomSheet";
-import { FeedbackContextType, selectAuraAvatarForTryOns } from "@/lib/api";
+import {
+  FeedbackContextType,
+  recreateAuraWithStream,
+  selectAuraAvatarForTryOns,
+  type StreamEventHandler,
+} from "@/lib/api";
 import { RefreshCw, Upload, Wand2, XCircle } from "lucide-react";
 
 const DEFAULT_MAX_RECREATION_ATTEMPTS = 2;
@@ -116,8 +121,8 @@ export default function AuraProfile() {
     string | null
   >(null);
   const [recreateDraftError, setRecreateDraftError] = useState("");
-  const [recreateJobId, setRecreateJobId] = useState<string | null>(null);
   const [recreateProgress, setRecreateProgress] = useState(0);
+  const [recreateStatusMessage, setRecreateStatusMessage] = useState<string | null>(null);
   const [isStartingRecreation, setIsStartingRecreation] = useState(false);
   const [showEditValidation, setShowEditValidation] = useState(false);
   const [showRecreateValidation, setShowRecreateValidation] = useState(false);
@@ -133,16 +138,14 @@ export default function AuraProfile() {
   const [pendingAvatarScroll, setPendingAvatarScroll] = useState(false);
   const avatarPanelRef = useRef<HTMLDivElement | null>(null);
   const { toast } = useToast();
-  const displayedRecreateProgress = recreateJobId
-    ? recreateProgress
-    : isStartingRecreation
-      ? 8
-      : 0;
+  const displayedRecreateProgress = isStartingRecreation
+    ? Math.max(recreateProgress, 8)
+    : 0;
   const recreateEstimatedTime = Math.max(
     0,
     Math.ceil((100 - displayedRecreateProgress) / 5),
   );
-  const isRecreationInProgress = recreateJobId !== null || isStartingRecreation;
+  const isRecreationInProgress = isStartingRecreation;
   const hasReachedRecreationLimit = recreateUsed >= maxRecreationAttempts;
   const isRecreateDisabled =
     isRecreationInProgress || hasReachedRecreationLimit;
@@ -659,8 +662,7 @@ export default function AuraProfile() {
       return;
     }
 
-    const token = localStorage.getItem("access_token");
-    if (!token) {
+    if (!localStorage.getItem("access_token")) {
       toast({
         variant: "destructive",
         title: "Authentication Required",
@@ -676,6 +678,7 @@ export default function AuraProfile() {
       setShowRecreateModal(false);
       setIsStartingRecreation(true);
       setRecreateProgress(8);
+      setRecreateStatusMessage("Uploading and validating your avatar input");
       const formData = new FormData();
       if (recreateMode === "new-photo" && recreatePhoto) {
         formData.append("photo", recreatePhoto);
@@ -692,57 +695,77 @@ export default function AuraProfile() {
       if (recreateAttributes.height)
         formData.append("height", recreateAttributes.height);
 
-      const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/aura/recreate`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-          body: formData,
-        },
-      );
-
-      let payload: { [key: string]: unknown } = {};
-      try {
-        payload = await response.json();
-      } catch (error) {
-        // no-op: response may not always include JSON in rare edge cases
-      }
-      const payloadMessage =
-        typeof payload.message === "string"
-          ? payload.message
-          : "Failed to recreate Aura";
-
-      if (!response.ok) {
-        if (response.status === 409 && isRecreationLimitError(payloadMessage)) {
-          setRecreateUsed(maxRecreationAttempts);
+      const handleStreamEvent: StreamEventHandler = (eventName, payload) => {
+        if (!payload || typeof payload !== "object") {
+          return;
         }
-        throw new Error(payloadMessage);
-      }
 
-      const nextJobId = payload.job_id ? String(payload.job_id) : null;
-      if (nextJobId) {
-        setRecreateJobId(nextJobId);
-        setRecreateProgress((prev) => Math.max(prev, 12));
-      } else {
-        setRecreateProgress(0);
-      }
+        const streamPayload = payload as {
+          progress?: number;
+          message?: string;
+          status?: string;
+          error?: string;
+        };
 
+        if (typeof streamPayload.progress === "number") {
+          setRecreateProgress((prev) =>
+            Math.max(prev, Math.min(streamPayload.progress, 100)),
+          );
+        }
+
+        if (streamPayload.message) {
+          setRecreateStatusMessage(streamPayload.message);
+        } else if (eventName === "status" && streamPayload.status) {
+          const statusMessageMap: Record<string, string> = {
+            waiting: "Queued for Aura recreation",
+            active: "Recreating your Aura with Gemini",
+            completed: "Aura recreation completed",
+            failed: streamPayload.error || "Aura recreation failed",
+          };
+          setRecreateStatusMessage(
+            statusMessageMap[streamPayload.status] ||
+              "Processing your Aura recreation",
+          );
+        }
+      };
+
+      const result = await recreateAuraWithStream(formData, {
+        onEvent: handleStreamEvent,
+      });
+
+      setRecreateProgress(100);
+      setRecreateStatusMessage("Aura recreation completed");
+      await new Promise((resolve) => window.setTimeout(resolve, 500));
       setIsStartingRecreation(false);
+      setRecreateProgress(0);
+      setRecreateStatusMessage(null);
+      fetchAura();
+      setPendingAvatarScroll(true);
+      setRecreateUsed((prev) => Math.min(prev + 1, maxRecreationAttempts));
+      setFeedbackContext({
+        type: "AVATAR_RECREATION",
+        referenceId:
+          result.auraId || result.aura?.aura_id || latestAuraId || undefined,
+        label: "Avatar Recreation",
+      });
+      setShowFeedbackSheet(true);
 
       toast({
-        title: "Recreate Started",
+        title: "Recreation Complete",
         description:
           recreateMode === "new-photo"
-            ? "Using your new photo, we are creating a fresh Aura now."
-            : "Using your existing photo, we are recreating your Aura now.",
+            ? "Your new photo has been processed and the refreshed Aura is ready."
+            : "Your Aura has been recreated successfully.",
         duration: 3000,
         className: "bg-[#F5F0E6] border-[#D4B76E] text-[#1A1A1A]",
       });
     } catch (error) {
+      if (error instanceof Error && isRecreationLimitError(error.message)) {
+        setRecreateUsed(maxRecreationAttempts);
+      }
       setIsStartingRecreation(false);
       setRecreateProgress(0);
+      setRecreateStatusMessage(null);
       setShowRecreateModal(true);
       setRecreateDraftError(
         error instanceof Error ? error.message : "Failed to recreate Aura.",
@@ -777,76 +800,6 @@ export default function AuraProfile() {
       document.body.style.overflow = previousOverflow;
     };
   }, [showRecreateModal]);
-
-  useEffect(() => {
-    if (!recreateJobId) {
-      return;
-    }
-
-    const interval = setInterval(async () => {
-      try {
-        const token = localStorage.getItem("access_token");
-        const response = await fetch(
-          `${import.meta.env.VITE_API_URL}/aura/job/${recreateJobId}`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          },
-        );
-
-        if (!response.ok) return;
-        const payload = await response.json();
-        if (typeof payload.progress === "number") {
-          setRecreateProgress(payload.progress);
-        }
-
-        if (payload.status === "completed") {
-          clearInterval(interval);
-          setIsStartingRecreation(false);
-          setRecreateJobId(null);
-          setRecreateProgress(100);
-          const completedAuraId = payload?.data?.auraId
-            ? String(payload.data.auraId)
-            : payload?.result?.auraId
-              ? String(payload.result.auraId)
-              : latestAuraId;
-          fetchAura();
-          setPendingAvatarScroll(true);
-          setRecreateUsed((prev) => Math.min(prev + 1, maxRecreationAttempts));
-          setFeedbackContext({
-            type: "AVATAR_RECREATION",
-            referenceId: completedAuraId,
-            label: "Avatar Recreation",
-          });
-          setShowFeedbackSheet(true);
-          toast({
-            title: "Recreation Complete",
-            description: "Your Aura has been recreated successfully.",
-            duration: 3000,
-            className: "bg-[#F5F0E6] border-[#D4B76E] text-[#1A1A1A]",
-          });
-        } else if (payload.status === "failed") {
-          clearInterval(interval);
-          setIsStartingRecreation(false);
-          setRecreateJobId(null);
-          setRecreateProgress(0);
-          toast({
-            variant: "destructive",
-            title: "Recreation Failed",
-            description:
-              payload.error ||
-              "Something went wrong during recreation. Please try again.",
-            duration: 4000,
-          });
-        }
-      } catch (error) {
-        console.error("Error polling recreation status:", error);
-      }
-    }, 2000);
-
-    return () => clearInterval(interval);
-  }, [recreateJobId, toast, fetchAura, latestAuraId, maxRecreationAttempts]);
 
   if (loading) {
     return (
@@ -1479,6 +1432,7 @@ export default function AuraProfile() {
         isOpen={isRecreationInProgress}
         progress={Math.min(displayedRecreateProgress, 100)}
         estimatedTime={recreateEstimatedTime}
+        statusMessage={recreateStatusMessage}
       />
     </div>
   );

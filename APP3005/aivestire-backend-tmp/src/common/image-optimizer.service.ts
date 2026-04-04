@@ -87,7 +87,9 @@ export class ImageOptimizerService {
 
       // Apply format-specific compression
       if (format === 'jpeg') {
-        pipeline = pipeline.jpeg({ quality, mozjpeg: true });
+        pipeline = pipeline
+          .flatten({ background: { r: 255, g: 255, b: 255 } })
+          .jpeg({ quality, mozjpeg: true });
       } else if (format === 'png') {
         pipeline = pipeline.png({ quality, compressionLevel: 9 });
       } else if (format === 'webp') {
@@ -111,7 +113,12 @@ export class ImageOptimizerService {
       );
 
       // Convert back to base64 with data URI prefix
-      const mimeType = format === 'png' ? 'image/png' : 'image/jpeg';
+      const mimeType =
+        format === 'png'
+          ? 'image/png'
+          : format === 'webp'
+            ? 'image/webp'
+            : 'image/jpeg';
       return `data:${mimeType};base64,${compressedBuffer.toString('base64')}`;
     } catch (error) {
       this.logger.error(`Failed to compress image: ${error.message}`);

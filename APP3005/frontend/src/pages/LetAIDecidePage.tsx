@@ -5,7 +5,13 @@ import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { AuraDisplayCard } from '@/components/ai-tryon/AuraDisplayCard';
 import { AuthPopup } from '@/components/AuthPopup';
-import { getAura, tryOnWithGemini, tryOnWithVertex, generateMoreAngles } from '@/lib/api';
+import {
+    getAura,
+    tryOnWithGemini,
+    tryOnWithVertex,
+    generateMoreAngles,
+    type StreamEventHandler,
+} from '@/lib/api';
 import { getAIRecommendations, type RecommendationRequest, type RecommendationsResponse, type RecommendationItem } from '@/lib/api-recommendations';
 import { useRef } from 'react';
 import { Sparkles, Heart, Star, AlertCircle, Loader2 } from 'lucide-react';
@@ -27,6 +33,7 @@ import {
     shouldShowMultipleTryOnProviders,
     type TryOnProvider,
 } from '@/lib/try-on-environment';
+import { normalizeTryOnImageData } from '@/lib/try-on-image';
 
 interface AuraData {
     aura_id: string;
@@ -144,7 +151,10 @@ const LetAIDecidePage = () => {
     // AI Try-On State
     const [showResultModal, setShowResultModal] = useState(false);
     const [resultImage, setResultImage] = useState<string | null>(null);
+    const [streamPreviewImage, setStreamPreviewImage] = useState<string | null>(null);
     const [tryOnLoading, setTryOnLoading] = useState(false);
+    const [tryOnStreamStatus, setTryOnStreamStatus] = useState<string | null>(null);
+    const [tryOnStreamProgress, setTryOnStreamProgress] = useState(0);
     const [tryOnError, setTryOnError] = useState<string | null>(null);
     const [generatingAngles, setGeneratingAngles] = useState(false);
     const [originalTryOnImage, setOriginalTryOnImage] = useState<string | null>(null);
@@ -333,6 +343,12 @@ const LetAIDecidePage = () => {
             }
 
             setTryOnLoading(true);
+            setResultImage(null);
+            setStreamPreviewImage(null);
+            setOriginalTryOnImage(null);
+            setGeneratedImages([]);
+            setTryOnStreamStatus('Preparing your Gemini try-on');
+            setTryOnStreamProgress(6);
             setTryOnError(null);
             setShowResultModal(true);
 
@@ -346,11 +362,54 @@ const LetAIDecidePage = () => {
                     throw new Error('Try-on requires both avatar and clothing images');
                 }
 
-                result = await tryOnWithGemini({
-                    avatarImage,
-                    clothingImage,
-                    additionalParams: buildGeminiTryOnAdditionalParams(aura),
-                });
+                const handleStreamEvent: StreamEventHandler = (eventName, payload) => {
+                    if (!payload || typeof payload !== 'object') {
+                        return;
+                    }
+
+                    const streamPayload = payload as {
+                        message?: string;
+                        text?: string;
+                        progress?: number;
+                        resultImage?: string;
+                    };
+
+                    if (eventName === 'status') {
+                        if (streamPayload.message) {
+                            setTryOnStreamStatus(streamPayload.message);
+                        }
+                        if (typeof streamPayload.progress === 'number') {
+                            setTryOnStreamProgress((prev) =>
+                                Math.max(prev, Math.min(streamPayload.progress, 95)),
+                            );
+                        }
+                    } else if (eventName === 'chunk' && streamPayload.text) {
+                        setTryOnStreamStatus(streamPayload.text);
+                    } else if (eventName === 'preview') {
+                        const nextPreviewImage = normalizeTryOnImageData(
+                            streamPayload.resultImage,
+                        );
+                        if (nextPreviewImage) {
+                            setStreamPreviewImage(nextPreviewImage);
+                            setTryOnStreamProgress((prev) =>
+                                Math.max(prev, Math.min(streamPayload.progress ?? 78, 90)),
+                            );
+                        }
+                    } else if (eventName === 'ready') {
+                        setTryOnStreamStatus('Gemini stream connected');
+                    }
+                };
+
+                result = await tryOnWithGemini(
+                    {
+                        avatarImage,
+                        clothingImage,
+                        additionalParams: buildGeminiTryOnAdditionalParams(aura),
+                    },
+                    {
+                        onEvent: handleStreamEvent,
+                    },
+                );
             } else {
                 result = await tryOnWithVertex({
                     userId: aura.user_id,
@@ -359,12 +418,15 @@ const LetAIDecidePage = () => {
             }
 
             if (result.success && result.resultImage) {
-                const imageData = result.resultImage.startsWith('data:')
-                    ? result.resultImage
-                    : `data:image/jpeg;base64,${result.resultImage}`;
+                const imageData = normalizeTryOnImageData(result.resultImage);
+                if (!imageData) {
+                    throw new Error('Try-on completed without a valid image payload');
+                }
                 setResultImage(imageData);
                 setOriginalTryOnImage(imageData);
                 setGeneratedImages([imageData]);
+                setTryOnStreamProgress(100);
+                setTryOnStreamStatus('Try-on completed');
                 fetchUser();
                 if (feedbackCloseTimerRef.current) {
                     clearTimeout(feedbackCloseTimerRef.current);
@@ -389,11 +451,15 @@ const LetAIDecidePage = () => {
             setTryOnError(error.message || 'Failed to process try-on. Please try again.');
         } finally {
             setTryOnLoading(false);
+            setStreamPreviewImage(null);
+            setTryOnStreamProgress(0);
+            setTryOnStreamStatus(null);
         }
     };
 
     const closeResultModal = () => {
         setShowResultModal(false);
+        setStreamPreviewImage(null);
 
         if (!showFeedbackSheet && !feedbackContext) {
             return;
@@ -426,9 +492,10 @@ const LetAIDecidePage = () => {
             });
 
             if (result.success && result.resultImage) {
-                const imageData = result.resultImage.startsWith('data:')
-                    ? result.resultImage
-                    : `data:image/jpeg;base64,${result.resultImage}`;
+                const imageData = normalizeTryOnImageData(result.resultImage);
+                if (!imageData) {
+                    throw new Error('Angle generation completed without a valid image payload');
+                }
                 setResultImage(imageData);
                 setGeneratedImages(prev => [...prev, imageData]);
                 fetchUser();
@@ -806,7 +873,10 @@ const LetAIDecidePage = () => {
                 isOpen={showResultModal}
                 onClose={closeResultModal}
                 resultImage={resultImage}
+                streamPreviewImage={streamPreviewImage}
                 loading={tryOnLoading}
+                loadingStatusLabel={tryOnStreamStatus}
+                loadingProgressHint={tryOnStreamProgress}
                 error={tryOnError}
                 onGenerateMoreAngles={handleGenerateMoreAngles}
                 generatingAngles={generatingAngles}
