@@ -83,11 +83,17 @@ function GalleryImage({
 
 function formatProviderLabel(provider: string) {
   const normalized = String(provider || "unknown").replace(/[_-]+/g, " ");
-  if (normalized.toLowerCase() === "unknown") {
-    return "AI Generated";
+  const lower = normalized.toLowerCase();
+
+  if (
+    lower === "unknown" ||
+    lower.includes("gemini") ||
+    lower.includes("vertex")
+  ) {
+    return "Virtual Try-On";
   }
 
-  return normalized.toUpperCase();
+  return "Saved Look";
 }
 
 function formatTryOnDate(createdAt: string) {
