@@ -1,5 +1,7 @@
 import { Navigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
+import { getValidAccessToken } from '@/lib/api';
+import { clearStoredAuthTokens, getJwtRole } from '@/lib/auth-token';
 
 interface ProtectedRouteProps {
     children: React.ReactNode;
@@ -11,54 +13,37 @@ export const ProtectedRoute = ({ children, requiredRole, redirectTo = '/' }: Pro
     const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null);
 
     useEffect(() => {
-        const checkAuth = () => {
-            const token = localStorage.getItem('access_token');
+        let cancelled = false;
+
+        const checkAuth = async () => {
+            const token = await getValidAccessToken();
+
+            if (cancelled) {
+                return;
+            }
 
             if (!token) {
-                console.log('No token found, redirecting to login');
+                console.log('No valid token found, redirecting to login');
+                clearStoredAuthTokens();
                 setIsAuthorized(false);
                 return;
             }
 
-            try {
-                // Decode JWT to get user role and expiration
-                const payload = JSON.parse(atob(token.split('.')[1]));
-                const userRole = payload.role;
-                const exp = payload.exp;
+            const userRole = getJwtRole(token);
+            const hasRequiredRole = userRole === requiredRole;
 
-                // Check if token is expired
-                const currentTime = Math.floor(Date.now() / 1000);
-                if (exp && exp < currentTime) {
-                    console.log('Token expired, clearing and redirecting');
-                    localStorage.removeItem('access_token');
-                    setIsAuthorized(false);
-                    return;
-                }
-
-                // Check if user has required role
-                const hasRequiredRole = userRole === requiredRole;
-
-                if (!hasRequiredRole) {
-                    console.log(`User role ${userRole} does not match required role ${requiredRole}`);
-                }
-
-                setIsAuthorized(hasRequiredRole);
-            } catch (error) {
-                console.error('Error decoding token:', error);
-                // Don't clear token on decode error, might be a temporary issue
-                // Only clear if it's clearly invalid
-                try {
-                    // Try to parse again to confirm it's invalid
-                    JSON.parse(atob(token.split('.')[1]));
-                } catch {
-                    // Token is definitely invalid, clear it
-                    localStorage.removeItem('access_token');
-                }
-                setIsAuthorized(false);
+            if (!hasRequiredRole) {
+                console.log(`User role ${userRole} does not match required role ${requiredRole}`);
             }
+
+            setIsAuthorized(hasRequiredRole);
         };
 
-        checkAuth();
+        void checkAuth();
+
+        return () => {
+            cancelled = true;
+        };
     }, [requiredRole]);
 
     // Show loading state while checking

@@ -2,8 +2,16 @@ import {
   getTryOnHostErrorMessage,
   isSupportedTryOnHost,
 } from "@/lib/try-on-environment";
+import {
+  clearStoredAuthTokens,
+  getJwtSubject,
+  getStoredAccessToken,
+  isProbablyJwt,
+  isTokenExpired,
+} from "@/lib/auth-token";
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
+let refreshAccessTokenPromise: Promise<string | null> | null = null;
 
 export interface ApiError extends Error {
   status?: number;
@@ -101,6 +109,129 @@ function getFriendlyHttpErrorMessage(
   }
 
   return defaultMessage;
+}
+
+function createMissingAccessTokenError(): ApiError {
+  const error = new Error("No access token found") as ApiError;
+  error.status = 401;
+  return error;
+}
+
+function persistAccessToken(token: string): string {
+  localStorage.setItem("access_token", token);
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event("auth-refresh"));
+  }
+  return token;
+}
+
+export async function refreshAccessToken(
+  tokenOverride?: string,
+): Promise<string | null> {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const currentToken =
+    tokenOverride?.trim() || localStorage.getItem("access_token")?.trim() || "";
+  if (!currentToken || !isProbablyJwt(currentToken)) {
+    return null;
+  }
+
+  const userId = getJwtSubject(currentToken);
+  if (!userId) {
+    clearStoredAuthTokens();
+    return null;
+  }
+
+  if (!refreshAccessTokenPromise) {
+    refreshAccessTokenPromise = (async () => {
+      try {
+        const res = await fetch(`${BASE_URL}/auth/refresh`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ user_id: userId }),
+          credentials: "include",
+        });
+
+        if (!res.ok) {
+          return null;
+        }
+
+        const payload = await res.json();
+        const nextToken =
+          typeof payload?.access_token === "string"
+            ? payload.access_token.trim()
+            : "";
+
+        if (!nextToken || !isProbablyJwt(nextToken)) {
+          return null;
+        }
+
+        return persistAccessToken(nextToken);
+      } catch {
+        return null;
+      } finally {
+        refreshAccessTokenPromise = null;
+      }
+    })();
+  }
+
+  return refreshAccessTokenPromise;
+}
+
+export async function getValidAccessToken(
+  tokenOverride?: string,
+): Promise<string | null> {
+  const currentToken =
+    tokenOverride?.trim() ||
+    getStoredAccessToken() ||
+    localStorage.getItem("access_token")?.trim() ||
+    "";
+
+  if (!currentToken || !isProbablyJwt(currentToken)) {
+    return null;
+  }
+
+  if (!isTokenExpired(currentToken, 30)) {
+    return currentToken;
+  }
+
+  return refreshAccessToken(currentToken);
+}
+
+async function fetchWithAuthRetry(
+  url: string,
+  init: RequestInit = {},
+  tokenOverride?: string,
+): Promise<Response> {
+  const currentToken = await getValidAccessToken(tokenOverride);
+  if (!currentToken) {
+    throw createMissingAccessTokenError();
+  }
+
+  const runRequest = async (token: string) => {
+    const headers = new Headers(init.headers);
+    headers.set("Authorization", `Bearer ${token}`);
+
+    return fetch(url, {
+      ...init,
+      headers,
+      credentials: init.credentials ?? "include",
+    });
+  };
+
+  const response = await runRequest(currentToken);
+  if (response.status !== 401) {
+    return response;
+  }
+
+  const refreshedToken = await refreshAccessToken(currentToken);
+  if (!refreshedToken || refreshedToken === currentToken) {
+    return response;
+  }
+
+  return runRequest(refreshedToken);
 }
 
 // Helper function to handle API errors and trigger logout on 401
@@ -297,14 +428,16 @@ export async function signup(data: {
 }
 
 export async function acceptCreatorTerms(token: string) {
-  const res = await fetch(`${BASE_URL}/creators/accept-terms`, {
-    method: "PATCH",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
+  const res = await fetchWithAuthRetry(
+    `${BASE_URL}/creators/accept-terms`,
+    {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
     },
-    credentials: "include",
-  });
+    token,
+  );
 
   if (!res.ok) {
     handleApiError(res, await res.text(), "Failed to accept creator terms");
@@ -314,12 +447,13 @@ export async function acceptCreatorTerms(token: string) {
 }
 
 export async function getCreatorTermsStatus(token: string): Promise<CreatorTermsStatus> {
-  const res = await fetch(`${BASE_URL}/creators/terms-status`, {
-    headers: {
-      Authorization: `Bearer ${token}`,
+  const res = await fetchWithAuthRetry(
+    `${BASE_URL}/creators/terms-status`,
+    {
+      headers: {},
     },
-    credentials: "include",
-  });
+    token,
+  );
 
   if (!res.ok) {
     handleApiError(res, await res.text(), "Failed to fetch creator terms status");
@@ -395,16 +529,10 @@ export async function googleAuth(data: {
 }
 
 export async function getDashboardMetrics() {
-  const token = localStorage.getItem("access_token");
-  if (!token) {
-    throw new Error("No access token found");
-  }
-
-  const res = await fetch(`${BASE_URL}/creator-dashboard/metrics`, {
+  const res = await fetchWithAuthRetry(`${BASE_URL}/creator-dashboard/metrics`, {
     method: "GET",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
     },
   });
 
@@ -429,21 +557,15 @@ export async function getCreatorProducts(
   limit: number = 10,
   groupId?: string,
 ) {
-  const token = localStorage.getItem("access_token");
-  if (!token) {
-    throw new Error("No access token found");
-  }
-
   let url = `${BASE_URL}/creator-dashboard/products?page=${page}&limit=${limit}`;
   if (groupId) {
     url += `&groupId=${groupId}`;
   }
 
-  const res = await fetch(url, {
+  const res = await fetchWithAuthRetry(url, {
     method: "GET",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
     },
   });
 
@@ -488,17 +610,11 @@ export async function getProductById(id: string) {
 }
 
 export async function getProfile() {
-  const token = localStorage.getItem("access_token");
-  if (!token) {
-    throw new Error("No access token found");
-  }
-
   // Use /auth/me endpoint which works for all roles (BUYER, CREATOR, ADMIN)
-  const res = await fetch(`${BASE_URL}/auth/me`, {
+  const res = await fetchWithAuthRetry(`${BASE_URL}/auth/me`, {
     method: "GET",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
     },
   });
 
@@ -516,16 +632,10 @@ export async function updateProfile(data: {
   paymentBeneficiaryName?: string;
   paymentUpiId?: string;
 }) {
-  const token = localStorage.getItem("access_token");
-  if (!token) {
-    throw new Error("No access token found");
-  }
-
-  const res = await fetch(`${BASE_URL}/creator-dashboard/profile`, {
+  const res = await fetchWithAuthRetry(`${BASE_URL}/creator-dashboard/profile`, {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
     },
     body: JSON.stringify(data),
   });
@@ -549,16 +659,10 @@ export async function updateProfile(data: {
 export async function verifyCreatorPayoutUpi(
   upiId: string,
 ): Promise<CreatorUpiVerificationResponse> {
-  const token = localStorage.getItem("access_token");
-  if (!token) {
-    throw new Error("No access token found");
-  }
-
-  const res = await fetch(`${BASE_URL}/creator-dashboard/payouts/verify-upi`, {
+  const res = await fetchWithAuthRetry(`${BASE_URL}/creator-dashboard/payouts/verify-upi`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
     },
     body: JSON.stringify({ upiId }),
   });
@@ -587,16 +691,10 @@ export async function createProduct(data: {
   category_id?: string;
   sub_category_id?: string;
 }) {
-  const token = localStorage.getItem("access_token");
-  if (!token) {
-    throw new Error("No access token found");
-  }
-
-  const res = await fetch(`${BASE_URL}/creator-dashboard/products`, {
+  const res = await fetchWithAuthRetry(`${BASE_URL}/creator-dashboard/products`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
     },
     body: JSON.stringify(data),
   });
@@ -634,18 +732,12 @@ export async function updateProduct(
     sub_category_id?: string;
   }
 ) {
-  const token = localStorage.getItem("access_token");
-  if (!token) {
-    throw new Error("No access token found");
-  }
-
-  const res = await fetch(
+  const res = await fetchWithAuthRetry(
     `${BASE_URL}/creator-dashboard/products/${productId}`,
     {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify(data),
     },
@@ -664,18 +756,12 @@ export async function updateProduct(
 }
 
 export async function deleteProduct(productId: string) {
-  const token = localStorage.getItem("access_token");
-  if (!token) {
-    throw new Error("No access token found");
-  }
-
-  const res = await fetch(
+  const res = await fetchWithAuthRetry(
     `${BASE_URL}/creator-dashboard/products/${productId}`,
     {
       method: "DELETE",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
       },
     },
   );
@@ -694,16 +780,9 @@ export async function deleteProduct(productId: string) {
 
 // Get user's dashboard stats
 export async function getUserDashboardStats() {
-  const token = localStorage.getItem("access_token");
-  if (!token) {
-    throw new Error("Please login to view dashboard stats");
-  }
-
-  const res = await fetch(`${BASE_URL}/user-dashboard/stats`, {
+  const res = await fetchWithAuthRetry(`${BASE_URL}/user-dashboard/stats`, {
     method: "GET",
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
+    headers: {},
   });
 
   if (!res.ok) {
@@ -741,18 +820,20 @@ export async function creatorLogin(email: string) {
 
 // Get user's Aura status
 export async function getAuraStatus() {
-  const token = localStorage.getItem("access_token");
+  const token = await getValidAccessToken();
   if (!token) {
     return { hasAura: false, aura: null };
   }
 
   try {
-    const res = await fetch(`${BASE_URL}/aura/status`, {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${token}`,
+    const res = await fetchWithAuthRetry(
+      `${BASE_URL}/aura/status`,
+      {
+        method: "GET",
+        headers: {},
       },
-    });
+      token,
+    );
 
     if (!res.ok) {
       return { hasAura: false, aura: null };

@@ -1,5 +1,6 @@
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
 import { getProfile as fetchProfile } from '../lib/api';
+import { clearStoredAuthTokens, getStoredAccessToken } from '../lib/auth-token';
 
 interface User {
   user_id: string;
@@ -36,21 +37,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const logout = () => {
+  const clearSession = (shouldRedirect: boolean) => {
     console.log('🚪 Logging out user...');
-    localStorage.removeItem('access_token');
+    clearStoredAuthTokens();
     setUser(null);
     console.log('✅ User logged out successfully');
 
-    // Redirect to home page
-    window.location.href = '/';
+    if (shouldRedirect) {
+      window.location.href = '/';
+    }
+  };
+
+  const logout = () => {
+    clearSession(true);
   };
 
   const fetchUser = async () => {
     console.log('🔄 fetchUser called');
     setLoading(true);
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getStoredAccessToken() || localStorage.getItem('access_token');
       if (!token) {
         console.log('❌ No token found, skipping fetch');
         setUser(null);
@@ -77,11 +83,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // Check if it's an authentication error (401)
       const apiError = error as { status?: number };
       if (apiError.status === 401) {
-        console.log('🔒 Token expired or invalid, logging out...');
-        logout();
+        console.log('🔒 Token expired or invalid, clearing session...');
+        clearSession(false);
       } else {
-        setUser(null);
-        console.log('👤 User state set to: null');
+        console.log('⚠️ Non-auth profile fetch failed, preserving current user state');
       }
     } finally {
       setLoading(false);
@@ -128,8 +133,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     // Listen for custom auth-error event (for 401 errors from API calls)
     const handleAuthError = () => {
-      console.log('🔒 Auth error event triggered - logging out');
-      logout();
+      console.log('🔒 Auth error event triggered - revalidating session');
+      void fetchUser();
     };
 
     window.addEventListener('storage', handleStorageChange);

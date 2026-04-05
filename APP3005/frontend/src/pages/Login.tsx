@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { loginSchema, type LoginFormData } from "@/lib/validation";
 import { useToast } from "@/hooks/use-toast";
 import { login as loginApi, googleAuth } from "@/lib/api";
+import { clearStoredAuthTokens } from "@/lib/auth-token";
 import { useGoogleLogin } from "@react-oauth/google";
 import { usePopup } from "@/components/common/popups/PopupTime";
 import heroImage from "@/assets/auth-hero-login.jpg";
@@ -43,6 +44,7 @@ const Login = () => {
 
       if (userRole !== 'CREATOR') {
         // Don't reveal role information - show generic error
+        clearStoredAuthTokens();
         toast({
           title: "Login Failed",
           description: "Invalid credentials. Please try again.",
