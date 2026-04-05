@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
+import { AuthPopup } from "@/components/AuthPopup";
 import { ProductCard } from "@/components/collection/ProductCard";
 import { useInfinitePublicProducts } from "@/hooks/useInfinitePublicProducts";
 import { useDebounce } from "@/hooks/useDebounce";
@@ -95,6 +96,7 @@ const CollectionPage = () => {
 
     // Aura Welcome Modal State
     const [showAuraWelcomeModal, setShowAuraWelcomeModal] = useState(false);
+    const [showLoginPopup, setShowLoginPopup] = useState(false);
 
     // Filter States
     const [searchQuery, setSearchQuery] = useState("");
@@ -302,7 +304,7 @@ const CollectionPage = () => {
     ) => {
         const token = localStorage.getItem('access_token');
         if (!token) {
-            navigate('/user-login');
+            setShowLoginPopup(true);
             return;
         }
 
@@ -794,6 +796,17 @@ const CollectionPage = () => {
                     navigate('/aura-dashboard');
                 }}
                 onDecline={() => setShowAuraWelcomeModal(false)}
+            />
+
+            <AuthPopup
+                isOpen={showLoginPopup}
+                onClose={() => setShowLoginPopup(false)}
+                type="login"
+                onAction={() =>
+                    navigate('/user-login', {
+                        state: { returnUrl: location.pathname },
+                    })
+                }
             />
 
             <TryOnInterstitialModal
