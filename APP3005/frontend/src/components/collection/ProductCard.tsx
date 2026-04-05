@@ -127,11 +127,11 @@ export const ProductCard = ({
         <>
             <div
                 id={`product-card-${product.product_id}`}
-                className="group cursor-pointer"
+                className="group min-w-0 cursor-pointer"
                 onClick={() => navigate(`/product/${product.product_id}`)}
             >
                 <div
-                    className="relative overflow-hidden rounded-xl mb-3 transition-all duration-500 hover:-translate-y-2"
+                    className="relative mb-3 flex h-full flex-col overflow-hidden rounded-xl transition-all duration-500 md:hover:-translate-y-2"
                     style={{
                         background: '#FFFFFF',
                         boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)',
@@ -174,7 +174,7 @@ export const ProductCard = ({
                             loading="lazy"
                             width={400}
                             height={500}
-                            className="w-full h-[320px] object-cover transition-transform duration-700 group-hover:scale-110"
+                            className="h-[240px] w-full object-cover transition-transform duration-700 min-[420px]:h-[270px] sm:h-[320px] md:group-hover:scale-110"
                             onError={(e) => {
                                 const target = e.target as HTMLImageElement;
                                 target.src = 'https://via.placeholder.com/400x500/F5F0E6/D4AF37?text=Image+Not+Found';
@@ -210,9 +210,9 @@ export const ProductCard = ({
                                             prev === 0 ? productImages.length - 1 : prev - 1
                                         );
                                     }}
-                                    className="absolute left-2 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-white/70 flex items-center justify-center opacity-60 group-hover/images:opacity-100 group-hover/images:w-8 group-hover/images:h-8 transition-all z-10 hover:bg-white shadow-md"
+                                    className="absolute left-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full bg-white/80 shadow-md transition-all z-10 hover:bg-white md:h-6 md:w-6 md:opacity-60 md:group-hover/images:h-8 md:group-hover/images:w-8 md:group-hover/images:opacity-100"
                                 >
-                                    <ChevronLeft className="w-3 h-3 group-hover/images:w-4 group-hover/images:h-4 text-gray-800 transition-all" />
+                                    <ChevronLeft className="h-3.5 w-3.5 text-gray-800 transition-all md:h-3 md:w-3 md:group-hover/images:h-4 md:group-hover/images:w-4" />
                                 </button>
                                 <button
                                     onClick={(e) => {
@@ -221,15 +221,15 @@ export const ProductCard = ({
                                             prev === productImages.length - 1 ? 0 : prev + 1
                                         );
                                     }}
-                                    className="absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-white/70 flex items-center justify-center opacity-60 group-hover/images:opacity-100 group-hover/images:w-8 group-hover/images:h-8 transition-all z-10 hover:bg-white shadow-md"
+                                    className="absolute right-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full bg-white/80 shadow-md transition-all z-10 hover:bg-white md:h-6 md:w-6 md:opacity-60 md:group-hover/images:h-8 md:group-hover/images:w-8 md:group-hover/images:opacity-100"
                                 >
-                                    <ChevronRight className="w-3 h-3 group-hover/images:w-4 group-hover/images:h-4 text-gray-800 transition-all" />
+                                    <ChevronRight className="h-3.5 w-3.5 text-gray-800 transition-all md:h-3 md:w-3 md:group-hover/images:h-4 md:group-hover/images:w-4" />
                                 </button>
                             </>
                         )}
 
                         {/* Hover Overlay with Action Buttons */}
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all duration-300 flex items-end justify-center p-4">
+                        <div className="absolute inset-0 hidden items-end justify-center bg-gradient-to-t from-black/70 via-black/30 to-transparent p-4 opacity-0 transition-all duration-300 md:flex md:group-hover:opacity-100">
                             <div className="w-full flex flex-col gap-2">
                                 <button
                                     onClick={handleAddToCart}
@@ -299,7 +299,7 @@ export const ProductCard = ({
                     )}
 
                     {/* Product Info Section */}
-                    <div className="p-4">
+                    <div className="flex flex-1 flex-col p-3.5 sm:p-4">
                         {/* Title */}
                         <h3
                             className="font-medium text-sm mb-2 line-clamp-2"
@@ -333,8 +333,56 @@ export const ProductCard = ({
                             {formatPrice(product.price_cents, product.currency)}
                         </p>
 
+                        <div className="mb-3 grid grid-cols-2 gap-2.5 md:hidden">
+                            <button
+                                onClick={handleAddToCart}
+                                disabled={isAddingToCart}
+                                className="flex min-h-[2.75rem] w-full items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-white transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+                                style={{
+                                    background: '#1f1f1f',
+                                    boxShadow: '0 8px 20px rgba(0, 0, 0, 0.12)',
+                                }}
+                            >
+                                <ShoppingCart className="h-4 w-4" />
+                                {isAddingToCart ? 'Adding...' : 'Add to Cart'}
+                            </button>
+
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (onTryOn) onTryOn();
+                                }}
+                                className="min-h-[2.75rem] rounded-xl px-3 py-2.5 text-[11px] font-semibold uppercase tracking-[0.14em] transition active:scale-[0.98]"
+                                style={{
+                                    background:
+                                        'linear-gradient(135deg, #D4AF37 0%, #C9A55C 100%)',
+                                    color: '#1a1a1a',
+                                    boxShadow: '0 8px 20px rgba(212, 175, 55, 0.28)',
+                                }}
+                            >
+                                {resolvedPrimaryTryOnLabel}
+                            </button>
+                            {onTryOnGemini && (
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        onTryOnGemini();
+                                    }}
+                                    className="col-span-2 min-h-[2.75rem] rounded-xl border px-3 py-2.5 text-[11px] font-semibold uppercase tracking-[0.14em] transition active:scale-[0.98]"
+                                    style={{
+                                        background: 'rgba(255, 255, 255, 0.95)',
+                                        color: '#1a1a1a',
+                                        boxShadow: '0 8px 20px rgba(0, 0, 0, 0.06)',
+                                        borderColor: 'rgba(212, 175, 55, 0.45)',
+                                    }}
+                                >
+                                    {resolvedSecondaryTryOnLabel}
+                                </button>
+                            )}
+                        </div>
+
                         {/* Stats */}
-                        <div className="flex items-center justify-between text-xs text-gray-500 pt-3 border-t border-gray-100">
+                        <div className="mt-auto flex items-center justify-between border-t border-gray-100 pt-3 text-xs text-gray-500">
                             <div className="flex items-center gap-1">
                                 <Heart className="w-3.5 h-3.5" />
                                 <span>{likesCount}</span>

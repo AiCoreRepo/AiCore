@@ -6,6 +6,11 @@ import { AvatarDisplay } from "@/components/aura/AvatarDisplay";
 import { AuraFramedImage } from "@/components/aura/AuraFramedImage";
 import { ProcessingModal } from "@/components/aura/ProcessingModal";
 import {
+  getAuraStreamStatusMessage,
+  getCompletedAuraStreamStatusMessage,
+  getInitialAuraStreamStatusMessage,
+} from "@/lib/aura-stream-status";
+import {
   BODY_SIZE_OPTIONS,
   SKIN_TONE_OPTIONS,
   BODY_SHAPE_OPTIONS,
@@ -403,7 +408,10 @@ export default function AuraProfile() {
       setPendingAvatarScroll(true);
     }
 
-    if (!incomingContext?.type && !shouldHideAuraLibrary) {
+    if (
+      !incomingContext?.type &&
+      !shouldHideAuraLibrary
+    ) {
       return;
     }
 
@@ -678,7 +686,9 @@ export default function AuraProfile() {
       setShowRecreateModal(false);
       setIsStartingRecreation(true);
       setRecreateProgress(8);
-      setRecreateStatusMessage("Uploading and validating your avatar input");
+      setRecreateStatusMessage(
+        getInitialAuraStreamStatusMessage("recreation"),
+      );
       const formData = new FormData();
       if (recreateMode === "new-photo" && recreatePhoto) {
         formData.append("photo", recreatePhoto);
@@ -713,19 +723,13 @@ export default function AuraProfile() {
           );
         }
 
-        if (streamPayload.message) {
-          setRecreateStatusMessage(streamPayload.message);
-        } else if (eventName === "status" && streamPayload.status) {
-          const statusMessageMap: Record<string, string> = {
-            waiting: "Queued for Aura recreation",
-            active: "Recreating your Aura with Gemini",
-            completed: "Aura recreation completed",
-            failed: streamPayload.error || "Aura recreation failed",
-          };
-          setRecreateStatusMessage(
-            statusMessageMap[streamPayload.status] ||
-              "Processing your Aura recreation",
-          );
+        const nextStatusMessage = getAuraStreamStatusMessage(
+          "recreation",
+          eventName,
+          streamPayload,
+        );
+        if (nextStatusMessage) {
+          setRecreateStatusMessage(nextStatusMessage);
         }
       };
 
@@ -734,7 +738,9 @@ export default function AuraProfile() {
       });
 
       setRecreateProgress(100);
-      setRecreateStatusMessage("Aura recreation completed");
+      setRecreateStatusMessage(
+        getCompletedAuraStreamStatusMessage("recreation"),
+      );
       await new Promise((resolve) => window.setTimeout(resolve, 500));
       setIsStartingRecreation(false);
       setRecreateProgress(0);

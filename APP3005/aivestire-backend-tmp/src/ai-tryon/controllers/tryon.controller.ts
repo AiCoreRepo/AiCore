@@ -170,6 +170,7 @@ export class TryOnController {
   })
   async streamTryOnWithGemini(
     @Body() request: TryOnRequestDto,
+    @Request() req,
     @Res() res: Response,
   ): Promise<void> {
     const startedAt = Date.now();
@@ -186,12 +187,6 @@ export class TryOnController {
     res.on('close', () => {
       clientClosed = true;
       clearInterval(heartbeat);
-    });
-
-    this.writeStreamEvent(res, 'ready', {
-      success: true,
-      timestamp: new Date().toISOString(),
-      message: 'Gemini stream connected',
     });
 
     try {
@@ -217,9 +212,15 @@ export class TryOnController {
           this.writeStreamEvent(res, 'chunk', event);
         },
       );
+      const persistedResult = await this.attachTryOnHistoryId(
+        req.user.user_id,
+        request.additionalParams,
+        result,
+        'gemini',
+      );
 
       if (!clientClosed) {
-        this.writeStreamEvent(res, 'result', result);
+        this.writeStreamEvent(res, 'result', persistedResult);
       }
     } catch (error) {
       this.logger.error(
@@ -327,12 +328,19 @@ export class TryOnController {
   @UseGuards(JwtAuthGuard)
   async tryOnWithGemini(
     @Body() request: TryOnRequestDto,
+    @Request() req,
   ): Promise<TryOnResponseDto> {
     this.logger.log('Processing try-on request with Gemini AI (direct)');
-    return this.directGeminiService.processTryOn(
+    const result = await this.directGeminiService.processTryOn(
       request.avatarImage,
       request.clothingImage,
       request.additionalParams,
+    );
+    return this.attachTryOnHistoryId(
+      req.user.user_id,
+      request.additionalParams,
+      result,
+      'gemini',
     );
   }
 
@@ -851,5 +859,47 @@ export class TryOnController {
       file.buffer,
       file.mimetype,
     );
+  }
+
+  private async attachTryOnHistoryId(
+    userId: string,
+    additionalParams: Record<string, any> | undefined,
+    result: TryOnResponseDto,
+    provider: string,
+  ): Promise<TryOnResponseDto> {
+    if (!result?.resultImage) {
+      return result;
+    }
+
+    const productId = _.get(additionalParams, 'product_id');
+    const auraId = _.get(additionalParams, 'aura_id');
+
+    if (!productId || !auraId) {
+      return result;
+    }
+
+    try {
+      const tryOnId = await this.tryOn3DService.saveDirectTryOnResultForHistory(
+        {
+          userId,
+          productId,
+          auraId,
+          resultImageUrl: result.resultImage,
+          provider,
+        },
+      );
+
+      return tryOnId
+        ? {
+            ...result,
+            tryOnId,
+          }
+        : result;
+    } catch (error) {
+      this.logger.warn(
+        `Failed to persist direct ${provider} try-on result for history: ${error instanceof Error ? error.message : 'unknown error'}`,
+      );
+      return result;
+    }
   }
 }

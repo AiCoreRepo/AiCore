@@ -65,7 +65,6 @@ export function TryOnResultModal({
   resultImage,
   streamPreviewImage = null,
   loading,
-  loadingStatusLabel,
   loadingProgressHint,
   loadingStreamMessages = [],
   error,
@@ -131,6 +130,13 @@ export function TryOnResultModal({
   const hasStreamPreview = Boolean(streamPreviewImage);
   const showMobileActionBar =
     Boolean(resultImage) && !loading && !generatingAngles && !error;
+  const imageStageSizeClassName = isProcessingState
+    ? "h-[62vh] min-h-[24rem] max-h-[38rem] sm:h-[64vh] sm:min-h-[28rem] sm:max-h-[42rem] md:h-full md:min-h-0 md:max-h-none"
+    : "h-[58vh] min-h-[22rem] max-h-[36rem] sm:h-[62vh] sm:min-h-[26rem] sm:max-h-[40rem] md:h-full md:min-h-0 md:max-h-none";
+  const mediaFrameClassName =
+    "relative mx-auto flex h-full min-h-0 w-full max-w-full items-center justify-center overflow-hidden rounded-[20px] sm:rounded-[24px] md:max-w-[36rem] lg:max-w-[40rem] xl:max-w-[44rem]";
+  const mediaImageClassName =
+    "mx-auto block h-full max-h-full w-auto max-w-full rounded-[20px] object-contain sm:rounded-[24px] md:rounded-[26px]";
   const userPrompt = garmentTitle
     ? `How does ${displayGarmentTitle} look on me? Does it suit me?`
     : "How does this look on me? Does it suit me?";
@@ -732,8 +738,8 @@ export function TryOnResultModal({
       <div
         className={`relative min-w-0 rounded-[24px] border border-[rgba(201,165,92,0.18)] md:rounded-[28px] ${
           isMobileLayout
-            ? "max-h-[46vh] overflow-hidden p-3.5 sm:max-h-[52vh]"
-            : "flex min-h-[18rem] flex-col overflow-hidden p-4 md:max-h-[40vh] md:p-5 lg:max-h-[42vh]"
+            ? "overflow-visible p-3.5 sm:p-4"
+            : "flex h-full min-h-[18rem] flex-1 flex-col overflow-hidden p-4 md:min-h-0 md:p-5"
         } ${className}`}
         style={{
           background:
@@ -751,8 +757,10 @@ export function TryOnResultModal({
           }}
         />
         <div
-          className={`relative min-w-0 flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain ${
-            isMobileLayout ? "pr-0.5" : "pr-1"
+          className={`relative min-w-0 flex min-h-0 flex-1 flex-col ${
+            isMobileLayout
+              ? "overflow-visible pr-0"
+              : "overflow-y-auto overscroll-contain pr-1"
           }`}
         >
           <div
@@ -1091,72 +1099,10 @@ export function TryOnResultModal({
         </div>
 
         {/* Main Content */}
-        <div className="relative flex flex-1 flex-col gap-2.5 overflow-y-auto p-3 pb-24 sm:gap-4 sm:p-4 sm:pb-24 md:flex-row md:gap-5 md:overflow-hidden md:p-6 md:pb-6">
-          {/* Left Sidebar - AI Insights (Desktop) */}
+        <div className="relative flex flex-1 flex-col gap-2.5 overflow-y-auto p-3 pb-3 sm:gap-4 sm:p-4 sm:pb-4 md:flex-row md:gap-5 md:overflow-hidden md:p-6 md:pb-6">
+          {/* Left Sidebar - AI Chat (Desktop) */}
           {resultImage && !loading && !error && (
-            <div className="hidden min-h-0 flex-col gap-4 slide-right xl:flex xl:w-[22rem] 2xl:w-[24rem]">
-              {/* Style Analysis Card */}
-              <div
-                className="rounded-2xl p-5"
-                style={{
-                  background:
-                    "linear-gradient(135deg, #ffffff 0%, #fafafa 100%)",
-                  boxShadow:
-                    "0 4px 20px rgba(0,0,0,0.04), 0 0 0 1px rgba(0,0,0,0.04)",
-                }}
-              >
-                <div className="flex items-center gap-2 mb-4">
-                  <Sparkles className="w-4 h-4 text-[#c9a55c]" />
-                  <span className="text-sm font-bold font-serif text-gray-800">
-                    STYLE COMPATIBILITY
-                  </span>
-                </div>
-
-                <div className="space-y-4">
-                  <div>
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-xs font-medium text-gray-500">
-                        Overall Match
-                      </span>
-                      <div className="flex gap-0.5">
-                        {[1, 2, 3, 4, 5].map((star) => (
-                          <div
-                            key={star}
-                            className="w-3 h-3 rounded-full bg-[#c9a55c]"
-                            style={{ opacity: star <= 5 ? 1 : 0.3 }}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                    <div
-                      className="flex items-center gap-2 p-3 rounded-xl"
-                      style={{ background: "rgba(201, 165, 92, 0.08)" }}
-                    >
-                      <CheckCircle2 className="w-4 h-4 text-[#c9a55c]" />
-                      <span className="text-sm font-bold text-[#9a7b4f]">
-                        Excellent Match
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {["✨", "💃", "🌟", "🔥"].map((emoji, i) => (
-                      <div
-                        key={i}
-                        className="w-8 h-8 rounded-full flex items-center justify-center text-lg"
-                        style={{
-                          background: "rgba(201, 165, 92, 0.1)",
-                          border: "1px solid rgba(201, 165, 92, 0.2)",
-                        }}
-                      >
-                        {emoji}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* Smart Tips Card */}
+            <div className="hidden min-h-0 flex-col slide-right xl:flex xl:w-[22rem] 2xl:w-[24rem]">
               {renderComplimentCard("flex-1 min-h-0")}
             </div>
           )}
@@ -1165,11 +1111,7 @@ export function TryOnResultModal({
           <div className="relative flex min-h-0 flex-col gap-4 md:flex-1 md:overflow-hidden">
             {/* Image Display */}
             <div
-              className={`relative flex items-center justify-center overflow-hidden rounded-[26px] md:min-h-0 md:flex-1 md:rounded-3xl ${
-                isProcessingState
-                  ? "min-h-[60vh] sm:min-h-[52vh]"
-                  : "min-h-[48vh] sm:min-h-[52vh]"
-              }`}
+              className={`relative flex items-center justify-center overflow-hidden rounded-[26px] md:min-h-0 md:flex-1 md:rounded-3xl ${imageStageSizeClassName}`}
               style={{
                 background:
                   "linear-gradient(135deg, #f0ebe4 0%, #e8e3dc 50%, #f0ebe4 100%)",
@@ -1191,46 +1133,46 @@ export function TryOnResultModal({
 
                   {hasMultipleGeneratedImages ? (
                     <div className="h-full w-full p-1.5 sm:p-2.5 md:p-4">
-                      <Carousel
-                        setApi={setCarouselApi}
-                        opts={{ loop: true, align: "start" }}
-                        className="h-full w-full"
-                      >
-                        <CarouselContent className="h-full">
-                          {carouselImages.map((image, index) => (
-                            <CarouselItem
-                              key={`${image}-${index}`}
-                              className="h-full"
-                            >
-                              <button
-                                type="button"
-                                className="group flex h-full w-full items-center justify-center rounded-[20px] p-0 md:rounded-[26px]"
-                                onClick={() => setIsLightboxOpen(true)}
-                                title="Tap to view full size"
+                      <div className={mediaFrameClassName}>
+                        <Carousel
+                          setApi={setCarouselApi}
+                          opts={{ loop: true, align: "start" }}
+                          className="h-full w-full"
+                        >
+                          <CarouselContent className="h-full">
+                            {carouselImages.map((image, index) => (
+                              <CarouselItem
+                                key={`${image}-${index}`}
+                                className="h-full min-w-0 basis-full"
                               >
-                                <img
-                                  src={image}
-                                  alt={`Generated angle ${index + 1}`}
-                                  className={`h-full w-full rounded-[20px] object-contain transition-all duration-500 group-hover:scale-[1.02] md:rounded-[26px] ${imageRevealed ? "modal-appear" : ""}`}
-                                  style={{
-                                    boxShadow:
-                                      "0 16px 48px rgba(0, 0, 0, 0.12)",
-                                    maxWidth: "100%",
-                                    maxHeight: "100%",
-                                  }}
-                                />
-                              </button>
-                            </CarouselItem>
-                          ))}
-                        </CarouselContent>
-                        <CarouselPrevious className="left-2 top-1/2 h-9 w-9 -translate-y-1/2 border-white/60 bg-white/92 text-[#2f2416] shadow-[0_12px_28px_rgba(28,21,14,0.12)] hover:bg-white md:left-3" />
-                        <CarouselNext className="right-2 top-1/2 h-9 w-9 -translate-y-1/2 border-white/60 bg-white/92 text-[#2f2416] shadow-[0_12px_28px_rgba(28,21,14,0.12)] hover:bg-white md:right-3" />
-                      </Carousel>
+                                <button
+                                  type="button"
+                                  className="group flex h-full w-full min-h-0 items-center justify-center rounded-[20px] p-0 md:rounded-[26px]"
+                                  onClick={() => setIsLightboxOpen(true)}
+                                  title="Tap to view full size"
+                                >
+                                  <img
+                                    src={image}
+                                    alt={`Generated angle ${index + 1}`}
+                                    className={`${mediaImageClassName} transition-all duration-500 group-hover:scale-[1.02] ${imageRevealed ? "modal-appear" : ""}`}
+                                    style={{
+                                      boxShadow:
+                                        "0 16px 48px rgba(0, 0, 0, 0.12)",
+                                    }}
+                                  />
+                                </button>
+                              </CarouselItem>
+                            ))}
+                          </CarouselContent>
+                          <CarouselPrevious className="left-2 top-1/2 h-9 w-9 -translate-y-1/2 border-white/60 bg-white/92 text-[#2f2416] shadow-[0_12px_28px_rgba(28,21,14,0.12)] hover:bg-white md:left-3" />
+                          <CarouselNext className="right-2 top-1/2 h-9 w-9 -translate-y-1/2 border-white/60 bg-white/92 text-[#2f2416] shadow-[0_12px_28px_rgba(28,21,14,0.12)] hover:bg-white md:right-3" />
+                        </Carousel>
+                      </div>
                     </div>
                   ) : (
                     <button
                       type="button"
-                      className={`group flex h-full w-full items-center justify-center p-1.5 sm:p-2.5 md:p-4 ${
+                      className={`group flex h-full w-full min-h-0 items-center justify-center p-1.5 sm:p-2.5 md:p-4 ${
                         isProcessingState ? "cursor-default" : "cursor-pointer"
                       }`}
                       onClick={() => {
@@ -1244,19 +1186,19 @@ export function TryOnResultModal({
                           : "Click to view full size"
                       }
                     >
-                      <img
-                        src={activeDisplayImage}
-                        alt={isProcessingState ? "Live try-on preview" : "Try-On Result"}
-                        className={`h-full w-full rounded-[20px] object-contain transition-all duration-500 md:rounded-[26px] ${
-                          imageRevealed && !isProcessingState ? "modal-appear" : ""
-                        } ${isProcessingState ? "" : "group-hover:scale-[1.02]"}`}
-                        style={{
-                          boxShadow: "0 16px 48px rgba(0, 0, 0, 0.12)",
-                          maxWidth: "100%",
-                          maxHeight: "100%",
-                          opacity: isProcessingState ? 0.96 : 1,
-                        }}
-                      />
+                      <div className={mediaFrameClassName}>
+                        <img
+                          src={activeDisplayImage}
+                          alt={isProcessingState ? "Live try-on preview" : "Try-On Result"}
+                          className={`${mediaImageClassName} transition-all duration-500 ${
+                            imageRevealed && !isProcessingState ? "modal-appear" : ""
+                          } ${isProcessingState ? "" : "group-hover:scale-[1.02]"}`}
+                          style={{
+                            boxShadow: "0 16px 48px rgba(0, 0, 0, 0.12)",
+                            opacity: isProcessingState ? 0.96 : 1,
+                          }}
+                        />
+                      </div>
                     </button>
                   )}
                 </>
@@ -1265,7 +1207,7 @@ export function TryOnResultModal({
               {/* Loading State - Game-Like Queue Animation (Compact Version) */}
               {(loading || generatingAngles) && (
                 <div
-                  className="absolute inset-0 z-20 flex flex-col items-center justify-start overflow-y-auto px-4 py-5 pb-8 sm:justify-center sm:p-6 slide-up"
+                  className="absolute inset-0 z-20 flex flex-col items-center justify-center overflow-hidden px-4 py-5 pb-6 sm:p-6 slide-up"
                   style={{
                     background: hasStreamPreview
                       ? "linear-gradient(180deg, rgba(252,250,247,0.10) 0%, rgba(247,245,242,0.42) 58%, rgba(247,245,242,0.84) 100%)"
@@ -1295,9 +1237,7 @@ export function TryOnResultModal({
                       : "Creating Your Look"}
                   </h3>
                   <p className="mb-5 max-w-md text-center text-sm text-gray-500 sm:mb-6">
-                    {loadingStatusLabel?.trim()
-                      ? loadingStatusLabel
-                      : LOADING_QUOTES[currentQuoteIndex]}
+                    {LOADING_QUOTES[currentQuoteIndex]}
                   </p>
 
                   {hasStreamPreview && (
@@ -1496,11 +1436,12 @@ export function TryOnResultModal({
               )}
 
             </div>
-
-            {renderComplimentCard("w-full flex-shrink-0 md:hidden", "mobile")}
-
             {renderComplimentCard(
-              "hidden w-full flex-shrink-0 self-center md:block xl:hidden md:max-w-4xl lg:max-w-5xl",
+              "w-full flex-shrink-0 md:hidden",
+              "mobile",
+            )}
+            {renderComplimentCard(
+              "hidden w-full flex-shrink-0 self-center md:block xl:hidden md:max-w-4xl lg:max-w-5xl md:!h-auto md:!min-h-0 md:!max-h-[10.5rem] md:!flex-none lg:!max-h-[11.5rem]",
             )}
           </div>
 
@@ -1581,52 +1522,59 @@ export function TryOnResultModal({
 
         {showMobileActionBar && (
           <div
-            className="absolute inset-x-2.5 bottom-2.5 z-10 rounded-[20px] border border-white/70 bg-white/92 p-2 shadow-[0_18px_48px_rgba(0,0,0,0.14)] backdrop-blur md:hidden"
+            className="flex-shrink-0 border-t border-[rgba(201,165,92,0.14)] bg-[rgba(253,251,247,0.96)] px-3 pb-3 pt-2.5 backdrop-blur md:hidden"
             style={{
-              boxShadow: "0 18px 48px rgba(28, 21, 14, 0.16)",
+              boxShadow: "0 -10px 28px rgba(28, 21, 14, 0.06)",
             }}
           >
-            <div className="grid grid-cols-3 gap-2">
-              <button
-                onClick={handleDownload}
-                disabled={!resultImage || loading}
-                className="flex flex-col items-center justify-center gap-1 rounded-2xl px-2 py-2.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#2c2c2c] transition active:scale-95 disabled:opacity-40"
-                style={{
-                  background:
-                    "linear-gradient(135deg, #2c2c2c 0%, #1a1a1a 100%)",
-                  color: "#ffffff",
-                }}
-              >
-                <Download className="h-5 w-5" />
-                <span>Download</span>
-              </button>
+            <div
+              className="rounded-[20px] border border-white/70 bg-white/92 p-2 shadow-[0_18px_48px_rgba(0,0,0,0.14)]"
+              style={{
+                boxShadow: "0 18px 48px rgba(28, 21, 14, 0.12)",
+              }}
+            >
+              <div className="grid grid-cols-3 gap-2">
+                <button
+                  onClick={handleDownload}
+                  disabled={!resultImage || loading}
+                  className="flex min-h-[3.75rem] flex-col items-center justify-center gap-1 rounded-2xl px-2 py-2.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#2c2c2c] transition active:scale-95 disabled:opacity-40"
+                  style={{
+                    background:
+                      "linear-gradient(135deg, #2c2c2c 0%, #1a1a1a 100%)",
+                    color: "#ffffff",
+                  }}
+                >
+                  <Download className="h-5 w-5" />
+                  <span>Download</span>
+                </button>
 
-              <button
-                onClick={handleShare}
-                disabled={!resultImage || loading}
-                className="flex flex-col items-center justify-center gap-1 rounded-2xl border border-[rgba(0,0,0,0.08)] bg-white px-2 py-2.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#2c2c2c] transition active:scale-95 disabled:opacity-40"
-              >
-                <Share2 className="h-5 w-5" />
-                <span>Share</span>
-              </button>
+                <button
+                  onClick={handleShare}
+                  disabled={!resultImage || loading}
+                  className="flex min-h-[3.75rem] flex-col items-center justify-center gap-1 rounded-2xl border border-[rgba(0,0,0,0.08)] bg-white px-2 py-2.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#2c2c2c] transition active:scale-95 disabled:opacity-40"
+                >
+                  <Share2 className="h-5 w-5" />
+                  <span>Share</span>
+                </button>
 
-              <button
-                onClick={onGenerateMoreAngles}
-                disabled={
-                  generatingAngles ||
-                  !resultImage ||
-                  loading ||
-                  !onGenerateMoreAngles
-                }
-                className="flex flex-col items-center justify-center gap-1 rounded-2xl border border-[rgba(0,0,0,0.08)] bg-white px-2 py-2.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#2c2c2c] transition active:scale-95 disabled:opacity-40"
-              >
-                {generatingAngles ? (
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                ) : (
-                  <Sparkles className="h-5 w-5" />
-                )}
-                <span>{generatingAngles ? "Working" : "New Angle"}</span>
-              </button>
+                <button
+                  onClick={onGenerateMoreAngles}
+                  disabled={
+                    generatingAngles ||
+                    !resultImage ||
+                    loading ||
+                    !onGenerateMoreAngles
+                  }
+                  className="flex min-h-[3.75rem] flex-col items-center justify-center gap-1 rounded-2xl border border-[rgba(0,0,0,0.08)] bg-white px-2 py-2.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#2c2c2c] transition active:scale-95 disabled:opacity-40"
+                >
+                  {generatingAngles ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
+                    <Sparkles className="h-5 w-5" />
+                  )}
+                  <span>{generatingAngles ? "Working" : "New Angle"}</span>
+                </button>
+              </div>
             </div>
           </div>
         )}

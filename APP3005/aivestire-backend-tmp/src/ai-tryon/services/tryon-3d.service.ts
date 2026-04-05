@@ -659,4 +659,63 @@ export class TryOn3DService {
       );
     }
   }
+
+  async saveDirectTryOnResultForHistory(params: {
+    userId: string;
+    productId?: string | null;
+    auraId?: string | null;
+    resultImageUrl: string;
+    provider: string;
+    angle?: string;
+  }): Promise<string | null> {
+    const { userId, productId, auraId, resultImageUrl, provider, angle } =
+      params;
+
+    if (!productId || !auraId) {
+      this.logger.warn(
+        'Skipping direct try-on history save because productId or auraId is missing',
+      );
+      return null;
+    }
+
+    const aura = await this.prisma.aura.findFirst({
+      where: {
+        aura_id: auraId,
+        user_id: userId,
+      },
+      select: {
+        aura_id: true,
+      },
+    });
+
+    if (!aura) {
+      this.logger.warn(
+        `Skipping direct try-on history save because aura ${auraId} does not belong to user ${userId}`,
+      );
+      return null;
+    }
+
+    const product = await this.prisma.product.findUnique({
+      where: { product_id: productId },
+      select: { product_id: true },
+    });
+
+    if (!product) {
+      this.logger.warn(
+        `Skipping direct try-on history save because product ${productId} was not found`,
+      );
+      return null;
+    }
+
+    const tryOn = await this.saveTryOnResult(
+      userId,
+      productId,
+      auraId,
+      resultImageUrl,
+      provider,
+      angle,
+    );
+
+    return tryOn.try_on_id;
+  }
 }

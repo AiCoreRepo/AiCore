@@ -26,6 +26,7 @@ import UserSignup from "./pages/UserSignup";
 import UserForgotPassword from "./pages/UserForgotPassword";
 import AuraDashboard from "./pages/AuraDashboard";
 import AuraProfile from "./pages/AuraProfile";
+import MyGalleryPage from "./pages/MyGalleryPage";
 import LetAIDecidePage from "./pages/LetAIDecidePage";
 import BulkUploadPage from "./app/bulk-upload";
 const CreatorUploadPage = lazy(() => import("./app/creator-upload/page"));
@@ -133,6 +134,7 @@ const App = () => (
 
                       {/* User Dashboard Routes */}
                       <Route path="/user-dashboard" element={<UserDashboard />} />
+                      <Route path="/my-gallery" element={<MyGalleryPage />} />
                       <Route path="/my-orders" element={<MyOrdersPage />} />
                       <Route path="/my-orders/:orderId" element={<OrderDetailPage />} />
                       <Route path="/my-orders/:orderId/return" element={<ReturnOrderPage />} />

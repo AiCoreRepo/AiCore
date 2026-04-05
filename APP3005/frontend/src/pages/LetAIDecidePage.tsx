@@ -34,6 +34,11 @@ import {
     type TryOnProvider,
 } from '@/lib/try-on-environment';
 import { normalizeTryOnImageData } from '@/lib/try-on-image';
+import {
+    getCompletedTryOnStreamStatusMessage,
+    getInitialTryOnStreamStatusMessage,
+    getTryOnStreamStatusMessage,
+} from '@/lib/try-on-stream-status';
 
 interface AuraData {
     aura_id: string;
@@ -110,7 +115,10 @@ const getProductImageUrl = (product: TryOnProduct): string | null => {
 const getAvatarImageUrl = (aura: AuraData | null): string | null =>
     aura?.tryon_model_url || aura?.model_url || aura?.image_url || null;
 
-const buildGeminiTryOnAdditionalParams = (aura: AuraData | null) => ({
+const buildGeminiTryOnAdditionalParams = (
+    aura: AuraData | null,
+    productId?: string | null,
+) => ({
     aura_attributes: aura
         ? {
             height_cm: aura.height_cm,
@@ -127,6 +135,8 @@ const buildGeminiTryOnAdditionalParams = (aura: AuraData | null) => ({
                 : {}),
         }
         : undefined,
+    aura_id: aura?.aura_id,
+    product_id: productId ?? undefined,
     maskClothingModel: false,
 });
 
@@ -347,7 +357,7 @@ const LetAIDecidePage = () => {
             setStreamPreviewImage(null);
             setOriginalTryOnImage(null);
             setGeneratedImages([]);
-            setTryOnStreamStatus('Preparing your Gemini try-on');
+            setTryOnStreamStatus(getInitialTryOnStreamStatusMessage());
             setTryOnStreamProgress(6);
             setTryOnError(null);
             setShowResultModal(true);
@@ -368,23 +378,28 @@ const LetAIDecidePage = () => {
                     }
 
                     const streamPayload = payload as {
+                        error?: string;
                         message?: string;
+                        phase?: string;
+                        status?: string;
                         text?: string;
                         progress?: number;
                         resultImage?: string;
                     };
 
                     if (eventName === 'status') {
-                        if (streamPayload.message) {
-                            setTryOnStreamStatus(streamPayload.message);
+                        const nextStatus = getTryOnStreamStatusMessage(
+                            eventName,
+                            streamPayload,
+                        );
+                        if (nextStatus) {
+                            setTryOnStreamStatus(nextStatus);
                         }
                         if (typeof streamPayload.progress === 'number') {
                             setTryOnStreamProgress((prev) =>
                                 Math.max(prev, Math.min(streamPayload.progress, 95)),
                             );
                         }
-                    } else if (eventName === 'chunk' && streamPayload.text) {
-                        setTryOnStreamStatus(streamPayload.text);
                     } else if (eventName === 'preview') {
                         const nextPreviewImage = normalizeTryOnImageData(
                             streamPayload.resultImage,
@@ -395,8 +410,6 @@ const LetAIDecidePage = () => {
                                 Math.max(prev, Math.min(streamPayload.progress ?? 78, 90)),
                             );
                         }
-                    } else if (eventName === 'ready') {
-                        setTryOnStreamStatus('Gemini stream connected');
                     }
                 };
 
@@ -404,7 +417,10 @@ const LetAIDecidePage = () => {
                     {
                         avatarImage,
                         clothingImage,
-                        additionalParams: buildGeminiTryOnAdditionalParams(aura),
+                        additionalParams: buildGeminiTryOnAdditionalParams(
+                            aura,
+                            product.product_id,
+                        ),
                     },
                     {
                         onEvent: handleStreamEvent,
@@ -426,7 +442,7 @@ const LetAIDecidePage = () => {
                 setOriginalTryOnImage(imageData);
                 setGeneratedImages([imageData]);
                 setTryOnStreamProgress(100);
-                setTryOnStreamStatus('Try-on completed');
+                setTryOnStreamStatus(getCompletedTryOnStreamStatusMessage());
                 fetchUser();
                 if (feedbackCloseTimerRef.current) {
                     clearTimeout(feedbackCloseTimerRef.current);

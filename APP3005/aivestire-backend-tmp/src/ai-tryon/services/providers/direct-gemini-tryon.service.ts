@@ -260,7 +260,7 @@ export class DirectGeminiTryOnService extends BaseTryOnService {
         type: 'status',
         phase: 'validating',
         progress: 5,
-        message: 'Validating try-on images',
+        message: 'Analyzing your photos',
         timestamp: new Date().toISOString(),
       });
       await this.validateImages(avatarImage, clothingImage);
@@ -269,7 +269,7 @@ export class DirectGeminiTryOnService extends BaseTryOnService {
         type: 'status',
         phase: 'preprocessing',
         progress: 15,
-        message: 'Preparing input images',
+        message: 'Preparing your look',
         timestamp: new Date().toISOString(),
       });
       const { avatarBase64, clothingBase64 } = await this.preprocessImages(
@@ -281,7 +281,7 @@ export class DirectGeminiTryOnService extends BaseTryOnService {
         type: 'status',
         phase: 'generating',
         progress: 30,
-        message: 'Generating Gemini try-on',
+        message: 'Styling your selected look',
         timestamp: new Date().toISOString(),
       });
       const resultImage = await this.performTryOnStreamed(
@@ -295,7 +295,7 @@ export class DirectGeminiTryOnService extends BaseTryOnService {
         type: 'status',
         phase: 'postprocessing',
         progress: 85,
-        message: 'Finalizing portrait output',
+        message: 'Finalizing your look',
         timestamp: new Date().toISOString(),
       });
       const finalImage = await this.postprocessResult(resultImage);
@@ -556,7 +556,7 @@ export class DirectGeminiTryOnService extends BaseTryOnService {
         type: 'status',
         phase: 'generating',
         progress: 40,
-        message: 'Connected to Gemini stream',
+        message: 'Rendering your virtual try-on',
         timestamp: new Date().toISOString(),
       });
 
@@ -633,7 +633,7 @@ export class DirectGeminiTryOnService extends BaseTryOnService {
         type: 'status',
         phase: 'fallback',
         progress: 45,
-        message: 'Gemini SDK stream method unavailable, using standard generation',
+        message: 'Rendering your virtual try-on',
         timestamp: new Date().toISOString(),
       });
       return this.generateTryOnWithModel(

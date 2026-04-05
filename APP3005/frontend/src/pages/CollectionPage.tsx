@@ -5,6 +5,7 @@ import { Footer } from "@/components/Footer";
 import { ProductCard } from "@/components/collection/ProductCard";
 import { useInfinitePublicProducts } from "@/hooks/useInfinitePublicProducts";
 import { useDebounce } from "@/hooks/useDebounce";
+import { useTryOnModalState } from "@/hooks/useTryOnModalState";
 import { useAuth } from "@/context/AuthContext";
 import { useCart } from "@/context/CartContext";
 import { auraGate } from "@/utils/auraGate";
@@ -20,7 +21,6 @@ import {
     getAura,
     getProductById,
     FeedbackContextType,
-    type StreamEventHandler,
 } from '@/lib/api';
 import collectionHeaderImage from "@/assets/collectionHeader.jpeg";
 import {
@@ -36,7 +36,6 @@ import {
     shouldShowMultipleTryOnProviders,
     type TryOnProvider,
 } from '@/lib/try-on-environment';
-import { normalizeTryOnImageData } from '@/lib/try-on-image';
 import _ from 'lodash';
 import type { PublicProduct } from '@/hooks/useInfinitePublicProducts';
 
@@ -54,7 +53,10 @@ const getProductImageUrl = (product: PublicProduct): string | null => {
 const getAvatarImageUrl = (aura: any): string | null =>
     aura?.tryon_model_url || aura?.model_url || aura?.image_url || null;
 
-const buildGeminiTryOnAdditionalParams = (aura: any) => ({
+const buildGeminiTryOnAdditionalParams = (
+    aura: any,
+    productId?: string | null,
+) => ({
     aura_attributes: aura
         ? {
             height_cm: aura.height_cm,
@@ -71,6 +73,8 @@ const buildGeminiTryOnAdditionalParams = (aura: any) => ({
                 : {}),
         }
         : undefined,
+    aura_id: aura?.aura_id,
+    product_id: productId ?? undefined,
     maskClothingModel: false,
 });
 
@@ -107,16 +111,6 @@ const CollectionPage = () => {
 
     // AI Try-On State
     const [aura, setAura] = useState<any>(null);
-    const [showResultModal, setShowResultModal] = useState(false);
-    const [resultImage, setResultImage] = useState<string | null>(null);
-    const [streamPreviewImage, setStreamPreviewImage] = useState<string | null>(null);
-    const [tryOnLoading, setTryOnLoading] = useState(false);
-    const [tryOnStreamStatus, setTryOnStreamStatus] = useState<string | null>(null);
-    const [tryOnStreamProgress, setTryOnStreamProgress] = useState(0);
-    const [tryOnError, setTryOnError] = useState<string | null>(null);
-    const [generatingAngles, setGeneratingAngles] = useState(false);
-    const [originalTryOnImage, setOriginalTryOnImage] = useState<string | null>(null);
-    const [generatedImages, setGeneratedImages] = useState<string[]>([]);
     const [showFeedbackSheet, setShowFeedbackSheet] = useState(false);
     const [showUpgradePopup, setShowUpgradePopup] = useState(false);
     const [tryOnUsageSnapshot, setTryOnUsageSnapshot] = useState<TryOnUsageSnapshot>(
@@ -129,6 +123,27 @@ const CollectionPage = () => {
     } | null>(null);
     const feedbackCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const [selectedTryOnLabel, setSelectedTryOnLabel] = useState<string>('');
+    const {
+        showResultModal,
+        resultImage,
+        streamPreviewImage,
+        tryOnLoading,
+        tryOnStreamStatus,
+        tryOnStreamProgress,
+        tryOnError,
+        generatingAngles,
+        originalTryOnImage,
+        generatedImages,
+        setResultImage,
+        setTryOnError,
+        setGeneratingAngles,
+        startTryOnSession,
+        handleGeminiStreamEvent,
+        applyPrimaryResult,
+        appendAngleResult,
+        finishTryOnSession,
+        hideResultModal,
+    } = useTryOnModalState();
 
     const resolveProductLabel = (productId: string) => {
         const product = _.find(filteredProducts, (item) => item.product_id === productId);
@@ -340,16 +355,8 @@ const CollectionPage = () => {
                 feedbackCloseTimerRef.current = null;
             }
 
-            setTryOnLoading(true);
-            setResultImage(null);
-            setStreamPreviewImage(null);
-            setOriginalTryOnImage(null);
-            setGeneratedImages([]);
-            setTryOnStreamStatus("Preparing your Gemini try-on");
-            setTryOnStreamProgress(6);
-            setTryOnError(null);
             setShowFeedbackSheet(false);
-            setShowResultModal(true);
+            startTryOnSession();
 
             // Use aura.user_id if available, otherwise fallback to user.user_id (though aura is preferred)
             const userId = aura?.user_id || user.user_id;
@@ -380,52 +387,17 @@ const CollectionPage = () => {
                     throw new Error('Try-on requires both avatar and clothing images');
                 }
 
-                const handleStreamEvent: StreamEventHandler = (eventName, payload) => {
-                    if (!payload || typeof payload !== 'object') {
-                        return;
-                    }
-
-                    const streamPayload = payload as {
-                        message?: string;
-                        text?: string;
-                        progress?: number;
-                        resultImage?: string;
-                    };
-
-                    if (eventName === 'status') {
-                        if (streamPayload.message) {
-                            setTryOnStreamStatus(streamPayload.message);
-                        }
-                        if (typeof streamPayload.progress === 'number') {
-                            setTryOnStreamProgress((prev) =>
-                                Math.max(prev, Math.min(streamPayload.progress, 95)),
-                            );
-                        }
-                    } else if (eventName === 'chunk' && streamPayload.text) {
-                        setTryOnStreamStatus(streamPayload.text);
-                    } else if (eventName === 'preview') {
-                        const nextPreviewImage = normalizeTryOnImageData(
-                            streamPayload.resultImage,
-                        );
-                        if (nextPreviewImage) {
-                            setStreamPreviewImage(nextPreviewImage);
-                            setTryOnStreamProgress((prev) =>
-                                Math.max(prev, Math.min(streamPayload.progress ?? 78, 90)),
-                            );
-                        }
-                    } else if (eventName === 'ready') {
-                        setTryOnStreamStatus('Gemini stream connected');
-                    }
-                };
-
                 result = await tryOnWithGemini(
                     {
                         avatarImage,
                         clothingImage,
-                        additionalParams: buildGeminiTryOnAdditionalParams(aura),
+                        additionalParams: buildGeminiTryOnAdditionalParams(
+                            aura,
+                            product.product_id,
+                        ),
                     },
                     {
-                        onEvent: handleStreamEvent,
+                        onEvent: handleGeminiStreamEvent,
                     },
                 );
             } else {
@@ -436,15 +408,7 @@ const CollectionPage = () => {
             }
 
             if (result.success && result.resultImage) {
-                const imageData = normalizeTryOnImageData(result.resultImage);
-                if (!imageData) {
-                    throw new Error('Try-on completed without a valid image payload');
-                }
-                setResultImage(imageData);
-                setOriginalTryOnImage(imageData);
-                setGeneratedImages([imageData]);
-                setTryOnStreamProgress(100);
-                setTryOnStreamStatus('Try-on completed');
+                applyPrimaryResult(result.resultImage);
                 fetchUser();
                 if (feedbackCloseTimerRef.current) {
                     clearTimeout(feedbackCloseTimerRef.current);
@@ -462,23 +426,19 @@ const CollectionPage = () => {
         } catch (error: any) {
             console.error('Try-on error:', error);
             if (isTryOnLimitError(error)) {
-                setShowResultModal(false);
+                hideResultModal();
                 setTryOnError(null);
                 openUpgradePopup(error);
                 return;
             }
             setTryOnError(error.message || 'Failed to process try-on. Please try again.');
         } finally {
-            setTryOnLoading(false);
-            setStreamPreviewImage(null);
-            setTryOnStreamProgress(0);
-            setTryOnStreamStatus(null);
+            finishTryOnSession();
         }
     };
 
     const closeResultModal = () => {
-        setShowResultModal(false);
-        setStreamPreviewImage(null);
+        hideResultModal();
 
         if (!showFeedbackSheet && !feedbackContext) {
             return;
@@ -504,6 +464,7 @@ const CollectionPage = () => {
 
         try {
             setGeneratingAngles(true);
+            setTryOnError(null);
             const result = await generateMoreAngles({
                 userId: aura?.user_id || user.user_id,
                 productId: selectedTryOnProduct.product_id,
@@ -511,12 +472,7 @@ const CollectionPage = () => {
             });
 
             if (result.success && result.resultImage) {
-                const imageData = normalizeTryOnImageData(result.resultImage);
-                if (!imageData) {
-                    throw new Error('Angle generation completed without a valid image payload');
-                }
-                setResultImage(imageData);
-                setGeneratedImages(prev => [...prev, imageData]);
+                appendAngleResult(result.resultImage);
                 fetchUser();
             }
         } catch (error: any) {
@@ -781,7 +737,7 @@ const CollectionPage = () => {
                         </div>
                     ) : (
                         <>
-                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                            <div className="grid grid-cols-1 gap-4 min-[480px]:grid-cols-2 sm:gap-5 md:grid-cols-3 lg:grid-cols-4 lg:gap-6">
                                 {filteredProducts.map(product => (
                                     <ProductCard
                                         key={product.product_id}

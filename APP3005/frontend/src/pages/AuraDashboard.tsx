@@ -5,6 +5,11 @@ import { AuraFormCard } from "@/components/aura/AuraFormCard";
 import { ProcessingModal } from "@/components/aura/ProcessingModal";
 import { AuraSuccessState } from "@/components/aura/AuraSuccessState";
 import {
+  getAuraStreamStatusMessage,
+  getCompletedAuraStreamStatusMessage,
+  getInitialAuraStreamStatusMessage,
+} from "@/lib/aura-stream-status";
+import {
   FeedbackContextType,
   createAuraWithStream,
   type StreamEventHandler,
@@ -54,7 +59,7 @@ const AuraDashboard = () => {
 
     setIsProcessing(true);
     setProcessingProgress(8);
-    setProcessingStatusMessage("Uploading and validating your photo");
+    setProcessingStatusMessage(getInitialAuraStreamStatusMessage("creation"));
     setCreationContext(null);
 
     try {
@@ -97,18 +102,13 @@ const AuraDashboard = () => {
           );
         }
 
-        if (streamPayload.message) {
-          setProcessingStatusMessage(streamPayload.message);
-        } else if (eventName === "status" && streamPayload.status) {
-          const statusMessageMap: Record<string, string> = {
-            waiting: "Queued for avatar generation",
-            active: "Generating your Aura with Gemini",
-            completed: "Aura generation completed",
-            failed: streamPayload.error || "Aura generation failed",
-          };
-          setProcessingStatusMessage(
-            statusMessageMap[streamPayload.status] || "Processing your Aura",
-          );
+        const nextStatusMessage = getAuraStreamStatusMessage(
+          "creation",
+          eventName,
+          streamPayload,
+        );
+        if (nextStatusMessage) {
+          setProcessingStatusMessage(nextStatusMessage);
         }
       };
 
@@ -120,7 +120,9 @@ const AuraDashboard = () => {
         result.auraId || result.aura?.aura_id || creationContext?.referenceId;
       setAvatarUrl(result.avatar?.url);
       setProcessingProgress(100);
-      setProcessingStatusMessage("Aura generation completed");
+      setProcessingStatusMessage(
+        getCompletedAuraStreamStatusMessage("creation"),
+      );
       window.dispatchEvent(new Event('aura-updated'));
 
       setTimeout(() => {

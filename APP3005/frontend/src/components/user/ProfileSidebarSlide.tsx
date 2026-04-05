@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { X, User, ShoppingBag, Package, LogOut, Sparkles } from 'lucide-react';
+import { X, User, ShoppingBag, Package, LogOut, Sparkles, Images } from 'lucide-react';
 import { useProfileSidebar } from '@/context/ProfileSidebarContext';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
@@ -59,6 +59,13 @@ export const ProfileSidebarSlide: React.FC = () => {
             label: 'AI Try-On',
             icon: ShoppingBag,
             href: '/ai-try-on',
+            iconColor: '#C9A55C',
+        },
+        {
+            id: 'my-gallery',
+            label: 'My Gallery',
+            icon: Images,
+            href: '/my-gallery',
             iconColor: '#C9A55C',
         },
         {

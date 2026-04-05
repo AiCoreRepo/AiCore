@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Menu, X, ShoppingBag, User, LogOut, Package } from "lucide-react";
+import { Menu, X, ShoppingBag, User, LogOut, Package, Images } from "lucide-react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { getAuraStatus } from "@/lib/api";
 import { LogoutConfirmDialog } from "@/components/LogoutConfirmDialog";
@@ -244,6 +244,14 @@ export const Navbar = () => {
                                                                 <ShoppingBag className="w-4 h-4 text-gold group-hover:scale-110 transition-transform" />
                                                                 <span>AI Try-On</span>
                                                             </Link>
+                                                            <Link
+                                                                to="/my-gallery"
+                                                                className="flex items-center gap-3 px-5 py-3 text-charcoal hover:bg-gradient-to-r hover:from-gold/20 hover:to-gold/10 transition-all duration-300 font-medium group"
+                                                                onClick={() => setShowUserMenu(false)}
+                                                            >
+                                                                <Images className="w-4 h-4 text-gold group-hover:scale-110 transition-transform" />
+                                                                <span>My Gallery</span>
+                                                            </Link>
                                                             <div className="border-t border-gold/30 my-2 mx-3"></div>
                                                         </>
                                                     ) : (
@@ -365,6 +373,13 @@ export const Navbar = () => {
                                 {isLoggedIn && (
                                     <>
                                         <div className="border-t border-gold/20 my-2 mx-4"></div>
+                                        <Link
+                                            to="/my-gallery"
+                                            className="px-4 py-3 text-charcoal font-medium tracking-wide rounded-2xl hover:bg-gold/20 transition-all duration-300 border border-transparent hover:border-gold/30 block"
+                                            onClick={() => setIsMobileMenuOpen(false)}
+                                        >
+                                            My Gallery
+                                        </Link>
                                         <Link
                                             to="/my-orders"
                                             className="px-4 py-3 text-charcoal font-medium tracking-wide rounded-2xl hover:bg-gold/20 transition-all duration-300 border border-transparent hover:border-gold/30 block"

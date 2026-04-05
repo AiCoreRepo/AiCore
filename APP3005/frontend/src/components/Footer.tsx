@@ -11,12 +11,6 @@ const socialLinks = [
     { name: "Instagram", icon: Instagram, href: "#" },
     { name: "Twitter", icon: Twitter, href: "#" },
     { name: "Facebook", icon: Facebook, href: "#" },
-    {
-        name: "Email",
-        icon: Mail,
-        href: "mailto:support@aivestire.com",
-        label: "support@aivestire.com",
-    },
 ];
 
 const footerLinks = [
