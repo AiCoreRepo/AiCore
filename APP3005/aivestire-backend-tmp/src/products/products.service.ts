@@ -9,6 +9,7 @@ import { UpdateProductDto } from './dto/update-product.dto';
 import { Prisma, ProductStatus, ApprovalStatus } from '@prisma/client';
 import { CloudinaryService } from '../common/cloudinary.service';
 import { slugify } from '../common/utils/string.utils';
+import { extractAvailableFilters } from './filter.helpers';
 
 @Injectable()
 export class ProductsService {
@@ -229,6 +230,9 @@ export class ProductsService {
     sortBy?: string,
     sizes?: string,
     colors?: string,
+    bodyShapes?: string,
+    skinTones?: string,
+    availability?: string,
     groupId?: string,
   ) {
     // Fetch all approved products to filter in memory (efficient for < 5000 items)
@@ -263,6 +267,8 @@ export class ProductsService {
       orderBy: { updated_at: 'desc' },
     });
 
+    const availableFilters = extractAvailableFilters(allProducts);
+
     let filtered = allProducts;
 
     // 1. Search Filter
@@ -275,9 +281,10 @@ export class ProductsService {
       );
     }
 
-    // 2. Category Filter
+    // 2. Category Filter (comma-separated list)
     if (category && category !== 'All') {
-      filtered = filtered.filter((p) => p.category === category);
+      const categoryList = category.split(',').map((c) => c.trim().toLowerCase());
+      filtered = filtered.filter((p) => p.category && categoryList.includes(p.category.toLowerCase()));
     }
 
     // 3. Price Filter
@@ -309,6 +316,37 @@ export class ProductsService {
         if (!meta || !meta.color) return false;
         const productColors = String(meta.color).toLowerCase();
         return colorList.some((c) => productColors.includes(c));
+      });
+    }
+
+    // 5.1 Body Shapes Filter
+    if (bodyShapes) {
+      const shapeList = bodyShapes.split(',').map(s => s.trim().toLowerCase());
+      filtered = filtered.filter((p) => {
+        if (!p.body_shapes || !Array.isArray(p.body_shapes)) return false;
+        const productShapes = p.body_shapes.map(s => s.toLowerCase());
+        return shapeList.some(s => productShapes.includes(s));
+      });
+    }
+
+    // 5.2 Skin Tones Filter
+    if (skinTones) {
+      const toneList = skinTones.split(',').map(s => s.trim().toLowerCase());
+      filtered = filtered.filter((p) => {
+        if (!p.skin_tones || !Array.isArray(p.skin_tones)) return false;
+        const productTones = p.skin_tones.map(s => s.toLowerCase());
+        return toneList.some(s => productTones.includes(s));
+      });
+    }
+
+    // 5.5 Availability Filter
+    if (availability) {
+      const availList = availability.split(',').map((a) => a.trim().toLowerCase());
+      filtered = filtered.filter((p) => {
+        const isInStock = p.inventory_count > 0;
+        if (availList.includes('in stock') && isInStock) return true;
+        if (availList.includes('out of stock') && !isInStock) return true;
+        return false;
       });
     }
 
@@ -386,6 +424,7 @@ export class ProductsService {
         totalPages: Math.ceil(total / limit),
         hasMore: page * limit < total,
       },
+      availableFilters,
     };
   }
 

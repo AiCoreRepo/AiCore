@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { ProductCard } from "@/components/collection/ProductCard";
-import { useInfinitePublicProducts } from "@/hooks/useInfinitePublicProducts";
+import { usePublicProducts } from "@/hooks/useInfinitePublicProducts";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useAuth } from "@/context/AuthContext";
 import { useCart } from "@/context/CartContext";
@@ -38,10 +38,11 @@ import {
 import _ from 'lodash';
 import type { PublicProduct } from '@/hooks/useInfinitePublicProducts';
 
-const categories = ["All", "Dresses", "Outerwear", "Accessories", "Tops", "Bottoms"];
-const sizes = ["XS", "S", "M", "L", "XL", "XXL"];
-const colorOptions = ["Black", "White", "Beige", "Gold", "Navy", "Red", "Brown", "Gray"];
-const sortOptions = ["Price: Low to High", "Price: High to Low", "Newest", "Most Popular"];
+import { SORT_OPTIONS, STATIC_SIZES, STATIC_RATINGS, STATIC_DISCOUNTS } from '@/constants/filters';
+import { FilterMultiSelect } from '@/components/collection/FilterMultiSelect';
+import { CLOTHING_COLORS, BODY_SHAPES, SKIN_TONES } from '@/constants/product-hierarchy.enums';
+import { Pagination } from "@/components/common/Pagination";
+import { useCategories } from '@/hooks/useCategories';
 
 const getProductImageUrl = (product: PublicProduct): string | null => {
     const primaryImage = _.find(product.images, (image) => image.is_primary);
@@ -92,9 +93,15 @@ const CollectionPage = () => {
 
     // Filter States
     const [searchQuery, setSearchQuery] = useState("");
-    const [activeCategory, setActiveCategory] = useState("All");
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage, setItemsPerPage] = useState(30);
+    const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
     const [selectedSizes, setSelectedSizes] = useState<string[]>([]);
     const [selectedColors, setSelectedColors] = useState<string[]>([]);
+    const [selectedBodyShapes, setSelectedBodyShapes] = useState<string[]>([]);
+    const [selectedSkinTones, setSelectedSkinTones] = useState<string[]>([]);
+    const [selectedRatings, setSelectedRatings] = useState<string[]>([]);
+    const [selectedDiscounts, setSelectedDiscounts] = useState<string[]>([]);
     const [priceRange, setPriceRange] = useState<[number, number]>([0, 5000]);
     const [sortBy, setSortBy] = useState("Price: Low to High");
     const [showFilters, setShowFilters] = useState(false);
@@ -184,43 +191,37 @@ const CollectionPage = () => {
     // Debounce search
     const debouncedSearch = useDebounce(searchQuery, 500);
 
-    // Fetch products with infinite scroll
+    // Reset to page 1 when filters change
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [debouncedSearch, selectedCategories, priceRange, sortBy, selectedSizes, selectedColors, selectedBodyShapes, selectedSkinTones, itemsPerPage]);
+
+    // Fetch products with pagination
     const {
         data,
         isLoading,
         error,
-        fetchNextPage,
-        hasNextPage,
-        isFetchingNextPage,
-    } = useInfinitePublicProducts(
+    } = usePublicProducts(
+        currentPage,
+        itemsPerPage,
         debouncedSearch,
-        activeCategory === "All" ? undefined : activeCategory,
+        selectedCategories.length > 0 ? selectedCategories : undefined,
         priceRange[0] === 0 ? undefined : priceRange[0],
         priceRange[1] === 5000 ? undefined : priceRange[1],
         sortBy,
         selectedSizes,
-        selectedColors
+        selectedColors,
+        selectedBodyShapes,
+        selectedSkinTones
     );
 
-    // Intersection Observer for infinite scroll
-    const loadMoreRef = useRef<HTMLDivElement>(null);
+    const availableFilters = data?.availableFilters;
 
-    useEffect(() => {
-        if (!loadMoreRef.current || !hasNextPage || isFetchingNextPage) return;
-
-        const observer = new IntersectionObserver(
-            (entries) => {
-                if (entries[0].isIntersecting && hasNextPage) {
-                    fetchNextPage();
-                }
-            },
-            { threshold: 0.1 }
-        );
-
-        observer.observe(loadMoreRef.current);
-
-        return () => observer.disconnect();
-    }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+    // Fetch real admin-created categories from the backend
+    const { data: categoriesData } = useCategories();
+    const backendCategories = categoriesData && categoriesData.length > 0
+        ? categoriesData.map((c) => c.name)
+        : (availableFilters?.categories ?? []);
 
     // Scroll-to-last-added-item on back navigation
     useEffect(() => {
@@ -255,7 +256,7 @@ const CollectionPage = () => {
 
     // Sort products: prioritize younger models (age <= 40) at the top, older (> 40) at bottom
     // This runs client-side on the fetched pages
-    const rawProducts = data?.pages.flatMap(page => page.products) ?? [];
+    const rawProducts = data?.products ?? [];
     const filteredProducts = [...rawProducts].sort((a, b) => {
         const ageA = a.metadata?.model_age ? parseInt(a.metadata.model_age) : 0;
         const ageB = b.metadata?.model_age ? parseInt(b.metadata.model_age) : 0;
@@ -271,9 +272,13 @@ const CollectionPage = () => {
 
     // Count active filters for badge
     const activeFilterCount =
-        (activeCategory !== 'All' ? 1 : 0) +
+        selectedCategories.length +
         selectedSizes.length +
         selectedColors.length +
+        selectedBodyShapes.length +
+        selectedSkinTones.length +
+        selectedRatings.length +
+        selectedDiscounts.length +
         (priceRange[0] !== 0 || priceRange[1] !== 5000 ? 1 : 0);
 
     const handleTryOn = async (
@@ -555,17 +560,17 @@ const CollectionPage = () => {
 
                         {/* Active Filters Pills - Center */}
                         <div className="flex-1 flex items-center gap-2 overflow-x-auto hide-scrollbar">
-                            {activeCategory !== 'All' && (
-                                <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-[#D4C5A9] rounded-full text-sm whitespace-nowrap shadow-sm">
-                                    <span className="text-[#2C2416]">{activeCategory}</span>
+                            {selectedCategories.map(cat => (
+                                <div key={cat} className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-[#D4C5A9] rounded-full text-sm whitespace-nowrap shadow-sm">
+                                    <span className="text-[#2C2416]">{cat}</span>
                                     <button
-                                        onClick={() => setActiveCategory('All')}
+                                        onClick={() => setSelectedCategories(selectedCategories.filter(c => c !== cat))}
                                         className="text-[#9B8B7E] hover:text-[#D4AF37] transition-colors"
                                     >
                                         <X className="w-3.5 h-3.5" />
                                     </button>
                                 </div>
-                            )}
+                            ))}
                             {selectedSizes.map(size => (
                                 <div key={size} className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-[#D4C5A9] rounded-full text-sm whitespace-nowrap shadow-sm">
                                     <span className="text-[#2C2416]">Size: {size}</span>
@@ -582,6 +587,28 @@ const CollectionPage = () => {
                                     <span className="text-[#2C2416]">{color}</span>
                                     <button
                                         onClick={() => setSelectedColors(selectedColors.filter(c => c !== color))}
+                                        className="text-[#9B8B7E] hover:text-[#D4AF37] transition-colors"
+                                    >
+                                        <X className="w-3.5 h-3.5" />
+                                    </button>
+                                </div>
+                            ))}
+                            {selectedRatings.map(rating => (
+                                <div key={rating} className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-[#D4C5A9] rounded-full text-sm whitespace-nowrap shadow-sm">
+                                    <span className="text-[#2C2416]">Rating: {rating}</span>
+                                    <button
+                                        onClick={() => setSelectedRatings(selectedRatings.filter(r => r !== rating))}
+                                        className="text-[#9B8B7E] hover:text-[#D4AF37] transition-colors"
+                                    >
+                                        <X className="w-3.5 h-3.5" />
+                                    </button>
+                                </div>
+                            ))}
+                            {selectedDiscounts.map(discount => (
+                                <div key={discount} className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-[#D4C5A9] rounded-full text-sm whitespace-nowrap shadow-sm">
+                                    <span className="text-[#2C2416]">Discount: {discount}</span>
+                                    <button
+                                        onClick={() => setSelectedDiscounts(selectedDiscounts.filter(d => d !== discount))}
                                         className="text-[#9B8B7E] hover:text-[#D4AF37] transition-colors"
                                     >
                                         <X className="w-3.5 h-3.5" />
@@ -608,7 +635,7 @@ const CollectionPage = () => {
                                 onChange={(e) => setSortBy(e.target.value)}
                                 className="flex items-center gap-2 px-4 py-2 pr-10 rounded-full border border-[#D4C5A9] hover:border-[#D4AF37] transition-all text-sm bg-white appearance-none cursor-pointer focus:outline-none focus:border-[#D4AF37] shadow-sm text-[#2C2416]"
                             >
-                                {sortOptions.map(option => (
+                                {SORT_OPTIONS.map(option => (
                                     <option key={option} value={option}>{option}</option>
                                 ))}
                             </select>
@@ -620,58 +647,61 @@ const CollectionPage = () => {
                     {showFilters && (
                         <div className="mt-4 pt-4 border-t border-[#E8DCC4] animate-slideDown">
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                                {/* Category */}
-                                <div>
-                                    <label className="block text-xs font-medium text-[#6B5D4F] mb-2 uppercase tracking-wide">Category</label>
-                                    <div className="relative">
-                                        <select
-                                            value={activeCategory}
-                                            onChange={(e) => setActiveCategory(e.target.value)}
-                                            className="w-full px-4 py-2.5 bg-white border border-[#E8DCC4] rounded-lg text-sm text-[#2C2416] focus:outline-none focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/20 appearance-none cursor-pointer transition-all"
-                                        >
-                                            {categories.map(cat => (
-                                                <option key={cat} value={cat}>{cat}</option>
-                                            ))}
-                                        </select>
-                                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#6B5D4F] pointer-events-none" />
-                                    </div>
-                                </div>
+                                {/* Category - populated from admin-created backend categories */}
+                                <FilterMultiSelect
+                                    label="Category"
+                                    options={backendCategories}
+                                    selectedValues={selectedCategories}
+                                    onChange={setSelectedCategories}
+                                />
 
                                 {/* Size */}
-                                <div>
-                                    <label className="block text-xs font-medium text-[#6B5D4F] mb-2 uppercase tracking-wide">Size</label>
-                                    <div className="relative">
-                                        <select
-                                            value={selectedSizes[0] || ""}
-                                            onChange={(e) => setSelectedSizes(e.target.value ? [e.target.value] : [])}
-                                            className="w-full px-4 py-2.5 bg-white border border-[#E8DCC4] rounded-lg text-sm text-[#2C2416] focus:outline-none focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/20 appearance-none cursor-pointer transition-all"
-                                        >
-                                            <option value="">All Sizes</option>
-                                            {sizes.map(size => (
-                                                <option key={size} value={size}>{size}</option>
-                                            ))}
-                                        </select>
-                                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#6B5D4F] pointer-events-none" />
-                                    </div>
-                                </div>
+                                <FilterMultiSelect
+                                    label="Size"
+                                    options={STATIC_SIZES}
+                                    selectedValues={selectedSizes}
+                                    onChange={setSelectedSizes}
+                                />
 
                                 {/* Color */}
-                                <div>
-                                    <label className="block text-xs font-medium text-[#6B5D4F] mb-2 uppercase tracking-wide">Color</label>
-                                    <div className="relative">
-                                        <select
-                                            value={selectedColors[0] || ""}
-                                            onChange={(e) => setSelectedColors(e.target.value ? [e.target.value] : [])}
-                                            className="w-full px-4 py-2.5 bg-white border border-[#E8DCC4] rounded-lg text-sm text-[#2C2416] focus:outline-none focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/20 appearance-none cursor-pointer transition-all"
-                                        >
-                                            <option value="">All Colors</option>
-                                            {colorOptions.map(color => (
-                                                <option key={color} value={color}>{color}</option>
-                                            ))}
-                                        </select>
-                                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#6B5D4F] pointer-events-none" />
-                                    </div>
-                                </div>
+                                <FilterMultiSelect
+                                    label="Color"
+                                    options={CLOTHING_COLORS.map(c => c.label)}
+                                    selectedValues={selectedColors}
+                                    onChange={setSelectedColors}
+                                />
+
+                                {/* Body Shape */}
+                                <FilterMultiSelect
+                                    label="Body Shape"
+                                    options={BODY_SHAPES.map(b => b.label)}
+                                    selectedValues={selectedBodyShapes}
+                                    onChange={setSelectedBodyShapes}
+                                />
+                                
+                                {/* Skin Tone */}
+                                <FilterMultiSelect
+                                    label="Skin Tone"
+                                    options={SKIN_TONES.map(s => s.label)}
+                                    selectedValues={selectedSkinTones}
+                                    onChange={setSelectedSkinTones}
+                                />
+
+                                {/* Rating */}
+                                <FilterMultiSelect
+                                    label="Rating"
+                                    options={STATIC_RATINGS}
+                                    selectedValues={selectedRatings}
+                                    onChange={setSelectedRatings}
+                                />
+
+                                {/* Discount */}
+                                <FilterMultiSelect
+                                    label="Discount"
+                                    options={STATIC_DISCOUNTS}
+                                    selectedValues={selectedDiscounts}
+                                    onChange={setSelectedDiscounts}
+                                />
 
                                 {/* Price Range */}
                                 <div>
@@ -743,25 +773,30 @@ const CollectionPage = () => {
                                 ))}
                             </div>
 
-                            {/* Infinite Scroll Trigger */}
-                            <div ref={loadMoreRef} className="h-20" />
-
-                            {/* Loading More Indicator */}
-                            {isFetchingNextPage && (
-                                <div className="text-center py-8">
-                                    <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-[#D4AF37] border-t-transparent"></div>
-                                    <p className="mt-4 text-sm text-[#6B5D4F]">Loading more products...</p>
-                                </div>
+                            {/* Pagination and Items Per Page selection */}
+                            {data?.pagination && data.pagination.totalPages > 1 && (
+                                <Pagination
+                                    currentPage={currentPage}
+                                    totalPages={data.pagination.totalPages}
+                                    onPageChange={setCurrentPage}
+                                />
                             )}
-
-                            {/* End of Results */}
-                            {!hasNextPage && filteredProducts.length > 0 && (
-                                <div className="text-center py-8">
-                                    <p className="text-sm text-[#6B5D4F]">
-                                        You've reached the end of our collection
-                                    </p>
-                                </div>
-                            )}
+                            
+                            <div className="flex flex-wrap justify-center items-center mt-6 gap-2">
+                                <span className="text-sm text-[#6B5D4F]">Items per page:</span>
+                                <select 
+                                    className="px-2 py-1 rounded-md bg-[#F8F4EC] border border-[#D4C5A9] text-sm focus:outline-none"
+                                    value={itemsPerPage}
+                                    onChange={(e) => {
+                                        setItemsPerPage(Number(e.target.value));
+                                        setCurrentPage(1);
+                                    }}
+                                >
+                                    <option value={30}>30</option>
+                                    <option value={40}>40</option>
+                                    <option value={50}>50</option>
+                                </select>
+                            </div>
                         </>
                     )}
                 </div>

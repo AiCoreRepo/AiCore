@@ -133,6 +133,9 @@ export class ProductsController {
     @Query('sortBy') sortBy?: string,
     @Query('sizes') sizes?: string,
     @Query('colors') colors?: string,
+    @Query('bodyShapes') bodyShapes?: string,
+    @Query('skinTones') skinTones?: string,
+    @Query('availability') availability?: string,
     @Query('groupId') groupId?: string,
   ) {
     const pageNum = page ? parseInt(page, 10) : 1;
@@ -150,6 +153,9 @@ export class ProductsController {
       sortBy,
       sizes,
       colors,
+      bodyShapes,
+      skinTones,
+      availability,
       groupId,
     );
   }

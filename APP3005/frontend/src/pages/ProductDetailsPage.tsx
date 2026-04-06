@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { getProductById, getProductLikes, getProductComments } from "@/lib/api";
 import { CommentsModal } from "@/components/collection/CommentsModal";
 import { SizeChartModal } from "@/components/SizeChartModal";
+import { FashionStylistSection } from "@/components/FashionStylistSection";
 import { getSizeChart, getAvailableSizes } from "@/constants/sizeChart";
 import {
     TRYON_PROVIDER,
@@ -561,6 +562,9 @@ const ProductDetailsPage = () => {
                     </div>
                 </div>
             </div>
+
+            {/* Fashion Stylist Section */}
+            <FashionStylistSection category={product.category} title={product.title} />
 
             {/* Image Modal */}
             {showImageModal && (
