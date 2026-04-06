@@ -817,17 +817,30 @@ model OrderRefund {
 
   // Refund Details
   amount        Decimal      @db.Decimal(10, 2)
-  refund_status RefundStatus @default(INITIATED)
+  refund_status RefundStatus @default(PENDING_REVIEW)
   refund_reason String?
 
-  // Approval
+  // Admin Review Audit
+  reviewed_by   String?   @db.Uuid
+  reviewed_at   DateTime?
+  review_notes  String?
+
+  // Approval (kept for backwards compat)
   approved_by      String?   @db.Uuid
   approved_at      DateTime?
   rejection_reason String?
 
+  // Archive tracking
+  archived_at DateTime?
+  archived_by String?   @db.Uuid
+
   // Processing
   refund_method  String? // Bank transfer, original payment method, etc.
   transaction_id String? // Transaction ref from payment gateway
+
+  // PayU Refund Tracking
+  payu_refund_id String? // PayU refund transaction ID
+  payu_response  Json?   // Full PayU API response for debugging / finance audit
 
   // Timestamps
   initiated_at  DateTime  @default(now())
@@ -1004,10 +1017,12 @@ enum LocationType {
 
 enum RefundStatus {
   INITIATED
+  PENDING_REVIEW
   PROCESSING
   COMPLETED
   FAILED
   REJECTED
+  ARCHIVED
 }
 
 enum ReturnReason {

@@ -59,7 +59,7 @@ export class RefundController {
   @Post(':refundId/process')
   @Roles('ADMIN')
   async processRefund(@Param('refundId') refundId: string, @Req() req: any) {
-    return this.refundService.processRefund(refundId, req.user.user_id);
+    return this.refundService.triggerPayURefund(refundId, req.user.user_id);
   }
 
   /**
@@ -73,7 +73,7 @@ export class RefundController {
     @Body('transactionId') transactionId: string,
     @Req() req: any,
   ) {
-    return this.refundService.completeRefund(
+    return this.refundService.confirmRefundSuccess(
       refundId,
       req.user.user_id,
       transactionId,

@@ -16,6 +16,13 @@ export const PAYU_CONSTANTS = {
   TEST_URL: 'https://test.payu.in/_payment',
   PROD_URL: 'https://secure.payu.in/_payment',
 
+  /** PayU Refund (cancel_refund_transaction) API endpoints */
+  REFUND_TEST_URL: 'https://test.payu.in/merchant/postservice?form=2',
+  REFUND_PROD_URL: 'https://info.payu.in/merchant/postservice?form=2',
+
+  /** PayU command for refund */
+  REFUND_COMMAND: 'cancel_refund_transaction',
+
   /** Minimum order amount */
   MIN_AMOUNT: 1,
 

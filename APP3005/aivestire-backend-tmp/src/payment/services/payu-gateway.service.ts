@@ -5,6 +5,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
+import * as https from 'https';
+import * as querystring from 'querystring';
 import { PAYU_CONSTANTS } from '../constants/payment.constants';
 
 // ─── Public types ────────────────────────────────────────────────────────────
@@ -258,5 +260,89 @@ export class PayUGatewayService {
       udf4: params.udf4,
       udf5: params.udf5,
     };
+  }
+
+  // ─── Refund API ───────────────────────────────────────────────────────────
+
+  /**
+   * Calls PayU's cancel_refund_transaction API to initiate a refund.
+   *
+   * Hash formula:
+   *   SHA512( key|command|var1|SALT )
+   * where var1 = mihpayid (PayU's payment ID)
+   *
+   * @param mihpayid  PayU gateway_payment_id from PaymentTransaction
+   * @param amount    Amount string (e.g. "499.00")
+   * @param txnid     Our original txnid sent to PayU
+   * @returns         Full raw PayU response (parsed JSON)
+   */
+  async initiatePayURefund(
+    mihpayid: string,
+    amount: string,
+    txnid: string,
+  ): Promise<Record<string, unknown>> {
+    const command = PAYU_CONSTANTS.REFUND_COMMAND;
+
+    // Build refund hash: SHA512(key|command|var1|salt)
+    const hashString = [this.key, command, mihpayid, this.salt].join('|');
+    const hash = crypto.createHash('sha512').update(hashString).digest('hex');
+
+    const isProduction = ['production', 'prod', 'live'].includes(
+      (this.configService.get<string>('PAYU_ENV') ?? '').trim().toLowerCase(),
+    );
+    const refundUrl = isProduction
+      ? PAYU_CONSTANTS.REFUND_PROD_URL
+      : PAYU_CONSTANTS.REFUND_TEST_URL;
+
+    const postData = querystring.stringify({
+      key: this.key,
+      command,
+      var1: mihpayid,   // mihpayid — the PayU payment ID to refund
+      var2: txnid,      // our original txnid for cross-reference
+      var3: amount,     // refund amount
+      hash,
+    });
+
+    this.logger.log(
+      `Initiating PayU refund for mihpayid=${mihpayid}, amount=${amount}`,
+    );
+
+    return new Promise((resolve, reject) => {
+      const urlObj = new URL(refundUrl);
+      const options = {
+        hostname: urlObj.hostname,
+        path: urlObj.pathname + urlObj.search,
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Content-Length': Buffer.byteLength(postData),
+        },
+      };
+
+      const req = https.request(options, (res) => {
+        let data = '';
+        res.on('data', (chunk) => (data += chunk));
+        res.on('end', () => {
+          try {
+            const parsed = JSON.parse(data) as Record<string, unknown>;
+            this.logger.log(
+              `PayU refund response for mihpayid=${mihpayid}: status=${parsed['status']}`,
+            );
+            resolve(parsed);
+          } catch {
+            this.logger.error(`PayU refund non-JSON response: ${data}`);
+            reject(new Error(`PayU returned non-JSON: ${data}`));
+          }
+        });
+      });
+
+      req.on('error', (err) => {
+        this.logger.error(`PayU refund HTTP error: ${err.message}`);
+        reject(err);
+      });
+
+      req.write(postData);
+      req.end();
+    });
   }
 }
