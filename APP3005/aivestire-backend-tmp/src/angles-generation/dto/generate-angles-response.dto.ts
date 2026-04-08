@@ -62,6 +62,72 @@ export class GenerateAnglesResponseDto {
   tryOnId?: string;
 }
 
+export class AngleQueuedResponseDto {
+  @ApiProperty({
+    description: 'Whether the angle generation job was accepted successfully',
+    example: true,
+  })
+  success: boolean;
+
+  @ApiProperty({
+    description: 'Current async processing status',
+    example: 'pending',
+  })
+  status: string;
+
+  @ApiProperty({
+    description: 'Background job identifier',
+    example: '84',
+  })
+  jobId: string;
+
+  @ApiProperty({
+    description: 'Human-readable status message',
+    example: 'Angle generation job queued successfully',
+  })
+  message: string;
+
+  @ApiProperty({
+    description: 'Timestamp when the job was queued',
+    example: '2026-04-09T12:00:00.000Z',
+  })
+  timestamp: string;
+}
+
+export class AngleJobStatusResponseDto {
+  @ApiProperty({
+    description: 'Whether the job exists and is available to the current user',
+    example: true,
+  })
+  success: boolean;
+
+  @ApiProperty({
+    description: 'Background job state',
+    example: 'active',
+  })
+  status: string;
+
+  @ApiProperty({
+    description: 'Job progress percentage',
+    example: 55,
+  })
+  progress: number;
+
+  @ApiProperty({
+    description: 'Completed angle generation result',
+    required: false,
+    type: GenerateAnglesResponseDto,
+  })
+  result?: GenerateAnglesResponseDto;
+
+  @ApiProperty({
+    description: 'Failure reason when the background job fails',
+    required: false,
+    example: 'Gemini AI generation failed: request timed out',
+  })
+  error?: string;
+}
+
 /**
  * Response DTO for session reset
  */

@@ -331,18 +331,19 @@ export const AuraFormCard = ({ onCreateAura, isProcessing, prefilledDob }: AuraF
 
             if (result.success) {
                 const mappedSkinTone = mapSkinTone(result.skinToneLabel);
-                const mappedBodyShape = result.fullBody ? mapBodyShape(result.bodyShape) : "";
+                const mappedBodyShape = mapBodyShape(result.bodyShape);
+                const hasDetectedBodyShape = Boolean(mappedBodyShape);
 
                 // Auto-populate attributes from AI analysis
                 setAttributes(prev => ({
                     ...prev,
                     skinTone: mappedSkinTone || prev.skinTone,
-                    bodyShape: result.fullBody ? (mappedBodyShape || prev.bodyShape) : "",
+                    bodyShape: hasDetectedBodyShape ? (mappedBodyShape || prev.bodyShape) : prev.bodyShape,
                     ageRange: prev.ageRange || calculateAgeRangeFromDob(dob),
                     gender: "female",
                 }));
 
-                if (!result.fullBody) {
+                if (!result.fullBody && !hasDetectedBodyShape) {
                     setAnalysisError(PARTIAL_BODY_TOAST_MESSAGE);
                     console.log('⚠️ Partial body photo uploaded, body shape left for manual entry');
                 } else {
@@ -451,6 +452,7 @@ export const AuraFormCard = ({ onCreateAura, isProcessing, prefilledDob }: AuraF
     };
 
     const hasAttributeErrors = Object.keys(attributeErrors).length > 0;
+    const analysisHasBodyShape = Boolean(analysisResult?.bodyShape);
 
     return (
         <div className="flex min-h-[100dvh] w-full flex-1 flex-col bg-gradient-to-br from-cream via-ivory to-cream overflow-x-hidden lg:min-h-0 lg:w-1/2 lg:overflow-hidden">
@@ -754,7 +756,7 @@ export const AuraFormCard = ({ onCreateAura, isProcessing, prefilledDob }: AuraF
                                         </h1>
 
                                         <p className="mb-5 text-sm text-charcoal/60 sm:mb-6">
-                                            {analysisResult?.success && analysisResult?.fullBody
+                                            {analysisResult?.success && (analysisResult?.fullBody || analysisHasBodyShape)
                                                 ? "We detected your attributes! Review and adjust if needed."
                                                 : "Fill in your body attributes below."}
                                         </p>
@@ -786,7 +788,7 @@ export const AuraFormCard = ({ onCreateAura, isProcessing, prefilledDob }: AuraF
                                                 <div className="flex items-center gap-2 mb-3">
                                                     <CheckCircle2 className="w-5 h-5 text-emerald-600" />
                                                     <span className="text-sm font-semibold text-emerald-700">
-                                                        {analysisResult.fullBody ? "AI Detected" : "Partial AI Detection"}
+                                                        {analysisHasBodyShape ? "AI Detected" : "Partial AI Detection"}
                                                     </span>
                                                 </div>
                                                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -815,7 +817,7 @@ export const AuraFormCard = ({ onCreateAura, isProcessing, prefilledDob }: AuraF
                                                     <div className="bg-white/80 rounded-xl p-3 border border-emerald-100">
                                                         <p className="text-xs text-charcoal/60 mb-1">Body Shape</p>
                                                         <p className="text-sm font-medium text-charcoal">
-                                                            {analysisResult.fullBody
+                                                            {analysisHasBodyShape
                                                                 ? (analysisResult.bodyShape || "—")
                                                                 : "Full-body photo required"}
                                                         </p>
@@ -830,7 +832,7 @@ export const AuraFormCard = ({ onCreateAura, isProcessing, prefilledDob }: AuraF
                                                 <div className="flex items-center gap-2 mb-2">
                                                     <AlertCircle className="w-5 h-5 text-amber-600" />
                                                     <span className="text-sm font-semibold text-amber-700">
-                                                        {analysisResult?.success && !analysisResult?.fullBody
+                                                        {analysisResult?.success && !analysisHasBodyShape
                                                             ? "Manual input needed"
                                                             : "Manual Entry Required"}
                                                     </span>

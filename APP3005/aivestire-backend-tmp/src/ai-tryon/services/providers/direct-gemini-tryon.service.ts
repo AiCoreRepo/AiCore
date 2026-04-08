@@ -1,9 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import _ from 'lodash';
-import { BaseTryOnService } from '../common/base-tryon.service';
-import { ImageValidatorService } from '../common/image-validator.service';
 import { ImageOptimizerService } from '../../../common/image-optimizer.service';
 import { AIProvider, TryOnErrorCode } from '../../enums/ai-provider.enum';
 import {
@@ -11,6 +9,7 @@ import {
   ConfigurationException,
   TimeoutException,
 } from '../../exceptions/tryon.exceptions';
+import { TryOnException } from '../../exceptions/tryon.exceptions';
 import {
   buildGeminiTryOnPrompt,
   CONFIG_KEYS,
@@ -26,6 +25,8 @@ import {
   extractImageData,
   GeminiInlineData,
 } from './direct-gemini-tryon-image-utils';
+import { validateImage } from '../../utils/image-validator';
+import { runTryOnPipeline } from '../../utils/tryon-pipeline';
 
 const ADDITIONAL_PARAM_KEYS = {
   PROMPT: 'prompt',
@@ -59,22 +60,25 @@ interface GeminiGenerateResult {
  * Calls Gemini AI directly without FastAPI intermediary
  */
 @Injectable()
-export class DirectGeminiTryOnService extends BaseTryOnService {
+export class DirectGeminiTryOnService {
+  private readonly logger = new Logger(DirectGeminiTryOnService.name);
   private readonly apiKey: string;
   private readonly modelId: string;
   private readonly genAI: GoogleGenerativeAI | null;
   private readonly timingLogsEnabled: boolean;
 
   constructor(
-    imageValidator: ImageValidatorService,
     private readonly configService: ConfigService,
     private readonly imageOptimizer: ImageOptimizerService,
   ) {
-    super(imageValidator, AIProvider.GEMINI_AI);
-
     this.apiKey =
       this.configService.get<string>(CONFIG_KEYS.GEMINI_API_KEY) || '';
-    this.modelId = GEMINI_TRYON_CONFIG.DEFAULT_MODEL;
+    // Always use gemini-3.1-flash-image-preview for try-on.
+    // Reads GEMINI_MODEL env var as override; falls back to DEFAULT_MODEL (gemini-3.1-flash-image-preview).
+    // NOTE: gemini-2.5-flash does NOT support image output — do not use it here.
+    this.modelId =
+      this.configService.get<string>(CONFIG_KEYS.GEMINI_MODEL) ||
+      GEMINI_TRYON_CONFIG.DEFAULT_MODEL;
     this.timingLogsEnabled =
       String(this.configService.get<string>('AI_TIMING_LOGS') || '').toLowerCase() ===
       'true';
@@ -90,9 +94,38 @@ export class DirectGeminiTryOnService extends BaseTryOnService {
   }
 
   /**
+   * Main entry point used by API controller and worker.
+   */
+  async processTryOn(
+    avatarImage: string,
+    clothingImage: string,
+    additionalParams?: Record<string, any>,
+  ) {
+    return runTryOnPipeline({
+      provider: AIProvider.GEMINI_AI,
+      avatarImage,
+      clothingImage,
+      additionalParams,
+      logger: this.logger,
+      validateImages: async (avatar, clothing) => {
+        await validateImage(avatar);
+        await validateImage(clothing);
+      },
+      preprocessImages: async (avatar, clothing) => ({
+        // Gemini can fetch URLs itself (see extractImageData)
+        avatarBase64: avatar,
+        clothingBase64: clothing,
+      }),
+      performTryOn: (avatarBase64, clothingBase64, params) =>
+        this.performTryOn(avatarBase64, clothingBase64, params),
+      postprocessResult: (result) => this.postprocessResult(result),
+    });
+  }
+
+  /**
    * Perform virtual try-on by calling Gemini AI directly
    */
-  protected async performTryOn(
+  private async performTryOn(
     avatarBase64: string,
     clothingBase64: string,
     additionalParams?: Record<string, any>,
@@ -186,19 +219,6 @@ export class DirectGeminiTryOnService extends BaseTryOnService {
   }
 
   /**
-   * Override preprocess: keep URLs for direct Gemini fetch
-   */
-  protected async preprocessImages(
-    avatarImage: string,
-    clothingImage: string,
-  ): Promise<{ avatarBase64: string; clothingBase64: string }> {
-    return {
-      avatarBase64: avatarImage,
-      clothingBase64: clothingImage,
-    };
-  }
-
-  /**
    * Check if the service is available
    */
   async isAvailable(): Promise<boolean> {
@@ -226,16 +246,7 @@ export class DirectGeminiTryOnService extends BaseTryOnService {
     return !!this.apiKey;
   }
 
-  protected async performTryOnWithRetry(
-    avatarBase64: string,
-    clothingBase64: string,
-    additionalParams?: Record<string, any>,
-  ): Promise<string> {
-    this.logger.debug('Gemini try-on uses a single generation attempt');
-    return this.performTryOn(avatarBase64, clothingBase64, additionalParams);
-  }
-
-  protected async postprocessResult(resultImage: string): Promise<string> {
+  private async postprocessResult(resultImage: string): Promise<string> {
     return this.imageOptimizer.normalizeToPortraitCanvas(resultImage, {
       targetAspectRatio: 2 / 3,
       maxWidth: 1200,
@@ -243,6 +254,24 @@ export class DirectGeminiTryOnService extends BaseTryOnService {
       quality: 90,
       format: 'jpeg',
     });
+  }
+
+  private async withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+    let timeoutHandle: NodeJS.Timeout | undefined;
+
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timeoutHandle = setTimeout(() => {
+        reject(new TimeoutException(`Operation timed out after ${timeoutMs}ms`, { timeoutMs }));
+      }, timeoutMs);
+    });
+
+    try {
+      return await Promise.race([promise, timeoutPromise]);
+    } finally {
+      if (timeoutHandle) {
+        clearTimeout(timeoutHandle);
+      }
+    }
   }
 
   private buildPrompt(additionalParams?: Record<string, any>): string {
@@ -435,4 +464,7 @@ export class DirectGeminiTryOnService extends BaseTryOnService {
   private formatDuration(durationMs: number): string {
     return `${durationMs}ms/${(durationMs / 1000).toFixed(2)}s`;
   }
+
+ 
+  
 }

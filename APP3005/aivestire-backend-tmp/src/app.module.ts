@@ -3,7 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { QueueModule } from './queue/queue.module';
+import { QueueModule } from './queues/queue.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { PrismaModule } from './prisma/prisma.module';
@@ -39,10 +39,12 @@ import { ProductGroupsModule } from './product-groups/product-groups.module';
 import { CategoriesModule } from './categories/categories.module';
 import { AdminAnalyticsModule } from './admin-analytics/admin-analytics.module';
 import { InventoryManagementModule } from './admin/inventory-management/inventory-management.module';
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    ScheduleModule.forRoot(),
     ThrottlerModule.forRoot([{ ttl: 60000, limit: 10 }]),
     QueueModule,
     PrismaModule,

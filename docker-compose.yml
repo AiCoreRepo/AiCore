@@ -77,6 +77,38 @@ services:
     networks:
       - app-network
 
+  backend-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: backend
+    container_name: nest-worker
+    command:
+      [
+        "sh",
+        "-c",
+        "set -e; node scripts/wait-for-services.mjs; IS_WORKER_PROCESS=true node dist/src/worker/main"
+      ]
+    env_file:
+      - ./APP3005/aivestire-backend-tmp/.env
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5540/aivestire
+      NODE_ENV: production
+      FRONTEND_URL: https://aivestire.com
+      REDIS_HOST: redis
+      REDIS_PORT: 6380
+      GOOGLE_APPLICATION_CREDENTIALS: /app/service_account.json
+    volumes:
+      - ./APP3005/aivestire-backend-tmp/service_account.json:/app/service_account.json:ro
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - app-network
+
   frontend:
     build:
       context: .

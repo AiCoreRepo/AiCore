@@ -7,6 +7,7 @@ import {
   QUEUE_NAMES,
   JOB_NAMES,
 } from '../common/constants/queue.constants';
+import { AURA_JOB_TIMEOUT } from '../ai-tryon/constants/tryon.constants';
 
 export interface AuraJobData {
   auraId: string;
@@ -27,7 +28,7 @@ export interface AuraJobData {
   };
 }
 
-export interface JobStatusResponse {
+export interface AuraJobStatusResponse {
   status: JobStatus;
   progress: number;
   data?: Omit<AuraJobData, 'sourceImageData'>;
@@ -39,7 +40,7 @@ export interface JobStatusResponse {
 export class AuraQueueService {
   constructor(
     @InjectQueue(QUEUE_NAMES.AURA_GENERATION)
-    private auraQueue: Queue<AuraJobData>,
+    private readonly auraQueue: Queue<AuraJobData>,
   ) {}
 
   async addAuraGenerationJob(data: AuraJobData): Promise<Job<AuraJobData>> {
@@ -47,16 +48,18 @@ export class AuraQueueService {
 
     return this.auraQueue.add(JOB_NAMES.GENERATE_AVATARS, data, {
       attempts: 3,
+      // Hard-kill stalled aura jobs (protect worker slots)
+      timeout: AURA_JOB_TIMEOUT,
       backoff: {
         type: 'exponential',
         delay: 5000,
       },
-      removeOnComplete: false, // Keep for status checking
+      removeOnComplete: false,
       removeOnFail: false,
     });
   }
 
-  async getJobStatus(jobId: string): Promise<JobStatusResponse> {
+  async getJobStatus(jobId: string): Promise<AuraJobStatusResponse> {
     const job = await this.auraQueue.getJob(jobId);
 
     if (!job) {

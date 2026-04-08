@@ -378,11 +378,22 @@ const CollectionPage = () => {
                     avatarImage,
                     clothingImage,
                     additionalParams: buildGeminiTryOnAdditionalParams(aura),
+                    productId: product.product_id,
+                    auraId: aura?.aura_id,
                 });
             } else {
+                const avatarImage = getAvatarImageUrl(aura);
+                const clothingImage = getProductImageUrl(refreshedProduct);
+
+                if (!avatarImage || !clothingImage) {
+                    throw new Error('Try-on requires both avatar and clothing images');
+                }
+
                 result = await tryOnWithVertex({
-                    userId: userId,
-                    clothingItemId: product.product_id,
+                    avatarImage,
+                    clothingImage,
+                    productId: product.product_id,
+                    auraId: aura?.aura_id,
                 });
             }
 

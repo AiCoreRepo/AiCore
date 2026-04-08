@@ -1,10 +1,22 @@
-import { Controller, Post, Body, Logger, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Logger,
+  Param,
+  Post,
+  Request,
+  UseGuards,
+} from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
   ApiResponse,
   ApiBearerAuth,
 } from '@nestjs/swagger';
+import { TryOnStatus } from '../../ai-tryon/enums/ai-provider.enum';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { AngleGenerationService } from '../services/angle-generation.service';
 import { AngleSessionManagerService } from '../services/angle-session-manager.service';
@@ -14,9 +26,12 @@ import {
 } from '../dto/generate-angles-request.dto';
 import {
   GenerateAnglesResponseDto,
+  AngleJobStatusResponseDto,
+  AngleQueuedResponseDto,
   ResetAngleSessionResponseDto,
 } from '../dto/generate-angles-response.dto';
 import { TryOnPermissionGuard } from '../../auth/guards/tryon-permission.guard';
+import { AngleQueueService } from '../../queues/angle-queue.service';
 
 /**
  * Controller for angle generation endpoints
@@ -31,7 +46,68 @@ export class AngleGenerationController {
   constructor(
     private readonly angleGenerationService: AngleGenerationService,
     private readonly sessionManager: AngleSessionManagerService,
+    private readonly angleQueueService: AngleQueueService,
   ) {}
+
+  private createQueuedAngleResponse(
+    jobId: string,
+    message: string,
+  ): AngleQueuedResponseDto {
+    return {
+      success: true,
+      status: TryOnStatus.PENDING,
+      jobId,
+      message,
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  @Post('generate/start')
+  @HttpCode(HttpStatus.ACCEPTED)
+  @ApiOperation({
+    summary: 'Queue angle generation job',
+    description:
+      'Queues an angle generation request and returns immediately with a job ID for polling.',
+  })
+  @ApiResponse({
+    status: 202,
+    description: 'Angle generation job queued successfully',
+    type: AngleQueuedResponseDto,
+  })
+  @UseGuards(TryOnPermissionGuard)
+  async startGenerateAngle(
+    @Body() request: GenerateAnglesRequestDto,
+    @Request() req,
+  ): Promise<AngleQueuedResponseDto> {
+    const job = await this.angleQueueService.addAngleGenerationJob({
+      type: 'angle-generation',
+      requestUserId: req.user.user_id,
+      request,
+    });
+
+    return this.createQueuedAngleResponse(
+      job.id.toString(),
+      'Angle generation job queued successfully',
+    );
+  }
+
+  @Get('job/:jobId')
+  @ApiOperation({
+    summary: 'Get angle generation job status',
+    description:
+      'Returns the status of an async angle generation job and includes the final result when completed.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Job status retrieved successfully',
+    type: AngleJobStatusResponseDto,
+  })
+  async getAngleJobStatus(
+    @Param('jobId') jobId: string,
+    @Request() req,
+  ): Promise<AngleJobStatusResponseDto> {
+    return this.angleQueueService.getJobStatus(jobId, req.user.user_id);
+  }
 
   /**
    * Generate next angle in sequence from try-on image

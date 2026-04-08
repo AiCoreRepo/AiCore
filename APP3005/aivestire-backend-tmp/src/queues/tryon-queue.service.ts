@@ -1,14 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bull';
 import type { Job, Queue } from 'bull';
-import { AIProvider } from './enums/ai-provider.enum';
+import { AIProvider } from '../ai-tryon/enums/ai-provider.enum';
 import {
   JOB_NAMES,
   JOB_STATUS,
   JobStatus,
   QUEUE_NAMES,
 } from '../common/constants/queue.constants';
-import { TryOnResponseDto } from './dto/tryon-response.dto';
+import { TryOnResponseDto } from '../ai-tryon/dto/tryon-response.dto';
 
 export interface DirectTryOnJobData {
   type: 'direct';
@@ -17,18 +17,11 @@ export interface DirectTryOnJobData {
   avatarImage: string;
   clothingImage: string;
   additionalParams?: Record<string, any>;
+  productId?: string;
+  auraId?: string;
 }
 
-export interface ThreeDTryOnJobData {
-  type: 'three-d';
-  provider: AIProvider.VERTEX_AI;
-  requestUserId: string;
-  auraId: string;
-  clothingItemId: string;
-  additionalParams?: Record<string, any>;
-}
-
-export type TryOnJobData = DirectTryOnJobData | ThreeDTryOnJobData;
+export type TryOnJobData = DirectTryOnJobData;
 
 export interface TryOnJobStatusResponse {
   success: boolean;
@@ -45,20 +38,11 @@ export class TryOnQueueService {
     private readonly tryOnQueue: Queue<TryOnJobData>,
   ) {}
 
-  async addDirectTryOnJob(
-    data: DirectTryOnJobData,
-  ): Promise<Job<TryOnJobData>> {
+  async addDirectTryOnJob(data: DirectTryOnJobData): Promise<Job<TryOnJobData>> {
+    // Keep queue behavior simple and predictable:
+    // - attempts=1 avoids duplicate AI generations (cost + inconsistent results)
+    // - no Bull hard-timeout; provider-level timeouts handle hangs deterministically
     return this.tryOnQueue.add(JOB_NAMES.PROCESS_DIRECT_TRY_ON, data, {
-      attempts: 1,
-      removeOnComplete: false,
-      removeOnFail: false,
-    });
-  }
-
-  async addThreeDTryOnJob(
-    data: ThreeDTryOnJobData,
-  ): Promise<Job<TryOnJobData>> {
-    return this.tryOnQueue.add(JOB_NAMES.PROCESS_3D_TRY_ON, data, {
       attempts: 1,
       removeOnComplete: false,
       removeOnFail: false,

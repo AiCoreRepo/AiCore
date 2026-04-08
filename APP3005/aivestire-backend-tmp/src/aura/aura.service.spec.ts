@@ -1,9 +1,15 @@
 import { ConflictException } from '@nestjs/common';
 import type { Request } from 'express';
 import { AuraStatus } from '@prisma/client';
-import { AuraService } from './aura.service';
+import { AuraService } from './services/aura.service';
 
 describe('AuraService', () => {
+  const minimalAuraDto = {
+    skinTone: 'medium',
+    bodyShape: 'hourglass',
+    bodySize: 'medium',
+  };
+
   const existingAura = {
     aura_id: 'aura-1',
     user_id: 'user-1',
@@ -121,7 +127,7 @@ describe('AuraService', () => {
     } as Request;
 
     await expect(
-      service.recreateAura('user-1', undefined, {}, request),
+      service.recreateAura('user-1', undefined, minimalAuraDto as any, request),
     ).resolves.toMatchObject({
       aura_id: existingAura.aura_id,
       status: AuraStatus.PENDING,
@@ -154,7 +160,7 @@ describe('AuraService', () => {
     } as Request;
 
     await expect(
-      service.recreateAura('user-1', undefined, {}, request),
+      service.recreateAura('user-1', undefined, minimalAuraDto as any, request),
     ).rejects.toEqual(
       new ConflictException(
         'You have reached your Aura recreation limit of 2.',
@@ -175,7 +181,7 @@ describe('AuraService', () => {
     } as Request;
 
     await expect(
-      service.recreateAura('user-1', undefined, {}, request),
+      service.recreateAura('user-1', undefined, minimalAuraDto as any, request),
     ).resolves.toMatchObject({
       aura_id: existingAura.aura_id,
       status: AuraStatus.PENDING,

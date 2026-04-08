@@ -6,18 +6,18 @@ import {
   HttpException,
 } from '@nestjs/common';
 import type { Request } from 'express';
-import { PrismaService } from '../prisma/prisma.service';
-import { CloudinaryService } from '../common/cloudinary.service';
-import { AuraQueueService } from './aura-queue.service';
-import { CreateAuraDto } from './dto/create-aura.dto';
+import { PrismaService } from '../../prisma/prisma.service';
+import { CloudinaryService } from '../../common/cloudinary.service';
+import { AuraQueueService } from '../../queues/aura-queue.service';
+import { CreateAuraDto } from '../dto/create-aura.dto';
 import { AuraStatus } from '@prisma/client';
-import { getEffectiveAvatarRecreationLimit } from '../auth/utils/try-on-limit.util';
+import { getEffectiveAvatarRecreationLimit } from '../../auth/utils/try-on-limit.util';
 import {
   buildAuraAttributesMetadata,
   collectAuraAvatarHistoryImageUrls,
   getAuraAttributeSnapshotFromRecord,
   normalizeAuraAvatarHistory,
-} from './aura-avatar-history.util';
+} from '../utils/aura-avatar-history.util';
 
 @Injectable()
 export class AuraService {

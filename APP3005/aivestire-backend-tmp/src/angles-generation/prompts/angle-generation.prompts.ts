@@ -44,12 +44,15 @@ PRESERVE EXACTLY:
 - Full body visible, no zoom. Shoes must be visible.
 - Keep the same garment fit, drape, styling, and proportions already present in the original try-on image.
 - Maintain natural human anatomy and realistic proportions, including a correct head-to-body ratio, centered neck placement, aligned shoulders, and proportional torso, arms, hands, legs, and feet.
+- Keep camera distance consistent with the original try-on: do NOT move the camera closer.
 
 FRAMING REQUIREMENTS (CRITICAL):
 - Use the original full-body try-on composition as the baseline framing.
 - Do NOT crop the head, hair, face, shoulders, hands, feet, or shoes.
 - Do NOT zoom in or create a half-body or three-quarter crop.
 - Keep the person fully visible from head to toe.
+- Keep visible floor area below the shoes and small breathing space above the head.
+- Target composition: person occupies about 80-88% of frame height, never 95-100%.
 - Do NOT stretch, squeeze, elongate, shrink, warp, or tilt the face, head, neck, shoulders, torso, arms, hands, hips, legs, or feet.
 - Do NOT generate an oversized face, undersized face, floating face, mismatched face-to-body scale, merged limbs, duplicated limbs, or broken anatomy.
 

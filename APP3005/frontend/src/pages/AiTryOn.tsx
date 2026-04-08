@@ -292,11 +292,32 @@ const AiTryOn = () => {
           avatarImage,
           clothingImage,
           additionalParams: buildGeminiTryOnAdditionalParams(aura),
+          productId,
+          auraId: aura?.aura_id,
         });
       } else {
+        const product =
+          sourceProduct?.product_id === productId
+            ? sourceProduct
+            : ((_.find(
+                productsData?.products,
+                (item) => item.product_id === productId,
+              ) as TryOnProduct | undefined) ??
+              ((await getProductById(productId)) as TryOnProduct));
+
+        resolvedProductLabel = product?.title || fallbackProductLabel;
+        const avatarImage = getAvatarImageUrl(aura);
+        const clothingImage = product ? getProductImageUrl(product) : null;
+
+        if (!avatarImage || !clothingImage) {
+          throw new Error("Try-on requires both avatar and clothing images");
+        }
+
         result = await tryOnWithVertex({
-          userId: aura.user_id,
-          clothingItemId: productId,
+          avatarImage,
+          clothingImage,
+          productId,
+          auraId: aura?.aura_id,
         });
       }
 

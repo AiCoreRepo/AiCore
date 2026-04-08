@@ -16,11 +16,11 @@ import {
 } from '@nestjs/common';
 import type { Request } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { AuraService } from './services/aura.service';
-import { CreateAuraDto } from './dto/create-aura.dto';
-import { UpdateAuraDto } from './dto/update-aura.dto';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { CurrentUser } from '../../auth/decorators/current-user.decorator';
+import { AuraService } from '../services/aura.service';
+import { CreateAuraDto } from '../dto/create-aura.dto';
+import { UpdateAuraDto } from '../dto/update-aura.dto';
 
 @Controller('aura')
 export class AuraController {

@@ -229,26 +229,28 @@ export class ImageOptimizerService {
         `🖼️ Normalizing image to portrait canvas: ${width}x${height} → ${targetWidth}x${targetHeight}`,
       );
 
-      const backgroundBuffer = await sharp(imageBuffer)
-        .resize(targetWidth, targetHeight, {
-          fit: 'cover',
-        })
-        .blur(24)
-        .modulate({
-          brightness: 1.03,
-          saturation: 0.92,
-        })
-        .jpeg({ quality: 70, mozjpeg: true })
-        .toBuffer();
-
-      const foregroundBuffer = await sharp(imageBuffer)
-        .resize(targetWidth, targetHeight, {
-          fit: 'contain',
-          background: { r: 0, g: 0, b: 0, alpha: 0 },
-          withoutEnlargement: true,
-        })
-        .png()
-        .toBuffer();
+      // [Speed-Opt-5] Background and foreground pipelines are independent — run in parallel.
+      const [backgroundBuffer, foregroundBuffer] = await Promise.all([
+        sharp(imageBuffer)
+          .resize(targetWidth, targetHeight, {
+            fit: 'cover',
+          })
+          .blur(24)
+          .modulate({
+            brightness: 1.03,
+            saturation: 0.92,
+          })
+          .jpeg({ quality: 70, mozjpeg: true })
+          .toBuffer(),
+        sharp(imageBuffer)
+          .resize(targetWidth, targetHeight, {
+            fit: 'contain',
+            background: { r: 0, g: 0, b: 0, alpha: 0 },
+            withoutEnlargement: true,
+          })
+          .png()
+          .toBuffer(),
+      ]);
 
       let pipeline = sharp(backgroundBuffer).composite([
         {

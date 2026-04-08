@@ -5,6 +5,10 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 const GEMINI_REFERENCE_TRYON_IMAGE_URL =
   'https://res.cloudinary.com/dgbmqarp0/image/upload/v1773814263/Pasted_image_28_d0kt0b.png';
 
+// [Speed-Opt-1] Module-level cache — the reference clothing image is ~1.9MB fetched
+// via HTTP on every job. Cache it once per worker-process lifetime (survives job re-runs).
+let cachedReferenceImage: { mimeType: string; data: string } | null = null;
+
 interface GeminiInlineImage {
   mimeType: string;
   data: string;
@@ -12,6 +16,7 @@ interface GeminiInlineImage {
 
 export interface AvatarGenerationRequest {
   imageUrl: string;
+  sourceImageData?: string; // [OPTIMIZATION Task 3] Added direct base64 pass-through to skip Cloudinary upload
   attributes: {
     height: number;
     weight: number;
@@ -46,15 +51,17 @@ export class GeminiAIService {
       console.warn(' GEMINI_API_KEY not configured');
     } else {
       this.genAI = new GoogleGenerativeAI(apiKey);
-      // Use Gemini 2.5 Flash Image (Nano Banana) for image generation
+      // gemini-3.1-flash-image-preview: supports image output (required for avatar generation)
       this.imageModel = this.genAI.getGenerativeModel({
         model: 'gemini-3.1-flash-image-preview',
         generationConfig: {
           temperature: 0.2,
+          // [Speed-Opt-3] Tell Gemini to only return an image — skips text token generation
+          responseModalities: ['IMAGE'],
         } as any,
       });
       console.log(
-        ' Using Gemini 2.5 Flash Image (Nano Banana) for avatar generation',
+        '✅ Using gemini-3.1-flash-image-preview for avatar (Aura) generation',
       );
     }
   }
@@ -81,25 +88,34 @@ export class GeminiAIService {
 
     try {
       console.log(
-        '🎨 Generating professional animated avatar with Gemini 2.5 Flash Image...',
+        '🎨 Generating professional avatar with gemini-3.1-flash-image-preview...',
       );
 
       console.log('📥 [GeminiAI] Fetching source image...');
       const sourceFetchStart = Date.now();
-      const sourceImage = await this.fetchImageAsInlineData(request.imageUrl);
+      // [OPTIMIZATION Task 3] If sourceImageData is provided, use it directly instead of fetching URL
+      const sourceImage = request.sourceImageData
+        ? this.processBase64ToInlineData(request.sourceImageData)
+        : await this.fetchImageAsInlineData(request.imageUrl);
       sourceFetchMs = Date.now() - sourceFetchStart;
       console.log(
         `✅ [GeminiAI] Source image fetched: ${sourceImage.data.length} chars`,
       );
 
+      // [Speed-Opt-1] Serve reference clothing image from in-memory cache.
+      // First call fetches + shrinks (~512×512); subsequent calls return instantly.
       console.log('📥 [GeminiAI] Fetching reference try-on clothing image...');
       const referenceFetchStart = Date.now();
-      const clothingImage = await this.fetchImageAsInlineData(
-        GEMINI_REFERENCE_TRYON_IMAGE_URL,
-      );
+      if (!cachedReferenceImage) {
+        console.log(' [GeminiAI] Reference image cache miss — fetching & shrinking...');
+        cachedReferenceImage = await this.fetchAndShrinkReferenceImage();
+      } else {
+        console.log(' [GeminiAI] Reference image served from cache ⚡');
+      }
+      const clothingImage = cachedReferenceImage;
       referenceFetchMs = Date.now() - referenceFetchStart;
       console.log(
-        `✅ [GeminiAI] Reference clothing image fetched: ${clothingImage.data.length} chars`,
+        `✅ [GeminiAI] Reference clothing image ready: ${clothingImage.data.length} chars`,
       );
 
       const { attributes } = request;
@@ -120,10 +136,11 @@ export class GeminiAIService {
       console.log(' [GeminiAI] Calling Gemini API...');
       const startTime = Date.now();
 
+      // Timeout for Aura/avatar Gemini call: 35s to stay under the 40s budget
       const timeoutPromise = new Promise((_, reject) => {
         setTimeout(
-          () => reject(new Error('Gemini API timeout after 120 seconds')),
-          120000,
+          () => reject(new Error('Gemini API timeout after 35 seconds')),
+          35000,
         );
       });
 
@@ -201,6 +218,22 @@ export class GeminiAIService {
     }
   }
 
+  /**
+   * [OPTIMIZATION Task 9] Simple ping to parse configuration and warm up internal http clients 
+   * to avoid complete cold starts on the serverless functions/GPU.
+   */
+  async ping(): Promise<boolean> {
+    try {
+      this.logger.log('🔥 [WarmWorker] Pinging Gemini AI Service...');
+      if (!this.genAI) return false;
+      // We don't want to actually spend tokens/money on a real image ping 
+      // but just keeping the module hot in Node's memory is step 1.
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
   private async fetchImageAsInlineData(
     url: string,
   ): Promise<GeminiInlineImage> {
@@ -226,6 +259,52 @@ export class GeminiAIService {
     return {
       mimeType,
       data: buffer.toString('base64'),
+    };
+  }
+
+  /**
+   * [Speed-Opt-2] Fetch the reference clothing image and shrink it to 512×512 JPEG.
+   * Sending the full ~1.9MB image to Gemini wastes prefill budget. 512×512 is enough
+   * for the model to understand the clothing style, colour, and silhouette.
+   */
+  private async fetchAndShrinkReferenceImage(): Promise<GeminiInlineImage> {
+    const response = await fetch(GEMINI_REFERENCE_TRYON_IMAGE_URL);
+    if (!response.ok) {
+      throw new Error(
+        `Failed to fetch reference clothing image (${response.status})`,
+      );
+    }
+    const rawBuffer = Buffer.from(await response.arrayBuffer());
+
+    // Dynamically import sharp to keep the same pattern as the rest of the codebase
+    const sharp = (await import('sharp')).default;
+    const shrunkBuffer = await sharp(rawBuffer)
+      .resize(512, 512, { fit: 'inside', withoutEnlargement: true })
+      .jpeg({ quality: 75, mozjpeg: true })
+      .toBuffer();
+
+    console.log(
+      `[Speed-Opt-2] Reference image shrunk: ${rawBuffer.length} → ${shrunkBuffer.length} bytes`,
+    );
+
+    return {
+      mimeType: 'image/jpeg',
+      data: shrunkBuffer.toString('base64'),
+    };
+  }
+
+  // [OPTIMIZATION Task 3] Helper to process raw base64 data directly without HTTP fetch
+  private processBase64ToInlineData(base64Data: string): GeminiInlineImage {
+    if (base64Data.startsWith('data:')) {
+      const [header, data] = base64Data.split(',', 2);
+      const mimeType = header.match(/^data:(.*?);base64$/)?.[1] || 'image/jpeg';
+      return { mimeType, data };
+    }
+    
+    // Assume JPEG if no data URI header
+    return {
+      mimeType: 'image/jpeg',
+      data: base64Data,
     };
   }
 

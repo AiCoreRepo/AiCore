@@ -941,8 +941,38 @@ type TryOnJobStatusResponse = {
   error?: string;
 };
 
+type AngleGenerationResultPayload = {
+  success: boolean;
+  resultImage?: string;
+  angle?: string;
+  processingTimeMs?: number;
+  metadata?: Record<string, unknown>;
+  tryOnId?: string | number;
+  timestamp?: string;
+  message?: string;
+};
+
+type AngleQueuedResponse = {
+  success: boolean;
+  status?: string;
+  jobId?: string;
+  job_id?: string;
+  message?: string;
+  timestamp?: string;
+};
+
+type AngleJobStatusResponse = {
+  success: boolean;
+  status: string;
+  progress: number;
+  result?: AngleGenerationResultPayload;
+  error?: string;
+};
+
 const TRY_ON_JOB_POLL_INTERVAL_MS = 2000;
 const TRY_ON_JOB_TIMEOUT_MS = 10 * 60 * 1000;
+const ANGLE_JOB_POLL_INTERVAL_MS = 2000;
+const ANGLE_JOB_TIMEOUT_MS = 10 * 60 * 1000;
 
 function isQueuedTryOnResponse(payload: unknown): payload is TryOnQueuedResponse {
   if (!payload || typeof payload !== "object") {
@@ -950,6 +980,15 @@ function isQueuedTryOnResponse(payload: unknown): payload is TryOnQueuedResponse
   }
 
   const queuedPayload = payload as TryOnQueuedResponse;
+  return Boolean(queuedPayload.jobId || queuedPayload.job_id);
+}
+
+function isQueuedAngleResponse(payload: unknown): payload is AngleQueuedResponse {
+  if (!payload || typeof payload !== "object") {
+    return false;
+  }
+
+  const queuedPayload = payload as AngleQueuedResponse;
   return Boolean(queuedPayload.jobId || queuedPayload.job_id);
 }
 
@@ -1024,11 +1063,82 @@ async function resolveQueuedTryOnResponse(
   return payload;
 }
 
+async function pollAngleJobResult(
+  jobId: string,
+  token: string,
+  defaultMessage: string,
+): Promise<AngleGenerationResultPayload> {
+  const startedAt = Date.now();
+
+  while (Date.now() - startedAt < ANGLE_JOB_TIMEOUT_MS) {
+    const res = await fetch(`${BASE_URL}/angles/job/${jobId}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!res.ok) {
+      handleApiError(res, await res.text(), defaultMessage);
+    }
+
+    const payload = (await res.json()) as AngleJobStatusResponse;
+
+    if (payload.status === "completed") {
+      if (payload.result) {
+        return payload.result;
+      }
+
+      throw new Error(defaultMessage);
+    }
+
+    if (payload.status === "failed") {
+      throw new Error(payload.error || defaultMessage);
+    }
+
+    if (payload.status === "not_found") {
+      throw new Error("Angle generation job could not be found.");
+    }
+
+    await delay(ANGLE_JOB_POLL_INTERVAL_MS);
+  }
+
+  throw new Error(
+    "Angle generation is taking longer than expected. Please try again shortly.",
+  );
+}
+
+async function resolveQueuedAngleResponse(
+  res: Response,
+  token: string,
+  defaultMessage: string,
+): Promise<AngleGenerationResultPayload> {
+  if (!res.ok) {
+    handleApiError(res, await res.text(), defaultMessage);
+  }
+
+  const payload = (await res.json()) as
+    | AngleGenerationResultPayload
+    | AngleQueuedResponse;
+
+  if (isQueuedAngleResponse(payload)) {
+    const jobId = payload.jobId || payload.job_id;
+    if (!jobId) {
+      throw new Error("Angle generation job did not return a valid job id.");
+    }
+
+    return pollAngleJobResult(jobId, token, defaultMessage);
+  }
+
+  return payload;
+}
+
 // Try-on with Gemini AI using async queue polling
 export async function tryOnWithGemini(data: {
   avatarImage: string;
   clothingImage: string;
   additionalParams?: Record<string, unknown>;
+  productId?: string;
+  auraId?: string;
 }) {
   assertSupportedTryOnHost();
 
@@ -1049,11 +1159,13 @@ export async function tryOnWithGemini(data: {
   return resolveQueuedTryOnResponse(res, token, "Try-on failed");
 }
 
-// 3D Try-on with Vertex AI using async queue polling
+// Try-on with Vertex AI using async queue polling
 export async function tryOnWithVertex(data: {
-  userId: string;
-  clothingItemId: string;
+  avatarImage: string;
+  clothingImage: string;
   additionalParams?: Record<string, unknown>;
+  productId?: string;
+  auraId?: string;
 }) {
   assertSupportedTryOnHost();
 
@@ -1062,7 +1174,7 @@ export async function tryOnWithVertex(data: {
     throw new Error("Please login to use AI Try-On");
   }
 
-  const res = await fetch(`${BASE_URL}/v1/tryon/3d/vertex/start`, {
+  const res = await fetch(`${BASE_URL}/v1/tryon/vertex/start`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -1164,8 +1276,7 @@ export async function generateMoreAngles(data: {
     }
   }
 
-  // Call new NestJS angle generation endpoint
-  const res = await fetch(`${BASE_URL}/angles/generate`, {
+  const res = await fetch(`${BASE_URL}/angles/generate/start`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -1180,10 +1291,11 @@ export async function generateMoreAngles(data: {
     }),
   });
 
-  if (!res.ok) {
-    handleApiError(res, await res.text(), "Failed to generate more angles");
-  }
-  return res.json();
+  return resolveQueuedAngleResponse(
+    res,
+    token,
+    "Failed to generate more angles",
+  );
 }
 
 // Get user's try-on history
@@ -1201,14 +1313,9 @@ export async function getTryOnHistory() {
   });
 
   if (!res.ok) {
-    const bodyText = await res.text();
-    try {
-      const err = JSON.parse(bodyText);
-      throw new Error(err.message || "Failed to fetch try-on history");
-    } catch {
-      throw new Error(bodyText || "Failed to fetch try-on history");
-    }
+    handleApiError(res, await res.text(), "Failed to fetch try-on history");
   }
+
   return res.json();
 }
 
@@ -1250,10 +1357,10 @@ export async function analyzeBodyImage(
 
   // Create AbortController for timeout
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+  const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout
 
   try {
-    const res = await fetch(`${BASE_URL}/aura/analyze-image`, {
+    const res = await fetch(`${BASE_URL}/v1/body-analyzer/analyze-image`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,

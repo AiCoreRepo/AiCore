@@ -1341,11 +1341,11 @@ export function TryOnResultModal({
                         opts={{ loop: true, align: "start" }}
                         className="h-full w-full"
                       >
-                        <CarouselContent className="h-full">
+                        <CarouselContent className="h-full -ml-0">
                           {carouselImages.map((image, index) => (
                             <CarouselItem
                               key={`${image}-${index}`}
-                              className="h-full"
+                              className="h-full basis-full pl-0"
                             >
                               <button
                                 type="button"
@@ -1356,12 +1356,14 @@ export function TryOnResultModal({
                                 <img
                                   src={image}
                                   alt={`Generated angle ${index + 1}`}
-                                  className={`h-full w-full rounded-[20px] object-contain transition-all duration-500 group-hover:scale-[1.02] md:rounded-[26px] ${imageRevealed ? "modal-appear" : ""}`}
+                                  className={`h-auto w-auto max-h-full max-w-full rounded-[20px] transition-all duration-500 md:rounded-[26px] ${imageRevealed ? "modal-appear" : ""}`}
                                   style={{
                                     boxShadow:
                                       "0 16px 48px rgba(0, 0, 0, 0.12)",
-                                    maxWidth: "100%",
-                                    maxHeight: "100%",
+                                    maxWidth: "94%",
+                                    maxHeight: "94%",
+                                    objectFit: "contain",
+                                    objectPosition: "center center",
                                   }}
                                 />
                               </button>
@@ -1381,11 +1383,13 @@ export function TryOnResultModal({
                       <img
                         src={resultImage}
                         alt="Try-On Result"
-                        className={`h-full w-full rounded-[20px] object-contain transition-all duration-500 group-hover:scale-[1.02] md:rounded-[26px] ${imageRevealed ? "modal-appear" : ""}`}
+                        className={`h-auto w-auto max-h-full max-w-full rounded-[20px] transition-all duration-500 md:rounded-[26px] ${imageRevealed ? "modal-appear" : ""}`}
                         style={{
                           boxShadow: "0 16px 48px rgba(0, 0, 0, 0.12)",
-                          maxWidth: "100%",
-                          maxHeight: "100%",
+                          maxWidth: "94%",
+                          maxHeight: "94%",
+                          objectFit: "contain",
+                          objectPosition: "center center",
                         }}
                       />
                     </div>

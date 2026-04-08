@@ -1,34 +1,39 @@
 import { Module, OnModuleInit } from '@nestjs/common';
 import { BullModule } from '@nestjs/bull';
-import { AuraController } from './aura.controller';
-import { AuraService } from './aura.service';
-import { AuraQueueService } from './aura-queue.service';
-import { AuraProcessor } from './aura.processor';
+import { AuraController } from './controllers/aura.controller';
+import { AuraService } from './services/aura.service';
+import { AuraQueueService } from '../queues/aura-queue.service';
 import { PrismaModule } from '../prisma/prisma.module';
 import { CloudinaryService } from '../common/cloudinary.service';
 import { GeminiAIService } from '../common/gemini-ai.service';
 import { ImageOptimizerService } from '../common/image-optimizer.service';
-import { AiTryOnModule } from '../ai-tryon/ai-tryon.module';
+import { BodyAnalyzerModule } from '../body-analyzer/body-analyzer.module';
 import { QUEUE_NAMES } from '../common/constants/queue.constants';
+
+const baseProviders = [
+  AuraService,
+  AuraQueueService,
+  CloudinaryService,
+  GeminiAIService,
+  ImageOptimizerService,
+];
 
 @Module({
   imports: [
     PrismaModule,
-    AiTryOnModule,
+    BodyAnalyzerModule,
     BullModule.registerQueue({
       name: QUEUE_NAMES.AURA_GENERATION,
     }),
   ],
   controllers: [AuraController],
-  providers: [
+  providers: baseProviders,
+  exports: [
     AuraService,
-    AuraQueueService,
-    AuraProcessor,
     CloudinaryService,
     GeminiAIService,
     ImageOptimizerService,
   ],
-  exports: [AuraService],
 })
 export class AuraModule implements OnModuleInit {
   onModuleInit() {
@@ -36,6 +41,6 @@ export class AuraModule implements OnModuleInit {
       '🚀 [AuraModule] Module initialized with queue:',
       QUEUE_NAMES.AURA_GENERATION,
     );
-    console.log('🚀 [AuraModule] Processor should be registered now');
   }
 }
+

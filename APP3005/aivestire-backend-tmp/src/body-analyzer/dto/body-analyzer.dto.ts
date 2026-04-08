@@ -1,4 +1,4 @@
-import { IsOptional, IsString } from 'class-validator';
+import { IsString } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 /**
@@ -11,13 +11,6 @@ export class AnalyzeBodyDto {
   })
   @IsString()
   imageBase64: string;
-}
-
-/**
- * Request DTO for body analysis with file upload
- */
-export class AnalyzeBodyFileDto {
-  // File is handled by FileInterceptor
 }
 
 /**

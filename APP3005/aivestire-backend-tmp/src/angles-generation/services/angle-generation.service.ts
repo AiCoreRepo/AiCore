@@ -114,9 +114,24 @@ export class AngleGenerationService {
       // Call Gemini AI
       const resultImageBase64 = await this.callGeminiAI(imageBase64, prompt);
 
+      // Normalize output to a consistent portrait canvas to prevent edge-clipped previews.
+      const normalizedResultImage =
+        await this.imageOptimizer.normalizeToPortraitCanvas(
+          resultImageBase64.startsWith('data:')
+            ? resultImageBase64
+            : `data:image/jpeg;base64,${resultImageBase64}`,
+          {
+            targetAspectRatio: 2 / 3,
+            maxWidth: 1200,
+            maxHeight: 1800,
+            quality: 92,
+            format: 'jpeg',
+          },
+        );
+
       // Upload to Cloudinary and save to database
       const uploaded = await this.uploadAndSave(
-        resultImageBase64,
+        normalizedResultImage,
         aura.user_id,
         request.productId,
         request.auraId,
@@ -129,9 +144,7 @@ export class AngleGenerationService {
 
       return {
         success: true,
-        resultImage: resultImageBase64.startsWith('data:')
-          ? resultImageBase64
-          : `data:image/jpeg;base64,${resultImageBase64}`,
+        resultImage: normalizedResultImage,
         angle: targetAngle,
         processingTimeMs: processingTime,
         timestamp: new Date().toISOString(),

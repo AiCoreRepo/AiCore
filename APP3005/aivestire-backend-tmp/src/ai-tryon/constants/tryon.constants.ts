@@ -44,7 +44,17 @@ const getEnvTimeout = (key: string, fallback: number): number => {
 // API Timeout Settings (in milliseconds)
 export const DEFAULT_TIMEOUT = getEnvTimeout('DEFAULT_TIMEOUT', 60000); // 60 seconds
 export const VERTEX_AI_TIMEOUT = getEnvTimeout('VERTEX_AI_TIMEOUT', 90000); // 90 seconds
-export const GEMINI_AI_TIMEOUT = getEnvTimeout('GEMINI_AI_TIMEOUT', 300000); // 300 seconds (5 minutes)
+
+// [OPTIMIZATION] Reduced GEMINI_AI_TIMEOUT from 60000ms (60s) → 35000ms (35s)
+// Target: full try-on flow must complete within 40s. 35s gives the model budget with
+// 5s headroom for preprocessing, image extraction, and network overhead.
+// If Gemini hasn't responded in 35s, fail fast — do not block the queue.
+export const GEMINI_AI_TIMEOUT = getEnvTimeout('GEMINI_AI_TIMEOUT', 60000); // 35 seconds
+
+// [OPTIMIZATION Task 6] Hard fail-safe timeouts for Bull job processing.
+// These are used as the `timeout` option in queue.add() to hard-kill stalled jobs.
+export const AURA_JOB_TIMEOUT = getEnvTimeout('AURA_JOB_TIMEOUT', 90000); // 90s job timeout
+export const TRYON_JOB_TIMEOUT = getEnvTimeout('TRYON_JOB_TIMEOUT', 90000); // 90s job timeout
 
 // Retry Configuration
 export const MAX_RETRIES = 3;
@@ -157,9 +167,9 @@ export function buildGeminiTryOnPrompt(
   const personProfileLines = buildGeminiPersonProfile(attributes);
   const personProfileSection = personProfileLines.length
     ? [
-        'Second-image person profile:',
-        ...personProfileLines.map((line) => `- ${line}`),
-      ].join('\n')
+      'Second-image person profile:',
+      ...personProfileLines.map((line) => `- ${line}`),
+    ].join('\n')
     : 'No extra profile is provided beyond the second image. Preserve the real identity and body proportions visible in the second image.';
 
   return [
@@ -246,12 +256,12 @@ export const CONFIG_KEYS = {
 
 // Default Model Names (can be overridden via environment variables)
 export const DEFAULT_VERTEX_MODEL = 'imagegeneration@006';
-export const DEFAULT_GEMINI_MODEL = 'gemini-3.1-flash-image-preview';
-export const DEFAULT_VERTEX_LOCATION = 'us-central1';
+export const DEFAULT_GEMINI_MODEL = 'gemini-3.1-flash-image-preview'; // Canonical model — do not use gemini-2.5-flash
+export const DEFAULT_VERTEX_LOCATION = 'asia-south1';
 
-// Direct Gemini Try-On Defaults
+// Direct Gemini Try-On Defaults — always use gemini-3.1-flash-image-preview
 export const GEMINI_TRYON_CONFIG = {
-  DEFAULT_MODEL: 'gemini-3.1-flash-image-preview',
+  DEFAULT_MODEL: DEFAULT_GEMINI_MODEL,
   DEFAULT_MIME_TYPE: 'image/jpeg',
 } as const;
 

@@ -5,7 +5,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CloudinaryService } from '../common/cloudinary.service';
 import { GeminiAIService } from '../common/gemini-ai.service';
 import { ImageOptimizerService } from '../common/image-optimizer.service';
-import { AuraJobData } from './aura-queue.service';
+import { AuraJobData } from '../queues/aura-queue.service';
 import { AuraStatus } from '@prisma/client';
 import { QUEUE_NAMES, JOB_NAMES } from '../common/constants/queue.constants';
 import {
@@ -13,8 +13,22 @@ import {
   createAuraAvatarHistoryEntry,
   getAuraAttributeSnapshotFromRecord,
   normalizeAuraAvatarHistory,
-} from './aura-avatar-history.util';
+} from '../aura/utils/aura-avatar-history.util';
 
+/**
+ * AuraProcessor — Bull queue consumer for Aura avatar generation jobs.
+ *
+ * Lives in src/worker/ and is only registered by WorkerModule.
+ * The API process enqueues jobs; this worker processes them asynchronously.
+ *
+ * Flow per job:
+ *  1. Resize source image (sharp)
+ *  2. Fire Cloudinary upload in the background (don't block Gemini)
+ *  3. Call Gemini AI for avatar generation (gemini-3.1-flash-image-preview)
+ *  4. Normalize avatar to 2:3 portrait canvas
+ *  5. Upload final avatar to Cloudinary
+ *  6. Update Aura record in DB with avatar URLs and history
+ */
 @Injectable()
 @Processor(QUEUE_NAMES.AURA_GENERATION)
 export class AuraProcessor {
@@ -33,7 +47,12 @@ export class AuraProcessor {
     );
   }
 
-  @Process(JOB_NAMES.GENERATE_AVATARS)
+  @Process({
+    // [OPTIMIZATION Task 4] Increased concurrency from 1 (default) to 4 for Aura generation.
+    // Allows up to 4 simultaneous Gemini avatar generation jobs per worker, reducing queue wait time.
+    name: JOB_NAMES.GENERATE_AVATARS,
+    concurrency: 4,
+  })
   async handleAuraGeneration(job: bull.Job<AuraJobData>) {
     const {
       auraId,
@@ -58,13 +77,37 @@ export class AuraProcessor {
       );
 
       let sourceImageUrl = imageUrl || '';
+      let processedSourceData: string | undefined = undefined;
 
       if (sourceImageData) {
         await job.progress(10);
         console.log(`📤 [Aura Processor] Uploading source image...`);
         const sourceUploadStart = Date.now();
-        const sourceUpload = await this.cloudinary.uploadWithMetadata(
-          sourceImageData,
+
+        // [OPTIMIZATION Task 2] Pre-resize source image to max 512x768 before uploading to Cloudinary
+        // and before sending to Gemini AI. This reduces payload size and AI inference time for Aura.
+        processedSourceData = sourceImageData;
+        try {
+          const sharp = (await import('sharp')).default;
+          const rawBuffer = Buffer.from(
+            sourceImageData.replace(/^data:[^;]+;base64,/, ''),
+            'base64',
+          );
+          // [Speed-Opt-4] Reduced from 512×768 → 400×600 (~39% fewer pixels).
+          // Avatar generation only needs enough detail to reconstruct the person — not full-res.
+          const resizedBuffer = await sharp(rawBuffer)
+            .resize(400, 600, { fit: 'inside', withoutEnlargement: true })
+            .jpeg({ quality: 80 })
+            .toBuffer();
+          processedSourceData = `data:image/jpeg;base64,${resizedBuffer.toString('base64')}`;
+          console.log(`[Speed-Opt-4] Aura source resized: ${rawBuffer.length} -> ${resizedBuffer.length} bytes`);
+        } catch (resizeErr: any) {
+          console.warn(`[Opt:Task2] Aura source resize failed, using original: ${resizeErr.message}`);
+        }
+
+        // [OPTIMIZATION Task 3] Don't await the upload. Fire and forget so we can start Gemini immediately using raw base64.
+        const sourceUploadPromise = this.cloudinary.uploadWithMetadata(
+          processedSourceData,
           {
             userId,
             auraId,
@@ -73,28 +116,35 @@ export class AuraProcessor {
             source: sourceImageMimeType || 'user-upload',
           },
           'avatars/source',
-        );
-        sourceUploadMs = Date.now() - sourceUploadStart;
-        sourceImageUrl = sourceUpload.secureUrl;
+        ).catch(e => console.warn(`[Opt:Task3] Cloudinary background upload failed: ${e.message}`));
 
-        await this.prisma.aura.update({
-          where: { aura_id: auraId },
-          data: {
-            image_url: sourceImageUrl,
-          },
+        // Update the DB with the Cloudinary URL once upload resolves (non-blocking)
+        sourceUploadPromise.then((res: any) => {
+          if (res && res.secureUrl) {
+            this.prisma.aura.update({
+              where: { aura_id: auraId },
+              data: { image_url: res.secureUrl },
+            }).catch(e => console.log('Background aura DB URL update failed', e.message));
+          }
         });
+
+        sourceUploadMs = Date.now() - sourceUploadStart;
+        // Temporary fallback URL; Gemini will use sourceImageData directly
+        sourceImageUrl = 'background-uploading';
       }
 
-      if (!sourceImageUrl) {
+      if (!sourceImageUrl && !sourceImageData) {
         throw new Error('No source image available for avatar generation');
       }
 
-      // Generate avatar image directly using Gemini AI
+      // Generate avatar image directly using Gemini AI (gemini-3.1-flash-image-preview)
       await job.progress(20);
       console.log(`🎨 [Aura Processor] Generating avatar with Gemini...`);
       const geminiStart = Date.now();
 
       const imageGeneration = await this.geminiAI.generateAvatarImage({
+        // [OPTIMIZATION Task 3] Pass base64 direct to Gemini to bypass Cloudinary HTTP roundtrip
+        sourceImageData: sourceImageData ? processedSourceData : undefined,
         imageUrl: sourceImageUrl,
         attributes,
       });
@@ -105,11 +155,9 @@ export class AuraProcessor {
       let avatarMetadata: any;
 
       if (imageGeneration.success && imageGeneration.imageBase64) {
-        // Generated image - upload to Cloudinary
+        // Generated image — normalize and upload
         await job.progress(50);
-        console.log(
-          `📤 [Aura Processor] Uploading portrait-normalized generated avatar...`,
-        );
+        console.log(`📤 [Aura Processor] Uploading portrait-normalized generated avatar...`);
         const finalUploadStart = Date.now();
         const normalizedAvatarImage =
           await this.imageOptimizer.normalizeToPortraitCanvas(
@@ -144,14 +192,21 @@ export class AuraProcessor {
           attributes,
         };
       } else {
-        // Use original image
+        // Gemini returned nothing — normalize and upload original
         await job.progress(50);
-        console.log(
-          `ℹ️  [Aura Processor] Gemini returned no new avatar, uploading portrait-normalized original image`,
-        );
+        console.log(`ℹ️  [Aura Processor] Gemini returned no new avatar, uploading portrait-normalized original image`);
         const finalUploadStart = Date.now();
+
+        // If the Cloudinary upload was fire-and-forget (Opt Task 3), sourceImageUrl is the
+        // placeholder 'background-uploading' — not a real URL. Use the resized base64 data
+        // directly so sharp never receives a non-image string.
+        const fallbackSource =
+          sourceImageUrl === 'background-uploading' && processedSourceData
+            ? processedSourceData
+            : sourceImageUrl;
+
         const normalizedAvatarImage =
-          await this.imageOptimizer.normalizeToPortraitCanvas(sourceImageUrl, {
+          await this.imageOptimizer.normalizeToPortraitCanvas(fallbackSource, {
             targetAspectRatio: 2 / 3,
             maxWidth: 1200,
             maxHeight: 1800,
@@ -180,35 +235,8 @@ export class AuraProcessor {
         };
       }
 
-      // Direct try-on now uses the full avatar URL instead of a cropped try-on variant.
+      // Direct try-on uses the full avatar URL
       tryOnAvatarUrl = finalAvatarUrl;
-
-      /*
-      try {
-        console.log(`✂️ [Aura Processor] Creating try-on crop without footwear...`);
-        const croppedAvatarBase64 =
-          await this.imageOptimizer.cropAvatarForTryOn(tryOnCropSource);
-        const croppedAvatarUpload = await this.cloudinary.uploadWithMetadata(
-          croppedAvatarBase64,
-          {
-            userId,
-            auraId,
-            imageType: 'avatar',
-            avatarVariant: 'try-on-cropped',
-            cropBottomPercent: 12,
-            sourceModelUrl: finalAvatarUrl,
-          },
-          'avatars/tryon-crops',
-        );
-        tryOnAvatarUrl = croppedAvatarUpload.secureUrl;
-        console.log(`✅ [Aura Processor] Cropped try-on avatar uploaded`);
-      } catch (cropError: any) {
-        console.warn(
-          `⚠️ [Aura Processor] Try-on crop failed, falling back to full avatar: ${cropError.message}`,
-        );
-        tryOnAvatarUrl = finalAvatarUrl;
-      }
-      */
 
       await job.progress(70);
 
@@ -320,10 +348,7 @@ export class AuraProcessor {
   }
 
   private logTiming(message: string): void {
-    if (!this.timingLogsEnabled) {
-      return;
-    }
-
+    if (!this.timingLogsEnabled) return;
     console.log(`[AuraTiming] ${message}`);
   }
 
