@@ -41,6 +41,7 @@ import AdminOrdersPage from "./app/admin-orders/page";
 import ArtisansPage from "./app/admin-artisans/page";
 import ClientelePage from "./app/admin-clientele/page";
 import AdminProductsPage from "./app/admin-products/page";
+const AdminInventoryPage = lazy(() => import("./app/admin-inventory/page"));
 import AdminSettingsPage from "./app/admin-settings/page";
 const AdminCreatorDetailPage = lazy(() => import("./app/admin-creator-detail/page"));
 const AdminPayoutProcessPage = lazy(() => import("./app/admin-payout-process/page"));
@@ -182,6 +183,7 @@ const App = () => (
                           </CreatorOnboardingGuard>
                         </ProtectedRoute>
                       } />
+
                       <Route path="/analytics" element={
                         <ProtectedRoute requiredRole="CREATOR" redirectTo="/login">
                           <CreatorOnboardingGuard>
@@ -231,6 +233,11 @@ const App = () => (
                       <Route path="/admin-products" element={
                         <Suspense fallback={<div className="min-h-screen bg-neutral-950 flex items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-2 border-[#D4AF37] border-t-transparent"></div></div>}>
                           <AdminProductsPage />
+                        </Suspense>
+                      } />
+                      <Route path="/admin-inventory" element={
+                        <Suspense fallback={<div className="min-h-screen bg-neutral-950 flex items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-2 border-[#D4AF37] border-t-transparent"></div></div>}>
+                          <AdminInventoryPage />
                         </Suspense>
                       } />
                       <Route path="/admin-collection" element={<AdminCollectionPage />} />

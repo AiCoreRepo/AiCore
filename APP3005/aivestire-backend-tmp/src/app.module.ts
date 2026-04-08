@@ -38,6 +38,7 @@ import { WalletModule } from './wallet/wallet.module';
 import { ProductGroupsModule } from './product-groups/product-groups.module';
 import { CategoriesModule } from './categories/categories.module';
 import { AdminAnalyticsModule } from './admin-analytics/admin-analytics.module';
+import { InventoryManagementModule } from './admin/inventory-management/inventory-management.module';
 
 @Module({
   imports: [
@@ -77,6 +78,7 @@ import { AdminAnalyticsModule } from './admin-analytics/admin-analytics.module';
     ProductGroupsModule,
     CategoriesModule,
     AdminAnalyticsModule,
+    InventoryManagementModule,
   ],
   controllers: [AppController],
   providers: [AppService, AdminSeederService],

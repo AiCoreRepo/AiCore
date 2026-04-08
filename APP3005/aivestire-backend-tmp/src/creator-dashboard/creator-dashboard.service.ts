@@ -8,7 +8,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
-import { Prisma, UserRole, ProductStatus, OrderStatus } from '@prisma/client';
+import { Prisma, UserRole, ProductStatus, OrderStatus, PaymentStatus } from '@prisma/client';
 import { CloudinaryService } from '../common/cloudinary.service';
 import { nanoid } from 'nanoid';
 import { PayUVpaService } from './payu-vpa.service';
@@ -136,6 +136,11 @@ export class CreatorDashboardService {
       orderBy: { created_at: 'desc' },
     });
 
+    // Business Rule: Count earnings only when order is DELIVERED *AND* payment is COMPLETED.
+    // - Prepaid: payment_status = COMPLETED after successful online payment
+    // - COD: payment_status = COMPLETED is set automatically when admin marks order DELIVERED
+    // - Replacement orders (order_number ends with '-R') are excluded to prevent double-counting.
+    // This ensures cancelled, returned, refunded, and unpaid COD orders are never counted.
     const deliveredSales = await this.prisma.orderItem.aggregate({
       where: {
         product: {
@@ -144,6 +149,8 @@ export class CreatorDashboardService {
         },
         order: {
           current_status: OrderStatus.DELIVERED,
+          payment_status: PaymentStatus.COMPLETED,
+          NOT: { order_number: { endsWith: '-R' } },
         },
       },
       _sum: {

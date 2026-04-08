@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { VALID_ANALYTICS_ORDER_STATUSES } from '../constants/analytics.constants';
-import { Prisma } from '@prisma/client';
+import { Prisma, PaymentStatus } from '@prisma/client';
 
 @Injectable()
 export class AnalyticsRepository {
@@ -9,7 +9,11 @@ export class AnalyticsRepository {
 
   /**
    * Aggregate universal totals across all creators.
-   * Performance: Single DB Query filtering out only DELIVERED orders.
+   * Business Rule: Count only when order is DELIVERED AND payment is COMPLETED.
+   * This correctly handles both prepaid and COD orders.
+   * - Prepaid: payment_status = COMPLETED after successful online payment
+   * - COD: payment_status = COMPLETED is set automatically when admin marks order DELIVERED
+   * - Replacement orders (order_number ends with '-R') are excluded to prevent double-counting.
    */
   async aggregateGlobalMetrics() {
     return this.prisma.orderItem.aggregate({
@@ -22,6 +26,8 @@ export class AnalyticsRepository {
       where: {
         order: {
           current_status: { in: VALID_ANALYTICS_ORDER_STATUSES },
+          payment_status: PaymentStatus.COMPLETED,
+          NOT: { order_number: { endsWith: '-R' } },
         },
       },
     });
@@ -29,7 +35,8 @@ export class AnalyticsRepository {
 
   /**
    * Aggregate totals grouped by creator_id
-   * Performance: Single DB Query returning metrics for all creators.
+   * Business Rule: Count only when order is DELIVERED AND payment is COMPLETED.
+   * Replacement orders excluded to prevent double-counting.
    */
   async aggregateCreatorMetrics(creatorIds?: string[]) {
     return this.prisma.orderItem.groupBy({
@@ -43,6 +50,8 @@ export class AnalyticsRepository {
       where: {
         order: {
           current_status: { in: VALID_ANALYTICS_ORDER_STATUSES },
+          payment_status: PaymentStatus.COMPLETED,
+          NOT: { order_number: { endsWith: '-R' } },
         },
         ...(creatorIds?.length ? { creator_id: { in: creatorIds } } : {}),
       },
@@ -51,7 +60,8 @@ export class AnalyticsRepository {
 
   /**
    * Aggregate product-level breakdowns specifically for a given creator.
-   * Performance: Single DB query grouping by product_id
+   * Business Rule: Count only when order is DELIVERED AND payment is COMPLETED.
+   * Replacement orders excluded to prevent double-counting.
    */
   async getCreatorProductBreakdown(creatorId: string) {
     const productsGrouped = await this.prisma.orderItem.groupBy({
@@ -66,6 +76,8 @@ export class AnalyticsRepository {
         creator_id: creatorId,
         order: {
           current_status: { in: VALID_ANALYTICS_ORDER_STATUSES },
+          payment_status: PaymentStatus.COMPLETED,
+          NOT: { order_number: { endsWith: '-R' } },
         },
       },
     });
