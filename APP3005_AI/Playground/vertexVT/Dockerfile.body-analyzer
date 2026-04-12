@@ -1,0 +1,20 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libglib2.0-0 libgl1 libgomp1 \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.body-analyzer.txt ./requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY body_analyzer_api.py ./
+COPY body_analyzer.py ./
+COPY models ./models
+
+ENV PYTHONUNBUFFERED=1
+
+EXPOSE 8898
+
+CMD ["uvicorn", "body_analyzer_api:app", "--host", "0.0.0.0", "--port", "8898"]

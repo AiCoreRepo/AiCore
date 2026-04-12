@@ -1,0 +1,15 @@
+*
+!.dockerignore
+!Dockerfile.api
+!requirements.api.txt
+!pyproject.toml
+!README.md
+!app/
+!app/**
+!scripts/
+!scripts/__init__.py
+!scripts/train_fusion_mlp.py
+!scripts/patch_transformers_accelerate.py
+!artifacts/
+!artifacts/**
+!main_train_data.csv
