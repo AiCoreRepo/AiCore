@@ -32,6 +32,9 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
                 password: url.password || undefined,
                 username: url.username || undefined,
                 tls: isTLS ? { rejectUnauthorized: false } : undefined,
+                // Bull explicitly calls connect() for some clients.
+                // Keep ioredis in lazy mode to avoid duplicate connect races.
+                lazyConnect: true,
                 maxRetriesPerRequest: null, // Required for Bull
                 enableReadyCheck: false, // Helps with Upstash
               },
@@ -46,18 +49,22 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
               },
             };
           } catch (error) {
-            console.error('❌ Failed to parse REDIS_URL:', error.message);
+            console.error('❌ Failed to parse REDIS_URL:', error);
             throw error;
           }
         }
 
-        // Local development fallback
+        // Local development / Docker fallback
         console.log('🔧 Redis Configuration: Using local Redis');
         return {
           redis: {
             host: configService.get('REDIS_HOST', 'localhost'),
-            port: configService.get('REDIS_PORT', 6379),
+            port: parseInt(configService.get('REDIS_PORT', '6379'), 10),
             password: configService.get('REDIS_PASSWORD') || undefined,
+            // NOTE: Do NOT use lazyConnect: true here.
+            // With lazyConnect, ioredis won't open the subscriber connection
+            // until a command is sent — Bull's BLPOP/subscribe listener never
+            // triggers that first command, so the worker never picks up jobs.
             maxRetriesPerRequest: null,
           },
           defaultJobOptions: {

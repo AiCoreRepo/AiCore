@@ -28,7 +28,7 @@ async function bootstrapWorker() {
   app.enableShutdownHooks();
 
   logger.log('🚀 Worker connected to Redis — waiting for jobs...');
-  logger.log('   Listening for: try-on jobs, aura generation jobs');
+  logger.log('   Listening for: try-on jobs, angle generation jobs, aura generation jobs');
 }
 
 bootstrapWorker();

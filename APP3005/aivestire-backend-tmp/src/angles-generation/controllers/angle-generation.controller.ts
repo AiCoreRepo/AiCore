@@ -18,14 +18,12 @@ import {
 } from '@nestjs/swagger';
 import { TryOnStatus } from '../../ai-tryon/enums/ai-provider.enum';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
-import { AngleGenerationService } from '../services/angle-generation.service';
 import { AngleSessionManagerService } from '../services/angle-session-manager.service';
 import {
   GenerateAnglesRequestDto,
   ResetAngleSessionDto,
 } from '../dto/generate-angles-request.dto';
 import {
-  GenerateAnglesResponseDto,
   AngleJobStatusResponseDto,
   AngleQueuedResponseDto,
   ResetAngleSessionResponseDto,
@@ -44,7 +42,6 @@ export class AngleGenerationController {
   private readonly logger = new Logger(AngleGenerationController.name);
 
   constructor(
-    private readonly angleGenerationService: AngleGenerationService,
     private readonly sessionManager: AngleSessionManagerService,
     private readonly angleQueueService: AngleQueueService,
   ) {}
@@ -107,44 +104,6 @@ export class AngleGenerationController {
     @Request() req,
   ): Promise<AngleJobStatusResponseDto> {
     return this.angleQueueService.getJobStatus(jobId, req.user.user_id);
-  }
-
-  /**
-   * Generate next angle in sequence from try-on image
-   */
-  @Post('generate')
-  @ApiOperation({
-    summary: 'Generate more angles from try-on image',
-    description:
-      'Generate additional camera angles from an existing try-on image using Gemini AI. ' +
-      'Automatically determines the next angle in sequence or uses explicitly requested angle.',
-  })
-  @ApiResponse({
-    status: 201,
-    description: 'Angle generated successfully',
-    type: GenerateAnglesResponseDto,
-  })
-  @ApiResponse({
-    status: 400,
-    description: 'Invalid request data',
-  })
-  @ApiResponse({
-    status: 404,
-    description: 'Aura not found',
-  })
-  @ApiResponse({
-    status: 500,
-    description: 'Angle generation failed',
-  })
-  @UseGuards(TryOnPermissionGuard)
-  async generateAngle(
-    @Body() request: GenerateAnglesRequestDto,
-  ): Promise<GenerateAnglesResponseDto> {
-    this.logger.log(
-      `📐 Angle generation request for product ${request.productId}`,
-    );
-
-    return await this.angleGenerationService.generateAngle(request);
   }
 
   /**

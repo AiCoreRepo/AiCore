@@ -68,6 +68,11 @@ const DEFAULT_CATEGORY = 'Clothing';
 const DEFAULT_INVENTORY_COUNT = 10;
 const MAX_PRODUCTS_PER_SYNC = 100;
 const METADATA_FILE_NAME = 'metadata.json';
+const DEFAULT_SYNC_CONCURRENCY = 4;
+const MAX_SYNC_CONCURRENCY = 8;
+const UPLOAD_MAX_WIDTH = 1600;
+const UPLOAD_MAX_HEIGHT = 2000;
+const UPLOAD_JPEG_QUALITY = 84;
 
 @Injectable()
 export class AdminClothUploadService {
@@ -79,6 +84,7 @@ export class AdminClothUploadService {
   ) {}
 
   async syncFromFolder(dto: SyncAdminClothFolderDto) {
+    const startedAt = Date.now();
     const inputFolder = this.resolveInputFolder(dto.folder_path);
     if (!fs.existsSync(inputFolder) || !fs.statSync(inputFolder).isDirectory()) {
       throw new NotFoundException(`Upload folder not found: ${inputFolder}`);
@@ -135,127 +141,129 @@ export class AdminClothUploadService {
     let skippedDuplicates = 0;
     const details: Array<{ file: string; status: string; reason?: string }> = [];
     const prepared: PreparedUpload[] = [];
+    const uploadedPublicIds: string[] = [];
     const seenHashes = new Set<string>();
 
-    for (const fileName of filesToProcess) {
-      try {
-        const filePath = path.join(inputFolder, fileName);
-        const fileBuffer = fs.readFileSync(filePath);
-        const metadataItem = this.resolveMetadataForImage(metadataConfig, fileName);
-        const normalized = this.normalizeMetadata(
-          metadataItem,
-          fileName,
-          dto.default_category,
-          dto.auto_approve,
-        );
+    const configuredConcurrency = Number(
+      process.env.ADMIN_CLOTH_SYNC_CONCURRENCY || DEFAULT_SYNC_CONCURRENCY,
+    );
+    const concurrency = Number.isFinite(configuredConcurrency)
+      ? Math.max(1, Math.min(MAX_SYNC_CONCURRENCY, Math.floor(configuredConcurrency)))
+      : DEFAULT_SYNC_CONCURRENCY;
 
-        const fileHash = this.sha256(fileBuffer);
+    await this.runWithConcurrency(filesToProcess, concurrency, async (fileName) => {
+      const filePath = path.join(inputFolder, fileName);
+      const fileBuffer = await fs.promises.readFile(filePath);
+      const metadataItem = this.resolveMetadataForImage(metadataConfig, fileName);
+      const normalized = this.normalizeMetadata(
+        metadataItem,
+        fileName,
+        dto.default_category,
+        dto.auto_approve,
+      );
 
-        if (seenHashes.has(fileHash)) {
-          skippedDuplicates++;
-          details.push({
-            file: fileName,
-            status: 'skipped',
-            reason: 'Duplicate detected within selected batch',
-          });
-          continue;
-        }
-        seenHashes.add(fileHash);
+      const fileHash = this.sha256(fileBuffer);
 
-        const existingByHash = await this.prisma.product.findFirst({
-          where: {
-            is_deleted: false,
-            metadata: {
-              path: ['admin_cloth_upload', 'source_file_sha256'],
-              equals: fileHash,
-            },
-          },
-          select: {
-            product_id: true,
-          },
+      if (seenHashes.has(fileHash)) {
+        skippedDuplicates++;
+        details.push({
+          file: fileName,
+          status: 'skipped',
+          reason: 'Duplicate detected within selected batch',
         });
-
-        if (existingByHash) {
-          const linkedExisting = await this.linkCategoryForExistingDuplicate(
-            existingByHash.product_id,
-            normalized,
-          );
-
-          skippedDuplicates++;
-          details.push({
-            file: fileName,
-            status: 'skipped',
-            reason: linkedExisting
-              ? 'Duplicate detected by file hash (category link updated)'
-              : 'Duplicate detected by file hash',
-          });
-          continue;
-        }
-
-        const imageDataUri = this.toDataUri(fileBuffer, path.extname(fileName));
-
-        const uploadResult = await this.cloudinaryService.uploadWithMetadata(
-          imageDataUri,
-          {
-            imageType: 'product',
-            source: 'admin-cloth-upload',
-            source_file_name: fileName,
-            source_file_sha256: fileHash,
-          },
-          cloudinaryFolder,
-        );
-
-        const rowMetadata = {
-          ...(normalized.metadata && typeof normalized.metadata === 'object'
-            ? normalized.metadata
-            : {}),
-          admin_cloth_upload: {
-            source_file_name: fileName,
-            source_file_sha256: fileHash,
-            source_folder: inputFolder,
-            imported_at: new Date().toISOString(),
-            cloudinary_public_id: uploadResult.publicId,
-          },
-        } as Prisma.InputJsonValue;
-
-        prepared.push({
-          fileName,
-          title: normalized.title,
-          description: normalized.description || '',
-          category: normalized.category,
-          categoryId: normalized.category_id,
-          subCategoryId: normalized.sub_category_id,
-          priceCents: normalized.price_cents,
-          inventoryCount: normalized.inventory_count,
-          status: normalized.status,
-          occasions: this.safeArray(normalized.occasions),
-          bodyShapes: this.safeArray(normalized.body_shapes),
-          skinTones: this.safeArray(normalized.skin_tones),
-          sizes: this.safeArray(normalized.sizes),
-          ageRanges: this.safeArray(normalized.age_ranges),
-          metadata: rowMetadata,
-          imageUrl: uploadResult.secureUrl,
-          cloudinaryPublicId: uploadResult.publicId,
-        });
-      } catch (error) {
-        const message = error instanceof Error ? error.message : 'Unknown error';
-        this.logger.error(`Failed importing ${fileName}: ${message}`);
-        for (const row of prepared) {
-          try {
-            await this.cloudinaryService.deleteByPublicId(row.cloudinaryPublicId);
-          } catch (cleanupError) {
-            const cleanupMessage =
-              cleanupError instanceof Error
-                ? cleanupError.message
-                : 'Unknown cleanup error';
-            this.logger.warn(
-              `Failed Cloudinary cleanup for ${row.fileName}: ${cleanupMessage}`,
-            );
-          }
-        }
-        throw new BadRequestException(`Sync failed for ${fileName}: ${message}`);
+        return;
       }
-    }
+      seenHashes.add(fileHash);
+
+      const existingByHash = await this.prisma.product.findFirst({
+        where: {
+          is_deleted: false,
+          metadata: {
+            path: ['admin_cloth_upload', 'source_file_sha256'],
+            equals: fileHash,
+          },
+        },
+        select: {
+          product_id: true,
+        },
+      });
+
+      if (existingByHash) {
+        const linkedExisting = await this.linkCategoryForExistingDuplicate(
+          existingByHash.product_id,
+          normalized,
+        );
+
+        skippedDuplicates++;
+        details.push({
+          file: fileName,
+          status: 'skipped',
+          reason: linkedExisting
+            ? 'Duplicate detected by file hash (category link updated)'
+            : 'Duplicate detected by file hash',
+        });
+        return;
+      }
+
+      const optimized = await this.optimizeImageForUpload(
+        fileBuffer,
+        path.extname(fileName),
+      );
+
+      const imageDataUri = this.toDataUri(optimized.buffer, optimized.extension);
+
+      const uploadResult = await this.cloudinaryService.uploadWithMetadata(
+        imageDataUri,
+        {
+          imageType: 'product',
+          source: 'admin-cloth-upload',
+          source_file_name: fileName,
+          source_file_sha256: fileHash,
+        },
+        cloudinaryFolder,
+      );
+      uploadedPublicIds.push(uploadResult.publicId);
+
+      const rowMetadata = {
+        ...(normalized.metadata && typeof normalized.metadata === 'object'
+          ? normalized.metadata
+          : {}),
+        admin_cloth_upload: {
+          source_file_name: fileName,
+          source_file_sha256: fileHash,
+          source_folder: inputFolder,
+          imported_at: new Date().toISOString(),
+          cloudinary_public_id: uploadResult.publicId,
+          optimized_before_upload: optimized.wasOptimized,
+          optimized_bytes: optimized.buffer.length,
+        },
+      } as Prisma.InputJsonValue;
+
+      prepared.push({
+        fileName,
+        title: normalized.title,
+        description: normalized.description || '',
+        category: normalized.category,
+        categoryId: normalized.category_id,
+        subCategoryId: normalized.sub_category_id,
+        priceCents: normalized.price_cents,
+        inventoryCount: normalized.inventory_count,
+        status: normalized.status,
+        occasions: this.safeArray(normalized.occasions),
+        bodyShapes: this.safeArray(normalized.body_shapes),
+        skinTones: this.safeArray(normalized.skin_tones),
+        sizes: this.safeArray(normalized.sizes),
+        ageRanges: this.safeArray(normalized.age_ranges),
+        metadata: rowMetadata,
+        imageUrl: uploadResult.secureUrl,
+        cloudinaryPublicId: uploadResult.publicId,
+      });
+    }).catch(async (error) => {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      this.logger.error(`Folder sync failed during preparation: ${message}`);
+      await this.cleanupUploadedPublicIds(uploadedPublicIds);
+      throw new BadRequestException(`Sync failed: ${message}`);
+    });
 
     let imported = 0;
     const reservedSlugs = new Set<string>();
@@ -312,23 +320,13 @@ export class AdminClothUploadService {
         }
       });
     } catch (error) {
-      for (const row of prepared) {
-        try {
-          await this.cloudinaryService.deleteByPublicId(row.cloudinaryPublicId);
-        } catch (cleanupError) {
-          const cleanupMessage =
-            cleanupError instanceof Error
-              ? cleanupError.message
-              : 'Unknown cleanup error';
-          this.logger.warn(
-            `Failed rollback cleanup for ${row.fileName}: ${cleanupMessage}`,
-          );
-        }
-      }
+      await this.cleanupUploadedPublicIds(uploadedPublicIds);
 
       const message = error instanceof Error ? error.message : 'Transaction failed';
       throw new BadRequestException(`Product transaction failed: ${message}`);
     }
+
+    const durationMs = Date.now() - startedAt;
 
     return {
       success: true,
@@ -339,9 +337,90 @@ export class AdminClothUploadService {
       queued: queuedCount,
       imported,
       skipped_duplicates: skippedDuplicates,
+      duration_ms: durationMs,
+      concurrency,
       details,
       message: `Sync complete. Processed ${filesToProcess.length}/${files.length}, imported ${imported}, skipped ${skippedDuplicates} duplicate(s).`,
     };
+  }
+
+  private async runWithConcurrency<T>(
+    items: T[],
+    concurrency: number,
+    handler: (item: T) => Promise<void>,
+  ): Promise<void> {
+    if (items.length === 0) {
+      return;
+    }
+
+    let currentIndex = 0;
+    const workers = Array.from({ length: Math.min(concurrency, items.length) }).map(
+      async () => {
+        while (true) {
+          const index = currentIndex;
+          currentIndex += 1;
+          if (index >= items.length) {
+            return;
+          }
+          await handler(items[index]);
+        }
+      },
+    );
+
+    await Promise.all(workers);
+  }
+
+  private async optimizeImageForUpload(
+    fileBuffer: Buffer,
+    extension: string,
+  ): Promise<{ buffer: Buffer; extension: string; wasOptimized: boolean }> {
+    const ext = extension.toLowerCase();
+    const supportsOptimization = ext === '.jpg' || ext === '.jpeg' || ext === '.webp';
+
+    if (!supportsOptimization) {
+      return { buffer: fileBuffer, extension, wasOptimized: false };
+    }
+
+    try {
+      const sharp = (await import('sharp')).default;
+      const optimizedBuffer = await sharp(fileBuffer)
+        .resize(UPLOAD_MAX_WIDTH, UPLOAD_MAX_HEIGHT, {
+          fit: 'inside',
+          withoutEnlargement: true,
+        })
+        .jpeg({ quality: UPLOAD_JPEG_QUALITY, mozjpeg: true })
+        .toBuffer();
+
+      if (optimizedBuffer.length >= fileBuffer.length) {
+        return { buffer: fileBuffer, extension, wasOptimized: false };
+      }
+
+      return {
+        buffer: optimizedBuffer,
+        extension: '.jpg',
+        wasOptimized: true,
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.warn(`Image optimization skipped: ${message}`);
+      return { buffer: fileBuffer, extension, wasOptimized: false };
+    }
+  }
+
+  private async cleanupUploadedPublicIds(publicIds: string[]): Promise<void> {
+    for (const publicId of publicIds) {
+      try {
+        await this.cloudinaryService.deleteByPublicId(publicId);
+      } catch (cleanupError) {
+        const cleanupMessage =
+          cleanupError instanceof Error
+            ? cleanupError.message
+            : 'Unknown cleanup error';
+        this.logger.warn(
+          `Failed rollback cleanup for Cloudinary public ID ${publicId}: ${cleanupMessage}`,
+        );
+      }
+    }
   }
 
   private resolveInputFolder(folderPath?: string): string {

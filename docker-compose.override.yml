@@ -1,4 +1,6 @@
+# Local development overrides — applied on top of docker-compose.yml
+# Use: docker compose up  (automatically merged)
 services:
   backend:
     environment:
-      CORS_ORIGIN: "http://localhost:3005"
+      CORS_ORIGIN: "http://localhost:3005,http://localhost:5173"

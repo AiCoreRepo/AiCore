@@ -11,7 +11,7 @@ export class AdminClothUploadController {
   constructor(
     private readonly adminClothUploadService: AdminClothUploadService,
     private readonly clothCleanupService: ClothCleanupService,
-  ) {}
+  ) { }
 
   @Post('sync-folder')
   async syncFolder(@Body() dto: SyncAdminClothFolderDto) {
