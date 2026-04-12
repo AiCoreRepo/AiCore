@@ -59,6 +59,7 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: 6380
       AI_TIMING_LOGS: "true"
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.1-flash-image-preview}
       GOOGLE_APPLICATION_CREDENTIALS: /app/service_account.json
       SEED_COLLECTION_PATH: /app/seed/main_train_data.csv
       SEED_LIMIT: ${SEED_LIMIT:-200}
@@ -95,8 +96,11 @@ services:
       DATABASE_URL: postgresql://postgres:postgres@db:5540/aivestire
       NODE_ENV: production
       FRONTEND_URL: https://aivestire.com
+      FASTAPI_BODY_ANALYZE_URL: http://body-analyzer:8898/body_analyze_json
       REDIS_HOST: redis
       REDIS_PORT: 6380
+      AI_TIMING_LOGS: "true"
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.1-flash-image-preview}
       GOOGLE_APPLICATION_CREDENTIALS: /app/service_account.json
     volumes:
       - ./APP3005/aivestire-backend-tmp/service_account.json:/app/service_account.json:ro
@@ -105,6 +109,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      body-analyzer:
+        condition: service_started
     restart: unless-stopped
     networks:
       - app-network
