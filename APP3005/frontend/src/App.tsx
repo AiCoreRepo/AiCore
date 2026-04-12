@@ -51,6 +51,7 @@ const WalletPage = lazy(() => import("./pages/WalletPage"));
 const AdminWalletPage = lazy(() => import("./pages/AdminWalletPage"));
 const AdminAnalyticsPage = lazy(() => import("./pages/AdminAnalyticsPage"));
 const AdminCategoriesPage = lazy(() => import("./app/admin-categories/page"));
+const AdminClothUploadPage = lazy(() => import("./app/admin-cloth-upload/page"));
 
 import AdminLogin from "./pages/AdminLogin";
 import AdminSecretConfirm from "./pages/AdminSecretConfirm";
@@ -249,6 +250,11 @@ const App = () => (
                       <Route path="/admin-settings" element={<AdminSettingsPage />} />
                       <Route path="/admin-feedback" element={<AdminFeedbackPage />} />
                       <Route path="/admin-csv-upload" element={<AdminCSVUploadPage />} />
+                      <Route path="/admin-cloth-upload" element={
+                        <Suspense fallback={<div className="min-h-screen bg-neutral-950 flex items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-2 border-[#D4AF37] border-t-transparent"></div></div>}>
+                          <AdminClothUploadPage />
+                        </Suspense>
+                      } />
                       <Route path="/admin-payout-process/:creatorId" element={
                         <Suspense fallback={<div className="min-h-screen bg-neutral-950 flex items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-2 border-[#D4AF37] border-t-transparent"></div></div>}>
                           <AdminPayoutProcessPage />

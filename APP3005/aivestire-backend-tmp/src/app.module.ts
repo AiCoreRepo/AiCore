@@ -39,6 +39,7 @@ import { ProductGroupsModule } from './product-groups/product-groups.module';
 import { CategoriesModule } from './categories/categories.module';
 import { AdminAnalyticsModule } from './admin-analytics/admin-analytics.module';
 import { InventoryManagementModule } from './admin/inventory-management/inventory-management.module';
+import { AdminClothUploadModule } from './admin-cloth-upload/admin-cloth-upload.module';
 import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
@@ -81,6 +82,7 @@ import { ScheduleModule } from '@nestjs/schedule';
     CategoriesModule,
     AdminAnalyticsModule,
     InventoryManagementModule,
+    AdminClothUploadModule,
   ],
   controllers: [AppController],
   providers: [AppService, AdminSeederService],

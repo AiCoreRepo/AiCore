@@ -1,0 +1,261 @@
+{
+  "default": {
+    "inventory_count": 10,
+    "auto_approve": true,
+    "category": "Clothing"
+  },
+  "items": {
+    "saree1.jpg": {
+      "title": "Saree 1",
+      "price_cents": 299900,
+      "category": "Saree",
+      "description": "Saree 1 imported by admin cloth upload",
+      "sizes": [
+        "S",
+        "M",
+        "L",
+        "XL"
+      ],
+      "age_ranges": [
+        "25-34"
+      ],
+      "body_shapes": [
+        "Hourglass",
+        "Rectangle"
+      ],
+      "skin_tones": [
+        "Light",
+        "Medium",
+        "Dusky"
+      ],
+      "metadata": {
+        "collection": "admin-cloth-upload",
+        "source_file": "saree1.jpg"
+      }
+    },
+    "saree2.jpg": {
+      "title": "Saree 2",
+      "price_cents": 299900,
+      "category": "Saree",
+      "description": "Saree 2 imported by admin cloth upload",
+      "sizes": [
+        "S",
+        "M",
+        "L",
+        "XL"
+      ],
+      "age_ranges": [
+        "25-34"
+      ],
+      "body_shapes": [
+        "Hourglass",
+        "Rectangle"
+      ],
+      "skin_tones": [
+        "Light",
+        "Medium",
+        "Dusky"
+      ],
+      "metadata": {
+        "collection": "admin-cloth-upload",
+        "source_file": "saree2.jpg"
+      }
+    },
+    "saree3.jpg": {
+      "title": "Saree 3",
+      "price_cents": 299900,
+      "category": "Saree",
+      "description": "Saree 3 imported by admin cloth upload",
+      "sizes": [
+        "S",
+        "M",
+        "L",
+        "XL"
+      ],
+      "age_ranges": [
+        "25-34"
+      ],
+      "body_shapes": [
+        "Hourglass",
+        "Rectangle"
+      ],
+      "skin_tones": [
+        "Light",
+        "Medium",
+        "Dusky"
+      ],
+      "metadata": {
+        "collection": "admin-cloth-upload",
+        "source_file": "saree3.jpg"
+      }
+    },
+    "saree4.jpg": {
+      "title": "Saree 4",
+      "price_cents": 299900,
+      "category": "Saree",
+      "description": "Saree 4 imported by admin cloth upload",
+      "sizes": [
+        "S",
+        "M",
+        "L",
+        "XL"
+      ],
+      "age_ranges": [
+        "25-34"
+      ],
+      "body_shapes": [
+        "Hourglass",
+        "Rectangle"
+      ],
+      "skin_tones": [
+        "Light",
+        "Medium",
+        "Dusky"
+      ],
+      "metadata": {
+        "collection": "admin-cloth-upload",
+        "source_file": "saree4.jpg"
+      }
+    },
+    "saree5.jpg": {
+      "title": "Saree 5",
+      "price_cents": 299900,
+      "category": "Saree",
+      "description": "Saree 5 imported by admin cloth upload",
+      "sizes": [
+        "S",
+        "M",
+        "L",
+        "XL"
+      ],
+      "age_ranges": [
+        "25-34"
+      ],
+      "body_shapes": [
+        "Hourglass",
+        "Rectangle"
+      ],
+      "skin_tones": [
+        "Light",
+        "Medium",
+        "Dusky"
+      ],
+      "metadata": {
+        "collection": "admin-cloth-upload",
+        "source_file": "saree5.jpg"
+      }
+    },
+    "saree6.jpg": {
+      "title": "Saree 6",
+      "price_cents": 299900,
+      "category": "Saree",
+      "description": "Saree 6 imported by admin cloth upload",
+      "sizes": [
+        "S",
+        "M",
+        "L",
+        "XL"
+      ],
+      "age_ranges": [
+        "25-34"
+      ],
+      "body_shapes": [
+        "Hourglass",
+        "Rectangle"
+      ],
+      "skin_tones": [
+        "Light",
+        "Medium",
+        "Dusky"
+      ],
+      "metadata": {
+        "collection": "admin-cloth-upload",
+        "source_file": "saree6.jpg"
+      }
+    },
+    "saree7.jpg": {
+      "title": "Saree 7",
+      "price_cents": 299900,
+      "category": "Saree",
+      "description": "Saree 7 imported by admin cloth upload",
+      "sizes": [
+        "S",
+        "M",
+        "L",
+        "XL"
+      ],
+      "age_ranges": [
+        "25-34"
+      ],
+      "body_shapes": [
+        "Hourglass",
+        "Rectangle"
+      ],
+      "skin_tones": [
+        "Light",
+        "Medium",
+        "Dusky"
+      ],
+      "metadata": {
+        "collection": "admin-cloth-upload",
+        "source_file": "saree7.jpg"
+      }
+    },
+    "saree8.jpg": {
+      "title": "Saree 8",
+      "price_cents": 299900,
+      "category": "Saree",
+      "description": "Saree 8 imported by admin cloth upload",
+      "sizes": [
+        "S",
+        "M",
+        "L",
+        "XL"
+      ],
+      "age_ranges": [
+        "25-34"
+      ],
+      "body_shapes": [
+        "Hourglass",
+        "Rectangle"
+      ],
+      "skin_tones": [
+        "Light",
+        "Medium",
+        "Dusky"
+      ],
+      "metadata": {
+        "collection": "admin-cloth-upload",
+        "source_file": "saree8.jpg"
+      }
+    },
+    "saree9.jpg": {
+      "title": "Saree 9",
+      "price_cents": 299900,
+      "category": "Saree",
+      "description": "Saree 9 imported by admin cloth upload",
+      "sizes": [
+        "S",
+        "M",
+        "L",
+        "XL"
+      ],
+      "age_ranges": [
+        "25-34"
+      ],
+      "body_shapes": [
+        "Hourglass",
+        "Rectangle"
+      ],
+      "skin_tones": [
+        "Light",
+        "Medium",
+        "Dusky"
+      ],
+      "metadata": {
+        "collection": "admin-cloth-upload",
+        "source_file": "saree9.jpg"
+      }
+    }
+  }
+}

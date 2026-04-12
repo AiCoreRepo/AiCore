@@ -8,9 +8,37 @@ services:
     environment:
       DATABASE_URL: postgresql://postgres:postgres@db:5432/aivestire
       REDIS_HOST: redis
+      REDIS_PORT: 6379
+      GOOGLE_APPLICATION_CREDENTIALS: /app/service_account.json
       AI_TIMING_LOGS: "true"
+    volumes:
+      - ./service_account.json:/app/service_account.json:ro
     ports:
       - "3001:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  backend-worker:
+    build:
+      context: ./aivestire-backend-tmp
+    container_name: nest-worker
+    command: ["sh", "-c", "set -e; IS_WORKER_PROCESS=true node dist/src/worker/main.js"]
+    env_file:
+      - ./aivestire-backend-tmp/.env
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/aivestire
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      GOOGLE_APPLICATION_CREDENTIALS: /app/service_account.json
+      AI_TIMING_LOGS: "true"
+    volumes:
+      - ./service_account.json:/app/service_account.json:ro
     depends_on:
       db:
         condition: service_healthy
@@ -29,7 +57,7 @@ services:
         VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID:-}
     container_name: aivestire-frontend
     ports:
-      - "8080:8080"
+      - "3005:8080"
     depends_on:
       - backend
     restart: unless-stopped

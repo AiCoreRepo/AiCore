@@ -29,6 +29,21 @@ RUN npx prisma generate
 
 COPY --from=backend-builder /app/dist ./dist
 
+# ── Permanent Bull/ioredis worker fix ─────────────────────────────────────────
+# lazyConnect:true tells ioredis NOT to connect until the first command is sent.
+# For Bull PRODUCERS (API) this is fine.
+# For Bull CONSUMERS (worker) this is FATAL — the subscriber connection that
+# listens for new jobs (BLPOP/keyspace events) is never opened, so the worker
+# sits idle forever and no jobs are ever processed.
+#
+# We patch the compiled JS here so the fix is:
+#   • Applied at image build time (not dependent on source cache)
+#   • Guaranteed to be in every image regardless of Docker layer caching
+#   • Idempotent — running sed on already-patched code is safe
+RUN sed -i 's/lazyConnect: true,\?//g' /app/dist/src/queues/queue.module.js \
+    && echo "✅ Dockerfile patch: lazyConnect removed from queue.module.js" \
+    && grep -c 'lazyConnect' /app/dist/src/queues/queue.module.js && echo "⚠️  lazyConnect still present — check sed pattern" || echo "✅ Confirmed: no lazyConnect in compiled output"
+
 EXPOSE 3000
 
 CMD ["node", "dist/src/main"]

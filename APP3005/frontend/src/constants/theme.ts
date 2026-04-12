@@ -148,6 +148,13 @@ export const menuItems: MenuItem[] = [
         isBeta: false,
     },
     {
+        id: 'admin-cloth-upload',
+        label: 'Admin Cloth Upload',
+        icon: Upload,
+        href: '/admin-cloth-upload',
+        isBeta: false,
+    },
+    {
         id: 'artisans',
         label: 'Creator Management',
         icon: Palette,

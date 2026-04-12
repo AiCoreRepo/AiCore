@@ -111,11 +111,37 @@ export class DirectGeminiTryOnService {
         await validateImage(avatar);
         await validateImage(clothing);
       },
-      preprocessImages: async (avatar, clothing) => ({
-        // Gemini can fetch URLs itself (see extractImageData)
-        avatarBase64: avatar,
-        clothingBase64: clothing,
-      }),
+      preprocessImages: async (avatar, clothing) => {
+        // 1. Resolve URLs to base64 Data URIs using native extract tool (handles http vs base64 cases securely)
+        const avatarRaw = await extractImageData(avatar);
+        const clothingRaw = await extractImageData(clothing);
+        
+        const avatarDataUri = buildDataUri(avatarRaw.data, avatarRaw.mimeType);
+        const clothingDataUri = buildDataUri(clothingRaw.data, clothingRaw.mimeType);
+
+        // 2. Compress images to a maximum dimension of 1024px before sending them to Gemini.
+        // Extremely high-resolution or complex clothing masks are the strict root cause of 
+        // Gemini generation timeouts. Normalizing resolution guarantees fast first-time success.
+        // We use PNG format to preserve native transparency (avoiding iOS transparent images turning into black boxes)
+        const optimizedAvatar = await this.imageOptimizer.compressImage(avatarDataUri, {
+          maxWidth: 1024,
+          maxHeight: 1024,
+          quality: 85,
+          format: 'png',
+        });
+
+        const optimizedClothing = await this.imageOptimizer.compressImage(clothingDataUri, {
+          maxWidth: 1024,
+          maxHeight: 1024,
+          quality: 85,
+          format: 'png',
+        });
+
+        return {
+          avatarBase64: optimizedAvatar,
+          clothingBase64: optimizedClothing,
+        };
+      },
       performTryOn: (avatarBase64, clothingBase64, params) =>
         this.performTryOn(avatarBase64, clothingBase64, params),
       postprocessResult: (result) => this.postprocessResult(result),
@@ -191,6 +217,11 @@ export class DirectGeminiTryOnService {
         `failed total=${this.formatDuration(totalMs)} avatar_extract=${this.formatDuration(avatarExtractMs)} clothing_extract=${this.formatDuration(clothingExtractMs)} mask=${this.formatDuration(maskMs)} prompt=${this.formatDuration(promptMs)} error=${error instanceof Error ? error.message : 'unknown error'}`,
       );
 
+      this.logger.error(`Gemini request failed: ${error}`, error instanceof Error ? error.stack : undefined);
+      if (error instanceof Error && (error as any).status) {
+         this.logger.error(`Status: ${(error as any).status}`);
+      }
+
       if (error instanceof TimeoutException) {
         throw new AIServiceException(
           TryOnErrorCode.TIMEOUT_ERROR,
@@ -204,14 +235,15 @@ export class DirectGeminiTryOnService {
         throw error;
       }
 
+      // Preserve the specific Gemini API error string if possible
       const errorMessage =
-        error instanceof Error
+        error instanceof Error && error.message
           ? error.message
           : GEMINI_TRYON_ERROR_MESSAGES.REQUEST_FAILED;
 
       throw new AIServiceException(
         TryOnErrorCode.AI_SERVICE_ERROR,
-        GEMINI_TRYON_ERROR_MESSAGES.REQUEST_FAILED,
+        errorMessage, 
         500,
         { error: errorMessage },
       );
@@ -361,14 +393,14 @@ export class DirectGeminiTryOnService {
     const generationPromise = model.generateContent([
       {
         inlineData: {
-          data: clothingData.data,
-          mimeType: clothingData.mimeType,
+          data: avatarData.data,
+          mimeType: avatarData.mimeType,
         },
       },
       {
         inlineData: {
-          data: avatarData.data,
-          mimeType: avatarData.mimeType,
+          data: clothingData.data,
+          mimeType: clothingData.mimeType,
         },
       },
       { text: prompt },

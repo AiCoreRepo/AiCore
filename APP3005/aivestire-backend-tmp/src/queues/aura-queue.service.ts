@@ -41,7 +41,7 @@ export class AuraQueueService {
   constructor(
     @InjectQueue(QUEUE_NAMES.AURA_GENERATION)
     private readonly auraQueue: Queue<AuraJobData>,
-  ) {}
+  ) { }
 
   async addAuraGenerationJob(data: AuraJobData): Promise<Job<AuraJobData>> {
     console.log(`📋 Adding avatar generation job for Aura: ${data.auraId}`);

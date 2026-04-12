@@ -1,4 +1,8 @@
 services:
+
+  # ─────────────────────────────────────────────
+  # PostgreSQL
+  # ─────────────────────────────────────────────
   db:
     image: postgres:15
     container_name: postgres-db-testcoth2
@@ -15,13 +19,20 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    ports:
+      - "127.0.0.1:5432:5540"
     networks:
       - app-network
 
+  # ─────────────────────────────────────────────
+  # Redis (custom port 6380)
+  # ─────────────────────────────────────────────
   redis:
     image: redis:7-alpine
     container_name: redis-server-testcoth2
     command: redis-server --appendonly yes --port 6380
+    ports:
+      - "127.0.0.1:6379:6380"
     volumes:
       - redis_data:/data
     restart: unless-stopped
@@ -33,103 +44,9 @@ services:
     networks:
       - app-network
 
-  backend:
-    build:
-      context: ./APP3005/aivestire-backend-tmp
-      dockerfile: Dockerfile
-    container_name: nest-server
-    command:
-      [
-        "sh",
-        "-c",
-        "set -e; node scripts/wait-for-services.mjs; node scripts/run-migrations.mjs; node scripts/seed-products.js; node dist/src/main"
-      ]
-    env_file:
-      - ./APP3005/aivestire-backend-tmp/.env
-    environment:
-      DATABASE_URL: postgresql://postgres:postgres@db:5540/aivestire
-      NODE_ENV: production
-      FRONTEND_URL: https://aivestire.com
-      FASTAPI_BODY_ANALYZE_URL: http://body-analyzer:8898/body_analyze_json
-      FASTAPI_RECOMMENDATION_URL: ${FASTAPI_RECOMMENDATION_URL:-http://recommendation-api:8799/recommendation/ai-decide}
-      RECOMMENDATION_DUMMY_ONLY: ${RECOMMENDATION_DUMMY_ONLY:-true}
-      RECOMMENDATION_ML_ENABLED: ${RECOMMENDATION_ML_ENABLED:-false}
-      CORS_ORIGIN: ${CORS_ORIGIN:-}
-      REDIS_HOST: redis
-      REDIS_PORT: 6380
-      AI_TIMING_LOGS: "true"
-      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.1-flash-image-preview}
-      GOOGLE_APPLICATION_CREDENTIALS: /app/service_account.json
-      SEED_COLLECTION_PATH: /app/seed/main_train_data.csv
-      SEED_LIMIT: ${SEED_LIMIT:-200}
-    volumes:
-      - ./APP3005/aivestire-backend-tmp/service_account.json:/app/service_account.json:ro
-      - ./APP3005_AI/recommend_demo/main_train_data.csv:/app/seed/main_train_data.csv:ro
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      body-analyzer:
-        condition: service_started
-      recommendation-api:
-        condition: service_started
-    restart: unless-stopped
-    networks:
-      - app-network
-
-  backend-worker:
-    build:
-      context: ./APP3005/aivestire-backend-tmp
-      dockerfile: Dockerfile
-    container_name: nest-worker
-    command:
-      [
-        "sh",
-        "-c",
-        "set -e; node scripts/wait-for-services.mjs; IS_WORKER_PROCESS=true node dist/src/worker/main"
-      ]
-    env_file:
-      - ./APP3005/aivestire-backend-tmp/.env
-    environment:
-      DATABASE_URL: postgresql://postgres:postgres@db:5540/aivestire
-      NODE_ENV: production
-      FRONTEND_URL: https://aivestire.com
-      FASTAPI_BODY_ANALYZE_URL: http://body-analyzer:8898/body_analyze_json
-      REDIS_HOST: redis
-      REDIS_PORT: 6380
-      AI_TIMING_LOGS: "true"
-      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.1-flash-image-preview}
-      GOOGLE_APPLICATION_CREDENTIALS: /app/service_account.json
-    volumes:
-      - ./APP3005/aivestire-backend-tmp/service_account.json:/app/service_account.json:ro
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      body-analyzer:
-        condition: service_started
-    restart: unless-stopped
-    networks:
-      - app-network
-
-  frontend:
-    build:
-      context: ./APP3005/frontend
-      dockerfile: Dockerfile
-      args:
-        VITE_API_URL: ${VITE_API_URL:-/api}
-        VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID:?Set VITE_GOOGLE_CLIENT_ID in .env}
-    container_name: aivestire-frontend
-    ports:
-      - "127.0.0.1:3005:8080"
-    depends_on:
-      - backend
-    restart: unless-stopped
-    networks:
-      - app-network
-
+  # ─────────────────────────────────────────────
+  # AI — Body Analyzer (Python FastAPI)
+  # ─────────────────────────────────────────────
   body-analyzer:
     build:
       context: ./APP3005_AI/Playground/vertexVT
@@ -141,6 +58,9 @@ services:
     networks:
       - app-network
 
+  # ─────────────────────────────────────────────
+  # AI — Recommendation API
+  # ─────────────────────────────────────────────
   recommendation-api:
     build:
       context: ./APP3005_AI/recommend_demo
@@ -150,6 +70,149 @@ services:
       - "127.0.0.1:8799:8799"
     environment:
       RECOMMENDATION_COLLECTION_PATH: /app/main_train_data.csv
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  # ─────────────────────────────────────────────
+  # Backend API — NestJS HTTP server
+  # ─────────────────────────────────────────────
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: backend
+    container_name: nest-server
+    command:
+      [
+        "sh", "-c",
+        "set -e; node scripts/wait-for-services.mjs; node scripts/run-migrations.mjs; node scripts/seed-products.js; node dist/src/main"
+      ]
+    env_file:
+      # Local .env provides secrets (API keys, JWT, Cloudinary, etc.).
+      # Any value listed under `environment:` below OVERRIDES the .env file.
+      - ./APP3005/aivestire-backend-tmp/.env
+    environment:
+      # ── Database (Docker internal host) ──────
+      DATABASE_URL: postgresql://postgres:postgres@db:5540/aivestire
+
+      # ── Redis (Docker internal — overrides .env localhost:6379) ──────────
+      REDIS_HOST: redis
+      REDIS_PORT: "6380"
+      REDIS_PASSWORD: ""
+
+      # ── App ──────────────────────────────────
+      NODE_ENV: production
+      FRONTEND_URL: https://aivestire.com
+      CORS_ORIGIN: ${CORS_ORIGIN:-}
+
+      # ── Internal service URLs ─────────────────
+      FASTAPI_BODY_ANALYZE_URL: http://body-analyzer:8898/body_analyze_json
+      FASTAPI_RECOMMENDATION_URL: http://recommendation-api:8799/recommendation/ai-decide
+      RECOMMENDATION_DUMMY_ONLY: "false"
+
+      # ── Misc ─────────────────────────────────
+      AI_TIMING_LOGS: "true"
+      SEED_COLLECTION_PATH: /app/seed/main_train_data.csv
+      SEED_LIMIT: ${SEED_LIMIT:-200}
+    volumes:
+      # NOTE: service_account.json must be a FILE (not a directory).
+      # If Vertex AI is not used, this mount is harmless (empty JSON = {}).
+      - ./APP3005/aivestire-backend-tmp/service_account.json:/app/service_account.json:ro
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      body-analyzer:
+        condition: service_started
+    restart: unless-stopped
+    # The healthcheck tells docker-compose when the API is truly ready
+    # (migrations done, HTTP server listening). backend-worker waits on this.
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "node -e \"require('http').get('http://localhost:3000/health', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))\""
+        ]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+    networks:
+      - app-network
+
+  # ─────────────────────────────────────────────
+  # Backend Worker — Bull queue consumer
+  #
+  # Differences vs the backend service:
+  #   • Runs dist/src/worker/main  (no HTTP server)
+  #   • IS_WORKER_PROCESS=true
+  #   • depends_on backend:healthy → guarantees DB
+  #     migrations are complete before jobs run
+  #   • Same Redis env vars as backend (critical!)
+  # ─────────────────────────────────────────────
+  backend-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: backend
+    container_name: nest-worker
+    command:
+      [
+        "sh", "-c",
+        "set -e; node scripts/wait-for-services.mjs; IS_WORKER_PROCESS=true node dist/src/worker/main"
+      ]
+    env_file:
+      - ./APP3005/aivestire-backend-tmp/.env
+    environment:
+      # ── Database ──────────────────────────────
+      DATABASE_URL: postgresql://postgres:postgres@db:5540/aivestire
+
+      # ── Redis — MUST point to the redis service, not localhost ────────────
+      # The .env file has REDIS_HOST=localhost / REDIS_PORT=6379 (for local dev).
+      # These overrides make the worker connect to the Docker Redis container.
+      REDIS_HOST: redis
+      REDIS_PORT: "6380"
+      REDIS_PASSWORD: ""
+
+      # ── App ──────────────────────────────────
+      NODE_ENV: production
+      IS_WORKER_PROCESS: "true"
+    volumes:
+      - ./APP3005/aivestire-backend-tmp/service_account.json:/app/service_account.json:ro
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      # Wait for backend to be healthy = migrations done, API up.
+      # Worker won't start consuming jobs until the schema is ready.
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  # ─────────────────────────────────────────────
+  # Frontend — Vite build served via Node
+  # ─────────────────────────────────────────────
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: frontend
+      args:
+        VITE_API_URL: ${VITE_API_URL:-/api}
+        VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID:?Set VITE_GOOGLE_CLIENT_ID in .env}
+    environment:
+      BACKEND_URL: ${BACKEND_URL:-http://backend:3000}
+    container_name: aivestire-frontend
+    ports:
+      - "127.0.0.1:3005:8080"
+    depends_on:
+      backend:
+        condition: service_healthy
     restart: unless-stopped
     networks:
       - app-network

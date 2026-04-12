@@ -43,18 +43,16 @@ const getEnvTimeout = (key: string, fallback: number): number => {
 
 // API Timeout Settings (in milliseconds)
 export const DEFAULT_TIMEOUT = getEnvTimeout('DEFAULT_TIMEOUT', 60000); // 60 seconds
-export const VERTEX_AI_TIMEOUT = getEnvTimeout('VERTEX_AI_TIMEOUT', 90000); // 90 seconds
+export const VERTEX_AI_TIMEOUT = getEnvTimeout('VERTEX_AI_TIMEOUT', 120000); // 120 seconds
 
-// [OPTIMIZATION] Reduced GEMINI_AI_TIMEOUT from 60000ms (60s) → 35000ms (35s)
-// Target: full try-on flow must complete within 40s. 35s gives the model budget with
-// 5s headroom for preprocessing, image extraction, and network overhead.
-// If Gemini hasn't responded in 35s, fail fast — do not block the queue.
-export const GEMINI_AI_TIMEOUT = getEnvTimeout('GEMINI_AI_TIMEOUT', 60000); // 35 seconds
+// Gemini Try-On Timeout
+// Increased to 120s because complex outfits (textures, complex geometry) require more processing time from the Gemini model.
+export const GEMINI_AI_TIMEOUT = getEnvTimeout('GEMINI_AI_TIMEOUT', 120000); // 120 seconds
 
-// [OPTIMIZATION Task 6] Hard fail-safe timeouts for Bull job processing.
+// Hard fail-safe timeouts for Bull job processing.
 // These are used as the `timeout` option in queue.add() to hard-kill stalled jobs.
-export const AURA_JOB_TIMEOUT = getEnvTimeout('AURA_JOB_TIMEOUT', 90000); // 90s job timeout
-export const TRYON_JOB_TIMEOUT = getEnvTimeout('TRYON_JOB_TIMEOUT', 90000); // 90s job timeout
+export const AURA_JOB_TIMEOUT = getEnvTimeout('AURA_JOB_TIMEOUT', 180000); // 180s job timeout
+export const TRYON_JOB_TIMEOUT = getEnvTimeout('TRYON_JOB_TIMEOUT', 180000); // 180s job timeout
 
 // Retry Configuration
 export const MAX_RETRIES = 3;
@@ -167,44 +165,46 @@ export function buildGeminiTryOnPrompt(
   const personProfileLines = buildGeminiPersonProfile(attributes);
   const personProfileSection = personProfileLines.length
     ? [
-      'Second-image person profile:',
+      'First-image person profile:',
       ...personProfileLines.map((line) => `- ${line}`),
     ].join('\n')
-    : 'No extra profile is provided beyond the second image. Preserve the real identity and body proportions visible in the second image.';
+    : 'No extra profile is provided beyond the first image. Preserve the real identity and body proportions visible in the first image.';
 
   return [
     'Create exactly one new photorealistic virtual try-on image.',
-    'The first image is the garment or outfit reference.',
-    'The second image is the real person/avatar whose identity must remain unchanged in the final result.',
-    'Take the garment from the first image and make the person from the second image actually wear it.',
+    'The first image is the real person/avatar whose identity must remain unchanged in the final result.',
+    'The second image is the garment or outfit reference.',
+    'Take the garment from the second image and make the person from the first image actually wear it.',
     personProfileSection,
     'Identity requirements:',
-    '- Preserve the exact same face, skin tone, hairline, hairstyle, hair length, hair volume, hair texture, and body proportions of the second image.',
-    '- Keep the second-image person as the only person in the result.',
-    '- Do not replace, beautify, reshape, or blend the second-image face or body with the clothing-model or mannequin identity from the first image.',
-    '- If the second image is cropped or not full body, extend the framing naturally so the same person remains visible head to toe.',
-    '- If height is provided in the second-image person profile, use it as the fit reference for body proportions.',
+    '- Preserve the exact same face, skin tone, hairline, hairstyle, hair length, hair volume, hair texture, and body proportions of the first image.',
+    '- Keep the first-image person as the only person in the result.',
+    '- ABSOLUTELY DO NOT use the face, head, or identity from the second image (garment reference). If you can see a human face or head in the second image, IGNORE it completely.',
+    '- Do not replace, beautify, reshape, or blend the first-image face or body with the clothing-model or mannequin identity from the second image.',
+    '- If the first image is cropped or not full body, extend the framing naturally so the same person remains visible head to toe.',
+    '- If height is provided in the first-image person profile, use it as the fit reference for body proportions.',
     '- Maintain natural human anatomy and realistic proportions, including a correct head-to-body ratio, centered neck placement, aligned shoulders, and proportional torso, arms, hands, legs, and feet.',
     'Garment requirements:',
-    '- Transfer the full visible outfit from the first image onto the second-image person.',
-    '- Keep garment colors, prints, textures, trims, embroidery, silhouette, neckline, sleeves, layering, shoes, jewelry, and accessories that are visible in the first image.',
-    '- The clothing must look naturally worn by the second-image person, not pasted on, floating, overlaid, or shown as a separate product shot.',
-    '- Fit and scale the outfit to the real second-image person, not to the mannequin or model proportions visible in the first image.',
+    '- Transfer the full visible outfit from the second image onto the first-image person.',
+    '- We only want the clothing from the second image. The ONLY face and body identity that should appear is the exact face of the first image.',
+    '- Keep garment colors, prints, textures, trims, embroidery, silhouette, neckline, sleeves, layering, shoes, jewelry, and accessories that are visible in the second image.',
+    '- The clothing must look naturally worn by the first-image person, not pasted on, floating, overlaid, or shown as a separate product shot.',
+    '- Fit and scale the outfit to the real first-image person, not to the mannequin or model proportions visible in the second image.',
     'Output requirements:',
     '- Return a single newly generated full-body image from head to toe.',
     '- Use a vertical portrait composition, approximately 2:3, never a wide cinematic or landscape frame.',
     '- The person should occupy most of the frame height naturally and must not appear tiny inside a large empty background.',
     '- Keep the full head, full hair silhouette, arms, hands, legs, and feet in frame with comfortable margins.',
     '- Use a clean studio background, natural lighting, and photorealistic quality.',
-    '- The final image must clearly show that the second-image person is wearing the first-image garment.',
+    '- The final image must clearly show that the first-image person is wearing the second-image garment.',
     'Hard negatives:',
     '- Do not return either input image unchanged.',
-    '- Do not return the second image with only tiny edits while leaving the original outfit in place.',
+    '- Do not return the first image with only tiny edits while leaving the original outfit in place.',
     '- Do not create a collage, side-by-side panel, before/after layout, or multiple people.',
     '- Do not crop the head, hair, forehead, arms, hands, legs, or feet.',
     '- Do not output a horizontal, panoramic, or ultra-wide composition.',
     '- Do not make the person look shrunken, distant, or vertically compressed inside the frame.',
-    '- Do not invent a different outfit from the one visible in the first image.',
+    '- Do not invent a different outfit from the one visible in the second image.',
     '- Do not stretch, squeeze, elongate, shrink, warp, or tilt the face, head, neck, shoulders, torso, arms, hands, hips, legs, or feet.',
     '- Do not generate an oversized face, undersized face, floating face, mismatched face-to-body scale, merged limbs, duplicated limbs, or broken anatomy.',
   ].join('\n');
@@ -214,10 +214,10 @@ export const GEMINI_AI_TRYON_PROMPT_STRICT_SUFFIX = `
 
 STRICT OUTPUT RULES:
 - Return exactly one newly generated try-on image.
-- The first image is the garment source and the second image is the wearer identity.
+- The first image is the wearer identity and the second image is the garment source.
 - NEVER return either input image unchanged.
 - NEVER output collages, panels, product sheets, or multiple images in one frame.
-- If unsure, still generate a new image where the second-image person is clearly wearing the first-image garment.`;
+- If unsure, still generate a new image where the first-image person is clearly wearing the second-image garment.`;
 
 // Error Messages
 export const ERROR_MESSAGES = {
@@ -271,8 +271,8 @@ export const GEMINI_TRYON_OUTPUT_VALIDATION = {
 } as const;
 
 export const GEMINI_CLOTHING_MODEL_MASK = {
-  ENABLED_BY_DEFAULT: false,
-  TOP_REGION_RATIO: 0.18,
+  ENABLED_BY_DEFAULT: true,
+  TOP_REGION_RATIO: 0.35,
   BLUR_SIGMA: 12,
 } as const;
 
