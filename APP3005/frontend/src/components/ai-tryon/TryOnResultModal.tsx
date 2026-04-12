@@ -1146,10 +1146,10 @@ export function TryOnResultModal({
           <div className="relative flex min-h-0 flex-col gap-4 md:flex-1 md:overflow-hidden">
             {/* Image Display */}
             <div
-              className={`relative flex items-center justify-center overflow-hidden rounded-[26px] md:min-h-0 md:flex-1 md:rounded-3xl ${
+              className={`relative flex items-center justify-center overflow-hidden rounded-[26px] shrink-0 md:shrink md:flex-1 md:rounded-3xl ${
                 isProcessingState
-                  ? "min-h-[60vh] sm:min-h-[52vh]"
-                  : "min-h-[48vh] sm:min-h-[52vh]"
+                  ? "aspect-[3/4] w-full max-w-[420px] mx-auto md:max-w-none md:aspect-auto md:min-h-0"
+                  : "aspect-[3/4] w-full max-w-[420px] mx-auto md:max-w-none md:aspect-auto md:min-h-0"
               }`}
               style={{
                 background:
@@ -1335,7 +1335,7 @@ export function TryOnResultModal({
                   )}
 
                   {hasMultipleGeneratedImages ? (
-                    <div className="h-full w-full p-1.5 sm:p-2.5 md:p-4">
+                    <div className="absolute inset-0 w-full h-full p-2 sm:p-3 md:p-4">
                       <Carousel
                         setApi={setCarouselApi}
                         opts={{ loop: true, align: "start" }}
@@ -1356,12 +1356,8 @@ export function TryOnResultModal({
                                 <img
                                   src={image}
                                   alt={`Generated angle ${index + 1}`}
-                                  className={`h-auto w-auto max-h-full max-w-full rounded-[20px] transition-all duration-500 md:rounded-[26px] ${imageRevealed ? "modal-appear" : ""}`}
+                                  className={`h-full w-full rounded-[20px] transition-all duration-500 md:rounded-[26px] ${imageRevealed ? "modal-appear" : "opacity-0"}`}
                                   style={{
-                                    boxShadow:
-                                      "0 16px 48px rgba(0, 0, 0, 0.12)",
-                                    maxWidth: "94%",
-                                    maxHeight: "94%",
                                     objectFit: "contain",
                                     objectPosition: "center center",
                                   }}
@@ -1376,18 +1372,15 @@ export function TryOnResultModal({
                     </div>
                   ) : (
                     <div
-                      className="group flex h-full w-full cursor-pointer items-center justify-center p-1.5 sm:p-2.5 md:p-4"
+                      className="group absolute inset-0 flex h-full w-full cursor-pointer items-center justify-center p-2 sm:p-3 md:p-4"
                       onClick={() => setIsLightboxOpen(true)}
                       title="Click to view full size"
                     >
                       <img
                         src={resultImage}
                         alt="Try-On Result"
-                        className={`h-auto w-auto max-h-full max-w-full rounded-[20px] transition-all duration-500 md:rounded-[26px] ${imageRevealed ? "modal-appear" : ""}`}
+                        className={`h-full w-full rounded-[20px] transition-all duration-500 md:rounded-[26px] ${imageRevealed ? "modal-appear" : "opacity-0"}`}
                         style={{
-                          boxShadow: "0 16px 48px rgba(0, 0, 0, 0.12)",
-                          maxWidth: "94%",
-                          maxHeight: "94%",
                           objectFit: "contain",
                           objectPosition: "center center",
                         }}
