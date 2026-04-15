@@ -70,7 +70,7 @@ const buildGeminiTryOnAdditionalParams = (aura: any) => ({
                 : {}),
         }
         : undefined,
-    maskClothingModel: false,
+    maskClothingModel: true,
 });
 
 type TryOnResult = {

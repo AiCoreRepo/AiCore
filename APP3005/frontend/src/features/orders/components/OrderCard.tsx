@@ -4,6 +4,7 @@
 // ============================================
 
 import React, { useState } from 'react';
+import { formatRefundStatus } from '@/features/orders/utils/order.utils';
 import type { Order, PaymentMethod, PaymentStatus } from '../types/order.types';
 import { StatusBadge } from './StatusBadge';
 import { OrderTimeline } from './OrderTimeline';
@@ -139,8 +140,8 @@ export const OrderCard: React.FC<OrderCardProps> = ({
                         )}
 
                         {order.refund_status && (
-                            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 text-green-700 text-xs font-semibold shadow-sm">
-                                💰 {order.refund_status}
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-semibold flex items-center gap-1 ${order.refund_status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-700' : 'bg-purple-100 text-purple-700'}`}>
+                                💰 {formatRefundStatus(order.refund_status)}
                             </span>
                         )}
                     </div>

@@ -20,6 +20,12 @@ import {
 import { PayUGatewayService } from '../payment/services/payu-gateway.service';
 import { OrderRefundInitiatedEvent } from './events/order-refund-initiated.event';
 import { OrderRefundCompletedEvent } from './events/order-refund-completed.event';
+import { SseService, RefundSsePayload } from '../sse/sse.service';
+import {
+  REFUND_STATUS_MESSAGES,
+  PAYU_REFUND_STATUS_MAP,
+  REFUND_TERMINAL_STATES,
+} from './constants/refund.constants';
 
 // ─── Allowed state transitions ────────────────────────────────────────────────
 //
@@ -39,7 +45,32 @@ export class RefundService {
     private readonly prisma: PrismaService,
     private readonly eventEmitter: EventEmitter2,
     private readonly payuGateway: PayUGatewayService,
-  ) {}
+    private readonly sseService: SseService,
+  ) { }
+
+  // ─── SSE Helper ─────────────────────────────────────────────────────────
+
+  /**
+   * Push a refund status update to the order owner via SSE.
+   * Safe to call even if the user has no active connections.
+   */
+  private pushRefundSse(
+    userId: string,
+    refundId: string,
+    orderId: string,
+    status: string,
+    amount?: string,
+  ): void {
+    const payload: RefundSsePayload = {
+      refundId,
+      orderId,
+      status,
+      message: REFUND_STATUS_MESSAGES[status] ?? `Refund status: ${status}`,
+      amount,
+      timestamp: new Date().toISOString(),
+    };
+    this.sseService.pushRefundUpdate(userId, payload);
+  }
 
   // ─── 1. User: Initiate refund request ────────────────────────────────────
 
@@ -64,7 +95,7 @@ export class RefundService {
       throw new BadRequestException('Order does not belong to this user');
     }
 
-    if (order.payment_method !== PaymentMethod.PREPAID) {
+    if (order.payment_method === PaymentMethod.COD) {
       throw new BadRequestException('Only prepaid orders can be refunded');
     }
 
@@ -121,6 +152,102 @@ export class RefundService {
       new OrderRefundInitiatedEvent(order, refund),
     );
 
+    // Push SSE to user
+    this.pushRefundSse(
+      order.user_id,
+      refund.refund_id,
+      orderId,
+      'PENDING_REVIEW',
+      order.total_amount.toFixed(2),
+    );
+
+    return refund;
+  }
+
+  // ─── 1b. Admin: Initiate refund on behalf of user (no ownership check) ───
+
+  /**
+   * Admin initiates a refund directly — skips the user_id ownership check.
+   * Status is set to PENDING_REVIEW. Admin can then immediately trigger PayU.
+   */
+  async adminInitiateRefund(
+    orderId: string,
+    adminEmail: string,
+    dto?: RequestRefundDto,
+  ) {
+    this.logger.log(`Admin ${adminEmail} initiating refund for order ${orderId}`);
+
+    const order = await this.prisma.order.findUnique({
+      where: { order_id: orderId },
+    });
+
+    if (!order) throw new NotFoundException('Order not found');
+
+    if (order.payment_method === PaymentMethod.COD) {
+      throw new BadRequestException('Only prepaid orders can be refunded');
+    }
+
+    if (order.payment_status === PaymentStatus.REFUNDED) {
+      throw new BadRequestException('Order already refunded');
+    }
+
+    // Check for existing active refund
+    const existingRefund = await this.prisma.orderRefund.findFirst({
+      where: {
+        order_id: orderId,
+        refund_status: {
+          in: [
+            RefundStatus.PENDING_REVIEW,
+            RefundStatus.INITIATED,
+            RefundStatus.PROCESSING,
+          ],
+        },
+      },
+    });
+
+    if (existingRefund) {
+      // Return existing refund instead of creating a duplicate
+      this.logger.log(`Existing active refund found: ${existingRefund.refund_id}`);
+      return existingRefund;
+    }
+
+    const refund = await this.prisma.$transaction(async (tx) => {
+      const newRefund = await tx.orderRefund.create({
+        data: {
+          order_id: orderId,
+          amount: order.total_amount,
+          refund_status: RefundStatus.PENDING_REVIEW,
+          refund_reason: dto?.reason ?? `Admin (${adminEmail}) triggered refund`,
+        },
+      });
+
+      await tx.order.update({
+        where: { order_id: orderId },
+        data: {
+          refund_status: RefundStatus.PENDING_REVIEW,
+          refund_amount: order.total_amount,
+        },
+      });
+
+      return newRefund;
+    });
+
+    this.logger.log(`Admin-initiated refund created (PENDING_REVIEW): ${refund.refund_id}`);
+
+    this.eventEmitter.emit(
+      'order.refund.initiated',
+      new OrderRefundInitiatedEvent(order, refund),
+    );
+
+    // Push SSE to user
+    this.pushRefundSse(
+      order.user_id,
+      refund.refund_id,
+      orderId,
+      'PENDING_REVIEW',
+      order.total_amount.toFixed(2),
+    );
+
     return refund;
   }
 
@@ -153,10 +280,12 @@ export class RefundService {
     if (!refund) throw new NotFoundException('Refund not found');
 
     // ── Duplicate-trigger guard ──────────────────────────────────────────
-    if (refund.refund_status !== RefundStatus.PENDING_REVIEW) {
+    // Allow re-triggering from PENDING_REVIEW or FAILED (e.g. after a purged-transaction reset)
+    const RETRIGGERABLE_STATES: RefundStatus[] = [RefundStatus.PENDING_REVIEW, RefundStatus.FAILED];
+    if (!RETRIGGERABLE_STATES.includes(refund.refund_status)) {
       throw new ConflictException(
         `Cannot trigger PayU refund: current status is ${refund.refund_status}. ` +
-          `Only PENDING_REVIEW refunds can be triggered.`,
+        `Only PENDING_REVIEW or FAILED refunds can be triggered.`,
       );
     }
 
@@ -168,6 +297,10 @@ export class RefundService {
       );
     }
 
+    const adminUuid = adminId.includes('@')
+      ? (await this.prisma.user.findUnique({ where: { email: adminId } }))?.user_id
+      : adminId;
+
     // Mark as PROCESSING first (persisted before calling PayU)
     await this.prisma.$transaction(async (tx) => {
       await tx.orderRefund.update({
@@ -175,9 +308,9 @@ export class RefundService {
         data: {
           refund_status: RefundStatus.PROCESSING,
           processing_at: new Date(),
-          reviewed_by: adminId,
+          reviewed_by: adminUuid,
           reviewed_at: new Date(),
-          approved_by: adminId,
+          approved_by: adminUuid,
           approved_at: new Date(),
         },
       });
@@ -196,7 +329,7 @@ export class RefundService {
       payuResponse = await this.payuGateway.initiatePayURefund(
         paymentTxn.gateway_payment_id,
         refund.amount.toFixed(2),
-        paymentTxn.gateway_order_id ?? paymentTxn.receipt ?? refundId,
+        refund.refund_id, // CRITICAL: var2 MUST be a strictly unique token for the REFUND, not the original payment txnid!
       );
     } catch (err: unknown) {
       // Network error — mark FAILED and rethrow
@@ -231,6 +364,15 @@ export class RefundService {
         'order.refund.completed',
         new OrderRefundCompletedEvent(refund.order, completed),
       );
+      console.log("Refund completed: ", completed);
+      // Push SSE to user
+      this.pushRefundSse(
+        refund.order.user_id,
+        refundId,
+        refund.order_id,
+        'COMPLETED',
+        refund.amount.toFixed(2),
+      );
 
       return completed;
     } else {
@@ -238,11 +380,60 @@ export class RefundService {
       const failReason =
         String(payuResponse['msg'] ?? payuResponse['message'] ?? 'PayU refund rejected');
 
+      // ── Detect "Purged Transaction" / "manual follow-up" errors ──────────
+      // These mean PayU cannot process the refund automatically (txn too old).
+      // Reset to PENDING_REVIEW so the admin can issue a manual wallet credit
+      // instead of permanently blocking the refund in FAILED state.
+      const MANUAL_FOLLOWUP_KEYWORDS = [
+        'purged',
+        'manual follow-up',
+        'manual followup',
+        'requires manual',
+      ];
+      const isManualFollowup = MANUAL_FOLLOWUP_KEYWORDS.some((kw) =>
+        failReason.toLowerCase().includes(kw),
+      );
+
+      if (isManualFollowup) {
+        this.logger.warn(
+          `Refund ${refundId}: PayU "Purged Transaction" — resetting to PENDING_REVIEW for manual processing. Reason: ${failReason}`,
+        );
+        await this._resetToPendingReview(
+          refundId,
+          refund.order_id,
+          `PayU auto-refund unavailable (purged transaction). Manual wallet credit required. PayU msg: ${failReason}`,
+          payuResponse,
+        );
+
+        this.pushRefundSse(
+          refund.order.user_id,
+          refundId,
+          refund.order_id,
+          'PENDING_REVIEW',
+          refund.amount.toFixed(2),
+        );
+
+        throw new BadRequestException(
+          `PayU refund failed: ${failReason} — Refund has been reset to PENDING_REVIEW. Please issue a manual wallet credit from the admin panel.`,
+        );
+      }
+
+      // Standard failure — mark FAILED
       await this._markFailed(refundId, refund.order_id, failReason, payuResponse);
+      this.logger.warn(`Refund ${refundId} FAILED: ${failReason}`);
+
+      this.pushRefundSse(
+        refund.order.user_id,
+        refundId,
+        refund.order_id,
+        'FAILED',
+        refund.amount.toFixed(2),
+      );
 
       throw new BadRequestException(`PayU refund failed: ${failReason}`);
     }
   }
+
 
   // ─── 3. Admin: Manually confirm PayU success (webhook / fallback) ─────────
 
@@ -271,12 +462,16 @@ export class RefundService {
       );
     }
 
+    const adminUuid = adminId.includes('@')
+      ? (await this.prisma.user.findUnique({ where: { email: adminId } }))?.user_id
+      : adminId;
+
     const completed = await this._completeRefundInTransaction(
       refundId,
       refund as any,
       payuRefundId ?? refund.payu_refund_id ?? '',
       refund.payu_response as Record<string, unknown> | null ?? {},
-      adminId,
+      adminUuid ?? adminId,
     );
 
     this.logger.log(`Refund ${refundId} manually confirmed as COMPLETED`);
@@ -284,6 +479,15 @@ export class RefundService {
     this.eventEmitter.emit(
       'order.refund.completed',
       new OrderRefundCompletedEvent(refund.order, completed),
+    );
+
+    // Push SSE to user
+    this.pushRefundSse(
+      refund.order.user_id,
+      refundId,
+      refund.order_id,
+      'COMPLETED',
+      refund.amount.toFixed(2),
     );
 
     return completed;
@@ -341,13 +545,17 @@ export class RefundService {
       );
     }
 
+    const adminUuid = adminId.includes('@')
+      ? (await this.prisma.user.findUnique({ where: { email: adminId } }))?.user_id
+      : adminId;
+
     const updated = await this.prisma.$transaction(async (tx) => {
       const result = await tx.orderRefund.update({
         where: { refund_id: refundId },
         data: {
           refund_status: RefundStatus.REJECTED,
           rejection_reason: reason,
-          reviewed_by: adminId,
+          reviewed_by: adminUuid,
           reviewed_at: new Date(),
           review_notes: reason,
         },
@@ -362,6 +570,13 @@ export class RefundService {
     });
 
     this.logger.log(`Refund ${refundId} REJECTED by admin ${adminId}`);
+
+    // Push SSE to order owner
+    const rejectedOrder = await this.prisma.order.findUnique({ where: { order_id: refund.order_id }, select: { user_id: true } });
+    if (rejectedOrder) {
+      this.pushRefundSse(rejectedOrder.user_id, refundId, refund.order_id, 'REJECTED');
+    }
+
     return updated;
   }
 
@@ -386,15 +601,19 @@ export class RefundService {
       );
     }
 
+    const adminUuid = adminId.includes('@')
+      ? (await this.prisma.user.findUnique({ where: { email: adminId } }))?.user_id
+      : adminId;
+
     const updated = await this.prisma.$transaction(async (tx) => {
       const result = await tx.orderRefund.update({
         where: { refund_id: refundId },
         data: {
           refund_status: RefundStatus.ARCHIVED,
           archived_at: new Date(),
-          archived_by: adminId,
+          archived_by: adminUuid,
           review_notes: notes,
-          reviewed_by: adminId,
+          reviewed_by: adminUuid,
           reviewed_at: new Date(),
         },
       });
@@ -481,6 +700,10 @@ export class RefundService {
     payuResponse: Record<string, unknown>,
     adminId: string,
   ) {
+    const adminUuid = adminId?.includes('@')
+      ? (await this.prisma.user.findUnique({ where: { email: adminId } }))?.user_id
+      : adminId;
+
     return this.prisma.$transaction(async (tx) => {
       // 1. Update refund record
       const updated = await tx.orderRefund.update({
@@ -490,18 +713,33 @@ export class RefundService {
           completed_at: new Date(),
           payu_refund_id: payuRefundId || undefined,
           payu_response: payuResponse as Prisma.InputJsonValue,
-          reviewed_by: adminId,
+          reviewed_by: adminUuid,
           reviewed_at: new Date(),
         },
       });
 
-      // 2. Update order
+      // 2. Update order statuses
+      const currentOrder = await tx.order.findUnique({
+        where: { order_id: refund.order_id },
+        select: { return_status: true, replace_status: true },
+      });
+
+      const updateData: Prisma.OrderUpdateInput = {
+        refund_status: RefundStatus.COMPLETED,
+        payment_status: PaymentStatus.REFUNDED,
+      };
+
+      // If an active return or replacement is underway, finalizing the refund completes its lifecycle.
+      if (currentOrder?.return_status && currentOrder.return_status !== 'COMPLETED') {
+        updateData.return_status = 'COMPLETED';
+      }
+      if (currentOrder?.replace_status && currentOrder.replace_status !== 'COMPLETED') {
+        updateData.replace_status = 'COMPLETED';
+      }
+
       await tx.order.update({
         where: { order_id: refund.order_id },
-        data: {
-          refund_status: RefundStatus.COMPLETED,
-          payment_status: PaymentStatus.REFUNDED,
-        },
+        data: updateData,
       });
 
       // 3. Upsert wallet
@@ -570,5 +808,225 @@ export class RefundService {
 
       return updated;
     });
+  }
+
+  /**
+   * Resets a refund from PROCESSING back to PENDING_REVIEW.
+   * Used when PayU cannot process the refund automatically (e.g. purged transaction)
+   * so the admin can issue a manual wallet credit instead.
+   */
+  private async _resetToPendingReview(
+    refundId: string,
+    orderId: string,
+    reason: string,
+    payuResponse?: Record<string, unknown>,
+  ) {
+    return this.prisma.$transaction(async (tx) => {
+      const updated = await tx.orderRefund.update({
+        where: { refund_id: refundId },
+        data: {
+          refund_status: RefundStatus.PENDING_REVIEW,
+          processing_at: null,
+          review_notes: reason,
+          ...(payuResponse
+            ? { payu_response: payuResponse as Prisma.InputJsonValue }
+            : {}),
+        },
+      });
+
+      await tx.order.update({
+        where: { order_id: orderId },
+        data: { refund_status: RefundStatus.PENDING_REVIEW },
+      });
+
+      return updated;
+    });
+  }
+
+  // ─── 8. PayU Refund Webhook Handler ──────────────────────────────────────
+
+  /**
+   * Handles PayU refund webhook callback.
+   * This is the SOURCE OF TRUTH for final refund status.
+   *
+   * Flow:
+   *   1. Look up refund by payu_refund_id (or by order's payment txn)
+   *   2. Idempotency: skip if already COMPLETED or FAILED
+   *   3. Map PayU status → internal status
+   *   4. Update DB
+   *   5. Push SSE event to user
+   */
+  async handlePayURefundWebhook(webhookPayload: Record<string, unknown>) {
+    this.logger.log(`PayU refund webhook received: ${JSON.stringify(webhookPayload)}`);
+
+    const mihpayid = String(webhookPayload['mihpayid'] ?? '');
+    const payuRefundId = String(
+      webhookPayload['request_id'] ??
+      webhookPayload['bank_ref_num'] ??
+      webhookPayload['refundId'] ?? '',
+    );
+    const payuStatus = String(
+      webhookPayload['status'] ?? webhookPayload['refund_status'] ?? '',
+    ).toLowerCase();
+
+    if (!mihpayid && !payuRefundId) {
+      this.logger.warn('Webhook missing identifiers, ignoring');
+      return { processed: false, reason: 'missing_identifiers' };
+    }
+
+    // Try to locate the refund by payu_refund_id first, then by payment transaction
+    let refund = payuRefundId
+      ? await this.prisma.orderRefund.findFirst({
+        where: { payu_refund_id: payuRefundId },
+        include: { order: { select: { user_id: true, order_number: true } } },
+      })
+      : null;
+
+    if (!refund && mihpayid) {
+      // Fallback: find via payment transaction → order → latest refund
+      const txn = await this.prisma.paymentTransaction.findFirst({
+        where: { gateway_payment_id: mihpayid },
+        select: { order_id: true },
+      });
+      if (txn) {
+        refund = await this.prisma.orderRefund.findFirst({
+          where: {
+            order_id: txn.order_id,
+            refund_status: RefundStatus.PROCESSING,
+          },
+          include: { order: { select: { user_id: true, order_number: true } } },
+          orderBy: { initiated_at: 'desc' },
+        });
+      }
+    }
+
+    if (!refund) {
+      this.logger.warn(`No matching refund found for webhook (mihpayid=${mihpayid}, refundId=${payuRefundId})`);
+      return { processed: false, reason: 'refund_not_found' };
+    }
+
+    // ── Idempotency guard ──────────────────────────────────────────────
+    if (REFUND_TERMINAL_STATES.includes(refund.refund_status as any)) {
+      this.logger.log(`Refund ${refund.refund_id} already in terminal state ${refund.refund_status}, skipping webhook`);
+      return { processed: false, reason: 'already_terminal', status: refund.refund_status };
+    }
+
+    // ── Map PayU status to internal (using constants) ──────────────────
+    const mappedStatus = PAYU_REFUND_STATUS_MAP[payuStatus];
+
+    if (!mappedStatus) {
+      this.logger.warn(`Unknown PayU refund status "${payuStatus}", treating as pending — ignoring`);
+      return { processed: false, reason: 'unknown_status', payuStatus };
+    }
+
+    const isSuccess = mappedStatus === 'COMPLETED';
+
+    if (isSuccess) {
+      const completed = await this._completeRefundInTransaction(
+        refund.refund_id,
+        refund as any,
+        payuRefundId || refund.payu_refund_id || '',
+        webhookPayload,
+        'SYSTEM_WEBHOOK',
+      );
+
+      this.logger.log(`Webhook: Refund ${refund.refund_id} marked COMPLETED`);
+
+      this.eventEmitter.emit(
+        'order.refund.completed',
+        new OrderRefundCompletedEvent(refund.order as any, completed),
+      );
+
+      this.pushRefundSse(
+        refund.order.user_id,
+        refund.refund_id,
+        refund.order_id,
+        'COMPLETED',
+        refund.amount.toFixed(2),
+      );
+
+      return { processed: true, status: 'COMPLETED', refundId: refund.refund_id };
+    } else {
+      const reason = String(
+        webhookPayload['msg'] ?? webhookPayload['error_Message'] ?? 'PayU webhook reported failure',
+      );
+      await this._markFailed(refund.refund_id, refund.order_id, reason, webhookPayload);
+
+      this.logger.log(`Webhook: Refund ${refund.refund_id} marked FAILED`);
+
+      this.pushRefundSse(
+        refund.order.user_id,
+        refund.refund_id,
+        refund.order_id,
+        'FAILED',
+        refund.amount.toFixed(2),
+      );
+
+      return { processed: true, status: 'FAILED', refundId: refund.refund_id };
+    }
+  }
+
+  // ─── 9. Background: Check stuck PROCESSING refunds ──────────────────────
+
+  /**
+   * Finds refunds stuck in PROCESSING for more than `staleMinutes`
+   * and checks their status with PayU.
+   * Called by the cron job scheduled in RefundCronService.
+   */
+  async checkStuckRefunds(staleMinutes = 30): Promise<number> {
+    const cutoff = new Date(Date.now() - staleMinutes * 60 * 1000);
+
+    const stuckRefunds = await this.prisma.orderRefund.findMany({
+      where: {
+        refund_status: RefundStatus.PROCESSING,
+        processing_at: { lt: cutoff },
+      },
+      include: {
+        order: {
+          include: {
+            user: { select: { user_id: true } },
+            payment_transactions: {
+              orderBy: { created_at: 'desc' },
+              take: 1,
+            },
+          },
+        },
+      },
+    });
+
+    if (stuckRefunds.length === 0) return 0;
+
+    this.logger.warn(`Found ${stuckRefunds.length} stuck PROCESSING refund(s), checking PayU status...`);
+
+    let resolved = 0;
+    for (const refund of stuckRefunds) {
+      try {
+        const paymentTxn = refund.order.payment_transactions[0];
+        if (!paymentTxn?.gateway_payment_id) {
+          this.logger.warn(`Stuck refund ${refund.refund_id} has no payment txn, marking FAILED`);
+          await this._markFailed(refund.refund_id, refund.order_id, 'No payment transaction found during stuck-check');
+          this.pushRefundSse(refund.order.user_id, refund.refund_id, refund.order_id, 'FAILED');
+          resolved++;
+          continue;
+        }
+
+        // Query PayU for actual status (reuse the refund API with check_action_status)
+        // For now, if stuck > staleMinutes, mark as FAILED with a note
+        this.logger.warn(
+          `Refund ${refund.refund_id} stuck for >${staleMinutes}min, marking FAILED for manual review`,
+        );
+        await this._markFailed(
+          refund.refund_id,
+          refund.order_id,
+          `Auto-failed: stuck in PROCESSING for >${staleMinutes} minutes. Please verify on PayU dashboard.`,
+        );
+        this.pushRefundSse(refund.order.user_id, refund.refund_id, refund.order_id, 'FAILED');
+        resolved++;
+      } catch (err) {
+        this.logger.error(`Error checking stuck refund ${refund.refund_id}: ${err}`);
+      }
+    }
+
+    return resolved;
   }
 }

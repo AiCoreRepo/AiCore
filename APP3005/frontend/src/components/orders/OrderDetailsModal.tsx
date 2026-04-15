@@ -4,6 +4,7 @@ import {
     MapPin, CreditCard, RefreshCw, RotateCcw, X,
     ShoppingBag, Calendar, Hash, User, Phone
 } from 'lucide-react';
+import { formatRefundStatus } from '@/features/orders/utils/order.utils';
 import { Order } from '../../features/orders/types/order.types';
 
 interface OrderDetailsModalProps {
@@ -113,7 +114,7 @@ export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({ isOpen, on
                             )}
                             {order.refund_status && (
                                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/20 text-white text-xs font-semibold">
-                                    💰 Refund: {order.refund_status}
+                                    💰 Refund: {formatRefundStatus(order.refund_status)}
                                 </span>
                             )}
                         </div>
@@ -228,9 +229,9 @@ export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({ isOpen, on
                                     <div className="flex justify-between items-center">
                                         <span className="text-xs text-[#6B6B6B]">Status</span>
                                         <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${order.payment_status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-700' :
-                                                order.payment_status === 'FAILED' ? 'bg-red-100 text-red-700' :
-                                                    order.payment_status === 'REFUNDED' ? 'bg-blue-100 text-blue-700' :
-                                                        'bg-amber-100 text-amber-700'
+                                            order.payment_status === 'FAILED' ? 'bg-red-100 text-red-700' :
+                                                order.payment_status === 'REFUNDED' ? 'bg-blue-100 text-blue-700' :
+                                                    'bg-amber-100 text-amber-700'
                                             }`}>
                                             {order.payment_status}
                                         </span>
@@ -388,8 +389,8 @@ export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({ isOpen, on
                                         <React.Fragment key={step.key}>
                                             <div className="flex flex-col items-center gap-1 min-w-[48px]">
                                                 <div className={`w-7 h-7 rounded-full flex items-center justify-center border-2 transition-all ${isCurrent ? 'border-[#C9A55C] bg-[#C9A55C] text-white shadow-md' :
-                                                        isDone ? 'border-emerald-400 bg-emerald-400 text-white' :
-                                                            'border-[#E0E0D8] bg-white text-[#CCC]'
+                                                    isDone ? 'border-emerald-400 bg-emerald-400 text-white' :
+                                                        'border-[#E0E0D8] bg-white text-[#CCC]'
                                                     }`}>
                                                     {isDone && !isCurrent
                                                         ? <CheckCircle className="w-3.5 h-3.5" />
