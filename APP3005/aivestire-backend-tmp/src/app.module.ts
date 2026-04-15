@@ -22,6 +22,7 @@ import { AddressModule } from './address/address.module';
 import { WishlistModule } from './wishlist/wishlist.module';
 import { OrderModule } from './order/order.module';
 import { RefundModule } from './refund/refund.module';
+import { SseModule } from './sse/sse.module';
 import { ReturnModule } from './return/return.module';
 import { ReplacementModule } from './replace/replace.module';
 import { PaymentModule } from './payment/payment.module';
@@ -65,6 +66,7 @@ import { ScheduleModule } from '@nestjs/schedule';
     WishlistModule,
     OrderModule,
     RefundModule,
+    SseModule,
     ReturnModule,
     ReplacementModule,
     PaymentModule,

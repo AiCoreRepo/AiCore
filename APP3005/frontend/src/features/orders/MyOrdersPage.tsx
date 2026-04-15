@@ -1,11 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Search, ChevronRight, ChevronLeft, Package } from 'lucide-react';
+import { Search, ChevronRight, ChevronLeft, Package, Loader2, RotateCcw } from 'lucide-react';
 import { UserDashboardLayout } from '@/components/layout/UserDashboardLayout';
 import { ordersApi } from './api/orders.api';
+import { paymentApi } from './api/payment.api';
 import { Order } from './types/order.types';
 import { OrderCancellationModal } from '@/components/orders/OrderCancellationModal';
 import { toast } from 'sonner';
+import { usePayU } from '@/hooks/usePayU';
+import { formatRefundStatus } from './utils/order.utils';
+import { useRefundSSE } from './hooks/useRefundSSE';
 
 type FilterType = 'all' | 'processing' | 'shipped' | 'delivered' | 'returned' | 'replaced';
 
@@ -32,6 +36,24 @@ export const MyOrdersPage = () => {
     // Info popup for already-requested actions
     const [infoPopup, setInfoPopup] = useState<{ title: string; message: string } | null>(null);
 
+    const { redirectToPayU } = usePayU();
+    const [retryingOrderId, setRetryingOrderId] = useState<string | null>(null);
+
+    const handleRetryPayment = async (order: Order, e: React.MouseEvent) => {
+        e.stopPropagation();
+        setRetryingOrderId(order.order_id);
+        try {
+            sessionStorage.setItem('pending_order_id', order.order_id);
+            sessionStorage.setItem('pending_order_number', order.order_number);
+            const payuPayload = await paymentApi.initiatePayment(order.order_id);
+            redirectToPayU(payuPayload);
+        } catch (err: any) {
+            toast.error(err?.response?.data?.message || err?.message || 'Failed to initiate payment');
+        } finally {
+            setRetryingOrderId(null);
+        }
+    };
+
     const filters: { id: FilterType; label: string }[] = [
         { id: 'all', label: 'All Orders' },
         { id: 'processing', label: 'Processing' },
@@ -45,6 +67,32 @@ export const MyOrdersPage = () => {
         fetchOrders();
     }, []);
 
+    // ── SSE Real-time Refund Updates ──────────────────────────────────────────
+    useRefundSSE({
+        // watchOrderIds undefined means it listens for all order refund updates
+        onUpdate: (event) => {
+            console.log('[MyOrders] SSE Update received:', event);
+            setOrders((prevOrders) =>
+                prevOrders.map((order) => {
+                    if (order.order_id !== event.orderId) return order;
+
+                    let targetStatus = event.status;
+                    if (targetStatus === 'FAILED') targetStatus = 'PROCESSING';
+
+                    const updatedFields: any = { refund_status: targetStatus };
+
+                    // If refund Completes, seamlessly resolve ongoing returns/replacements
+                    if (targetStatus === 'COMPLETED') {
+                        if (order.return_status && order.return_status !== 'COMPLETED') updatedFields.return_status = 'COMPLETED';
+                        if (order.replace_status && order.replace_status !== 'COMPLETED') updatedFields.replace_status = 'COMPLETED';
+                    }
+
+                    return { ...order, ...updatedFields };
+                })
+            );
+        },
+    });
+
     useEffect(() => {
         filterOrders();
         setCurrentPage(1);
@@ -54,7 +102,16 @@ export const MyOrdersPage = () => {
         setIsLoading(true);
         try {
             const data = await ordersApi.getMyOrders();
-            setOrders(data);
+            const corrected = data.map((o) => {
+                if (o.refund_status === 'COMPLETED') {
+                    if (o.return_status && o.return_status !== 'COMPLETED') o.return_status = 'COMPLETED';
+                    if (o.replace_status && o.replace_status !== 'COMPLETED') o.replace_status = 'COMPLETED';
+                } else if (o.refund_status === 'FAILED') {
+                    o.refund_status = 'PROCESSING';
+                }
+                return o;
+            });
+            setOrders(corrected);
         } catch (error) {
             console.error('Failed to fetch orders:', error);
         } finally {
@@ -363,8 +420,8 @@ export const MyOrdersPage = () => {
                                                         </div>
                                                     )}
 
-                                                    {/* Return / Replace Status Badges */}
-                                                    {(order.return_status || order.replace_status) && (
+                                                    {/* Return / Replace / Refund Status Badges */}
+                                                    {(order.return_status || order.replace_status || order.refund_status) && (
                                                         <div className="flex flex-col gap-2 mb-3">
                                                             <div className="flex flex-wrap gap-2">
                                                                 {order.return_status && (
@@ -375,6 +432,11 @@ export const MyOrdersPage = () => {
                                                                 {order.replace_status && (
                                                                     <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-purple-50 to-fuchsia-50 border border-purple-200 text-purple-700 text-xs font-semibold shadow-sm">
                                                                         🔁 Replace: {order.replace_status.replace(/_/g, ' ')}
+                                                                    </span>
+                                                                )}
+                                                                {order.refund_status && (
+                                                                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-emerald-50 to-emerald-100 border border-emerald-200 text-emerald-700 text-xs font-semibold shadow-sm">
+                                                                        💰 Refund: {formatRefundStatus(order.refund_status)}
                                                                     </span>
                                                                 )}
                                                             </div>
@@ -389,7 +451,17 @@ export const MyOrdersPage = () => {
 
                                                     {/* Action Buttons */}
                                                     <div className="flex flex-wrap gap-2 items-center">
-                                                        {!['DELIVERED', 'CANCELLED'].includes(order.current_status) && (
+                                                        {(order.payment_status === 'FAILED' || (order.payment_status === 'PENDING' && order.payment_method !== 'COD')) && !['CANCELLED', 'DELIVERED'].includes(order.current_status) && (
+                                                            <button
+                                                                onClick={(e) => handleRetryPayment(order, e)}
+                                                                disabled={retryingOrderId === order.order_id}
+                                                                className="px-4 py-2 bg-emerald-600 text-white text-xs font-semibold rounded-lg hover:bg-emerald-700 transition-colors flex items-center gap-1.5"
+                                                            >
+                                                                {retryingOrderId === order.order_id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RotateCcw className="w-3.5 h-3.5" />}
+                                                                Pay Now
+                                                            </button>
+                                                        )}
+                                                        {!['DELIVERED', 'CANCELLED'].includes(order.current_status) && (order.payment_method === 'COD' || order.payment_status === 'COMPLETED') && (
                                                             <button
                                                                 onClick={(e) => {
                                                                     e.stopPropagation();
@@ -430,7 +502,7 @@ export const MyOrdersPage = () => {
                                                                     />
                                                                     <div className="absolute right-0 bottom-full mb-2 w-48 bg-white rounded-xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.1)] border border-[#E0E0D8] z-20 overflow-hidden py-1">
                                                                         {/* Cancel Order - only for PENDING/BOOKED */}
-                                                                        {['PENDING', 'BOOKED'].includes(order.current_status) && (
+                                                                        {['PENDING', 'BOOKED'].includes(order.current_status) && (order.payment_method === 'COD' || order.payment_status === 'COMPLETED') && (
                                                                             <button
                                                                                 onClick={(e) => {
                                                                                     e.stopPropagation();

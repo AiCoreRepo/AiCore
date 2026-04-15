@@ -1,13 +1,15 @@
-﻿import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import ReactDOM from 'react-dom';
 import {
     ShoppingBag, Search, Calendar, CreditCard, Package,
     Truck, CheckCircle2, MapPin,
     ChevronRight, ChevronLeft, Edit3, Save, X as XIcon,
-    Loader2, AlertCircle, RefreshCw,
+    Loader2, AlertCircle, RefreshCw, RotateCcw,
     ImageOff, ChevronDown, Menu
 } from 'lucide-react';
 import { Sidebar } from '@/components/admin/Sidebar';
+import { formatRefundStatus } from '@/features/orders/utils/order.utils';
+import { useRefundSSE } from '@/features/orders/hooks/useRefundSSE';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -50,6 +52,7 @@ interface Order {
     delivery_partner?: string;
     return_status?: string | null;
     replace_status?: string | null;
+    refund_status?: string | null;
 }
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -169,9 +172,10 @@ interface StatusDropdownProps {
     onChange: (v: string) => void;
     labels: Record<string, string>;
     colors: Record<string, { dot: string; color: string }>;
+    disabled?: boolean;
 }
 
-const StatusDropdown: React.FC<StatusDropdownProps> = ({ value, options, onChange, labels, colors }) => {
+const StatusDropdown: React.FC<StatusDropdownProps> = ({ value, options, onChange, labels, colors, disabled }) => {
     const [open, setOpen] = React.useState(false);
     const [rect, setRect] = React.useState<DOMRect | null>(null);
     const triggerRef = React.useRef<HTMLButtonElement>(null);
@@ -234,7 +238,8 @@ const StatusDropdown: React.FC<StatusDropdownProps> = ({ value, options, onChang
             borderRadius: '0.75rem',
             boxShadow: '0 20px 60px rgba(0,0,0,0.5), 0 4px 16px rgba(0,0,0,0.3)',
             border: '1px solid rgba(245,158,11,0.6)',
-            overflow: 'hidden',
+            overflowY: 'auto',
+            maxHeight: '240px',
         }
         : { display: 'none' };
 
@@ -245,7 +250,12 @@ const StatusDropdown: React.FC<StatusDropdownProps> = ({ value, options, onChang
                 ref={triggerRef}
                 type="button"
                 onClick={handleOpen}
-                className="w-full flex items-center justify-between gap-2 px-3 py-2.5 bg-neutral-800 border border-amber-500/60 rounded-xl text-sm font-medium hover:border-amber-500 transition-colors focus:outline-none"
+                disabled={disabled}
+                className={`w-full flex items-center justify-between gap-2 px-3 py-2.5 bg-neutral-800 border rounded-xl text-sm font-medium transition-colors focus:outline-none ${
+                    disabled 
+                        ? 'cursor-not-allowed opacity-60 border-neutral-700 text-neutral-400' 
+                        : 'border-amber-500/60 hover:border-amber-500'
+                }`}
             >
                 <span className="flex items-center gap-2 truncate">
                     <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: dotColor }} />
@@ -316,6 +326,9 @@ const AdminOrdersPage = () => {
     const [isUpdating, setIsUpdating] = useState(false);
     const [updateMsg, setUpdateMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
+    // Modal state for refund confirmation
+    const [refundConfirmOrder, setRefundConfirmOrder] = useState<Order | null>(null);
+
     // Lazy-load: which order cards are visible
     const [visibleSet, setVisibleSet] = useState<Set<string>>(new Set());
     const observerRef = useRef<IntersectionObserver | null>(null);
@@ -356,7 +369,24 @@ const AdminOrdersPage = () => {
                 `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/orders/all`,
                 { credentials: 'include' }
             );
-            if (res.ok) setAllOrders(await res.json());
+            if (res.ok) {
+                const data = await res.json();
+                // Only show COD orders, or online orders that were successfully paid. Hide abandoned (PENDING/FAILED) online checkouts.
+                const validOrders = data.filter((o: Order) => {
+                    return o.payment_method === 'COD' || ['COMPLETED', 'REFUNDED'].includes(o.payment_status);
+                });
+                
+                // Historical state correction
+                const corrected = validOrders.map((o: Order) => {
+                    if (o.refund_status === 'COMPLETED') {
+                        if (o.return_status && o.return_status !== 'COMPLETED') o.return_status = 'COMPLETED';
+                        if (o.replace_status && o.replace_status !== 'COMPLETED') o.replace_status = 'COMPLETED';
+                    }
+                    return o;
+                });
+
+                setAllOrders(corrected);
+            }
         } catch (e) {
             console.error(e);
         } finally {
@@ -365,6 +395,33 @@ const AdminOrdersPage = () => {
     }, []);
 
     useEffect(() => { fetchOrders(); }, [fetchOrders]);
+
+    // ── SSE Real-time Refund Updates ──────────────────────────────────────────
+    useRefundSSE({
+        // Undefined watchOrderIds = listen to ALL refund updates
+        onUpdate: (event) => {
+            console.log('[AdminOrders] SSE Update received:', event);
+            setAllOrders((prevOrders) =>
+                prevOrders.map((order) => {
+                    if (order.order_id !== event.orderId) return order;
+
+                    const updatedFields: any = { refund_status: event.status };
+
+                    // If refund becomes COMPLETED, update active return/replace UI automatically
+                    if (event.status === 'COMPLETED') {
+                        if (order.return_status && order.return_status !== 'COMPLETED') {
+                            updatedFields.return_status = 'COMPLETED';
+                        }
+                        if (order.replace_status && order.replace_status !== 'COMPLETED') {
+                            updatedFields.replace_status = 'COMPLETED';
+                        }
+                    }
+
+                    return { ...order, ...updatedFields };
+                })
+            );
+        },
+    });
 
     // ── Filtering & Pagination ────────────────────────────────────────────────
 
@@ -421,7 +478,7 @@ const AdminOrdersPage = () => {
     const startEditing = (order: Order) => {
         setEditingId(order.order_id);
         const allowed = getAdminAllowedNextStatuses(order.current_status);
-        setNewStatus(allowed[0] || '');
+        setNewStatus(allowed.length > 0 ? allowed[0] : order.current_status);
         setTrackingNum(order.tracking_number || '');
         setDeliveryPartner(order.delivery_partner || '');
         setPaymentStatus(order.payment_status || '');
@@ -475,6 +532,58 @@ const AdminOrdersPage = () => {
             setUpdateMsg({ type: 'error', text: 'Network error. Please try again.' });
         } finally {
             setIsUpdating(false);
+        }
+    };
+
+    const handleProcessRefund = async (orderId: string) => {
+        setIsUpdating(true);
+        setUpdateMsg(null);
+        try {
+            const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+
+            // Step 1: Admin-initiate refund (creates PENDING_REVIEW record, or returns existing one)
+            const resInitiate = await fetch(`${apiBase}/refunds/admin/initiate/${orderId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ reason: 'Admin triggered PayU Refund' })
+            });
+
+            if (!resInitiate.ok) {
+                const err = await resInitiate.json();
+                setUpdateMsg({ type: 'error', text: err.message || 'Failed to initiate refund.' });
+                return;
+            }
+
+            const refundData = await resInitiate.json();
+
+            if (!refundData?.refund_id) {
+                setUpdateMsg({ type: 'error', text: 'Refund initiation failed: No refund ID returned.' });
+                return;
+            }
+
+            // Step 2: Trigger PayU refund processing
+            const resProcess = await fetch(`${apiBase}/refunds/admin/${refundData.refund_id}/process`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include'
+            });
+
+            if (resProcess.ok) {
+                setUpdateMsg({ type: 'success', text: '✓ PayU Refund Processed successfully!' });
+                await fetchOrders();
+            } else {
+                const err = await resProcess.json();
+                setUpdateMsg({ type: 'error', text: err.message || 'Failed to process PayU refund.' });
+                // We could use a global toast here if available, but for now rely on the UI reload or state
+                alert(err.message || 'Failed to process PayU refund.');
+            }
+        } catch (err) {
+            setUpdateMsg({ type: 'error', text: 'Network error while making refund.' });
+            alert('Network error while making refund.');
+        } finally {
+            setIsUpdating(false);
+            setRefundConfirmOrder(null);
         }
     };
 
@@ -563,37 +672,40 @@ const AdminOrdersPage = () => {
                         </div>
 
                         {/* Filters Row: Search + Dates */}
-                        <div className="flex flex-col sm:flex-row gap-3 mb-4">
-                            <div className="relative flex-1">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+                            <div className="relative">
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500" />
                                 <input
                                     type="text"
                                     placeholder="Search orders, products..."
                                     value={search}
                                     onChange={e => setSearch(e.target.value)}
-                                    className="w-full pl-10 pr-4 py-2 bg-neutral-800/60 border border-neutral-700 rounded-xl text-white placeholder-neutral-500 focus:outline-none focus:border-amber-500 transition-all text-sm"
+                                    className="w-full pl-10 pr-4 py-2.5 bg-neutral-800 border border-amber-500/60 rounded-xl text-white placeholder-neutral-500 focus:outline-none focus:border-amber-500 transition-colors text-sm font-medium"
                                 />
                             </div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 md:col-span-2">
+                                <label className="text-xs font-semibold text-neutral-400 uppercase">From</label>
                                 <input
                                     type="date"
                                     value={startDate}
                                     onChange={e => setStartDate(e.target.value)}
-                                    className="px-4 py-2 bg-neutral-200 border border-neutral-300 rounded-xl text-neutral-900 text-sm focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-colors cursor-pointer"
+                                    className="flex-1 px-3 py-2.5 bg-neutral-800 border border-amber-500/60 rounded-xl text-sm font-medium text-white focus:outline-none focus:border-amber-500 transition-colors cursor-pointer"
+                                    style={{ colorScheme: 'dark' }}
                                     title="Start Date"
                                 />
-                                <span className="text-neutral-500 text-sm font-medium px-1">to</span>
+                                <label className="text-xs font-semibold text-neutral-400 uppercase px-1">To</label>
                                 <input
                                     type="date"
                                     value={endDate}
                                     onChange={e => setEndDate(e.target.value)}
-                                    className="px-4 py-2 bg-neutral-200 border border-neutral-300 rounded-xl text-neutral-900 text-sm focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-colors cursor-pointer"
+                                    className="flex-1 px-3 py-2.5 bg-neutral-800 border border-amber-500/60 rounded-xl text-sm font-medium text-white focus:outline-none focus:border-amber-500 transition-colors cursor-pointer"
+                                    style={{ colorScheme: 'dark' }}
                                     title="End Date"
                                 />
                                 {(startDate || endDate) && (
                                     <button
                                         onClick={() => { setStartDate(''); setEndDate(''); }}
-                                        className="p-2 text-neutral-400 hover:text-red-400 bg-neutral-800/60 hover:bg-neutral-800 border border-neutral-700 rounded-xl transition-all"
+                                        className="p-2.5 text-neutral-400 hover:text-amber-500 bg-neutral-800 border border-amber-500/60 rounded-xl transition-colors shrink-0 flex items-center justify-center"
                                         title="Clear Dates"
                                     >
                                         <XIcon className="w-4 h-4" />
@@ -754,6 +866,12 @@ const AdminOrdersPage = () => {
                                                             </span>
                                                         )}
 
+                                                        {order.refund_status && (
+                                                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 border border-emerald-500/35 text-emerald-400 whitespace-nowrap">
+                                                                💰 Refund: {formatRefundStatus(order.refund_status)}
+                                                            </span>
+                                                        )}
+
                                                         {/* UPDATE STATUS BUTTON */}
                                                         {!isEditing && (
                                                             <button
@@ -809,6 +927,34 @@ const AdminOrdersPage = () => {
                                                         {order.delivery_partner && <span className="font-semibold text-neutral-300">{order.delivery_partner}</span>}
                                                         {order.tracking_number && <span className="text-neutral-500 ml-1.5 font-mono">{order.tracking_number}</span>}
                                                     </div>
+                                                </div>
+                                            )}
+
+                                            {/* Process Refund Button — only for PREPAID orders with QC-passed returns */}
+                                            {(!isEditing
+                                                && order.payment_method !== 'COD'
+                                                && (order.return_status === 'QC_PASSED' || order.return_status === 'COMPLETED')
+                                                && !['COMPLETED'].includes(order.refund_status || '')
+                                            ) && (
+                                                <div className="mt-3 flex justify-start">
+                                                    <button
+                                                        onClick={() => setRefundConfirmOrder(order)}
+                                                        disabled={isUpdating}
+                                                        className="flex items-center gap-2 px-3 py-1.5 bg-emerald-600/20 text-emerald-500 border border-emerald-500/30 rounded-lg text-xs font-bold hover:bg-emerald-600 hover:text-white transition-all disabled:opacity-50"
+                                                    >
+                                                        <RotateCcw className="w-3.5 h-3.5" />
+                                                        {order.refund_status === 'FAILED' ? 'Retry Refund' : 'Process Refund'} (₹{Number(order.total_amount).toLocaleString('en-IN')})
+                                                    </button>
+                                                </div>
+                                            )}
+
+                                            {/* COD return info — no refund applicable */}
+                                            {(!isEditing
+                                                && order.payment_method === 'COD'
+                                                && (order.return_status === 'QC_PASSED' || order.return_status === 'COMPLETED')
+                                            ) && (
+                                                <div className="mt-3 px-4 py-2.5 bg-neutral-800/50 border border-neutral-700 rounded-xl text-xs text-neutral-500 text-center">
+                                                    💵 COD order — no online refund applicable
                                                 </div>
                                             )}
 
@@ -903,42 +1049,27 @@ const AdminOrdersPage = () => {
                                                             {/* Return Status Dropdown */}
                                                             <div>
                                                                 <label className="block text-xs text-neutral-500 mb-1 font-medium uppercase tracking-wide">Return Status</label>
-                                                                <select
-                                                                    value={returnStatus}
-                                                                    onChange={e => setReturnStatus(e.target.value)}
-                                                                    className="w-full px-3 py-2.5 bg-neutral-800 border border-amber-500/60 rounded-xl text-white text-sm focus:outline-none focus:border-amber-500 transition-colors"
-                                                                >
-                                                                    <option value="">None</option>
-                                                                    <option value="REQUESTED">Requested</option>
-                                                                    <option value="APPROVED">Approved</option>
-                                                                    <option value="PICKUP_SCHEDULED">Pickup Scheduled</option>
-                                                                    <option value="PICKED_UP">Picked Up</option>
-                                                                    <option value="QC_IN_PROGRESS">QC In Progress</option>
-                                                                    <option value="QC_PASSED">QC Passed</option>
-                                                                    <option value="QC_FAILED">QC Failed</option>
-                                                                    <option value="COMPLETED">Completed</option>
-                                                                    <option value="REJECTED">Rejected</option>
-                                                                </select>
+                                                                <StatusDropdown
+                                                                    value={returnStatus || ''}
+                                                                    options={['', 'REQUESTED', 'APPROVED', 'PICKUP_SCHEDULED', 'PICKED_UP', 'QC_IN_PROGRESS', 'QC_PASSED', 'QC_FAILED', 'COMPLETED', 'REJECTED']}
+                                                                    onChange={setReturnStatus}
+                                                                    labels={{'': 'None', REQUESTED: 'Requested', APPROVED: 'Approved', PICKUP_SCHEDULED: 'Pickup Scheduled', PICKED_UP: 'Picked Up', QC_IN_PROGRESS: 'QC In Progress', QC_PASSED: 'QC Passed', QC_FAILED: 'QC Failed', COMPLETED: 'Completed', REJECTED: 'Rejected'}}
+                                                                    colors={{}}
+                                                                    disabled={order.refund_status === 'COMPLETED'}
+                                                                />
                                                             </div>
 
                                                             {/* Replace Status Dropdown */}
                                                             <div>
                                                                 <label className="block text-xs text-neutral-500 mb-1 font-medium uppercase tracking-wide">Replace Status</label>
-                                                                <select
-                                                                    value={replaceStatus}
-                                                                    onChange={e => setReplaceStatus(e.target.value)}
-                                                                    className="w-full px-3 py-2.5 bg-neutral-800 border border-amber-500/60 rounded-xl text-white text-sm focus:outline-none focus:border-amber-500 transition-colors"
-                                                                >
-                                                                    <option value="">None</option>
-                                                                    <option value="REQUESTED">Requested</option>
-                                                                    <option value="APPROVED">Approved</option>
-                                                                    <option value="PICKUP_SCHEDULED">Pickup Scheduled</option>
-                                                                    <option value="PICKED_UP">Picked Up</option>
-                                                                    <option value="DISPATCHED">Dispatched</option>
-                                                                    <option value="DELIVERED">Delivered</option>
-                                                                    <option value="COMPLETED">Completed</option>
-                                                                    <option value="REJECTED">Rejected</option>
-                                                                </select>
+                                                                <StatusDropdown
+                                                                    value={replaceStatus || ''}
+                                                                    options={['', 'REQUESTED', 'APPROVED', 'PICKUP_SCHEDULED', 'PICKED_UP', 'DISPATCHED', 'DELIVERED', 'COMPLETED', 'REJECTED']}
+                                                                    onChange={setReplaceStatus}
+                                                                    labels={{'': 'None', REQUESTED: 'Requested', APPROVED: 'Approved', PICKUP_SCHEDULED: 'Pickup Scheduled', PICKED_UP: 'Picked Up', DISPATCHED: 'Dispatched', DELIVERED: 'Delivered', COMPLETED: 'Completed', REJECTED: 'Rejected'}}
+                                                                    colors={{}}
+                                                                    disabled={order.refund_status === 'COMPLETED'}
+                                                                />
                                                             </div>
                                                         </div>
 
@@ -1063,6 +1194,38 @@ const AdminOrdersPage = () => {
                     <div className="h-8" />
                 </div>
             </div>
+
+            {/* Refund Confirmation Modal */}
+            {refundConfirmOrder && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center">
+                    <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => !isUpdating && setRefundConfirmOrder(null)} />
+                    <div className="relative bg-[#1c1c2e] border border-emerald-500/30 rounded-2xl p-6 w-full max-w-sm m-4 shadow-2xl shadow-emerald-900/20">
+                        <div className="w-12 h-12 rounded-full bg-emerald-500/20 flex items-center justify-center border border-emerald-500/40 mb-4 mx-auto">
+                            <RotateCcw className="w-6 h-6 text-emerald-400" />
+                        </div>
+                        <h3 className="text-lg font-bold text-white text-center mb-2">Process Refund</h3>
+                        <p className="text-sm text-neutral-400 text-center mb-6">
+                            Are you sure you want to process a PayU refund of <span className="font-bold text-emerald-400">₹{Number(refundConfirmOrder.total_amount).toLocaleString('en-IN')}</span> for order <span className="font-mono text-white">{refundConfirmOrder.order_number}</span>?
+                        </p>
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setRefundConfirmOrder(null)}
+                                disabled={isUpdating}
+                                className="flex-1 py-2.5 bg-neutral-800 text-neutral-300 font-semibold text-sm rounded-xl hover:bg-neutral-700 transition border border-neutral-700 disabled:opacity-50"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={() => handleProcessRefund(refundConfirmOrder.order_id)}
+                                disabled={isUpdating}
+                                className="flex-1 py-2.5 bg-emerald-600 text-white font-bold text-sm rounded-xl hover:bg-emerald-500 transition shadow-lg shadow-emerald-600/20 disabled:opacity-50 flex items-center justify-center gap-2"
+                            >
+                                {isUpdating ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Confirm'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

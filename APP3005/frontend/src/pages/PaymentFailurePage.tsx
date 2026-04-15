@@ -11,10 +11,7 @@ const PaymentFailurePage = () => {
     const orderNumber = searchParams.get('order') || '';
     const reason = searchParams.get('reason') || 'Payment was not completed.';
 
-    // Clear pending order from sessionStorage on failure
-    useEffect(() => {
-        sessionStorage.removeItem('pending_order_id');
-    }, []);
+    // Kept pending order in sessionStorage to allow retrying
 
     return (
         <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#FAFAFA' }}>
