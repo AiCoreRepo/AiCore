@@ -94,6 +94,13 @@ const occasions = [
     { value: 'Resort', label: 'Resort', icon: '🏖️', description: 'Breezy & Comfortable' },
 ];
 
+const RECOMMENDATION_LOADING_DELAY_MS = 3000;
+
+const waitForRecommendationDelay = () =>
+    new Promise((resolve) => {
+        setTimeout(resolve, RECOMMENDATION_LOADING_DELAY_MS);
+    });
+
 const getProductImageUrl = (product: TryOnProduct): string | null => {
     const primaryImage = product.images?.find((image) => image.is_primary);
     const fallbackImage = primaryImage ?? product.images?.[0];
@@ -243,7 +250,9 @@ const LetAIDecidePage = () => {
                 top_k: 12,
             };
 
+            const delayPromise = waitForRecommendationDelay();
             const result = await getAIRecommendations(request);
+            await delayPromise;
 
             // Sort helper: prioritize younger models (age <= 40), push older (> 40) to bottom
             const ageSorter = (a: RecommendationItem, b: RecommendationItem) => {
@@ -264,6 +273,7 @@ const LetAIDecidePage = () => {
 
             setRecommendations(result);
         } catch (error: any) {
+            await waitForRecommendationDelay();
             console.error('Recommendation error:', error);
             setError(error.message || 'Failed to get recommendations. Please try again.');
         } finally {
@@ -589,50 +599,6 @@ const LetAIDecidePage = () => {
 
                                     {recommendations && !loadingRecommendations && (
                                         <div className="space-y-8">
-                                            {/* Filter Badge - Shows selected occasion */}
-                                            {selectedOccasion && (
-                                                <div className="glass-panel rounded-2xl p-6 border-2 border-gold/40 bg-gradient-to-r from-gold/10 to-gold/5">
-                                                    <div className="flex items-center justify-between flex-wrap gap-4">
-                                                        <div className="flex items-center gap-3">
-                                                            <div className="text-4xl">
-                                                                {occasions.find(o => o.value === selectedOccasion)?.icon}
-                                                            </div>
-                                                            <div>
-                                                                <p className="text-sm text-charcoal/60 font-medium uppercase tracking-wide">
-                                                                    Filtered by Occasion
-                                                                </p>
-                                                                <h3 className="text-2xl font-serif font-bold text-charcoal">
-                                                                    {occasions.find(o => o.value === selectedOccasion)?.label}
-                                                                </h3>
-                                                                <p className="text-sm text-charcoal/70">
-                                                                    {occasions.find(o => o.value === selectedOccasion)?.description}
-                                                                </p>
-                                                            </div>
-                                                        </div>
-                                                        <div className="text-right">
-                                                            <p className="text-3xl font-bold text-gold">
-                                                                {recommendations.count}
-                                                            </p>
-                                                            <p className="text-sm text-charcoal/60">
-                                                                Products Found
-                                                            </p>
-                                                        </div>
-                                                    </div>
-                                                    {recommendations.warnings && recommendations.warnings.length > 0 && (
-                                                        <div className="mt-4 pt-4 border-t border-gold/20">
-                                                            <div className="flex items-start gap-2">
-                                                                <AlertCircle className="w-4 h-4 text-gold mt-0.5 flex-shrink-0" />
-                                                                <div className="text-xs text-charcoal/60 space-y-1">
-                                                                    {recommendations.warnings.map((warning, idx) => (
-                                                                        <p key={idx}>{warning}</p>
-                                                                    ))}
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            )}
-
                                             <div className="flex items-center justify-between mb-6">
                                                 <h2 className="text-3xl font-serif font-bold text-charcoal">
                                                     Your Personalized Recommendations

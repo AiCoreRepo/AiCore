@@ -354,10 +354,7 @@ export class DummyRecommendationService {
         warnings:
           qualifiedProducts.length === 0
             ? ['No strict occasion matches found, showing popular items']
-            : [
-                `Filtered by ${occasion}`,
-                `${finalCount} items matched criteria`,
-              ],
+            : [],
       };
     } catch (error) {
       this.logger.error(
