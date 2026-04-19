@@ -9,6 +9,7 @@ import { cn } from "@/utils/cn";
 import { CartBadge } from "@/components/cart/CartBadge";
 import { WishlistBadge } from "@/components/wishlist/WishlistBadge";
 import { useProfileSidebar } from "@/context/ProfileSidebarContext";
+import { getUserProfileImageUrl } from "@/lib/profile-image";
 
 const navLinks = [
     { name: "Home", href: "/", isRoute: true },
@@ -27,12 +28,18 @@ export const Navbar = () => {
     const [showUserMenu, setShowUserMenu] = useState(false);
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [showLogoutDialog, setShowLogoutDialog] = useState(false);
+    const [profileImageError, setProfileImageError] = useState(false);
     const navigate = useNavigate();
     const location = useLocation();
     const menuRef = useRef<HTMLDivElement>(null);
     const { toast } = useToast();
     const { user, logout: authLogout } = useAuth();
     const { toggleSidebar } = useProfileSidebar();
+    const profileImageUrl = getUserProfileImageUrl(user, aura);
+
+    useEffect(() => {
+        setProfileImageError(false);
+    }, [profileImageUrl]);
 
     useEffect(() => {
         const handleScroll = () => {
@@ -90,12 +97,18 @@ export const Navbar = () => {
             checkAuraStatus();
         };
 
+        const handleAuthRefresh = () => {
+            checkAuraStatus();
+        };
+
         window.addEventListener('storage', handleStorageChange);
         window.addEventListener('aura-updated', handleAuraUpdate);
+        window.addEventListener('auth-refresh', handleAuthRefresh);
 
         return () => {
             window.removeEventListener('storage', handleStorageChange);
             window.removeEventListener('aura-updated', handleAuraUpdate);
+            window.removeEventListener('auth-refresh', handleAuthRefresh);
         };
     }, []);
 
@@ -211,11 +224,12 @@ export const Navbar = () => {
                                                 className="flex flex-col items-center gap-0.5 transition-all duration-300 hover:scale-105 group"
                                                 aria-label="Profile"
                                             >
-                                                {hasAura && aura?.image_url ? (
+                                                {profileImageUrl && !profileImageError ? (
                                                     <img
-                                                        src={aura.image_url}
-                                                        alt="Aura avatar"
+                                                        src={profileImageUrl}
+                                                        alt="Profile avatar"
                                                         className="w-5 h-5 rounded-full object-cover"
+                                                        onError={() => setProfileImageError(true)}
                                                     />
                                                 ) : (
                                                     <User className="w-5 h-5 text-[#6B5D4F] group-hover:text-[#D4AF37] transition-colors" />

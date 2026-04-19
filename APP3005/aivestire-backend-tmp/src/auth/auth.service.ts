@@ -29,6 +29,7 @@ import {
   getEffectiveAvatarRecreationLimit,
   getEffectiveTryOnLimit,
 } from './utils/try-on-limit.util';
+import { normalizeAuraAvatarHistory } from '../aura/utils/aura-avatar-history.util';
 
 // Dynamic import for bcrypt to avoid require and type issues
 let bcryptPromise: Promise<typeof import('bcrypt')> | null = null;
@@ -69,6 +70,43 @@ export class AuthService {
       .replace(/[^a-z0-9\s-]/g, '')
       .replace(/\s+/g, '-')
       .replace(/-+/g, '-');
+  }
+
+  private resolveAuraAvatarUrl(
+    aura:
+      | {
+          image_url: string | null;
+          model_url: string | null;
+          tryon_model_url: string | null;
+          generated_avatar_urls?: string[] | null;
+          attributes?: unknown;
+          created_at?: Date | null;
+          updated_at?: Date | null;
+        }
+      | null
+      | undefined,
+  ): string | null {
+    if (!aura) {
+      return null;
+    }
+
+    const { selectedAvatar } = normalizeAuraAvatarHistory({
+      attributesJson: aura.attributes,
+      modelUrl: aura.model_url,
+      tryOnModelUrl: aura.tryon_model_url,
+      generatedAvatarUrls: aura.generated_avatar_urls ?? null,
+      createdAt: aura.created_at,
+      updatedAt: aura.updated_at,
+    });
+
+    return (
+      selectedAvatar?.tryon_model_url ||
+      selectedAvatar?.model_url ||
+      aura.tryon_model_url ||
+      aura.model_url ||
+      aura.image_url ||
+      null
+    );
   }
 
   async register(dto: RegisterDto) {
@@ -281,6 +319,17 @@ export class AuthService {
             verification_data: true,
           },
         },
+        aura: {
+          select: {
+            image_url: true,
+            model_url: true,
+            tryon_model_url: true,
+            generated_avatar_urls: true,
+            attributes: true,
+            created_at: true,
+            updated_at: true,
+          },
+        },
       },
     });
 
@@ -296,6 +345,7 @@ export class AuthService {
       user.max_avatar_regenerations,
       request,
     );
+    const auraAvatar = this.resolveAuraAvatarUrl(user.aura);
 
     // If the user is a creator, return their creator profile details
     if (user.role === UserRole.CREATOR && user.creatorProfile) {
@@ -310,7 +360,7 @@ export class AuthService {
         try_on_permission: user.try_on_permission,
         store_name: user.creatorProfile.store_name,
         subtitle: verificationData.subtitle || null,
-        avatar: verificationData.avatar || null,
+        avatar: verificationData.avatar || auraAvatar || null,
         paymentDetails: verificationData.paymentDetails || null,
         try_ons_used: user.try_ons_used,
         max_try_ons: effectiveTryOnLimit,
@@ -328,6 +378,7 @@ export class AuthService {
       dob: user.date_of_birth?.toISOString().split('T')[0],
       needs_dob_collection: !user.date_of_birth && !user.password_hash,
       try_on_permission: user.try_on_permission,
+      avatar: auraAvatar,
       try_ons_used: user.try_ons_used,
       max_try_ons: effectiveTryOnLimit,
       avatar_regenerations_used: user.avatar_regenerations_used,

@@ -399,14 +399,16 @@ export class AuraService {
         image_url: true,
         model_url: true,
         tryon_model_url: true,
+        attributes: true,
         generated_avatar_urls: true,
         created_at: true,
+        updated_at: true,
       },
     });
 
     return {
       hasAura: !!aura,
-      aura: aura || null,
+      aura: this.formatAuraResponse(aura),
     };
   }
 

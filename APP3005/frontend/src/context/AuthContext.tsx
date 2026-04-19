@@ -1,5 +1,6 @@
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
 import { getProfile as fetchProfile } from '../lib/api';
+import { getUserDisplayName, getUserProfileImageUrl } from '../lib/profile-image';
 
 interface User {
   user_id: string;
@@ -39,6 +40,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const logout = () => {
     console.log('🚪 Logging out user...');
     localStorage.removeItem('access_token');
+    localStorage.removeItem('user_name');
+    localStorage.removeItem('user_email');
     setUser(null);
     console.log('✅ User logged out successfully');
 
@@ -65,9 +68,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // Map backend 'name' to 'store_name' if needed
       const mappedUser = {
         ...userData,
-        store_name: userData.name || userData.store_name
+        store_name: userData.name || userData.store_name,
+        avatar: getUserProfileImageUrl({
+          ...userData,
+          store_name: userData.name || userData.store_name,
+        }) || undefined,
       };
       setUser(mappedUser);
+      localStorage.setItem('user_email', mappedUser.email);
+      localStorage.setItem('user_name', getUserDisplayName(mappedUser));
       console.log('✅ User authenticated:', userData.email, '| Role:', userData.role);
       console.log('👤 User state set to:', mappedUser);
     } catch (error) {
@@ -81,6 +90,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         logout();
       } else {
         setUser(null);
+        localStorage.removeItem('user_name');
+        localStorage.removeItem('user_email');
         console.log('👤 User state set to: null');
       }
     } finally {
@@ -99,6 +110,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       fetchUser();
     } else {
       setUser(null);
+      localStorage.removeItem('user_name');
+      localStorage.removeItem('user_email');
       setLoading(false);
     }
 
@@ -111,6 +124,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           fetchUser();
         } else {
           setUser(null);
+          localStorage.removeItem('user_name');
+          localStorage.removeItem('user_email');
         }
       }
     };
@@ -123,6 +138,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         fetchUser();
       } else {
         setUser(null);
+        localStorage.removeItem('user_name');
+        localStorage.removeItem('user_email');
       }
     };
 

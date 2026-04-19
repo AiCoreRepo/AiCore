@@ -1,8 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { ShoppingBag, User, Package, LogOut, Sparkles } from 'lucide-react';
-
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+import { getAuraStatus } from '@/lib/api';
+import { useAuth } from '@/context/AuthContext';
+import {
+    getPreferredAuraImageUrl,
+    getUserDisplayName,
+    getUserProfileImageUrl,
+} from '@/lib/profile-image';
 
 interface MenuItem {
     id: string;
@@ -14,40 +19,52 @@ interface MenuItem {
 export const UserProfileSidebar: React.FC = () => {
     const location = useLocation();
     const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-    const [auraImageUrl, setAuraImageUrl] = useState<string | null>(null);
+    const [aura, setAura] = useState<any>(null);
     const [auraLoading, setAuraLoading] = useState(true);
     const [imgError, setImgError] = useState(false);
+    const { user, logout } = useAuth();
 
-    const userEmail = localStorage.getItem('user_email') || 'user@example.com';
-    const userName = localStorage.getItem('user_name') || userEmail.split('@')[0];
+    const userEmail = user?.email || 'user@example.com';
+    const userName = getUserDisplayName(user);
+    const auraImageUrl = getPreferredAuraImageUrl(aura);
+    const profileImageUrl = getUserProfileImageUrl(user, aura);
+    const hasAuraPhoto = Boolean(auraImageUrl) && !imgError;
+    const hasProfilePhoto = Boolean(profileImageUrl) && !imgError;
 
-    // ── Fetch aura photo on mount ────────────────────────────────────────────
     useEffect(() => {
         const fetchAura = async () => {
             try {
-                const token = localStorage.getItem('access_token');
-                if (!token) return;
-
-                const res = await fetch(`${API_BASE}/aura`, {
-                    headers: { Authorization: `Bearer ${token}` },
-                });
-
-                if (res.ok) {
-                    const data = await res.json();
-                    // Only use the image if aura is ready
-                    if (data?.status === 'READY' && (data?.model_url || data?.image_url)) {
-                        setAuraImageUrl(data.model_url || data.image_url);
-                    }
-                }
+                const status = await getAuraStatus();
+                setAura(status?.aura || null);
             } catch {
-                // silently ignore — fallback to default avatar
+                setAura(null);
             } finally {
                 setAuraLoading(false);
             }
         };
 
         fetchAura();
+
+        const handleAuraUpdate = () => {
+            fetchAura();
+        };
+
+        const handleAuthRefresh = () => {
+            fetchAura();
+        };
+
+        window.addEventListener('aura-updated', handleAuraUpdate);
+        window.addEventListener('auth-refresh', handleAuthRefresh);
+
+        return () => {
+            window.removeEventListener('aura-updated', handleAuraUpdate);
+            window.removeEventListener('auth-refresh', handleAuthRefresh);
+        };
     }, []);
+
+    useEffect(() => {
+        setImgError(false);
+    }, [profileImageUrl]);
 
     const menuItems: MenuItem[] = [
         { id: 'aura-profile', label: 'View Aura Profile', icon: User, href: '/aura-profile' },
@@ -56,12 +73,8 @@ export const UserProfileSidebar: React.FC = () => {
     ];
 
     const handleLogout = () => {
-        localStorage.removeItem('access_token');
-        window.location.href = '/';
+        logout();
     };
-
-    // ── Avatar content ───────────────────────────────────────────────────────
-    const hasAuraPhoto = auraImageUrl && !imgError;
 
     return (
         <>
@@ -77,7 +90,7 @@ export const UserProfileSidebar: React.FC = () => {
                             className={`
                                 w-20 h-20 rounded-full flex items-center justify-center overflow-hidden
                                 transition-all duration-500
-                                ${hasAuraPhoto
+                                ${hasProfilePhoto
                                     ? 'ring-4 ring-[#C9A55C] ring-offset-2 ring-offset-[#F5F5F0] shadow-lg shadow-[#C9A55C]/30'
                                     : 'bg-gradient-to-br from-[#C9A55C] to-[#B8944F]'
                                 }
@@ -86,10 +99,10 @@ export const UserProfileSidebar: React.FC = () => {
                             {auraLoading ? (
                                 // Shimmer while loading
                                 <div className="w-full h-full bg-gradient-to-br from-[#D4BD7A] to-[#C9A55C] animate-pulse" />
-                            ) : hasAuraPhoto ? (
+                            ) : hasProfilePhoto ? (
                                 <img
-                                    src={auraImageUrl!}
-                                    alt="Aura profile"
+                                    src={profileImageUrl!}
+                                    alt="Profile"
                                     className="w-full h-full object-cover"
                                     onError={() => setImgError(true)}
                                 />
@@ -109,7 +122,7 @@ export const UserProfileSidebar: React.FC = () => {
                         )}
 
                         {/* Green online dot (no aura) */}
-                        {!hasAuraPhoto && !auraLoading && (
+                        {!hasProfilePhoto && !auraLoading && (
                             <span className="absolute bottom-0.5 right-0.5 w-4 h-4 rounded-full bg-green-500 border-2 border-[#F5F5F0]" />
                         )}
                     </div>
