@@ -285,6 +285,8 @@ export class DirectGeminiTryOnService {
       maxHeight: 1800,
       quality: 90,
       format: 'jpeg',
+      backgroundStyle: 'solid',
+      backgroundColor: { r: 255, g: 255, b: 255, alpha: 1 },
     });
   }
 

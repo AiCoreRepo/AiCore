@@ -9,6 +9,42 @@ import { GetRecommendationsDto } from './dto/recommendation-request.dto';
 import { RecommendationsResponseDto } from './dto/recommendation-response.dto';
 import { DummyRecommendationService } from './dummy-recommendation.service';
 
+const RECOMMENDATION_NETWORK_ERROR_CODES = new Set([
+  'ECONNREFUSED',
+  'ECONNRESET',
+  'ENOTFOUND',
+  'EAI_AGAIN',
+  'ETIMEDOUT',
+  'ECONNABORTED',
+]);
+
+export function shouldFallbackToDummyRecommendations(error: unknown): boolean {
+  const code =
+    typeof error === 'object' && error !== null && 'code' in error
+      ? String((error as { code?: unknown }).code ?? '')
+      : '';
+  const status =
+    typeof error === 'object' && error !== null && 'response' in error
+      ? Number(
+          (
+            error as {
+              response?: { status?: number | string };
+            }
+          ).response?.status,
+        )
+      : NaN;
+
+  if (RECOMMENDATION_NETWORK_ERROR_CODES.has(code)) {
+    return true;
+  }
+
+  if (!Number.isFinite(status)) {
+    return false;
+  }
+
+  return status === 404 || status === 422 || status >= 500;
+}
+
 @Injectable()
 export class RecommendationService {
   private readonly logger = new Logger(RecommendationService.name);
@@ -185,25 +221,11 @@ export class RecommendationService {
         error.stack,
       );
 
-      // If FastAPI is not available, use fallback DB-based recommendations
-      if (error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT') {
+      if (shouldFallbackToDummyRecommendations(error)) {
         this.logger.warn(
-          '⚠️ ML service unavailable, falling back to DB-based recommendations',
+          `⚠️ ML service unavailable or misconfigured (code=${error?.code ?? 'unknown'}, status=${error?.response?.status ?? 'none'}), falling back to DB-based recommendations`,
         );
 
-        const ageRange = aura?.age_range || null;
-        const skinTone = aura?.skin_tone || null;
-        return this.dummyRecommendationService.getDummyRecommendations(
-          dto.occasion,
-          ageRange,
-          skinTone,
-        );
-      }
-
-      if (error.response?.status === 422) {
-        this.logger.warn(
-          `⚠️ ML service rejected payload with 422: ${JSON.stringify(error.response?.data)}`,
-        );
         const ageRange = aura?.age_range || null;
         const skinTone = aura?.skin_tone || null;
         return this.dummyRecommendationService.getDummyRecommendations(

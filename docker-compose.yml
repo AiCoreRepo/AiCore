@@ -71,6 +71,16 @@ services:
     environment:
       RECOMMENDATION_COLLECTION_PATH: /app/main_train_data.csv
     restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "python -c \"import sys, urllib.request; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8799/openapi.json').status == 200 else 1)\""
+        ]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
     networks:
       - app-network
 
@@ -126,6 +136,8 @@ services:
         condition: service_healthy
       body-analyzer:
         condition: service_started
+      recommendation-api:
+        condition: service_healthy
     restart: unless-stopped
     # The healthcheck tells docker-compose when the API is truly ready
     # (migrations done, HTTP server listening). backend-worker waits on this.

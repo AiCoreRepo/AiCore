@@ -6,6 +6,15 @@ export const TRYON_PROVIDER = {
 export type TryOnProvider =
   (typeof TRYON_PROVIDER)[keyof typeof TRYON_PROVIDER];
 
+const ENV_DEFAULT_TRY_ON_PROVIDER =
+  import.meta.env.VITE_TRY_ON_DEFAULT_PROVIDER?.toLowerCase() ===
+  TRYON_PROVIDER.GEMINI
+    ? TRYON_PROVIDER.GEMINI
+    : import.meta.env.VITE_TRY_ON_DEFAULT_PROVIDER?.toLowerCase() ===
+        TRYON_PROVIDER.VERTEX
+      ? TRYON_PROVIDER.VERTEX
+      : null;
+
 const PRODUCTION_TRY_ON_HOSTS = new Set(['aivestire.com', 'www.aivestire.com']);
 const UAT_OR_LOCAL_TRY_ON_HOSTS = new Set([
   'uat.aivestire.com',
@@ -51,7 +60,11 @@ export function shouldShowMultipleTryOnProviders(): boolean {
 }
 
 export function getDefaultTryOnProvider(): TryOnProvider {
-  return isProductionTryOnHost()
-    ? TRYON_PROVIDER.GEMINI
-    : TRYON_PROVIDER.VERTEX;
+  if (ENV_DEFAULT_TRY_ON_PROVIDER) {
+    return ENV_DEFAULT_TRY_ON_PROVIDER;
+  }
+
+  // Keep Vertex as the safe default across environments. Gemini remains
+  // available behind an explicit env override or the non-prod provider switcher.
+  return TRYON_PROVIDER.VERTEX;
 }

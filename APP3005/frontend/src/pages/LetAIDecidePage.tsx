@@ -352,9 +352,18 @@ const LetAIDecidePage = () => {
                     additionalParams: buildGeminiTryOnAdditionalParams(aura),
                 });
             } else {
+                const avatarImage = getAvatarImageUrl(aura);
+                const clothingImage = getProductImageUrl(product);
+
+                if (!avatarImage || !clothingImage) {
+                    throw new Error('Try-on requires both avatar and clothing images');
+                }
+
                 result = await tryOnWithVertex({
-                    userId: aura.user_id,
-                    clothingItemId: product.product_id,
+                    avatarImage,
+                    clothingImage,
+                    productId: product.product_id,
+                    auraId: aura?.aura_id,
                 });
             }
 

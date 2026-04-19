@@ -32,7 +32,7 @@ export function getEffectiveTryOnLimit(maxTryOns?: number): number {
     return Math.max(storedLimit, UAT_TRY_ON_LIMIT);
   }
 
-  return storedLimit;
+  return Math.min(storedLimit, DEFAULT_TRY_ON_LIMIT);
 }
 
 export function getTryOnUsageSnapshot(

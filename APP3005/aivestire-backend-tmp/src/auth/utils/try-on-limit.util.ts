@@ -91,7 +91,9 @@ export function getEffectiveTryOnLimit(
     return Math.max(storedLimit, NON_PROD_TRY_ON_LIMIT);
   }
 
-  return storedLimit;
+  // Production is capped at 3 try-ons. Older production rows can still carry
+  // the deprecated default of 10, so clamp those legacy values here.
+  return Math.min(storedLimit, DEFAULT_TRY_ON_LIMIT);
 }
 
 export function getEffectiveAvatarRecreationLimit(

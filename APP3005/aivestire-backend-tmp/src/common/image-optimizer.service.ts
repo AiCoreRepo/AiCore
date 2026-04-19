@@ -29,6 +29,13 @@ export interface PortraitCanvasOptions {
   maxHeight?: number;
   quality?: number;
   format?: 'jpeg' | 'png' | 'webp';
+  backgroundStyle?: 'blurred' | 'solid';
+  backgroundColor?: {
+    r: number;
+    g: number;
+    b: number;
+    alpha?: number;
+  };
 }
 
 /**
@@ -204,6 +211,8 @@ export class ImageOptimizerService {
         maxHeight = this.DEFAULT_PORTRAIT_MAX_HEIGHT,
         quality = 90,
         format = 'jpeg',
+        backgroundStyle = 'blurred',
+        backgroundColor = { r: 255, g: 255, b: 255, alpha: 1 },
       } = options;
 
       let targetWidth = width;
@@ -229,9 +238,38 @@ export class ImageOptimizerService {
         `🖼️ Normalizing image to portrait canvas: ${width}x${height} → ${targetWidth}x${targetHeight}`,
       );
 
-      // [Speed-Opt-5] Background and foreground pipelines are independent — run in parallel.
-      const [backgroundBuffer, foregroundBuffer] = await Promise.all([
-        sharp(imageBuffer)
+      const foregroundBuffer = await sharp(imageBuffer)
+        .resize(targetWidth, targetHeight, {
+          fit: 'contain',
+          background: { r: 0, g: 0, b: 0, alpha: 0 },
+          withoutEnlargement: true,
+        })
+        .png()
+        .toBuffer();
+
+      let pipeline: sharp.Sharp;
+
+      if (backgroundStyle === 'solid') {
+        pipeline = sharp({
+          create: {
+            width: targetWidth,
+            height: targetHeight,
+            channels: 4,
+            background: {
+              r: backgroundColor.r,
+              g: backgroundColor.g,
+              b: backgroundColor.b,
+              alpha: backgroundColor.alpha ?? 1,
+            },
+          },
+        }).composite([
+          {
+            input: foregroundBuffer,
+            gravity: 'center',
+          },
+        ]);
+      } else {
+        const backgroundBuffer = await sharp(imageBuffer)
           .resize(targetWidth, targetHeight, {
             fit: 'cover',
           })
@@ -241,23 +279,15 @@ export class ImageOptimizerService {
             saturation: 0.92,
           })
           .jpeg({ quality: 70, mozjpeg: true })
-          .toBuffer(),
-        sharp(imageBuffer)
-          .resize(targetWidth, targetHeight, {
-            fit: 'contain',
-            background: { r: 0, g: 0, b: 0, alpha: 0 },
-            withoutEnlargement: true,
-          })
-          .png()
-          .toBuffer(),
-      ]);
+          .toBuffer();
 
-      let pipeline = sharp(backgroundBuffer).composite([
-        {
-          input: foregroundBuffer,
-          gravity: 'center',
-        },
-      ]);
+        pipeline = sharp(backgroundBuffer).composite([
+          {
+            input: foregroundBuffer,
+            gravity: 'center',
+          },
+        ]);
+      }
 
       if (format === 'png') {
         pipeline = pipeline.png({ quality, compressionLevel: 9 });

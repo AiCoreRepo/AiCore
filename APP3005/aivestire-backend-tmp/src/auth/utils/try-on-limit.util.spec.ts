@@ -53,6 +53,14 @@ describe('try-on limit utility', () => {
     );
   });
 
+  it('clamps legacy production limits back to the enforced cap', () => {
+    const request = createRequest({
+      origin: 'https://aivestire.com',
+    });
+
+    expect(getEffectiveTryOnLimit(10, request)).toBe(DEFAULT_TRY_ON_LIMIT);
+  });
+
   it('raises the effective try-on limit to 200 on UAT', () => {
     const request = createRequest({
       origin: 'https://uat.aivestire.com',
