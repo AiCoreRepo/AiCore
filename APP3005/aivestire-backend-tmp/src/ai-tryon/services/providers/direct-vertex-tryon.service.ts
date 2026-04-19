@@ -40,6 +40,7 @@ interface TokenResponse {
 @Injectable()
 export class DirectVertexTryOnService {
   private readonly logger = new Logger(DirectVertexTryOnService.name);
+  private readonly enabled: boolean;
   private projectId: string;
   private readonly location: string;
   private readonly modelId: string;
@@ -50,6 +51,11 @@ export class DirectVertexTryOnService {
     private readonly configService: ConfigService,
     private readonly imageOptimizer: ImageOptimizerService,
   ) {
+    this.enabled =
+      String(
+        this.configService.get<string>('VERTEX_TRYON_ENABLED') ?? 'true',
+      ).toLowerCase() !== 'false';
+
     // Get Vertex AI configuration from environment
     this.projectId = this.configService.get<string>('VERTEX_PROJECT_ID') || '';
     this.location =
@@ -57,6 +63,11 @@ export class DirectVertexTryOnService {
     this.modelId =
       this.configService.get<string>('VERTEX_MODEL_ID') ||
       'virtual-try-on-preview-08-04';
+
+    if (!this.enabled) {
+      this.logger.log('ℹ️ Direct Vertex AI try-on service is disabled');
+      return;
+    }
 
     // Load service account credentials
     this.loadServiceAccountCredentials();
@@ -149,45 +160,38 @@ export class DirectVertexTryOnService {
 
   /**
    * Load service account credentials from environment variable or file
-   * Priority: GOOGLE_SERVICE_ACCOUNT_JSON (env var JSON) > File path > Default path
+   * Priority:
+   * 1. GOOGLE_SERVICE_ACCOUNT_JSON (raw JSON)
+   * 2. GOOGLE_SERVICE_ACCOUNT_JSON_B64 / GOOGLE_SERVICE_ACCOUNT_JSON_BASE64
+   * 3. File path
    */
   private loadServiceAccountCredentials(): void {
-    // First try: Load from environment variable (JSON string) - best for production
-    const saJsonEnv = this.configService.get<string>(
-      'GOOGLE_SERVICE_ACCOUNT_JSON',
-    );
-    if (saJsonEnv) {
-      try {
-        this.serviceAccountCredentials = JSON.parse(saJsonEnv);
-        this.logger.log(
-          `✅ Service account loaded from GOOGLE_SERVICE_ACCOUNT_JSON env var`,
-        );
-        this.logger.log(
-          `   Service account email: ${this.serviceAccountCredentials?.client_email}`,
-        );
+    const saJsonEnv = this.configService.get<string>('GOOGLE_SERVICE_ACCOUNT_JSON');
+    if (this.tryLoadCredentialsFromContent(saJsonEnv, 'GOOGLE_SERVICE_ACCOUNT_JSON')) {
+      return;
+    }
 
-        // ALWAYS prefer the service account's project_id — it is the authoritative
-        // billing-enabled project that this SA belongs to.
-        // The VERTEX_PROJECT_ID env var is used only as a last-resort fallback.
-        if (this.serviceAccountCredentials?.project_id) {
-          (this as any).projectId = this.serviceAccountCredentials.project_id;
-          this.logger.log(
-            `   ✅ Using project_id from service account: ${this.serviceAccountCredentials.project_id}`,
-          );
-        } else if (!this.projectId) {
-          this.logger.warn(
-            `   ⚠️ Service account has no project_id; falling back to VERTEX_PROJECT_ID env var: ${this.projectId}`,
-          );
+    const saJsonEnvB64 =
+      this.configService.get<string>('GOOGLE_SERVICE_ACCOUNT_JSON_B64') ||
+      this.configService.get<string>('GOOGLE_SERVICE_ACCOUNT_JSON_BASE64');
+    if (saJsonEnvB64) {
+      try {
+        const decoded = Buffer.from(saJsonEnvB64, 'base64').toString('utf-8');
+        if (
+          this.tryLoadCredentialsFromContent(
+            decoded,
+            'GOOGLE_SERVICE_ACCOUNT_JSON_B64',
+          )
+        ) {
+          return;
         }
-        return;
       } catch (error) {
         this.logger.error(
-          `❌ Failed to parse GOOGLE_SERVICE_ACCOUNT_JSON: ${error.message}`,
+          `❌ Failed to decode GOOGLE_SERVICE_ACCOUNT_JSON_B64: ${error.message}`,
         );
       }
     }
 
-    // Second try: Load from file path
     const saPath =
       this.configService.get<string>('GOOGLE_APPLICATION_CREDENTIALS') ||
       this.configService.get<string>('VERTEX_SA_KEY_PATH') ||
@@ -195,29 +199,20 @@ export class DirectVertexTryOnService {
 
     try {
       if (fs.existsSync(saPath)) {
-        const content = fs.readFileSync(saPath, 'utf-8');
-        this.serviceAccountCredentials = JSON.parse(content);
-        this.logger.log(`✅ Service account loaded from: ${saPath}`);
-        this.logger.log(
-          `   Service account email: ${this.serviceAccountCredentials?.client_email}`,
-        );
-
-        // ALWAYS prefer the service account's project_id — it is the authoritative
-        // billing-enabled project that this SA belongs to.
-        if (this.serviceAccountCredentials?.project_id) {
-          (this as any).projectId = this.serviceAccountCredentials.project_id;
-          this.logger.log(
-            `   ✅ Using project_id from service account: ${this.serviceAccountCredentials.project_id}`,
+        const stats = fs.statSync(saPath);
+        if (stats.isDirectory()) {
+          this.logger.error(
+            `❌ Vertex credentials path points to a directory, not a file: ${saPath}`,
           );
-        } else if (!this.projectId) {
-          this.logger.warn(
-            `   ⚠️ Service account has no project_id; falling back to VERTEX_PROJECT_ID env var: ${this.projectId}`,
-          );
+          return;
         }
+
+        const content = fs.readFileSync(saPath, 'utf-8');
+        this.tryLoadCredentialsFromContent(content, `file:${saPath}`);
       } else {
         this.logger.warn(`⚠️ Service account file not found at: ${saPath}`);
         this.logger.warn(
-          `   💡 TIP: Set GOOGLE_SERVICE_ACCOUNT_JSON env var with the JSON content for production`,
+          `   💡 TIP: Set GOOGLE_SERVICE_ACCOUNT_JSON or GOOGLE_SERVICE_ACCOUNT_JSON_B64 for production deployments`,
         );
       }
     } catch (error) {
@@ -225,11 +220,46 @@ export class DirectVertexTryOnService {
     }
   }
 
+  private tryLoadCredentialsFromContent(
+    content: string | undefined | null,
+    source: string,
+  ): boolean {
+    if (!content?.trim()) {
+      return false;
+    }
+
+    try {
+      this.serviceAccountCredentials = JSON.parse(content);
+      this.logger.log(`✅ Service account loaded from ${source}`);
+      this.logger.log(
+        `   Service account email: ${this.serviceAccountCredentials?.client_email}`,
+      );
+
+      if (this.serviceAccountCredentials?.project_id) {
+        (this as any).projectId = this.serviceAccountCredentials.project_id;
+        this.logger.log(
+          `   ✅ Using project_id from service account: ${this.serviceAccountCredentials.project_id}`,
+        );
+      } else if (!this.projectId) {
+        this.logger.warn(
+          `   ⚠️ Service account has no project_id; falling back to VERTEX_PROJECT_ID env var: ${this.projectId}`,
+        );
+      }
+
+      return true;
+    } catch (error) {
+      this.logger.error(
+        `❌ Failed to parse service account credentials from ${source}: ${error.message}`,
+      );
+      return false;
+    }
+  }
+
   /**
    * Check if the service is configured
    */
   private isConfigured(): boolean {
-    return !!(this.projectId && this.serviceAccountCredentials);
+    return this.enabled && !!(this.projectId && this.serviceAccountCredentials);
   }
 
   /**
@@ -239,7 +269,10 @@ export class DirectVertexTryOnService {
     if (!this.serviceAccountCredentials) {
       throw new ConfigurationException(
         'Service account credentials not loaded',
-        { hint: 'Set GOOGLE_APPLICATION_CREDENTIALS or VERTEX_SA_KEY_PATH' },
+        {
+          hint:
+            'Set GOOGLE_SERVICE_ACCOUNT_JSON, GOOGLE_SERVICE_ACCOUNT_JSON_B64, GOOGLE_APPLICATION_CREDENTIALS, or VERTEX_SA_KEY_PATH',
+        },
       );
     }
 
@@ -351,6 +384,10 @@ export class DirectVertexTryOnService {
    * [OPTIMIZATION Task 9] Simple ping to warm up Vertex AI auth tokens
    */
   async ping(): Promise<boolean> {
+    if (!this.enabled) {
+      return false;
+    }
+
     try {
       this.logger.log('🔥 [WarmWorker] Pinging Vertex AI Service...');
       if (!this.cachedToken) {
@@ -371,9 +408,16 @@ export class DirectVertexTryOnService {
     clothingBase64: string,
     additionalParams?: Record<string, any>,
   ): Promise<string> {
+    if (!this.enabled) {
+      throw new ConfigurationException(
+        'Direct Vertex AI service is disabled.',
+        { enabled: false },
+      );
+    }
+
     if (!this.isConfigured()) {
       throw new ConfigurationException(
-        'Direct Vertex AI service is not configured. Please set VERTEX_PROJECT_ID and provide service_account.json',
+        'Direct Vertex AI service is not configured. Please set VERTEX_PROJECT_ID and provide valid Vertex credentials.',
         {
           projectId: this.projectId,
           hasCredentials: !!this.serviceAccountCredentials,
@@ -542,6 +586,10 @@ export class DirectVertexTryOnService {
    * Check if the service is available
    */
   async isAvailable(): Promise<boolean> {
+    if (!this.enabled) {
+      return false;
+    }
+
     if (!this.isConfigured()) {
       return false;
     }
@@ -562,6 +610,13 @@ export class DirectVertexTryOnService {
    * Get configuration status
    */
   getConfigurationStatus(): { configured: boolean; message?: string } {
+    if (!this.enabled) {
+      return {
+        configured: false,
+        message: 'Direct Vertex AI try-on is disabled',
+      };
+    }
+
     if (!this.projectId) {
       return {
         configured: false,
@@ -573,7 +628,7 @@ export class DirectVertexTryOnService {
       return {
         configured: false,
         message:
-          'Service account credentials not loaded. Set GOOGLE_APPLICATION_CREDENTIALS or place service_account.json in project root',
+          'Vertex credentials not loaded. Set GOOGLE_SERVICE_ACCOUNT_JSON, GOOGLE_SERVICE_ACCOUNT_JSON_B64, GOOGLE_APPLICATION_CREDENTIALS, or VERTEX_SA_KEY_PATH.',
       };
     }
 

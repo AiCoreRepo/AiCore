@@ -96,7 +96,7 @@ services:
     command:
       [
         "sh", "-c",
-        "set -e; node scripts/wait-for-services.mjs; node scripts/run-migrations.mjs; node scripts/seed-products.js; node dist/src/main"
+        "set -e; node scripts/bootstrap-service-account.mjs; node scripts/wait-for-services.mjs; node scripts/run-migrations.mjs; node scripts/seed-products.js; node dist/src/main"
       ]
     env_file:
       # Local .env provides secrets (API keys, JWT, Cloudinary, etc.).
@@ -123,12 +123,13 @@ services:
 
       # ── Misc ─────────────────────────────────
       AI_TIMING_LOGS: "true"
+      VERTEX_TRYON_ENABLED: "false"
       SEED_COLLECTION_PATH: /app/seed/main_train_data.csv
       SEED_LIMIT: ${SEED_LIMIT:-200}
+      GOOGLE_APPLICATION_CREDENTIALS: /app/service_account.json
+      SERVICE_ACCOUNT_FALLBACK_PATH: /app/runtime-config/service_account.json
     volumes:
-      # NOTE: service_account.json must be a FILE (not a directory).
-      # If Vertex AI is not used, this mount is harmless (empty JSON = {}).
-      - ./APP3005/aivestire-backend-tmp/service_account.json:/app/service_account.json:ro
+      - ./APP3005/aivestire-backend-tmp:/app/runtime-config:ro
     depends_on:
       db:
         condition: service_healthy
@@ -173,7 +174,7 @@ services:
     command:
       [
         "sh", "-c",
-        "set -e; node scripts/wait-for-services.mjs; IS_WORKER_PROCESS=true node dist/src/worker/main"
+        "set -e; node scripts/bootstrap-service-account.mjs; node scripts/wait-for-services.mjs; IS_WORKER_PROCESS=true node dist/src/worker/main"
       ]
     env_file:
       - ./APP3005/aivestire-backend-tmp/.env
@@ -191,8 +192,11 @@ services:
       # ── App ──────────────────────────────────
       NODE_ENV: production
       IS_WORKER_PROCESS: "true"
+      VERTEX_TRYON_ENABLED: "false"
+      GOOGLE_APPLICATION_CREDENTIALS: /app/service_account.json
+      SERVICE_ACCOUNT_FALLBACK_PATH: /app/runtime-config/service_account.json
     volumes:
-      - ./APP3005/aivestire-backend-tmp/service_account.json:/app/service_account.json:ro
+      - ./APP3005/aivestire-backend-tmp:/app/runtime-config:ro
     depends_on:
       db:
         condition: service_healthy
@@ -217,6 +221,7 @@ services:
       args:
         VITE_API_URL: ${VITE_API_URL:-/api}
         VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID:?Set VITE_GOOGLE_CLIENT_ID in .env}
+        VITE_TRY_ON_DEFAULT_PROVIDER: ${VITE_TRY_ON_DEFAULT_PROVIDER:-gemini}
     environment:
       BACKEND_URL: ${BACKEND_URL:-http://backend:3000}
     container_name: aivestire-frontend

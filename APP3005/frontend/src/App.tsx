@@ -61,6 +61,7 @@ import { PopupProvider } from "./components/common/popups/PopupTime";
 import { SidebarProvider } from "./context/SidebarContext";
 import { ProfileSidebarProvider } from "./context/ProfileSidebarContext";
 import { ProfileSidebarSlide } from "./components/user/ProfileSidebarSlide";
+import { InactivityRegisterModal } from "./components/auth/InactivityRegisterModal";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { CreatorOnboardingGuard } from "./components/creator/CreatorOnboardingGuard";
 import { useActivityTracking } from "./hooks/useActivityTracking";
@@ -103,6 +104,7 @@ const App = () => (
                 <SidebarProvider>
                   <ProfileSidebarProvider>
                     <ProfileSidebarSlide />
+                    <InactivityRegisterModal />
                     <Routes>
                       <Route path="/" element={<Index />} />
                       <Route path="/collection" element={<CollectionPage />} />

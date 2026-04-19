@@ -9,10 +9,13 @@ services:
       DATABASE_URL: postgresql://postgres:postgres@db:5432/aivestire
       REDIS_HOST: redis
       REDIS_PORT: 6379
+      VERTEX_TRYON_ENABLED: "false"
       GOOGLE_APPLICATION_CREDENTIALS: /app/service_account.json
+      SERVICE_ACCOUNT_FALLBACK_PATH: /app/runtime-config/service_account.json
       AI_TIMING_LOGS: "true"
+    command: ["sh", "-c", "set -e; node scripts/bootstrap-service-account.mjs; node dist/src/main.js"]
     volumes:
-      - ./service_account.json:/app/service_account.json:ro
+      - ./aivestire-backend-tmp:/app/runtime-config:ro
     ports:
       - "3001:3000"
     depends_on:
@@ -28,17 +31,19 @@ services:
     build:
       context: ./aivestire-backend-tmp
     container_name: nest-worker
-    command: ["sh", "-c", "set -e; IS_WORKER_PROCESS=true node dist/src/worker/main.js"]
+    command: ["sh", "-c", "set -e; node scripts/bootstrap-service-account.mjs; IS_WORKER_PROCESS=true node dist/src/worker/main.js"]
     env_file:
       - ./aivestire-backend-tmp/.env
     environment:
       DATABASE_URL: postgresql://postgres:postgres@db:5432/aivestire
       REDIS_HOST: redis
       REDIS_PORT: 6379
+      VERTEX_TRYON_ENABLED: "false"
       GOOGLE_APPLICATION_CREDENTIALS: /app/service_account.json
+      SERVICE_ACCOUNT_FALLBACK_PATH: /app/runtime-config/service_account.json
       AI_TIMING_LOGS: "true"
     volumes:
-      - ./service_account.json:/app/service_account.json:ro
+      - ./aivestire-backend-tmp:/app/runtime-config:ro
     depends_on:
       db:
         condition: service_healthy
@@ -55,6 +60,7 @@ services:
         # Use relative API base so Nginx in the frontend container can proxy to backend
         VITE_API_URL: ${VITE_API_URL:-/api}
         VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID:-}
+        VITE_TRY_ON_DEFAULT_PROVIDER: ${VITE_TRY_ON_DEFAULT_PROVIDER:-gemini}
     container_name: aivestire-frontend
     ports:
       - "3005:8080"

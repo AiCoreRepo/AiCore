@@ -64,7 +64,6 @@ export function getDefaultTryOnProvider(): TryOnProvider {
     return ENV_DEFAULT_TRY_ON_PROVIDER;
   }
 
-  // Keep Vertex as the safe default across environments. Gemini remains
-  // available behind an explicit env override or the non-prod provider switcher.
-  return TRYON_PROVIDER.VERTEX;
+  // Gemini is the primary production provider.
+  return TRYON_PROVIDER.GEMINI;
 }
