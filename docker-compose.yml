@@ -119,7 +119,7 @@ services:
       # ── Internal service URLs ─────────────────
       FASTAPI_BODY_ANALYZE_URL: http://body-analyzer:8898/body_analyze_json
       FASTAPI_RECOMMENDATION_URL: http://recommendation-api:8799/recommendation/ai-decide
-      RECOMMENDATION_DUMMY_ONLY: "false"
+      RECOMMENDATION_DUMMY_ONLY: "true"
 
       # ── Misc ─────────────────────────────────
       AI_TIMING_LOGS: "true"

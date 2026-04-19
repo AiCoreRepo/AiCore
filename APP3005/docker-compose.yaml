@@ -13,6 +13,7 @@ services:
       GOOGLE_APPLICATION_CREDENTIALS: /app/service_account.json
       SERVICE_ACCOUNT_FALLBACK_PATH: /app/runtime-config/service_account.json
       AI_TIMING_LOGS: "true"
+      RECOMMENDATION_DUMMY_ONLY: "true"
     command: ["sh", "-c", "set -e; node scripts/bootstrap-service-account.mjs; node dist/src/main.js"]
     volumes:
       - ./aivestire-backend-tmp:/app/runtime-config:ro
@@ -42,6 +43,7 @@ services:
       GOOGLE_APPLICATION_CREDENTIALS: /app/service_account.json
       SERVICE_ACCOUNT_FALLBACK_PATH: /app/runtime-config/service_account.json
       AI_TIMING_LOGS: "true"
+      RECOMMENDATION_DUMMY_ONLY: "true"
     volumes:
       - ./aivestire-backend-tmp:/app/runtime-config:ro
     depends_on:

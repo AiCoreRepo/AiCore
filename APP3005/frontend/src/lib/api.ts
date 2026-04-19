@@ -1449,21 +1449,12 @@ export interface RecommendationsResponse {
   warnings?: string[];
 }
 
-// Get AI-powered outfit recommendations
-export async function getAIRecommendations(
+async function fetchRecommendationsFromEndpoint(
+  token: string,
+  endpoint: string,
   data: RecommendationRequest,
 ): Promise<RecommendationsResponse> {
-  const token = localStorage.getItem("access_token");
-  if (!token) {
-    throw new Error("Please login to get AI recommendations");
-  }
-
-  console.log(
-    "🤖 Sending AI Recommendation Request:",
-    JSON.stringify(data, null, 2),
-  );
-
-  const res = await fetch(`${BASE_URL}/api/recommendations/ai-decide`, {
+  const res = await fetch(`${BASE_URL}${endpoint}`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -1481,7 +1472,29 @@ export async function getAIRecommendations(
       throw new Error(bodyText || "Failed to get recommendations");
     }
   }
+
   return res.json();
+}
+
+// Get AI-powered outfit recommendations
+export async function getAIRecommendations(
+  data: RecommendationRequest,
+): Promise<RecommendationsResponse> {
+  const token = localStorage.getItem("access_token");
+  if (!token) {
+    throw new Error("Please login to get AI recommendations");
+  }
+
+  console.log(
+    "🤖 Sending AI Recommendation Request:",
+    JSON.stringify(data, null, 2),
+  );
+
+  return fetchRecommendationsFromEndpoint(
+    token,
+    "/api/recommendations/dummy",
+    data,
+  );
 }
 
 /**
