@@ -15,13 +15,13 @@ import { REFUND_CRON_CONFIG } from './constants/refund.constants';
 export class RefundCronService {
   private readonly logger = new Logger(RefundCronService.name);
 
-  constructor(private readonly refundService: RefundService) {}
+  constructor(private readonly refundService: RefundService) { }
 
   /**
    * Every 5 minutes, check for refunds stuck in PROCESSING
    * longer than REFUND_CRON_CONFIG.STALE_THRESHOLD_MINUTES.
    */
-  @Cron(CronExpression.EVERY_5_MINUTES)
+  @Cron(CronExpression.EVERY_10_MINUTES)
   async handleStuckRefunds() {
     this.logger.log('Cron: Checking for stuck PROCESSING refunds...');
     try {

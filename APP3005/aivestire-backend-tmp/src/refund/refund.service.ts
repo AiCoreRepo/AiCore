@@ -13,9 +13,6 @@ import {
   RefundStatus,
   PaymentStatus,
   PaymentMethod,
-  WalletTransactionSource,
-  WalletTransactionStatus,
-  WalletTransactionType,
 } from '@prisma/client';
 import { PayUGatewayService } from '../payment/services/payu-gateway.service';
 import { OrderRefundInitiatedEvent } from './events/order-refund-initiated.event';
@@ -686,8 +683,9 @@ export class RefundService {
    * Completes a refund inside a single Prisma transaction:
    *  - Updates OrderRefund → COMPLETED
    *  - Updates Order → refund_status + payment_status
-   *  - Credits user wallet
-   *  - Creates wallet transaction record
+   *
+   * NOTE: Money is returned to the user's original payment source (bank/card/UPI)
+   * by PayU automatically. We do NOT credit the wallet here to avoid double-refunding.
    */
   private async _completeRefundInTransaction(
     refundId: string,
@@ -742,38 +740,8 @@ export class RefundService {
         data: updateData,
       });
 
-      // 3. Upsert wallet
-      const wallet = await tx.wallet.upsert({
-        where: { user_id: refund.order.user_id },
-        update: {},
-        create: {
-          user_id: refund.order.user_id,
-          balance: new Prisma.Decimal(0),
-        },
-      });
-
-      const creditedBalance = new Prisma.Decimal(wallet.balance).plus(
-        new Prisma.Decimal(refund.amount),
-      );
-
-      // 4. Credit wallet balance
-      await tx.wallet.update({
-        where: { wallet_id: wallet.wallet_id },
-        data: { balance: creditedBalance },
-      });
-
-      // 5. Record wallet transaction
-      await tx.walletTransaction.create({
-        data: {
-          wallet_id: wallet.wallet_id,
-          type: WalletTransactionType.CREDIT,
-          source: WalletTransactionSource.REFUND,
-          amount: refund.amount,
-          reference_id: refundId,
-          description: `Refund credited for order ${refund.order.order_number}`,
-          status: WalletTransactionStatus.SUCCESS,
-        },
-      });
+      // NOTE: No wallet credit here. PayU sends the refund directly to the
+      // user's original payment source (bank account / card / UPI).
 
       return updated;
     });

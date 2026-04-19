@@ -29,7 +29,7 @@ export const REFUND_STATUS_MESSAGES: Record<string, string> = {
   PENDING_REVIEW: 'Refund request received and is under review',
   INITIATED: 'Refund has been initiated',
   PROCESSING: 'Refund is being processed via PayU',
-  COMPLETED: 'Refund completed successfully — amount credited to wallet',
+  COMPLETED: 'Refund completed successfully — amount will be returned to your original payment source (bank/card/UPI) within 5–7 business days',
   FAILED: 'Refund processing failed',
   REJECTED: 'Refund request was rejected by admin',
   ARCHIVED: 'Refund request has been archived',
