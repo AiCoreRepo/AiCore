@@ -8,6 +8,7 @@ import {
     getUserDisplayName,
     getUserInitials,
     getUserProfileImageUrl,
+    PROFILE_IMAGE_OBJECT_POSITION,
 } from '@/lib/profile-image';
 
 interface UserLayoutProps {
@@ -146,6 +147,7 @@ export const UserDashboardLayout: React.FC<UserLayoutProps> = ({ children, hideS
                                         src={profileImageUrl}
                                         alt={userName}
                                         className="w-full h-full object-cover"
+                                        style={{ objectPosition: PROFILE_IMAGE_OBJECT_POSITION }}
                                         onError={() => setProfileImageError(true)}
                                     />
                                 ) : (

@@ -11,10 +11,40 @@ export interface ProfileImageUser {
   email?: string | null;
 }
 
+const INVALID_PROFILE_IMAGE_URLS = new Set(["background-uploading"]);
+
+export const PROFILE_IMAGE_OBJECT_POSITION = "center 18%";
+
+export function isUsableProfileImageUrl(
+  imageUrl?: string | null,
+): imageUrl is string {
+  if (!imageUrl) {
+    return false;
+  }
+
+  const trimmed = imageUrl.trim();
+  return (
+    trimmed.length > 0 &&
+    !INVALID_PROFILE_IMAGE_URLS.has(trimmed.toLowerCase())
+  );
+}
+
 export function getPreferredAuraImageUrl(
   aura?: AuraImageSource | null,
 ): string | null {
-  return aura?.tryon_model_url || aura?.model_url || aura?.image_url || null;
+  if (isUsableProfileImageUrl(aura?.image_url)) {
+    return aura.image_url.trim();
+  }
+
+  if (isUsableProfileImageUrl(aura?.tryon_model_url)) {
+    return aura.tryon_model_url.trim();
+  }
+
+  if (isUsableProfileImageUrl(aura?.model_url)) {
+    return aura.model_url.trim();
+  }
+
+  return null;
 }
 
 export function getUserProfileImageUrl(
@@ -22,7 +52,7 @@ export function getUserProfileImageUrl(
   aura?: AuraImageSource | null,
 ): string | null {
   const avatar =
-    typeof user?.avatar === "string" && user.avatar.trim().length > 0
+    isUsableProfileImageUrl(user?.avatar)
       ? user.avatar.trim()
       : null;
 

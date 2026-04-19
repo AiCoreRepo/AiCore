@@ -72,6 +72,15 @@ export class AuthService {
       .replace(/-+/g, '-');
   }
 
+  private isUsableAuraImageUrl(imageUrl?: string | null): imageUrl is string {
+    if (!imageUrl) {
+      return false;
+    }
+
+    const trimmed = imageUrl.trim();
+    return trimmed.length > 0 && trimmed.toLowerCase() !== 'background-uploading';
+  }
+
   private resolveAuraAvatarUrl(
     aura:
       | {
@@ -90,6 +99,10 @@ export class AuthService {
       return null;
     }
 
+    if (this.isUsableAuraImageUrl(aura.image_url)) {
+      return aura.image_url.trim();
+    }
+
     const { selectedAvatar } = normalizeAuraAvatarHistory({
       attributesJson: aura.attributes,
       modelUrl: aura.model_url,
@@ -104,7 +117,6 @@ export class AuthService {
       selectedAvatar?.model_url ||
       aura.tryon_model_url ||
       aura.model_url ||
-      aura.image_url ||
       null
     );
   }

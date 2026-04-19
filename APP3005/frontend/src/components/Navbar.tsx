@@ -9,7 +9,10 @@ import { cn } from "@/utils/cn";
 import { CartBadge } from "@/components/cart/CartBadge";
 import { WishlistBadge } from "@/components/wishlist/WishlistBadge";
 import { useProfileSidebar } from "@/context/ProfileSidebarContext";
-import { getUserProfileImageUrl } from "@/lib/profile-image";
+import {
+    getUserProfileImageUrl,
+    PROFILE_IMAGE_OBJECT_POSITION,
+} from "@/lib/profile-image";
 
 const navLinks = [
     { name: "Home", href: "/", isRoute: true },
@@ -229,6 +232,7 @@ export const Navbar = () => {
                                                         src={profileImageUrl}
                                                         alt="Profile avatar"
                                                         className="w-5 h-5 rounded-full object-cover"
+                                                        style={{ objectPosition: PROFILE_IMAGE_OBJECT_POSITION }}
                                                         onError={() => setProfileImageError(true)}
                                                     />
                                                 ) : (

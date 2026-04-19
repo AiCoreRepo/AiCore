@@ -15,6 +15,8 @@ import {
   normalizeAuraAvatarHistory,
 } from '../aura/utils/aura-avatar-history.util';
 
+const BACKGROUND_UPLOAD_PLACEHOLDER = 'background-uploading';
+
 /**
  * AuraProcessor — Bull queue consumer for Aura avatar generation jobs.
  *
@@ -130,7 +132,7 @@ export class AuraProcessor {
 
         sourceUploadMs = Date.now() - sourceUploadStart;
         // Temporary fallback URL; Gemini will use sourceImageData directly
-        sourceImageUrl = 'background-uploading';
+        sourceImageUrl = BACKGROUND_UPLOAD_PLACEHOLDER;
       }
 
       if (!sourceImageUrl && !sourceImageData) {
@@ -201,7 +203,7 @@ export class AuraProcessor {
         // placeholder 'background-uploading' — not a real URL. Use the resized base64 data
         // directly so sharp never receives a non-image string.
         const fallbackSource =
-          sourceImageUrl === 'background-uploading' && processedSourceData
+          sourceImageUrl === BACKGROUND_UPLOAD_PLACEHOLDER && processedSourceData
             ? processedSourceData
             : sourceImageUrl;
 
@@ -288,12 +290,19 @@ export class AuraProcessor {
           finalAvatarUrl,
         ]),
       );
+      const persistedSourceImageUrl =
+        sourceImageUrl && sourceImageUrl !== BACKGROUND_UPLOAD_PLACEHOLDER
+          ? sourceImageUrl
+          : existingAura?.image_url &&
+              existingAura.image_url !== BACKGROUND_UPLOAD_PLACEHOLDER
+            ? existingAura.image_url
+            : null;
 
       const updatedAura = await this.prisma.aura.update({
         where: { aura_id: auraId },
         data: {
           status: AuraStatus.READY,
-          image_url: sourceImageUrl,
+          image_url: persistedSourceImageUrl,
           model_url: finalAvatarUrl,
           tryon_model_url: tryOnAvatarUrl,
           generated_avatar_urls: generatedAvatarUrls,

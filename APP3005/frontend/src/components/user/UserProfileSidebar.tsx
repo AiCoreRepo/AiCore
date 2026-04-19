@@ -7,6 +7,7 @@ import {
     getPreferredAuraImageUrl,
     getUserDisplayName,
     getUserProfileImageUrl,
+    PROFILE_IMAGE_OBJECT_POSITION,
 } from '@/lib/profile-image';
 
 interface MenuItem {
@@ -104,6 +105,7 @@ export const UserProfileSidebar: React.FC = () => {
                                     src={profileImageUrl!}
                                     alt="Profile"
                                     className="w-full h-full object-cover"
+                                    style={{ objectPosition: PROFILE_IMAGE_OBJECT_POSITION }}
                                     onError={() => setImgError(true)}
                                 />
                             ) : (
