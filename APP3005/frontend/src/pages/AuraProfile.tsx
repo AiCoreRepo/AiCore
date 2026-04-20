@@ -894,7 +894,7 @@ export default function AuraProfile() {
       {/* Simple header text - no bar */}
       <div className="simple-header">
         <button
-          onClick={() => navigate("/")}
+          onClick={() => navigate("/user-dashboard")}
           className="header-left-text"
           style={{
             background: "none",
@@ -1072,7 +1072,7 @@ export default function AuraProfile() {
                   : "Recreate Avatar"}
               </button>
               <button
-                onClick={() => navigate("/")}
+                onClick={() => navigate("/user-dashboard")}
                 className="action-btn continue-btn"
               >
                 Continue

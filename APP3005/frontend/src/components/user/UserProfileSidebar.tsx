@@ -51,7 +51,6 @@ export const UserProfileSidebar: React.FC = () => {
 
     const menuItems: MenuItem[] = [
         { id: 'aura-profile', label: 'View Aura Profile', icon: User, href: '/aura-profile' },
-        { id: 'ai-try-on', label: 'AI Try-On', icon: ShoppingBag, href: '/ai-try-on' },
         { id: 'my-orders', label: 'My Orders', icon: Package, href: '/my-orders' },
     ];
 

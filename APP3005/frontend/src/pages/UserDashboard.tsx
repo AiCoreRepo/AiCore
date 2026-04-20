@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { UserDashboardLayout } from '@/components/layout/UserDashboardLayout';
 import { Package, Heart, MapPin, ShoppingBag, Clock } from 'lucide-react';
 import { getUserDashboardStats } from '@/lib/api';
@@ -20,6 +21,7 @@ interface Activity {
 }
 
 export const UserDashboard = () => {
+    const navigate = useNavigate();
     const [stats, setStats] = useState<DashboardStats | null>(null);
     const [activities, setActivities] = useState<Activity[]>([]);
     const [loading, setLoading] = useState(true);
@@ -81,13 +83,21 @@ export const UserDashboard = () => {
         <UserDashboardLayout>
             <div className="min-h-screen bg-[#FAFAF8]">
                 {/* Header */}
-                <div className="bg-white border-b border-[#E0E0D8] px-8 py-6">
-                    <h1 className="text-3xl font-bold text-[#2C2416] mb-2" style={{ fontFamily: 'Playfair Display, serif' }}>
-                        Dashboard
-                    </h1>
-                    <p className="text-[#6B6B6B]" style={{ fontFamily: 'DM Sans, sans-serif' }}>
-                        Welcome to your account dashboard
-                    </p>
+                <div className="bg-white border-b border-[#E0E0D8] px-8 py-6 flex justify-between items-center">
+                    <div>
+                        <h1 className="text-3xl font-bold text-[#2C2416] mb-2" style={{ fontFamily: 'Playfair Display, serif' }}>
+                            Dashboard
+                        </h1>
+                        <p className="text-[#6B6B6B]" style={{ fontFamily: 'DM Sans, sans-serif' }}>
+                            Welcome to your account dashboard
+                        </p>
+                    </div>
+                    <button 
+                        onClick={() => navigate('/')} 
+                        className="px-4 py-2 bg-[#C9A55C] text-white text-sm font-medium rounded-lg hover:bg-[#b08d4b] transition-colors whitespace-nowrap shadow-sm"
+                    >
+                        Back to Home
+                    </button>
                 </div>
 
                 {/* Dashboard Content */}

@@ -55,13 +55,6 @@ export const ProfileSidebarSlide: React.FC = () => {
             iconColor: '#C9A55C',
         },
         {
-            id: 'ai-try-on',
-            label: 'AI Try-On',
-            icon: ShoppingBag,
-            href: '/ai-try-on',
-            iconColor: '#C9A55C',
-        },
-        {
             id: 'my-orders',
             label: 'My Orders',
             icon: Package,

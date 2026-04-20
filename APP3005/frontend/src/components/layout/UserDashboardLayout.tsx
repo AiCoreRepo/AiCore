@@ -4,6 +4,7 @@ import { ShoppingBag, Heart, MapPin, CreditCard, Settings, LogOut, User, Home, P
 import { LogoutConfirmDialog } from '@/components/LogoutConfirmDialog';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/AuthContext';
+import { getAuraStatus } from '@/lib/api';
 
 interface UserLayoutProps {
     children: ReactNode;
@@ -24,10 +25,28 @@ export const UserDashboardLayout: React.FC<UserLayoutProps> = ({ children, hideS
     const { user } = useAuth();
     const [showLogoutDialog, setShowLogoutDialog] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+    const [avatarImgError, setAvatarImgError] = useState(false);
 
     // Get user info from AuthContext
     const userEmail = user?.email || 'user@example.com';
     const userName = user?.store_name || user?.email?.split('@')[0] || 'User';
+
+    // Fetch Aura avatar for profile display
+    useEffect(() => {
+        const fetchAvatar = async () => {
+            try {
+                const status = await getAuraStatus();
+                if (status?.hasAura && status?.aura) {
+                    const url = status.aura.model_url || status.aura.image_url || null;
+                    setAvatarUrl(url);
+                }
+            } catch {
+                // silent fallback — generic icon will show
+            }
+        };
+        fetchAvatar();
+    }, []);
 
     // Close mobile menu on route change
     useEffect(() => {
@@ -46,12 +65,6 @@ export const UserDashboardLayout: React.FC<UserLayoutProps> = ({ children, hideS
             label: 'View Aura Profile',
             icon: User,
             href: '/aura-profile',
-        },
-        {
-            id: 'ai-try-on',
-            label: 'AI Try-On',
-            icon: ShoppingBag,
-            href: '/ai-try-on',
         },
         {
             id: 'my-orders',
@@ -125,7 +138,16 @@ export const UserDashboardLayout: React.FC<UserLayoutProps> = ({ children, hideS
                     <div className="p-8 text-center border-b border-[#D8D6D1]">
                         <div className="relative w-24 h-24 mx-auto mb-4">
                             <div className="w-full h-full rounded-full bg-gradient-to-br from-[#9C8B6C] to-[#8A7A5D] flex items-center justify-center overflow-hidden shadow-lg border-4 border-white">
-                                <User className="w-10 h-10 text-white" />
+                                {avatarUrl && !avatarImgError ? (
+                                    <img
+                                        src={avatarUrl}
+                                        alt="Profile avatar"
+                                        className="w-full h-full object-cover"
+                                        onError={() => setAvatarImgError(true)}
+                                    />
+                                ) : (
+                                    <User className="w-10 h-10 text-white" />
+                                )}
                             </div>
                             <div className="absolute bottom-1 right-1 w-5 h-5 bg-green-500 rounded-full border-2 border-white"></div>
                         </div>

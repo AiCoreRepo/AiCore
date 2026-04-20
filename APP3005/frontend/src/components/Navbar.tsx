@@ -27,6 +27,7 @@ export const Navbar = () => {
     const [showUserMenu, setShowUserMenu] = useState(false);
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [showLogoutDialog, setShowLogoutDialog] = useState(false);
+    const [avatarImgError, setAvatarImgError] = useState(false);
     const navigate = useNavigate();
     const location = useLocation();
     const menuRef = useRef<HTMLDivElement>(null);
@@ -66,6 +67,7 @@ export const Navbar = () => {
                     console.log('Aura status:', status);
                     setHasAura(status.hasAura);
                     setAura(status.aura);
+                    setAvatarImgError(false); // reset on fresh fetch
                 } catch (error) {
                     console.error('Error fetching Aura status:', error);
                 }
@@ -211,11 +213,12 @@ export const Navbar = () => {
                                                 className="flex flex-col items-center gap-0.5 transition-all duration-300 hover:scale-105 group"
                                                 aria-label="Profile"
                                             >
-                                                {hasAura && aura?.image_url ? (
+                                                {hasAura && aura && (aura.model_url || aura.image_url) && !avatarImgError ? (
                                                     <img
-                                                        src={aura.image_url}
+                                                        src={aura.model_url || aura.image_url}
                                                         alt="Aura avatar"
-                                                        className="w-5 h-5 rounded-full object-cover"
+                                                        className="w-6 h-6 rounded-full object-cover border border-[#D4AF37]/40"
+                                                        onError={() => setAvatarImgError(true)}
                                                     />
                                                 ) : (
                                                     <User className="w-5 h-5 text-[#6B5D4F] group-hover:text-[#D4AF37] transition-colors" />
@@ -235,14 +238,6 @@ export const Navbar = () => {
                                                             >
                                                                 <User className="w-4 h-4 text-gold group-hover:scale-110 transition-transform" />
                                                                 <span>View Aura Profile</span>
-                                                            </Link>
-                                                            <Link
-                                                                to="/ai-try-on"
-                                                                className="flex items-center gap-3 px-5 py-3 text-charcoal hover:bg-gradient-to-r hover:from-gold/20 hover:to-gold/10 transition-all duration-300 font-medium group"
-                                                                onClick={() => setShowUserMenu(false)}
-                                                            >
-                                                                <ShoppingBag className="w-4 h-4 text-gold group-hover:scale-110 transition-transform" />
-                                                                <span>AI Try-On</span>
                                                             </Link>
                                                             <div className="border-t border-gold/30 my-2 mx-3"></div>
                                                         </>
