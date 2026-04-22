@@ -1,11 +1,10 @@
 import { useState, useEffect, useRef } from "react";
-import { Menu, X, ShoppingBag, User, LogOut, Package } from "lucide-react";
+import { Menu, X, ShoppingBag, User, LogOut, Package, Sparkles } from "lucide-react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { getAuraStatus } from "@/lib/api";
 import { LogoutConfirmDialog } from "@/components/LogoutConfirmDialog";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/AuthContext";
-import { cn } from "@/utils/cn";
 import { CartBadge } from "@/components/cart/CartBadge";
 import { WishlistBadge } from "@/components/wishlist/WishlistBadge";
 import { useProfileSidebar } from "@/context/ProfileSidebarContext";
@@ -36,410 +35,398 @@ export const Navbar = () => {
     const { toggleSidebar } = useProfileSidebar();
 
     useEffect(() => {
-        const handleScroll = () => {
-            setIsScrolled(window.scrollY > 20);
-        };
-        window.addEventListener("scroll", handleScroll);
+        const handleScroll = () => setIsScrolled(window.scrollY > 30);
+        window.addEventListener("scroll", handleScroll, { passive: true });
         return () => window.removeEventListener("scroll", handleScroll);
     }, []);
 
-    // Handle hash scrolling when location changes
     useEffect(() => {
         if (location.hash) {
             setTimeout(() => {
-                const element = document.querySelector(location.hash);
-                if (element) {
-                    element.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                }
+                const el = document.querySelector(location.hash);
+                if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
             }, 100);
         }
     }, [location]);
 
-    // Check if user is logged in and has Aura
     useEffect(() => {
-        const checkAuraStatus = async () => {
-            const token = localStorage.getItem('access_token');
-            console.log('Checking auth status, token:', token ? 'exists' : 'none');
+        const checkAura = async () => {
+            const token = localStorage.getItem("access_token");
             if (token) {
                 setIsLoggedIn(true);
                 try {
                     const status = await getAuraStatus();
-                    console.log('Aura status:', status);
                     setHasAura(status.hasAura);
                     setAura(status.aura);
-                    setAvatarImgError(false); // reset on fresh fetch
-                } catch (error) {
-                    console.error('Error fetching Aura status:', error);
-                }
+                    setAvatarImgError(false);
+                } catch {}
             } else {
                 setIsLoggedIn(false);
                 setHasAura(false);
                 setAura(null);
             }
         };
-
-        checkAuraStatus();
-
-        // Listen for storage changes (login/logout from other tabs)
-        const handleStorageChange = (e: StorageEvent) => {
-            if (e.key === 'access_token') {
-                checkAuraStatus();
-            }
-        };
-
-        // Listen for custom aura-updated event
-        const handleAuraUpdate = () => {
-            checkAuraStatus();
-        };
-
-        window.addEventListener('storage', handleStorageChange);
-        window.addEventListener('aura-updated', handleAuraUpdate);
-
+        checkAura();
+        const onStorage = (e: StorageEvent) => { if (e.key === "access_token") checkAura(); };
+        const onAura = () => checkAura();
+        window.addEventListener("storage", onStorage);
+        window.addEventListener("aura-updated", onAura);
         return () => {
-            window.removeEventListener('storage', handleStorageChange);
-            window.removeEventListener('aura-updated', handleAuraUpdate);
+            window.removeEventListener("storage", onStorage);
+            window.removeEventListener("aura-updated", onAura);
         };
     }, []);
 
-    // Click outside to close menu
     useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        const handleOut = (e: MouseEvent) => {
+            if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
                 setShowUserMenu(false);
             }
         };
-
-        if (showUserMenu) {
-            document.addEventListener('mousedown', handleClickOutside);
-        }
-
-        return () => {
-            document.removeEventListener('mousedown', handleClickOutside);
-        };
+        if (showUserMenu) document.addEventListener("mousedown", handleOut);
+        return () => document.removeEventListener("mousedown", handleOut);
     }, [showUserMenu]);
+
+    const isActive = (href: string) =>
+        href === "/" ? location.pathname === "/" : location.pathname === href;
 
     return (
         <>
-            <div
-                className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${isScrolled ? "py-1" : "py-2"}`}
-                style={{ pointerEvents: 'none' }}
+            {/* ── NAVBAR ── */}
+            <header
+                className="fixed top-0 inset-x-0 z-50 transition-all duration-500 border-b"
+                style={{
+                    background: isScrolled
+                        ? "rgba(0, 0, 0, 0.95)"
+                        : "rgba(0, 0, 0, 0.65)",
+                    backdropFilter: "blur(24px)",
+                    WebkitBackdropFilter: "blur(24px)",
+                    borderColor: isScrolled ? "rgba(212,175,55,0.15)" : "rgba(255,255,255,0.05)",
+                }}
             >
-                <div className="w-full px-4 md:px-8 max-w-[1920px] mx-auto" style={{ pointerEvents: 'auto' }}>
-                    <div
-                        className={`relative backdrop-blur-xl px-6 md:px-10 py-2.5 transition-all duration-500 w-full ${isMobileMenuOpen ? 'rounded-3xl' : 'rounded-2xl'}`}
-                        style={{
-                            background: 'rgba(255, 255, 255, 0.9)', // Crisp White Glass
-                            boxShadow: '0 8px 32px rgba(212, 175, 55, 0.1), 0 2px 8px rgba(0, 0, 0, 0.02)', // Golden Glow
-                            border: '1px solid rgba(212, 175, 55, 0.25)', // The Golden Touch
-                        }}
-                    >
-                        <div className="flex items-center justify-between">
-                            {/* Logo */}
-                            <a
-                                href="#hero"
-                                className="font-serif text-2xl md:text-3xl font-bold tracking-tight transition-transform duration-300 hover:scale-105"
+                <div className="w-full px-6 md:px-12 py-5 transition-all duration-500" style={{ paddingBottom: isScrolled ? "1rem" : "1.25rem", paddingTop: isScrolled ? "1rem" : "1.25rem" }}>
+                    <div className="flex items-center justify-between">
+                        {/* ── LOGO ── */}
+                        <Link
+                            to="/"
+                            className="flex items-baseline group flex-shrink-0"
+                        >
+                            <span
+                                className="font-serif font-bold tracking-[0.05em] transition-all duration-300 group-hover:opacity-90"
+                                style={{
+                                    fontSize: "1.45rem",
+                                    background: "linear-gradient(135deg, hsl(44 78% 68%), hsl(40 62% 52%))",
+                                    WebkitBackgroundClip: "text",
+                                    WebkitTextFillColor: "transparent",
+                                    backgroundClip: "text",
+                                }}
                             >
-                                <span className="text-[#D4AF37]">Ai</span><span className="text-[#2C2416]">Vestire</span>
-                            </a>
+                                Ai
+                            </span>
+                            <span
+                                className="font-serif font-bold tracking-[0.05em] transition-all duration-300"
+                                style={{ fontSize: "1.45rem", color: "rgba(255,255,255,0.92)" }}
+                            >
+                                Vestire
+                            </span>
+                        </Link>
 
-                            {/* Desktop Navigation */}
-                            <div className="hidden lg:flex items-center space-x-1">
-                                {navLinks.map((link) => {
-                                    const isActive = location.pathname === link.href || (location.hash && location.hash === link.href.split('#')[1]);
-                                    const isHashLink = link.href.startsWith('/#');
-                                    const activeLink = isHashLink
-                                        ? location.hash === link.href.replace('/', '')
-                                        : location.pathname === link.href;
+                        {/* ── DESKTOP NAV ── */}
+                        <nav className="hidden lg:flex items-center gap-6">
+                            {navLinks.map((link) => {
+                                const active = isActive(link.href);
+                                return link.isRoute ? (
+                                    <Link
+                                        key={link.name}
+                                        to={link.href}
+                                        className="relative px-3 py-2 group transition-all duration-300"
+                                        style={{
+                                            fontSize: "12px",
+                                            textTransform: "uppercase",
+                                            letterSpacing: "0.25em",
+                                            fontWeight: 500,
+                                            color: active
+                                                ? "hsl(44 78% 68%)"
+                                                : "rgba(255,255,255,0.6)",
+                                        }}
+                                        onMouseEnter={(e) => {
+                                            if (!active) (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,1)";
+                                        }}
+                                        onMouseLeave={(e) => {
+                                            if (!active) (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.6)";
+                                        }}
+                                    >
+                                        {link.name}
+                                        {/* Hover/Active underline */}
+                                        <span
+                                            className="absolute bottom-0 left-1/2 -translate-x-1/2 h-[1px] bg-[#D4AF37] transition-all duration-300"
+                                            style={{
+                                                width: active ? "100%" : "0%",
+                                                opacity: active ? 1 : 0.5,
+                                            }}
+                                        />
+                                        <style>{`
+                                            .group:hover span {
+                                                width: 100% !important;
+                                                opacity: 1 !important;
+                                            }
+                                        `}</style>
+                                    </Link>
+                                ) : (
+                                    <a
+                                        key={link.name}
+                                        href={link.href}
+                                        className="relative px-3 py-2 group transition-all duration-300"
+                                        style={{
+                                            fontSize: "12px",
+                                            textTransform: "uppercase",
+                                            letterSpacing: "0.25em",
+                                            fontWeight: 500,
+                                            color: "rgba(255,255,255,0.6)",
+                                        }}
+                                        onMouseEnter={(e) => (e.currentTarget.style.color = "rgba(255,255,255,1)")}
+                                        onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255,255,255,0.6)")}
+                                    >
+                                        {link.name}
+                                        <span className="absolute bottom-0 left-1/2 -translate-x-1/2 h-[1px] w-0 group-hover:w-full transition-all duration-300 bg-[#D4AF37]" />
+                                    </a>
+                                );
+                            })}
+                        </nav>
 
-                                    const linkContent = (
-                                        <>
-                                            <span className={`relative z-10 transition-colors duration-300 text-xs md:text-sm font-bold tracking-[0.1em] uppercase ${activeLink ? 'text-[#2C2416]' : 'text-[#8A8A8A] group-hover:text-[#2C2416]'}`}>
-                                                {link.name}
-                                            </span>
+                        {/* ── RIGHT ICONS ── */}
+                        <div className="flex items-center gap-3 md:gap-4">
+                            {/* Join as Creator */}
+                            {!isLoggedIn && (
+                                <Link
+                                    to="/login"
+                                    className="hidden md:inline-flex items-center gap-2 px-6 py-2.5 rounded-full transition-all duration-300 hover:bg-[#D4AF37]/10"
+                                    style={{
+                                        fontSize: "10px",
+                                        textTransform: "uppercase",
+                                        letterSpacing: "0.22em",
+                                        border: "1px solid rgba(212,175,55,0.4)",
+                                        color: "hsl(44 78% 68%)",
+                                    }}
+                                >
+                                    <Sparkles className="w-3.5 h-3.5" />
+                                    Join as Creator
+                                </Link>
+                            )}
 
-                                            {/* Active Underline Highlight */}
-                                            {activeLink && (
-                                                <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 w-1/2 h-0.5 bg-[#2C2416] rounded-full shadow-[0_1px_2px_rgba(44,36,22,0.2)]" />
-                                            )}
-
-                                            {/* Hover Underline (Animated) - Hidden if active */}
-                                            {!activeLink && (
-                                                <div className="absolute bottom-0 left-0 w-0 h-[1px] bg-[#2C2416] transition-all duration-300 group-hover:w-full opacity-50" />
-                                            )}
-                                        </>
-                                    );
-
-                                    return link.isRoute ? (
-                                        <Link
-                                            key={link.name}
-                                            to={link.href}
-                                            className="relative px-4 py-2 text-sm font-medium tracking-wide uppercase transition-all duration-300 group"
-                                        >
-                                            {linkContent}
-                                        </Link>
-                                    ) : (
-                                        <a
-                                            key={link.name}
-                                            href={link.href}
-                                            className="relative px-4 py-2 text-sm font-medium tracking-wide uppercase transition-all duration-300 group"
-                                        >
-                                            {linkContent}
-                                        </a>
-                                    );
-                                })}
-                            </div>
-
-                            {/* Right Icons */}
-                            <div className="flex items-center space-x-2 md:space-x-3">
-                                {/* Only show Join as Creator button if user is NOT logged in */}
-                                {!isLoggedIn && (
-                                    <Link to="/login">
+                            {/* Desktop icons */}
+                            <div className="hidden md:flex items-center gap-5">
+                                {/* Profile */}
+                                {isLoggedIn ? (
+                                    <div className="relative" ref={menuRef}>
                                         <button
-                                            className="hidden md:inline-flex items-center px-6 py-2.5 text-sm font-medium text-[#2C2416] bg-[#D4AF37]/10 rounded-full border border-[#D4AF37]/40 transition-all duration-300 hover:shadow-lg hover:shadow-[#D4AF37]/20 hover:scale-105 hover:bg-[#D4AF37]/20"
-                                            aria-label="Join as a Creator"
+                                            onClick={() => navigate("/user-dashboard")}
+                                            className="flex flex-col items-center gap-1 group transition-all duration-300 hover:scale-105"
                                         >
-                                            Join as Creator
+                                            {hasAura && aura && (aura.model_url || aura.image_url) && !avatarImgError ? (
+                                                <img
+                                                    src={aura.model_url || aura.image_url}
+                                                    alt="Aura"
+                                                    className="w-5 h-5 rounded-full object-cover"
+                                                    style={{ border: "1px solid rgba(212,175,55,0.5)" }}
+                                                    onError={() => setAvatarImgError(true)}
+                                                />
+                                            ) : (
+                                                <User className="w-[20px] h-[20px] transition-colors duration-300 group-hover:text-[#D4AF37]" style={{ color: "rgba(255,255,255,0.95)" }} />
+                                            )}
+                                            <span className="text-[10px] font-semibold tracking-wide transition-colors duration-300 group-hover:text-[#D4AF37]" style={{ color: "rgba(255,255,255,0.95)" }}>Profile</span>
                                         </button>
+
+                                        {showUserMenu && (
+                                            <div
+                                                className="absolute right-0 mt-3 w-56 rounded-2xl py-2 z-50"
+                                                style={{
+                                                    background: "hsl(30 14% 10%)",
+                                                    border: "1px solid rgba(212,175,55,0.2)",
+                                                    boxShadow: "0 20px 60px rgba(0,0,0,0.6)",
+                                                }}
+                                            >
+                                                {hasAura ? (
+                                                    <Link to="/aura-profile" onClick={() => setShowUserMenu(false)}
+                                                        className="flex items-center gap-3 px-5 py-3 text-sm transition-colors hover:bg-white/5"
+                                                        style={{ color: "rgba(255,255,255,0.7)" }}
+                                                    >
+                                                        <User className="w-4 h-4" style={{ color: "#D4AF37" }} />
+                                                        View Aura Profile
+                                                    </Link>
+                                                ) : (
+                                                    <Link to="/aura-dashboard" onClick={() => setShowUserMenu(false)}
+                                                        className="flex items-center gap-3 px-5 py-3 text-sm transition-colors hover:bg-white/5"
+                                                        style={{ color: "rgba(255,255,255,0.7)" }}
+                                                    >
+                                                        <User className="w-4 h-4" style={{ color: "#D4AF37" }} />
+                                                        Create Your Aura
+                                                    </Link>
+                                                )}
+                                                <div className="mx-4 my-1 h-px" style={{ background: "rgba(255,255,255,0.06)" }} />
+                                                <Link to="/my-orders" onClick={() => setShowUserMenu(false)}
+                                                    className="flex items-center gap-3 px-5 py-3 text-sm transition-colors hover:bg-white/5"
+                                                    style={{ color: "rgba(255,255,255,0.7)" }}
+                                                >
+                                                    <Package className="w-4 h-4" style={{ color: "#D4AF37" }} />
+                                                    My Orders
+                                                </Link>
+                                                <div className="mx-4 my-1 h-px" style={{ background: "rgba(255,255,255,0.06)" }} />
+                                                <button
+                                                    onClick={() => { setShowUserMenu(false); setShowLogoutDialog(true); }}
+                                                    className="w-full flex items-center gap-3 px-5 py-3 text-sm transition-colors hover:bg-red-500/10"
+                                                    style={{ color: "rgba(255,100,100,0.8)" }}
+                                                >
+                                                    <LogOut className="w-4 h-4" />
+                                                    Logout
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
+                                ) : (
+                                    <Link 
+                                        to="/user-login" 
+                                        className="flex flex-col items-center gap-1 group transition-all duration-300 hover:scale-105"
+                                    >
+                                        <User className="w-[20px] h-[20px] transition-colors duration-300 group-hover:text-[#D4AF37]" style={{ color: "rgba(255,255,255,0.95)" }} />
+                                        <span className="text-[10px] font-semibold tracking-wide transition-colors duration-300 group-hover:text-[#D4AF37]" style={{ color: "rgba(255,255,255,0.95)" }}>Profile</span>
                                     </Link>
                                 )}
 
-                                {/* Myntra-Style Icon Row: Profile, Wishlist, Cart */}
-                                <div className="hidden md:flex items-center gap-6">
-                                    {/* Profile Icon */}
-                                    {isLoggedIn ? (
-                                        <div className="relative" ref={menuRef}>
-                                            <button
-                                                onClick={() => navigate('/user-dashboard')}
-                                                className="flex flex-col items-center gap-0.5 transition-all duration-300 hover:scale-105 group"
-                                                aria-label="Profile"
-                                            >
-                                                {hasAura && aura && (aura.model_url || aura.image_url) && !avatarImgError ? (
-                                                    <img
-                                                        src={aura.model_url || aura.image_url}
-                                                        alt="Aura avatar"
-                                                        className="w-6 h-6 rounded-full object-cover border border-[#D4AF37]/40"
-                                                        onError={() => setAvatarImgError(true)}
-                                                    />
-                                                ) : (
-                                                    <User className="w-5 h-5 text-[#6B5D4F] group-hover:text-[#D4AF37] transition-colors" />
-                                                )}
-                                                <span className="text-[10px] font-medium text-[#6B5D4F] group-hover:text-[#D4AF37]">Profile</span>
-                                            </button>
-
-                                            {/* User Menu Dropdown */}
-                                            {showUserMenu && (
-                                                <div className="absolute right-0 mt-3 w-64 bg-gradient-to-br from-ivory via-[#f2ead8] to-ivory rounded-2xl shadow-2xl shadow-gold/30 border-2 border-gold/30 py-3 z-50 backdrop-blur-sm">
-                                                    {hasAura ? (
-                                                        <>
-                                                            <Link
-                                                                to="/aura-profile"
-                                                                className="flex items-center gap-3 px-5 py-3 text-charcoal hover:bg-gradient-to-r hover:from-gold/20 hover:to-gold/10 transition-all duration-300 font-medium group"
-                                                                onClick={() => setShowUserMenu(false)}
-                                                            >
-                                                                <User className="w-4 h-4 text-gold group-hover:scale-110 transition-transform" />
-                                                                <span>View Aura Profile</span>
-                                                            </Link>
-                                                            <div className="border-t border-gold/30 my-2 mx-3"></div>
-                                                        </>
-                                                    ) : (
-                                                        <>
-                                                            <Link
-                                                                to="/aura-dashboard"
-                                                                className="flex items-center gap-3 px-5 py-3 text-charcoal hover:bg-gradient-to-r hover:from-gold/20 hover:to-gold/10 transition-all duration-300 font-medium group"
-                                                                onClick={() => setShowUserMenu(false)}
-                                                            >
-                                                                <User className="w-4 h-4 text-gold group-hover:scale-110 transition-transform" />
-                                                                <span>Create Your Aura</span>
-                                                            </Link>
-                                                            <div className="border-t border-gold/30 my-2 mx-3"></div>
-                                                        </>
-                                                    )}
-                                                    <div className="border-t border-gold/30 my-2 mx-3"></div>
-                                                    <Link
-                                                        to="/my-orders"
-                                                        className="flex items-center gap-3 px-5 py-3 text-charcoal hover:bg-gradient-to-r hover:from-gold/20 hover:to-gold/10 transition-all duration-300 font-medium group"
-                                                        onClick={() => setShowUserMenu(false)}
-                                                    >
-                                                        <Package className="w-4 h-4 text-gold group-hover:scale-110 transition-transform" />
-                                                        <span>My Orders</span>
-                                                    </Link>
-                                                    <div className="border-t border-gold/30 my-2 mx-3"></div>
-                                                    <button
-                                                        onClick={() => {
-                                                            setShowUserMenu(false);
-                                                            setShowLogoutDialog(true);
-                                                        }}
-                                                        className="w-full flex items-center gap-3 px-5 py-3 text-charcoal hover:bg-gradient-to-r hover:from-red-50 hover:to-red-100 transition-all duration-300 font-medium group rounded-b-xl"
-                                                    >
-                                                        <LogOut className="w-4 h-4 text-red-600 group-hover:scale-110 transition-transform" />
-                                                        <span className="group-hover:text-red-700">Logout</span>
-                                                    </button>
-                                                </div>
-                                            )}
-                                        </div>
-                                    ) : (
-                                        <Link to="/user-login">
-                                            <button
-                                                className="flex flex-col items-center gap-0.5 transition-all duration-300 hover:scale-105 group"
-                                                aria-label="Sign in"
-                                            >
-                                                <User className="w-5 h-5 text-[#6B5D4F] group-hover:text-[#D4AF37] transition-colors" />
-                                                <span className="text-[10px] font-medium text-[#6B5D4F] group-hover:text-[#D4AF37]">Profile</span>
-                                            </button>
-                                        </Link>
-                                    )}
-
-                                    {/* Wishlist Icon */}
-                                    <WishlistBadge onClick={() => navigate('/wishlist')} showLabel />
-
-                                    {/* Cart Icon */}
-                                    <CartBadge onClick={() => navigate('/cart')} showLabel />
+                                {/* Wishlist */}
+                                <div className="flex flex-col items-center gap-1 group transition-all duration-300 hover:scale-105 cursor-pointer" style={{ color: "rgba(255,255,255,0.95)" }}>
+                                    <WishlistBadge onClick={() => navigate("/wishlist")} showLabel />
                                 </div>
 
-                                {/* Mobile Menu Button */}
-                                <button
-                                    className="lg:hidden p-2.5 rounded-full bg-ivory/50 border border-gold/20 hover:bg-gold/20 hover:border-gold/40 transition-all duration-300"
-                                    onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                                    aria-label="Toggle menu"
-                                >
-                                    {isMobileMenuOpen ? (
-                                        <X className="w-6 h-6 text-charcoal" />
-                                    ) : (
-                                        <Menu className="w-6 h-6 text-charcoal" />
-                                    )}
-                                </button>
+                                {/* Cart */}
+                                <div className="flex flex-col items-center gap-1 group transition-all duration-300 hover:scale-105 cursor-pointer" style={{ color: "rgba(255,255,255,0.95)" }}>
+                                    <CartBadge onClick={() => navigate("/cart")} showLabel />
+                                </div>
                             </div>
+
+                            {/* Mobile hamburger */}
+                            <button
+                                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                                className="lg:hidden w-9 h-9 flex items-center justify-center rounded-full transition-all duration-300"
+                                style={{
+                                    background: "rgba(255,255,255,0.07)",
+                                    border: "1px solid rgba(255,255,255,0.1)",
+                                    color: "rgba(255,255,255,0.8)",
+                                }}
+                            >
+                                {isMobileMenuOpen ? <X className="w-4.5 h-4.5" style={{ width: 18, height: 18 }} /> : <Menu style={{ width: 18, height: 18 }} />}
+                            </button>
                         </div>
+                    </div>
 
-                        {/* Mobile Menu */}
+                    {/* ── MOBILE MENU ── */}
+                    <div
+                        className="lg:hidden overflow-hidden transition-all duration-500"
+                        style={{
+                            maxHeight: isMobileMenuOpen ? "600px" : "0",
+                            opacity: isMobileMenuOpen ? 1 : 0,
+                        }}
+                    >
                         <div
-                            className={`lg:hidden overflow-y-auto transition-all duration-500 scr ${isMobileMenuOpen ? "max-h-[85vh] mt-4 opacity-100" : "max-h-0 opacity-0 bg-transparent"
-                                }`}
+                            className="mt-2 rounded-2xl px-4 py-5 flex flex-col gap-1"
+                            style={{
+                                background: "rgba(8, 6, 4, 0.92)",
+                                backdropFilter: "blur(20px)",
+                                border: "1px solid rgba(212,175,55,0.15)",
+                            }}
                         >
-                            <div className="flex flex-col space-y-2 pt-4 pb-6 border-t border-gold/20">
-                                {navLinks.map((link) =>
-                                    link.isRoute ? (
-                                        <Link
-                                            key={link.name}
-                                            to={link.href}
-                                            className="px-4 py-3 text-charcoal font-medium tracking-wide rounded-2xl hover:bg-gold/20 transition-all duration-300 border border-transparent hover:border-gold/30"
-                                            onClick={() => setIsMobileMenuOpen(false)}
-                                        >
-                                            {link.name}
-                                        </Link>
+                            {navLinks.map((link) =>
+                                link.isRoute ? (
+                                    <Link
+                                        key={link.name}
+                                        to={link.href}
+                                        onClick={() => setIsMobileMenuOpen(false)}
+                                        className="px-4 py-3 rounded-xl text-sm font-medium tracking-wide transition-all duration-200"
+                                        style={{
+                                            color: isActive(link.href) ? "hsl(44 78% 66%)" : "rgba(255,255,255,0.62)",
+                                            background: isActive(link.href) ? "rgba(212,175,55,0.1)" : "transparent",
+                                        }}
+                                    >
+                                        {link.name}
+                                    </Link>
+                                ) : (
+                                    <a
+                                        key={link.name}
+                                        href={link.href}
+                                        onClick={() => setIsMobileMenuOpen(false)}
+                                        className="px-4 py-3 rounded-xl text-sm font-medium tracking-wide transition-all duration-200"
+                                        style={{ color: "rgba(255,255,255,0.62)" }}
+                                    >
+                                        {link.name}
+                                    </a>
+                                )
+                            )}
+
+                            <div className="my-2 h-px mx-2" style={{ background: "rgba(255,255,255,0.06)" }} />
+
+                            <Link to="/cart" onClick={() => setIsMobileMenuOpen(false)} className="px-4 py-3 rounded-xl text-sm font-medium transition-all" style={{ color: "rgba(255,255,255,0.62)" }}>Cart</Link>
+                            <Link to="/wishlist" onClick={() => setIsMobileMenuOpen(false)} className="px-4 py-3 rounded-xl text-sm font-medium transition-all" style={{ color: "rgba(255,255,255,0.62)" }}>Wishlist</Link>
+
+                            {isLoggedIn && (
+                                <>
+                                    <div className="my-2 h-px mx-2" style={{ background: "rgba(255,255,255,0.06)" }} />
+                                    <Link to="/my-orders" onClick={() => setIsMobileMenuOpen(false)} className="px-4 py-3 rounded-xl text-sm font-medium transition-all" style={{ color: "rgba(255,255,255,0.62)" }}>My Orders</Link>
+                                    {hasAura ? (
+                                        <Link to="/aura-profile" onClick={() => setIsMobileMenuOpen(false)} className="px-4 py-3 rounded-xl text-sm font-medium transition-all" style={{ color: "rgba(255,255,255,0.62)" }}>Aura Profile</Link>
                                     ) : (
-                                        <a
-                                            key={link.name}
-                                            href={link.href}
-                                            className="px-4 py-3 text-charcoal font-medium tracking-wide rounded-2xl hover:bg-gold/20 transition-all duration-300 border border-transparent hover:border-gold/30"
-                                            onClick={() => setIsMobileMenuOpen(false)}
-                                        >
-                                            {link.name}
-                                        </a>
-                                    )
-                                )}
+                                        <Link to="/aura-dashboard" onClick={() => setIsMobileMenuOpen(false)} className="px-4 py-3 rounded-xl text-sm font-medium transition-all" style={{ color: "rgba(255,255,255,0.62)" }}>Create Aura</Link>
+                                    )}
+                                    <button
+                                        onClick={() => { setIsMobileMenuOpen(false); setShowLogoutDialog(true); }}
+                                        className="text-left px-4 py-3 rounded-xl text-sm font-medium transition-all"
+                                        style={{ color: "rgba(255,100,100,0.75)" }}
+                                    >
+                                        Logout
+                                    </button>
+                                </>
+                            )}
 
-                                {/* Common Mobile Links (Cart, Wishlist) */}
-                                <div className="border-t border-gold/20 my-2 mx-4"></div>
-                                <Link
-                                    to="/cart"
-                                    className="px-4 py-3 text-charcoal font-medium tracking-wide rounded-2xl hover:bg-gold/20 transition-all duration-300 border border-transparent hover:border-gold/30 block"
-                                    onClick={() => setIsMobileMenuOpen(false)}
-                                >
-                                    Cart
-                                </Link>
-                                <Link
-                                    to="/wishlist"
-                                    className="px-4 py-3 text-charcoal font-medium tracking-wide rounded-2xl hover:bg-gold/20 transition-all duration-300 border border-transparent hover:border-gold/30 block"
-                                    onClick={() => setIsMobileMenuOpen(false)}
-                                >
-                                    Wishlist
-                                </Link>
-
-                                {/* Logged In User Specific Links */}
-                                {isLoggedIn && (
-                                    <>
-                                        <div className="border-t border-gold/20 my-2 mx-4"></div>
-                                        <Link
-                                            to="/my-orders"
-                                            className="px-4 py-3 text-charcoal font-medium tracking-wide rounded-2xl hover:bg-gold/20 transition-all duration-300 border border-transparent hover:border-gold/30 block"
-                                            onClick={() => setIsMobileMenuOpen(false)}
-                                        >
-                                            My Orders
-                                        </Link>
-                                        {hasAura ? (
-                                            <Link
-                                                to="/aura-profile"
-                                                className="px-4 py-3 text-charcoal font-medium tracking-wide rounded-2xl hover:bg-gold/20 transition-all duration-300 border border-transparent hover:border-gold/30 block"
-                                                onClick={() => setIsMobileMenuOpen(false)}
-                                            >
-                                                Aura Profile
-                                            </Link>
-                                        ) : (
-                                            <Link
-                                                to="/aura-dashboard"
-                                                className="px-4 py-3 text-charcoal font-medium tracking-wide rounded-2xl hover:bg-gold/20 transition-all duration-300 border border-transparent hover:border-gold/30 block"
-                                                onClick={() => setIsMobileMenuOpen(false)}
-                                            >
-                                                Create Aura
-                                            </Link>
-                                        )}
-                                        <button
-                                            onClick={() => {
-                                                setIsMobileMenuOpen(false);
-                                                setShowLogoutDialog(true);
-                                            }}
-                                            className="w-full text-left px-4 py-3 text-red-600 font-medium tracking-wide rounded-2xl hover:bg-red-50 transition-all duration-300 border border-transparent"
-                                        >
-                                            Logout
-                                        </button>
-                                    </>
-                                )}
-
-                                {/* Login/Signup button for non-logged-in users */}
-                                {!isLoggedIn && (
+                            {!isLoggedIn && (
+                                <div className="flex flex-col gap-2 mt-2">
                                     <Link
                                         to="/user-login"
-                                        className="px-4 py-3 text-center text-white font-medium tracking-wide rounded-2xl bg-gradient-to-r from-[#D4AF37] to-[#B8941F] border border-[#D4AF37] hover:shadow-lg hover:shadow-[#D4AF37]/30 transition-all duration-300"
                                         onClick={() => setIsMobileMenuOpen(false)}
+                                        className="px-4 py-3 rounded-xl text-sm font-semibold text-center transition-all"
+                                        style={{
+                                            background: "linear-gradient(135deg, hsl(44 78% 56%), hsl(40 62% 44%))",
+                                            color: "hsl(30 14% 10%)",
+                                        }}
                                     >
                                         Login / Sign Up
                                     </Link>
-                                )}
-                                {/* Only show Join as Creator button if user is NOT logged in */}
-                                {!isLoggedIn && (
                                     <Link
                                         to="/login"
-                                        className="px-4 py-3 text-center text-charcoal font-medium tracking-wide rounded-2xl bg-gradient-to-r from-gold/20 to-gold/30 border border-gold/40 hover:shadow-md transition-all duration-300"
                                         onClick={() => setIsMobileMenuOpen(false)}
+                                        className="px-4 py-3 rounded-xl text-sm font-medium text-center transition-all"
+                                        style={{
+                                            border: "1px solid rgba(212,175,55,0.3)",
+                                            color: "hsl(44 78% 62%)",
+                                        }}
                                     >
                                         Join as Creator
                                     </Link>
-                                )}
-                            </div>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
-            </div >
+            </header>
 
-            {/* Logout Confirmation Dialog */}
-            < LogoutConfirmDialog
+            <LogoutConfirmDialog
                 isOpen={showLogoutDialog}
                 onConfirm={() => {
-                    // Use centralized logout function from AuthContext
                     authLogout();
                     setIsLoggedIn(false);
                     setHasAura(false);
                     setAura(null);
                     setShowLogoutDialog(false);
-
-                    // Show success toast
-                    toast({
-                        title: "Logged out successfully",
-                        description: "You have been logged out. See you soon!",
-                    });
-
-                    navigate('/');
+                    toast({ title: "Logged out successfully", description: "See you soon!" });
+                    navigate("/");
                 }}
                 onCancel={() => setShowLogoutDialog(false)}
             />

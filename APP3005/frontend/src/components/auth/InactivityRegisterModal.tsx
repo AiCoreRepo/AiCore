@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useGoogleLogin } from "@react-oauth/google";
 import { ArrowRight, Sparkles, X } from "lucide-react";
@@ -8,11 +8,6 @@ import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { getErrorMessage } from "@/lib/error-utils";
-import heroClean from "@/assets/hero-clean.jpg";
-import heroFashion from "@/assets/hero-fashion.jpg";
-import collectionShowcase from "@/assets/collection-showcase.jpeg";
-import authSignup from "@/assets/auth-hero-signup.jpg";
-import "./InactivityRegisterModal.css";
 
 const SHOW_DELAY_MS = 10_000;
 const SESSION_KEY = "aivestire:register-popup-dismissed";
@@ -26,29 +21,6 @@ const ACTIVITY_EVENTS = [
 ] as const;
 
 const PUBLIC_POPUP_PATHS = ["/", "/collection"] as const;
-
-const popupImages = [
-  {
-    src: heroClean,
-    alt: "Elegant model styling preview",
-    label: "Curated luxury edits",
-  },
-  {
-    src: authSignup,
-    alt: "AIVestire account signup preview",
-    label: "Register in seconds",
-  },
-  {
-    src: collectionShowcase,
-    alt: "Fashion collection showcase",
-    label: "Personalized discovery",
-  },
-  {
-    src: heroFashion,
-    alt: "Fashion editorial styling preview",
-    label: "AI-led wardrobe journey",
-  },
-];
 
 function shouldShowOnPath(pathname: string): boolean {
   return (
@@ -65,8 +37,6 @@ export function InactivityRegisterModal() {
   const timerRef = useRef<number | null>(null);
   const [open, setOpen] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
-
-  const imageTrack = useMemo(() => [...popupImages, ...popupImages], []);
 
   const dismissForSession = () => {
     setOpen(false);
@@ -193,8 +163,8 @@ export function InactivityRegisterModal() {
   }
 
   return (
-    <div className="register-popup-overlay fixed inset-0 z-[120] flex items-center justify-center p-4">
-      <div className="register-popup-content relative grid w-full max-w-5xl overflow-hidden rounded-[2rem] border border-white/60 lg:grid-cols-[1.1fr_0.9fr]">
+    <div className="register-popup-overlay fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+      <div className="register-popup-content relative grid w-full max-w-5xl overflow-hidden rounded-[2rem] border border-white/20 bg-[#F8F1E6] shadow-[0_32px_80px_rgba(0,0,0,0.6)] lg:grid-cols-[1.1fr_0.9fr]">
         <button
           type="button"
           aria-label="Close register popup"
@@ -276,22 +246,52 @@ export function InactivityRegisterModal() {
           </div>
         </div>
 
-        <div className="order-first bg-[#f4ebd9] p-4 lg:order-none">
-          <div className="register-popup-scroll-viewport h-56 rounded-[1.6rem] lg:h-full">
-            <div className="register-popup-scroll-track">
-              {imageTrack.map((image, index) => (
-                <div key={`${image.label}-${index}`} className="register-popup-scroll-card">
-                  <img src={image.src} alt={image.alt} />
-                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-4 py-4 text-white">
-                    <p className="text-xs uppercase tracking-[0.22em] text-white/70">
-                      AIVestire
-                    </p>
-                    <p className="mt-1 text-base font-semibold">{image.label}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
+        <div
+          className="order-first lg:order-none hidden lg:flex flex-col items-center justify-center rounded-[1.6rem] p-10 text-center"
+          style={{
+            background: "linear-gradient(135deg, hsl(40 45% 14%), hsl(35 40% 10%))",
+          }}
+        >
+          {/* Gold ornament */}
+          <div
+            className="w-16 h-16 rounded-full flex items-center justify-center mb-6"
+            style={{
+              background: "linear-gradient(135deg, hsl(44 78% 56%), hsl(40 62% 44%))",
+            }}
+          >
+            <Sparkles className="w-7 h-7 text-white" />
           </div>
+
+          <p
+            className="font-serif leading-snug mb-3"
+            style={{
+              fontSize: "1.55rem",
+              color: "hsl(40 30% 92%)",
+            }}
+          >
+            Fashion, <em className="italic font-normal" style={{ color: "hsl(44 78% 66%)" }}>reimagined</em>
+            <br />by intelligence.
+          </p>
+
+          <p className="text-sm leading-relaxed" style={{ color: "rgba(255,255,255,0.42)", maxWidth: "16rem" }}>
+            Join thousands discovering Jaipur craft through AI-powered styling.
+          </p>
+
+          {/* Decorative divider */}
+          <div
+            className="mt-8 h-px"
+            style={{
+              width: "3rem",
+              background: "linear-gradient(90deg, transparent, hsl(44 78% 58%), transparent)",
+            }}
+          />
+
+          <p
+            className="mt-4 text-[10px] uppercase tracking-[0.42em]"
+            style={{ color: "hsl(44 78% 52%)" }}
+          >
+            Aivestire · Est. Jaipur
+          </p>
         </div>
       </div>
     </div>

@@ -13,14 +13,13 @@ export const CartBadge = ({ onClick, showLabel = false }: CartBadgeProps) => {
     return (
         <button
             onClick={onClick}
-            className={`relative transition-all duration-300 hover:scale-105 group ${showLabel ? 'hidden md:flex flex-col items-center gap-0.5 px-2 py-1' : 'p-2 rounded-full hover:bg-gold/10'
+            className={`relative transition-all duration-300 hover:scale-105 group ${showLabel ? 'flex flex-col items-center gap-0.5' : 'p-2 rounded-full hover:bg-gold/10'
                 }`}
             aria-label="Shopping cart"
         >
             <div className="relative">
                 <ShoppingBag
-                    className={`w-5 h-5 ${showLabel ? 'text-[#6B5D4F] group-hover:text-[#D4AF37] transition-colors' : ''}`}
-                    style={showLabel ? undefined : { color: '#2C2C2C' }}
+                    className={`w-5 h-5 transition-colors text-inherit group-hover:text-[#D4AF37]`}
                     strokeWidth={1.5}
                 />
 
@@ -46,7 +45,7 @@ export const CartBadge = ({ onClick, showLabel = false }: CartBadgeProps) => {
             </div>
 
             {showLabel && (
-                <span className="text-[10px] font-medium text-[#6B5D4F] group-hover:text-[#D4AF37]">Cart</span>
+                <span className="text-[10px] font-semibold tracking-wide transition-colors duration-300 text-inherit group-hover:text-[#D4AF37]">Cart</span>
             )}
         </button>
     );
