@@ -26,7 +26,7 @@ export const WishlistBadge: React.FC<WishlistBadgeProps> = ({
             aria-label={`Wishlist${itemCount > 0 ? ` (${itemCount} items)` : ''}`}
         >
             <div className="relative">
-                <Heart className="w-5 h-5 text-[#6B5D4F] group-hover:text-[#D4AF37] transition-colors" />
+                <Heart className="w-5 h-5 transition-colors text-inherit group-hover:text-[#D4AF37]" />
                 {itemCount > 0 && (
                     <span className="absolute -top-2 -right-2 min-w-[18px] h-[18px] flex items-center justify-center text-[10px] font-bold text-white bg-[#D4AF37] rounded-full px-1 animate-pulse">
                         {itemCount > 99 ? '99+' : itemCount}
@@ -34,7 +34,7 @@ export const WishlistBadge: React.FC<WishlistBadgeProps> = ({
                 )}
             </div>
             {showLabel && (
-                <span className="text-[10px] font-medium text-[#6B5D4F] group-hover:text-[#D4AF37]">
+                <span className="text-[10px] font-semibold tracking-wide transition-colors duration-300 text-inherit group-hover:text-[#D4AF37]">
                     Wishlist
                 </span>
             )}

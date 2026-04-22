@@ -1,18 +1,21 @@
 import { Navbar } from "@/components/Navbar";
 import { Hero } from "@/components/Hero";
-import { Collection } from "@/components/Collection";
-import { HowItWorks } from "@/components/HowItWorks";
+import { ValueCards } from "@/components/ValueCards";
+import { StoryDetailSections } from "@/components/StoryDetailSections";
+import { ValueFlowSection } from "@/components/ValueFlowSection";
+import { ArtisanTestimonials } from "@/components/ArtisanTestimonials";
 import { Footer } from "@/components/Footer";
 
 const Index = () => {
     return (
-        <div className="min-h-screen overflow-x-hidden bg-[#F8F4EC]">
+        <div className="min-h-screen overflow-x-hidden" style={{ background: "hsl(30 14% 8%)" }}>
             <Navbar />
-            {/* Added padding-top so Hero shows below Navbar */}
-            <main className="relative pt-20">
+            <main className="relative">
                 <Hero />
-                <Collection />
-                <HowItWorks />
+                <ValueCards />
+                <StoryDetailSections />
+                <ValueFlowSection />
+                <ArtisanTestimonials />
             </main>
             <Footer />
         </div>
