@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Brush, Sparkles, HeartHandshake } from "lucide-react";
+import { IMG } from "@/constants/cloudinary-images";
 
 export const ValueFlowSection = () => {
   const ref = useRef<HTMLElement>(null);
@@ -55,7 +56,7 @@ export const ValueFlowSection = () => {
           {/* Card 1: Creators */}
           <div className="group relative rounded-[2rem] overflow-hidden bg-white/5 border border-white/10 flex flex-col items-center text-center p-8 transition-transform duration-500 hover:-translate-y-2">
             <div className="w-full h-48 rounded-xl overflow-hidden mb-6">
-              <img src="/images/story-loom-hands.png" alt="Creators" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" style={{ filter: "brightness(0.85)" }} />
+              <img src={IMG.storyLoomHands} alt="Creators" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" style={{ filter: "brightness(0.85)" }} />
             </div>
             <div className="w-14 h-14 rounded-full bg-white/10 flex items-center justify-center mb-6 border border-[#D4AF37]/30">
               <Brush className="w-6 h-6 text-[#D4AF37]" />
@@ -69,7 +70,7 @@ export const ValueFlowSection = () => {
           {/* Card 2: The Bridge (AI) */}
           <div className="group relative rounded-[2rem] overflow-hidden bg-gradient-to-b from-[#D4AF37]/10 to-transparent border border-[#D4AF37]/30 flex flex-col items-center text-center p-8 transition-transform duration-500 hover:-translate-y-2 translate-y-0 md:translate-y-8 shadow-[0_0_40px_rgba(212,175,55,0.08)]">
             <div className="w-full h-48 rounded-xl overflow-hidden mb-6 relative">
-              <img src="/images/ai-bridge.png" alt="The Bridge" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" style={{ filter: "brightness(0.9)" }} />
+              <img src={IMG.aiBridge} alt="The Bridge" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" style={{ filter: "brightness(0.9)" }} />
               <div className="absolute inset-0 bg-[#D4AF37]/20 mix-blend-overlay" />
             </div>
             <div className="w-16 h-16 rounded-full bg-[#D4AF37]/20 flex items-center justify-center mb-6 border border-[#D4AF37]/50 shadow-[0_0_20px_rgba(212,175,55,0.3)]">
@@ -84,7 +85,7 @@ export const ValueFlowSection = () => {
           {/* Card 3: The Users */}
           <div className="group relative rounded-[2rem] overflow-hidden bg-white/5 border border-white/10 flex flex-col items-center text-center p-8 transition-transform duration-500 hover:-translate-y-2">
             <div className="w-full h-48 rounded-xl overflow-hidden mb-6">
-              <img src="/images/jaipur-shop-women.jpg" alt="Users" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" style={{ filter: "brightness(0.85)" }} />
+              <img src={IMG.jaipurShopWomen} alt="Users" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" style={{ filter: "brightness(0.85)" }} />
             </div>
             <div className="w-14 h-14 rounded-full bg-white/10 flex items-center justify-center mb-6 border border-[#D4AF37]/30">
               <HeartHandshake className="w-6 h-6 text-[#D4AF37]" />

@@ -1,5 +1,6 @@
 import { useRef, useEffect, useState } from "react";
 import { ArrowRight } from "lucide-react";
+import { IMG } from "@/constants/cloudinary-images";
 
 /* ─── STORY CARD DATA ─────────────────────────────────────── */
 const storyCards = [
@@ -10,7 +11,7 @@ const storyCards = [
     category: "Heritage",
     title: "From Hands\nto Heritage",
     tagline: "Every thread carries a story of generations.",
-    image: "/images/jaipur-artisans-thread.jpg",
+    image: IMG.jaipurArtisansThread,
     accent: "#D4AF37",
     accentRgb: "212,175,55",
   },
@@ -21,7 +22,7 @@ const storyCards = [
     category: "Experience",
     title: "See It Before\nYou Wear It",
     tagline: "Confidence before every purchase.",
-    image: "/images/jaipur-women-craft.jpg",
+    image: IMG.jaipurWomenCraft,
     accent: "#C9A55C",
     accentRgb: "201,165,92",
   },
@@ -32,7 +33,7 @@ const storyCards = [
     category: "Intelligence",
     title: "Styled Just\nFor You",
     tagline: "Your personal AI stylist, always learning.",
-    image: "/images/jaipur-shop-women.jpg",
+    image: IMG.jaipurShopWomen,
     accent: "#B8860B",
     accentRgb: "184,134,11",
   },
@@ -43,7 +44,7 @@ const storyCards = [
     category: "Identity",
     title: "Your Style Has\nan Identity",
     tagline: "Not just fashion — your evolving aura.",
-    image: "/images/jaipur-street-mural.jpg",
+    image: IMG.jaipurStreetMural,
     accent: "#D4AF37",
     accentRgb: "212,175,55",
   },

@@ -1,23 +1,24 @@
 import { useRef } from "react";
+import { IMG } from "@/constants/cloudinary-images";
 
 const quotes = [
   {
     quote: "Aivestire has given my family's generations of block printing a voice on the global stage.",
     author: "Ravi Sharma",
     role: "Master Block Printer",
-    image: "/images/avatar-artisan-1.png",
+    image: IMG.avatarArtisan1,
   },
   {
     quote: "Seeing my woven fabrics styled virtually gives me immense pride in my craft.",
     author: "Anita Devi",
     role: "Handloom Weaver",
-    image: "/images/avatar-artisan-2.png",
+    image: IMG.avatarArtisan2,
   },
   {
     quote: "This isn't just commerce; it's the preservation of Jaipur's soul.",
     author: "Vikram Singh",
     role: "Zari Embroiderer",
-    image: "/images/avatar-artisan-3.png",
+    image: IMG.avatarArtisan3,
   },
 ];
 

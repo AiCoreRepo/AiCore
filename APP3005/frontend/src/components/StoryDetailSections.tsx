@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Sparkles, Upload, Scan, Wand2 } from "lucide-react";
+import { IMG } from "@/constants/cloudinary-images";
 
 const ArtisanSection = () => {
   return (
@@ -21,7 +22,7 @@ const ArtisanSection = () => {
               <p className="text-[#F8F2E9]/80 italic mb-4">"This platform gave my work a global audience, allowing my family's legacy to thrive in the modern world."</p>
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full overflow-hidden">
-                  <img src="/images/jaipur-hero-artisan.jpg" alt="Artisan" className="w-full h-full object-cover" />
+                  <img src={IMG.jaipurArtisansThread} alt="Artisan" className="w-full h-full object-cover" />
                 </div>
                 <div>
                   <div className="text-sm text-[#F8F2E9] font-medium">Rajendra Kumar</div>
@@ -32,12 +33,12 @@ const ArtisanSection = () => {
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-4 pt-12">
-              <img src="/images/jaipur-bw-embroidery.jpg" alt="Embroidery" className="w-full rounded-2xl object-cover h-[280px]" style={{ filter: "brightness(0.85)" }} />
-              <img src="/images/jaipur-women-group.jpg" alt="Artisans" className="w-full rounded-2xl object-cover h-[200px]" style={{ filter: "brightness(0.85)" }} />
+              <img src={IMG.jaipurBwEmbroidery} alt="Embroidery" className="w-full rounded-2xl object-cover h-[280px]" style={{ filter: "brightness(0.85)" }} />
+              <img src={IMG.jaipurWomenGroup} alt="Artisans" className="w-full rounded-2xl object-cover h-[200px]" style={{ filter: "brightness(0.85)" }} />
             </div>
             <div className="space-y-4">
-              <img src="/images/jaipur-textile-market.jpg" alt="Textile Market" className="w-full rounded-2xl object-cover h-[240px]" style={{ filter: "brightness(0.85)" }} />
-              <img src="/images/jaipur-artisans-thread.jpg" alt="Thread Work" className="w-full rounded-2xl object-cover h-[240px]" style={{ filter: "brightness(0.85)" }} />
+              <img src={IMG.jaipurTextileMarket} alt="Textile Market" className="w-full rounded-2xl object-cover h-[240px]" style={{ filter: "brightness(0.85)" }} />
+              <img src={IMG.jaipurArtisansThread} alt="Thread Work" className="w-full rounded-2xl object-cover h-[240px]" style={{ filter: "brightness(0.85)" }} />
             </div>
           </div>
         </div>
@@ -55,7 +56,7 @@ const TryOnSection = () => {
           {/* Left: Mockup Image */}
           <div className="order-2 lg:order-1 relative group perspective-1000">
             <div className="relative z-10 rounded-[2rem] overflow-hidden border border-white/10 shadow-2xl transition-transform duration-700 group-hover:scale-[1.02]">
-              <img src="/images/tryon-realistic.png" alt="Virtual Try On" className="w-full h-auto object-cover" />
+              <img src={IMG.tryonRealistic} alt="Virtual Try On" className="w-full h-auto object-cover" />
             </div>
             {/* Glow */}
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3/4 h-3/4 bg-[#D4AF37]/20 blur-[120px] rounded-full" />
@@ -114,10 +115,10 @@ const TryOnSection = () => {
 };
 
 const AI_PICKS = [
-  { id: 1, name: "Block-Printed Silk Dress", score: "98% Match" },
-  { id: 2, name: "Zardozi Velvet Lehenga", score: "96% Match" },
-  { id: 3, name: "Chikankari Kurti Set", score: "95% Match" },
-  { id: 4, name: "Banarasi Heritage Saree", score: "99% Match" },
+  { id: 1, name: "Block-Printed Silk Dress", score: "98% Match", src: IMG.product1 },
+  { id: 2, name: "Zardozi Velvet Lehenga", score: "96% Match", src: IMG.product2 },
+  { id: 3, name: "Chikankari Kurti Set", score: "95% Match", src: IMG.product3 },
+  { id: 4, name: "Banarasi Heritage Saree", score: "99% Match", src: IMG.product4 },
 ];
 
 const RecommendationSection = () => {
@@ -151,7 +152,7 @@ const RecommendationSection = () => {
                 {AI_PICKS.map((item) => (
                   <div key={item.id} className="rounded-xl overflow-hidden bg-white/5 border border-white/5 pb-3 transition-all hover:-translate-y-1 hover:bg-white/10 group cursor-pointer">
                     <div className="relative h-48 md:h-56 w-full overflow-hidden mb-3">
-                      <img src={`/images/product-${item.id}.png`} alt={item.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+                      <img src={item.src} alt={item.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
                       <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-md px-2 py-1 rounded text-[9px] font-bold text-[#D4AF37] border border-[#D4AF37]/30">
                         {item.score}
                       </div>
@@ -175,10 +176,10 @@ const RecommendationSection = () => {
 };
 
 const AURAS = [
-  { name: "Minimal", desc: "Clean lines & monochrome", img: "aura-minimal.png" },
-  { name: "Bold", desc: "Vibrant & contemporary", img: "aura-bold.png" },
-  { name: "Heritage", desc: "Classic & royal elegance", img: "aura-heritage.png" },
-  { name: "Avant-Garde", desc: "Experimental fusion", img: "aura-avant-garde.png" },
+  { name: "Minimal", desc: "Clean lines & monochrome", src: IMG.auraMinimal },
+  { name: "Bold", desc: "Vibrant & contemporary", src: IMG.auraBold },
+  { name: "Heritage", desc: "Classic & royal elegance", src: IMG.auraHeritage },
+  { name: "Avant-Garde", desc: "Experimental fusion", src: IMG.auraAvantGarde },
 ];
 
 const AuraSection = () => {
@@ -193,7 +194,7 @@ const AuraSection = () => {
             <div className="grid grid-cols-2 gap-4">
               {AURAS.map((aura) => (
                 <div key={aura.name} className="group relative rounded-2xl overflow-hidden border border-white/10 bg-white/5 aspect-[3/4] cursor-pointer">
-                  <img src={`/images/${aura.img}`} alt={aura.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" style={{ filter: "brightness(0.85)" }} />
+                  <img src={aura.src} alt={aura.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" style={{ filter: "brightness(0.85)" }} />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-transparent" />
                   <div className="absolute bottom-0 left-0 p-4 w-full text-left">
                     <h3 className="font-serif text-xl text-[#F8F2E9] mb-1">{aura.name}</h3>

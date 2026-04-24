@@ -1,13 +1,13 @@
 import { useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
-import jaipurVideo from "@/assets/JaipurDev.mp4";
+import { IMG } from "@/constants/cloudinary-images";
 
 export const Hero = () => {
     const videoRef = useRef<HTMLVideoElement>(null);
 
     useEffect(() => {
         if (videoRef.current) {
-            videoRef.current.play().catch(() => {});
+            videoRef.current.play().catch(() => { });
         }
     }, []);
 
@@ -21,7 +21,7 @@ export const Hero = () => {
             <div className="absolute inset-0 flex items-center justify-center overflow-hidden">
                 <video
                     ref={videoRef}
-                    src={jaipurVideo}
+                    src={IMG.jaipurDevVideo}
                     autoPlay
                     loop
                     muted

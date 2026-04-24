@@ -1,6 +1,7 @@
 import { X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { createPortal } from "react-dom";
+import { IMG } from "@/constants/cloudinary-images";
 
 interface BodyShapeGuideModalProps {
     isOpen: boolean;
@@ -102,7 +103,7 @@ export const BodyShapeGuideModal = ({ isOpen, onClose }: BodyShapeGuideModalProp
                                 className="bg-gradient-to-br from-cream/20 via-white to-ivory/20 rounded-3xl p-10 mb-8 border-2 border-gold/20 shadow-inner"
                             >
                                 <img
-                                    src="/images/body-shapes-guide.png"
+                                    src={IMG.bodyShapesGuide}
                                     alt="Professional Body Shape Reference"
                                     className="w-full h-auto rounded-2xl"
                                     style={{
