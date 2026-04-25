@@ -1,6 +1,6 @@
 
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { creatorLogin } from "@/lib/api";
@@ -63,6 +63,14 @@ const CreatorLogin = () => {
               required
               className="bg-luxury-cream border-neutral-200 text-luxury-black placeholder:text-neutral-500 h-12 rounded-xl shadow-sm focus:border-luxury-gold/50 focus:ring-4 focus:ring-luxury-gold/5 transition-all duration-300"
             />
+          </div>
+          <div className="flex justify-end mt-1">
+            <Link
+              to="/forgot-password"
+              className="text-[13px] text-neutral-400 hover:text-luxury-gold transition-colors font-medium tracking-wide pr-1 hover:underline"
+            >
+              Forgot password?
+            </Link>
           </div>
           <Button
             type="submit"

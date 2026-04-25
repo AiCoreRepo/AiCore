@@ -216,17 +216,9 @@ const UserLogin = () => {
                             </div>
 
                             <div className="space-y-2">
-                                <div className="flex justify-between items-center px-1">
-                                    <Label htmlFor="password" className="text-xs uppercase tracking-widest text-luxury-gold font-medium">
-                                        Password
-                                    </Label>
-                                    <Link
-                                        to="/user-forgot-password"
-                                        className="text-[10px] uppercase tracking-widest text-neutral-400 hover:text-luxury-gold transition-colors"
-                                    >
-                                        Forgot?
-                                    </Link>
-                                </div>
+                                <Label htmlFor="password" className="text-xs uppercase tracking-widest text-luxury-gold font-medium ml-1">
+                                    Password
+                                </Label>
                                 <div className="relative">
                                     <Input
                                         id="password"
@@ -243,9 +235,19 @@ const UserLogin = () => {
                                         {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                                     </button>
                                 </div>
-                                {errors.password && (
-                                    <p className="text-xs text-red-500 mt-1 ml-1">{errors.password.message}</p>
-                                )}
+                                <div className="flex justify-between items-center mt-1">
+                                    <div>
+                                        {errors.password && (
+                                            <p className="text-xs text-red-500 ml-1">{errors.password.message}</p>
+                                        )}
+                                    </div>
+                                    <Link
+                                        to="/user-forgot-password"
+                                        className="text-[13px] text-neutral-400 hover:text-luxury-gold transition-colors font-medium tracking-wide pr-1 hover:underline"
+                                    >
+                                        Forgot password?
+                                    </Link>
+                                </div>
                             </div>
                         </div>
 

@@ -20,6 +20,9 @@ import { SendOtpDto } from './dto/send-otp.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { CheckEmailDto } from './dto/check-email.dto';
 import { GoogleAuthDto } from './dto/google-auth.dto';
+import { ForgotPasswordDto } from './password-reset/dto/forgot-password.dto';
+import { ResetPasswordDto } from './password-reset/dto/reset-password.dto';
+import { PasswordResetService } from './password-reset/password-reset.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from './decorators/roles.decorator';
@@ -27,7 +30,10 @@ import { CurrentUser } from './decorators/current-user.decorator';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly passwordResetService: PasswordResetService,
+  ) {}
 
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
@@ -185,5 +191,32 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   async resendOtp(@Body() dto: SendOtpDto) {
     return this.authService.sendOtp(dto.phoneNumber);
+  }
+
+  // ─── Password Reset Endpoints ───────────────────────────
+
+  @Post('forgot-password')
+  @HttpCode(HttpStatus.OK)
+  async forgotPassword(
+    @Body() dto: ForgotPasswordDto,
+    @Req() req: Request,
+  ): Promise<{ message: string }> {
+    const ip =
+      (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ||
+      req.ip;
+    const userAgent = req.headers['user-agent'] as string;
+    return this.passwordResetService.requestPasswordReset(
+      dto.email,
+      ip,
+      userAgent,
+    );
+  }
+
+  @Post('reset-password')
+  @HttpCode(HttpStatus.OK)
+  async resetPassword(
+    @Body() dto: ResetPasswordDto,
+  ): Promise<{ message: string }> {
+    return this.passwordResetService.resetPassword(dto.token, dto.newPassword);
   }
 }

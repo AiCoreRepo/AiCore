@@ -10,6 +10,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { forgotPasswordSchema, type ForgotPasswordFormData } from "@/lib/validation";
 import { cloudinaryImages } from "@/constants/cloudinaryImages";
+import { toast } from "sonner";
+import heroImage from "@/assets/auth-hero-forgot.jpg"; // Reusing existing asset
+
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
 const UserForgotPassword = () => {
     const heroImage = cloudinaryImages.auth.forgot;
@@ -28,12 +32,21 @@ const UserForgotPassword = () => {
     const onSubmit = async (data: ForgotPasswordFormData) => {
         setIsLoading(true);
         try {
-            // Simulate API call
-            await new Promise((resolve) => setTimeout(resolve, 2000));
+            const response = await fetch(`${API_URL}/auth/forgot-password`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email: data.email }),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.message || "Something went wrong");
+            }
+
             setSubmittedEmail(data.email);
             setIsSuccess(true);
-        } catch (error) {
-            console.error("Error sending reset link:", error);
+        } catch (error: any) {
+            toast.error(error.message || "Failed to send reset link. Please try again.");
         } finally {
             setIsLoading(false);
         }

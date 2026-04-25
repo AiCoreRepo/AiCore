@@ -12,6 +12,7 @@ import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import OTPVerification from "./pages/OTPVerification";
 import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
 import CreatorLogin from "./pages/CreatorLogin";
 import AiTryOn from "./pages/AiTryOn";
@@ -123,6 +124,7 @@ const App = () => (
                       <Route path="/signup" element={<Signup />} />
                       <Route path="/verify-otp" element={<OTPVerification />} />
                       <Route path="/forgot-password" element={<ForgotPassword />} />
+                      <Route path="/reset-password" element={<ResetPassword />} />
                       <Route path="/creator-login" element={<CreatorLogin />} />
                       <Route path="/ai-try-on" element={<AiTryOn />} />
                       <Route

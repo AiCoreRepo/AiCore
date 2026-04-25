@@ -39,6 +39,7 @@ model User {
   wishlist                  Wishlist?
   orders                    Order[]
   wallet                    Wallet?
+  passwordResetTokens       PasswordResetToken[]
 }
 
 model Creator {
@@ -510,6 +511,29 @@ model OtpVerification {
   @@index([phone_number])
   @@index([expires_at])
   @@map("otp_verifications")
+}
+
+// ============================================
+// PASSWORD RESET TOKENS
+// ============================================
+
+model PasswordResetToken {
+  token_id   String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id    String    @db.Uuid
+  token_hash String    // SHA-256 hash of the raw token
+  expires_at DateTime
+  used       Boolean   @default(false)
+  used_at    DateTime?
+  created_at DateTime  @default(now())
+  ip_address String?   // Audit: IP that requested the reset
+  user_agent String?   // Audit: browser user-agent
+
+  user User @relation(fields: [user_id], references: [user_id], onDelete: Cascade)
+
+  @@index([user_id])
+  @@index([token_hash])
+  @@index([expires_at])
+  @@map("password_reset_tokens")
 }
 
 enum AuraStatus {
