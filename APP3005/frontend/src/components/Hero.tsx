@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
-import jaipurVideo from "@/assets/JaipurDev.mp4";
+import { IMG } from "@/constants/cloudinary-images";
 
 const heroHighlights = [
     "Heritage-led AI styling",
@@ -19,7 +19,7 @@ export const Hero = () => {
 
     useEffect(() => {
         if (videoRef.current) {
-            videoRef.current.play().catch(() => {});
+            videoRef.current.play().catch(() => { });
         }
     }, []);
 
@@ -34,7 +34,7 @@ export const Hero = () => {
                 <video
                     data-gsap="hero-video"
                     ref={videoRef}
-                    src={jaipurVideo}
+                    src={IMG.jaipurDevVideo}
                     autoPlay
                     loop
                     muted

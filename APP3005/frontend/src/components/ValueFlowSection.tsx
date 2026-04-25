@@ -1,10 +1,24 @@
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Brush, Sparkles, HeartHandshake } from "lucide-react";
-import { cloudinaryImages } from "@/constants/cloudinaryImages";
+import { IMG } from "@/constants/cloudinary-images";
 
 export const ValueFlowSection = () => {
+  const ref = useRef<HTMLElement>(null);
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) setVisible(true); },
+      { threshold: 0.1 }
+    );
+    if (ref.current) observer.observe(ref.current);
+    return () => observer.disconnect();
+  }, []);
+
   return (
     <section
+      ref={ref}
       id="about"
       style={{
         background: "hsl(30 14% 10%)",
@@ -15,8 +29,12 @@ export const ValueFlowSection = () => {
       <div className="container-luxury max-w-5xl">
         {/* Header */}
         <div
-          data-gsap="section-heading"
           className="text-center mb-20"
+          style={{
+            opacity: visible ? 1 : 0,
+            transform: visible ? "translateY(0)" : "translateY(20px)",
+            transition: "opacity 0.8s ease, transform 0.8s ease",
+          }}
         >
           <div className="inline-flex items-center gap-3 mb-4">
             <span className="h-px w-8 block" style={{ background: "hsl(44 78% 54%)" }} />
@@ -34,11 +52,11 @@ export const ValueFlowSection = () => {
         </div>
 
         {/* Storytelling Grid */}
-        <div data-gsap-group="ecosystem-grid" className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-24">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-24">
           {/* Card 1: Creators */}
-          <div data-gsap="ecosystem-card" data-gsap-hover="lift-card" className="group relative rounded-[2rem] overflow-hidden bg-white/5 border border-white/10 flex flex-col items-center text-center p-8 transition-transform duration-500 hover:-translate-y-2">
+          <div className="group relative rounded-[2rem] overflow-hidden bg-white/5 border border-white/10 flex flex-col items-center text-center p-8 transition-transform duration-500 hover:-translate-y-2">
             <div className="w-full h-48 rounded-xl overflow-hidden mb-6">
-              <img data-gsap="ecosystem-image" src={cloudinaryImages.stories.storyLoomHands} alt="Creators" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" style={{ filter: "brightness(0.85)" }} />
+              <img src={IMG.storyLoomHands} alt="Creators" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" style={{ filter: "brightness(0.85)" }} />
             </div>
             <div className="w-14 h-14 rounded-full bg-white/10 flex items-center justify-center mb-6 border border-[#D4AF37]/30">
               <Brush className="w-6 h-6 text-[#D4AF37]" />
@@ -50,9 +68,9 @@ export const ValueFlowSection = () => {
           </div>
 
           {/* Card 2: The Bridge (AI) */}
-          <div data-gsap="ecosystem-card" data-gsap-hover="lift-card" className="group relative rounded-[2rem] overflow-hidden bg-gradient-to-b from-[#D4AF37]/10 to-transparent border border-[#D4AF37]/30 flex flex-col items-center text-center p-8 transition-transform duration-500 hover:-translate-y-2 translate-y-0 md:translate-y-8 shadow-[0_0_40px_rgba(212,175,55,0.08)]">
+          <div className="group relative rounded-[2rem] overflow-hidden bg-gradient-to-b from-[#D4AF37]/10 to-transparent border border-[#D4AF37]/30 flex flex-col items-center text-center p-8 transition-transform duration-500 hover:-translate-y-2 translate-y-0 md:translate-y-8 shadow-[0_0_40px_rgba(212,175,55,0.08)]">
             <div className="w-full h-48 rounded-xl overflow-hidden mb-6 relative">
-              <img data-gsap="ecosystem-image" src={cloudinaryImages.stories.aiBridge} alt="The Bridge" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" style={{ filter: "brightness(0.9)" }} />
+              <img src={IMG.aiBridge} alt="The Bridge" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" style={{ filter: "brightness(0.9)" }} />
               <div className="absolute inset-0 bg-[#D4AF37]/20 mix-blend-overlay" />
             </div>
             <div className="w-16 h-16 rounded-full bg-[#D4AF37]/20 flex items-center justify-center mb-6 border border-[#D4AF37]/50 shadow-[0_0_20px_rgba(212,175,55,0.3)]">
@@ -65,9 +83,9 @@ export const ValueFlowSection = () => {
           </div>
 
           {/* Card 3: The Users */}
-          <div data-gsap="ecosystem-card" data-gsap-hover="lift-card" className="group relative rounded-[2rem] overflow-hidden bg-white/5 border border-white/10 flex flex-col items-center text-center p-8 transition-transform duration-500 hover:-translate-y-2">
+          <div className="group relative rounded-[2rem] overflow-hidden bg-white/5 border border-white/10 flex flex-col items-center text-center p-8 transition-transform duration-500 hover:-translate-y-2">
             <div className="w-full h-48 rounded-xl overflow-hidden mb-6">
-              <img data-gsap="ecosystem-image" src={cloudinaryImages.stories.jaipurShopWomen} alt="Users" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" style={{ filter: "brightness(0.85)" }} />
+              <img src={IMG.jaipurShopWomen} alt="Users" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" style={{ filter: "brightness(0.85)" }} />
             </div>
             <div className="w-14 h-14 rounded-full bg-white/10 flex items-center justify-center mb-6 border border-[#D4AF37]/30">
               <HeartHandshake className="w-6 h-6 text-[#D4AF37]" />
@@ -80,7 +98,7 @@ export const ValueFlowSection = () => {
         </div>
 
         {/* CTA */}
-        <div data-gsap="cta-pill" className="flex justify-center">
+        <div className="flex justify-center">
           <Link
             to="/login"
             className="inline-flex items-center gap-2 px-8 py-3.5 font-semibold transition-all hover:scale-[1.03] rounded-full"

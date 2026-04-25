@@ -1,23 +1,24 @@
-import { cloudinaryImages } from "@/constants/cloudinaryImages";
+import { useRef } from "react";
+import { IMG } from "@/constants/cloudinary-images";
 
 const quotes = [
   {
     quote: "Aivestire has given my family's generations of block printing a voice on the global stage.",
     author: "Ravi Sharma",
     role: "Master Block Printer",
-    image: cloudinaryImages.avatars.artisan1,
+    image: IMG.avatarArtisan1,
   },
   {
     quote: "Seeing my woven fabrics styled virtually gives me immense pride in my craft.",
     author: "Anita Devi",
     role: "Handloom Weaver",
-    image: cloudinaryImages.avatars.artisan2,
+    image: IMG.avatarArtisan2,
   },
   {
     quote: "This isn't just commerce; it's the preservation of Jaipur's soul.",
     author: "Vikram Singh",
     role: "Zari Embroiderer",
-    image: cloudinaryImages.avatars.artisan3,
+    image: IMG.avatarArtisan3,
   },
 ];
 
@@ -25,7 +26,7 @@ export const ArtisanTestimonials = () => {
   return (
     <section className="py-24 relative overflow-hidden bg-[#0c0907] border-t border-white/5">
       <div className="container-luxury relative z-10">
-        <div data-gsap="section-heading" className="text-center mb-16">
+        <div className="text-center mb-16">
           <div className="inline-flex items-center gap-3 mb-4">
             <span className="block h-px w-8" style={{ background: "hsl(44 78% 54%)" }} />
             <span className="text-[10px] uppercase tracking-[0.48em] font-semibold text-[#D4AF37]">Voices of Craft</span>
@@ -36,9 +37,9 @@ export const ArtisanTestimonials = () => {
           </h2>
         </div>
 
-        <div data-gsap-group="testimonial-grid" className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {quotes.map((q, i) => (
-            <div data-gsap="testimonial-card" data-gsap-hover="lift-card" key={i} className="rounded-2xl p-8 bg-white/[0.02] border border-[#D4AF37]/20 relative group transition-all hover:bg-white/[0.04]">
+            <div key={i} className="rounded-2xl p-8 bg-white/[0.02] border border-[#D4AF37]/20 relative group transition-all hover:bg-white/[0.04]">
               <div className="absolute -top-4 -left-2 text-6xl text-[#D4AF37]/20 font-serif leading-none group-hover:text-[#D4AF37]/40 transition-colors">"</div>
               <p className="text-[#F8F2E9]/70 italic leading-relaxed mb-8 relative z-10">
                 {q.quote}
