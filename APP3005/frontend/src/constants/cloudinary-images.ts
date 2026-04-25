@@ -61,8 +61,8 @@ export const HOMEPAGE_IMAGES = {
   jaipurWomenGroup: 'aivestire/homepage/jaipur-women-group',
   /** jaipur-textile-market.jpg (2140×3197, 364KB) */
   jaipurTextileMarket: 'aivestire/homepage/jaipur-textile-market',
-  /** tryon-realistic.png (1024×1024, 135KB) */
-  tryonRealistic: 'aivestire/homepage/tryon-realistic',
+  /** 2222.jpeg (1086×1448, 182KB) */
+  tryonRealistic: 'aivestire/homepage/tryon-realistic-2222',
   /** product-1.png (1024×1024, 139KB) */
   product1: 'aivestire/homepage/product-1',
   /** product-2.png (1024×1024, 174KB) */

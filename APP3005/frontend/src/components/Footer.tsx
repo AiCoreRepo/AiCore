@@ -32,7 +32,7 @@ export const Footer = () => {
     return (
         <footer className="relative overflow-hidden bg-[#120f0c] text-[#F8F2E9]">
             <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#D4AF37]/55 to-transparent" />
-            <div className="absolute left-1/2 top-0 h-64 w-[42rem] -translate-x-1/2 bg-[radial-gradient(circle,rgba(212,175,55,0.18)_0%,rgba(212,175,55,0)_72%)] opacity-70" />
+            <div data-gsap="ambient-orb" data-gsap-drift="20" className="absolute left-1/2 top-0 h-64 w-[42rem] -translate-x-1/2 bg-[radial-gradient(circle,rgba(212,175,55,0.18)_0%,rgba(212,175,55,0)_72%)] opacity-70" />
 
             <div className="relative mx-auto max-w-7xl px-4 pb-4 pt-6 sm:px-6 sm:pt-8 lg:px-10 lg:pb-5">
                 <div className="grid gap-4 xl:grid-cols-[minmax(0,1.08fr)_minmax(0,0.92fr)]">
@@ -59,6 +59,7 @@ export const Footer = () => {
                         <div className="mt-4 flex flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-center">
                             <a
                                 href="mailto:support@aivestire.com"
+                                data-gsap-hover="magnetic-soft"
                                 className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/[0.05] px-4 py-2 text-sm font-medium text-[#F8F2E9] transition-colors hover:border-[#D4AF37]/45 hover:bg-[#D4AF37]/10 hover:text-white"
                             >
                                 <Mail className="h-4 w-4 text-[#E7C870]" />
@@ -75,6 +76,7 @@ export const Footer = () => {
                                 <a
                                     key={social.name}
                                     href={social.href}
+                                    data-gsap-hover="magnetic-soft"
                                     className={`group rounded-full border border-white/12 bg-white/[0.04] text-[#F8F2E9]/80 transition-all duration-300 hover:-translate-y-0.5 hover:border-[#D4AF37]/45 hover:bg-[#D4AF37]/10 hover:text-white ${social.label ? "inline-flex items-center gap-2 px-4 py-2 text-sm" : "p-2.5"}`}
                                     aria-label={social.name}
                                 >
@@ -114,6 +116,7 @@ export const Footer = () => {
                                 <Link
                                     key={link.to}
                                     to={link.to}
+                                    data-gsap-hover="magnetic-soft"
                                     className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2.5 text-sm font-medium text-[#F8F2E9]/72 transition-all duration-300 hover:-translate-y-0.5 hover:border-[#D4AF37]/40 hover:bg-[#D4AF37]/10 hover:text-white"
                                 >
                                     {link.label}

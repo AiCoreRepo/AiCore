@@ -94,6 +94,7 @@ export const Navbar = () => {
         <>
             {/* ── NAVBAR ── */}
             <header
+                data-gsap="nav-shell"
                 className="fixed top-0 inset-x-0 z-50 transition-all duration-500 border-b"
                 style={{
                     background: isScrolled
@@ -109,6 +110,7 @@ export const Navbar = () => {
                         {/* ── LOGO ── */}
                         <Link
                             to="/"
+                            data-gsap="nav-brand"
                             className="flex items-baseline group flex-shrink-0"
                         >
                             <span
@@ -132,13 +134,14 @@ export const Navbar = () => {
                         </Link>
 
                         {/* ── DESKTOP NAV ── */}
-                        <nav className="hidden lg:flex items-center gap-6">
+                        <nav data-gsap="nav-links" className="hidden lg:flex items-center gap-6">
                             {navLinks.map((link) => {
                                 const active = isActive(link.href);
                                 return link.isRoute ? (
                                     <Link
                                         key={link.name}
                                         to={link.href}
+                                        data-gsap="nav-link"
                                         className="relative px-3 py-2 group transition-all duration-300"
                                         style={{
                                             fontSize: "12px",
@@ -176,6 +179,7 @@ export const Navbar = () => {
                                     <a
                                         key={link.name}
                                         href={link.href}
+                                        data-gsap="nav-link"
                                         className="relative px-3 py-2 group transition-all duration-300"
                                         style={{
                                             fontSize: "12px",
@@ -195,11 +199,12 @@ export const Navbar = () => {
                         </nav>
 
                         {/* ── RIGHT ICONS ── */}
-                        <div className="flex items-center gap-3 md:gap-4">
+                        <div data-gsap="nav-actions" className="flex items-center gap-3 md:gap-4">
                             {/* Join as Creator */}
                             {!isLoggedIn && (
                                 <Link
                                     to="/login"
+                                    data-gsap-hover="magnetic-soft"
                                     className="hidden md:inline-flex items-center gap-2 px-6 py-2.5 rounded-full transition-all duration-300 hover:bg-[#D4AF37]/10"
                                     style={{
                                         fontSize: "10px",

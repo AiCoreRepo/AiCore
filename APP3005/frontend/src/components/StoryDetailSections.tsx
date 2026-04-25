@@ -1,13 +1,12 @@
-import { useEffect, useRef, useState } from "react";
 import { Sparkles, Upload, Scan, Wand2 } from "lucide-react";
 import { IMG } from "@/constants/cloudinary-images";
 
 const ArtisanSection = () => {
   return (
-    <div id="section-artisans" className="py-24 relative overflow-hidden" style={{ background: "hsl(30 14% 10%)" }}>
+    <div id="section-artisans" data-gsap-group="split-section" className="py-24 relative overflow-hidden" style={{ background: "hsl(30 14% 10%)" }}>
       <div className="container-luxury relative z-10">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
-          <div>
+          <div data-gsap="split-copy-left">
             <div className="inline-flex items-center gap-3 mb-6">
               <span className="block h-px w-8" style={{ background: "hsl(44 78% 54%)" }} />
               <span className="text-[10px] uppercase tracking-[0.48em] font-semibold" style={{ color: "hsl(44 78% 54%)" }}>The Artisans</span>
@@ -31,14 +30,22 @@ const ArtisanSection = () => {
               </div>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div data-gsap="split-media-right" className="grid grid-cols-2 gap-4">
             <div className="space-y-4 pt-12">
-              <img src={IMG.jaipurBwEmbroidery} alt="Embroidery" className="w-full rounded-2xl object-cover h-[280px]" style={{ filter: "brightness(0.85)" }} />
-              <img src={IMG.jaipurWomenGroup} alt="Artisans" className="w-full rounded-2xl object-cover h-[200px]" style={{ filter: "brightness(0.85)" }} />
+              <div data-gsap="media-reveal" className="overflow-hidden rounded-2xl">
+                <img data-gsap="media-image" src={IMG.jaipurBwEmbroidery} alt="Embroidery" className="w-full rounded-2xl object-cover h-[280px]" style={{ filter: "brightness(0.85)" }} />
+              </div>
+              <div data-gsap="media-reveal" className="overflow-hidden rounded-2xl">
+                <img data-gsap="media-image" src={IMG.jaipurWomenGroup} alt="Artisans" className="w-full rounded-2xl object-cover h-[200px]" style={{ filter: "brightness(0.85)" }} />
+              </div>
             </div>
             <div className="space-y-4">
-              <img src={IMG.jaipurTextileMarket} alt="Textile Market" className="w-full rounded-2xl object-cover h-[240px]" style={{ filter: "brightness(0.85)" }} />
-              <img src={IMG.jaipurArtisansThread} alt="Thread Work" className="w-full rounded-2xl object-cover h-[240px]" style={{ filter: "brightness(0.85)" }} />
+              <div data-gsap="media-reveal" className="overflow-hidden rounded-2xl">
+                <img data-gsap="media-image" src={IMG.jaipurTextileMarket} alt="Textile Market" className="w-full rounded-2xl object-cover h-[240px]" style={{ filter: "brightness(0.85)" }} />
+              </div>
+              <div data-gsap="media-reveal" className="overflow-hidden rounded-2xl">
+                <img data-gsap="media-image" src={IMG.jaipurArtisansThread} alt="Thread Work" className="w-full rounded-2xl object-cover h-[240px]" style={{ filter: "brightness(0.85)" }} />
+              </div>
             </div>
           </div>
         </div>
@@ -49,21 +56,21 @@ const ArtisanSection = () => {
 
 const TryOnSection = () => {
   return (
-    <div id="section-tryon" className="py-24 relative overflow-hidden" style={{ background: "hsl(30 14% 12%)" }}>
-      <div className="absolute top-0 right-0 w-1/2 h-full bg-[radial-gradient(ellipse_at_center,rgba(212,175,55,0.08)_0%,transparent_70%)]" />
+    <div id="section-tryon" data-gsap-group="split-section" className="py-24 relative overflow-hidden" style={{ background: "hsl(30 14% 12%)" }}>
+      <div data-gsap="ambient-orb" data-gsap-drift="26" className="absolute top-0 right-0 w-1/2 h-full bg-[radial-gradient(ellipse_at_center,rgba(212,175,55,0.08)_0%,transparent_70%)]" />
       <div className="container-luxury relative z-10">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
           {/* Left: Mockup Image */}
-          <div className="order-2 lg:order-1 relative group perspective-1000">
-            <div className="relative z-10 rounded-[2rem] overflow-hidden border border-white/10 shadow-2xl transition-transform duration-700 group-hover:scale-[1.02]">
-              <img src={IMG.tryonRealistic} alt="Virtual Try On" className="w-full h-auto object-cover" />
+          <div data-gsap="split-media-left" className="order-2 lg:order-1 relative group perspective-1000">
+            <div data-gsap="media-reveal" className="relative z-10 rounded-[2rem] overflow-hidden border border-white/10 shadow-2xl transition-transform duration-700 group-hover:scale-[1.02]">
+              <img data-gsap="media-image" src={IMG.tryonRealistic} alt="Virtual Try On" className="w-full h-auto object-cover" />
             </div>
             {/* Glow */}
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3/4 h-3/4 bg-[#D4AF37]/20 blur-[120px] rounded-full" />
           </div>
 
           {/* Right: Story & Steps */}
-          <div className="order-1 lg:order-2 max-w-xl">
+          <div data-gsap="split-copy-right" className="order-1 lg:order-2 max-w-xl">
             <div className="inline-flex items-center gap-3 mb-6">
               <span className="text-[10px] uppercase tracking-[0.48em] font-semibold" style={{ color: "hsl(44 78% 54%)" }}>Virtual Try-On</span>
               <span className="block h-px w-8" style={{ background: "hsl(44 78% 54%)" }} />
@@ -76,33 +83,53 @@ const TryOnSection = () => {
             </p>
 
             {/* Vertical Stepper */}
-            <div className="space-y-8 relative before:absolute before:inset-0 before:ml-6 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-[#D4AF37]/50 before:via-[#D4AF37]/20 before:to-transparent">
-              <div className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
-                <div className="flex items-center justify-center w-12 h-12 rounded-full border-2 border-[#D4AF37] bg-black text-[#D4AF37] shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 shadow-[0_0_20px_rgba(212,175,55,0.3)] z-10">
+            <div data-gsap-group="steps" className="space-y-8 relative">
+              <div className="pointer-events-none absolute inset-y-0 left-6 w-0.5 -translate-x-px bg-gradient-to-b from-white/18 via-white/10 to-transparent md:left-1/2 md:-translate-x-1/2" />
+              <div
+                data-gsap="step-line-fill"
+                className="pointer-events-none absolute inset-y-0 left-6 w-0.5 origin-top -translate-x-px bg-gradient-to-b from-[#D4AF37] via-[#E7C870] to-transparent md:left-1/2 md:-translate-x-1/2"
+              />
+              <div data-gsap="step-item" className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
+                <div data-gsap="step-node" className="flex items-center justify-center w-12 h-12 rounded-full border-2 border-[#D4AF37] bg-[linear-gradient(145deg,rgba(231,200,112,0.96)_0%,rgba(212,175,55,0.88)_100%)] text-[#0f0b09] shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 shadow-[0_0_0_6px_rgba(212,175,55,0.08),0_0_26px_rgba(212,175,55,0.34)] z-10">
                   <Upload className="w-5 h-5" />
                 </div>
-                <div className="w-[calc(100%-4rem)] md:w-[calc(50%-3rem)] p-4 rounded-xl border border-white/5 bg-white/5 backdrop-blur-sm">
-                  <h3 className="font-semibold text-[#F8F2E9] mb-1">1. Upload Image</h3>
+                <div data-gsap="step-copy" className="w-[calc(100%-4rem)] md:w-[calc(50%-3rem)] rounded-[1.15rem] border border-white/10 bg-[linear-gradient(155deg,rgba(255,255,255,0.08)_0%,rgba(255,255,255,0.03)_100%)] px-5 py-4 shadow-[0_18px_36px_rgba(0,0,0,0.18)] backdrop-blur-md">
+                  <div className="mb-3 flex items-center gap-3">
+                    <span data-gsap="step-badge" className="inline-flex items-center rounded-full border border-white/14 bg-white/8 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.28em] text-white">
+                      01
+                    </span>
+                    <h3 className="font-semibold text-white">Upload Image</h3>
+                  </div>
                   <p className="text-sm text-[#F8F2E9]/60">Provide a clear, front-facing photo of yourself in casual wear.</p>
                 </div>
               </div>
 
-              <div className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
-                <div className="flex items-center justify-center w-12 h-12 rounded-full border border-white/20 bg-black text-white/60 shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 z-10 transition-colors group-hover:border-[#D4AF37] group-hover:text-[#D4AF37]">
+              <div data-gsap="step-item" className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
+                <div data-gsap="step-node" className="flex items-center justify-center w-12 h-12 rounded-full border border-white/24 bg-[linear-gradient(145deg,rgba(17,17,17,0.96)_0%,rgba(28,28,28,0.92)_100%)] text-white/78 shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 z-10 shadow-[0_0_0_6px_rgba(255,255,255,0.04),0_10px_24px_rgba(0,0,0,0.24)] transition-colors group-hover:border-[#D4AF37] group-hover:text-white">
                   <Scan className="w-5 h-5" />
                 </div>
-                <div className="w-[calc(100%-4rem)] md:w-[calc(50%-3rem)] p-4 rounded-xl border border-white/5 bg-white/[0.02] backdrop-blur-sm transition-colors group-hover:bg-white/5">
-                  <h3 className="font-semibold text-[#F8F2E9] mb-1">2. AI Processing</h3>
+                <div data-gsap="step-copy" className="w-[calc(100%-4rem)] md:w-[calc(50%-3rem)] rounded-[1.15rem] border border-white/10 bg-[linear-gradient(155deg,rgba(255,255,255,0.055)_0%,rgba(255,255,255,0.02)_100%)] px-5 py-4 shadow-[0_18px_36px_rgba(0,0,0,0.14)] backdrop-blur-md transition-colors group-hover:border-white/16 group-hover:bg-[linear-gradient(155deg,rgba(255,255,255,0.08)_0%,rgba(255,255,255,0.03)_100%)]">
+                  <div className="mb-3 flex items-center gap-3">
+                    <span data-gsap="step-badge" className="inline-flex items-center rounded-full border border-white/14 bg-white/8 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.28em] text-white">
+                      02
+                    </span>
+                    <h3 className="font-semibold text-white">AI Processing</h3>
+                  </div>
                   <p className="text-sm text-[#F8F2E9]/60">Our system maps the 3D drape and intricate embroidery to your proportions.</p>
                 </div>
               </div>
 
-              <div className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
-                <div className="flex items-center justify-center w-12 h-12 rounded-full border border-white/20 bg-black text-white/60 shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 z-10 transition-colors group-hover:border-[#D4AF37] group-hover:text-[#D4AF37]">
+              <div data-gsap="step-item" className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
+                <div data-gsap="step-node" className="flex items-center justify-center w-12 h-12 rounded-full border border-white/24 bg-[linear-gradient(145deg,rgba(17,17,17,0.96)_0%,rgba(28,28,28,0.92)_100%)] text-white/78 shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 z-10 shadow-[0_0_0_6px_rgba(255,255,255,0.04),0_10px_24px_rgba(0,0,0,0.24)] transition-colors group-hover:border-[#D4AF37] group-hover:text-white">
                   <Wand2 className="w-5 h-5" />
                 </div>
-                <div className="w-[calc(100%-4rem)] md:w-[calc(50%-3rem)] p-4 rounded-xl border border-white/5 bg-white/[0.02] backdrop-blur-sm transition-colors group-hover:bg-white/5">
-                  <h3 className="font-semibold text-[#F8F2E9] mb-1">3. Visualize</h3>
+                <div data-gsap="step-copy" className="w-[calc(100%-4rem)] md:w-[calc(50%-3rem)] rounded-[1.15rem] border border-white/10 bg-[linear-gradient(155deg,rgba(255,255,255,0.055)_0%,rgba(255,255,255,0.02)_100%)] px-5 py-4 shadow-[0_18px_36px_rgba(0,0,0,0.14)] backdrop-blur-md transition-colors group-hover:border-white/16 group-hover:bg-[linear-gradient(155deg,rgba(255,255,255,0.08)_0%,rgba(255,255,255,0.03)_100%)]">
+                  <div className="mb-3 flex items-center gap-3">
+                    <span data-gsap="step-badge" className="inline-flex items-center rounded-full border border-white/14 bg-white/8 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.28em] text-white">
+                      03
+                    </span>
+                    <h3 className="font-semibold text-white">Visualize</h3>
+                  </div>
                   <p className="text-sm text-[#F8F2E9]/60">Instantly see the exact look and fit before making a purchase.</p>
                 </div>
               </div>
@@ -123,12 +150,12 @@ const AI_PICKS = [
 
 const RecommendationSection = () => {
   return (
-    <div id="section-recommendation" className="py-24 relative overflow-hidden" style={{ background: "hsl(30 14% 10%)" }}>
+    <div id="section-recommendation" data-gsap-group="split-section" className="py-24 relative overflow-hidden" style={{ background: "hsl(30 14% 10%)" }}>
       <div className="container-luxury relative z-10">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
           
           {/* Text */}
-          <div className="order-1 lg:pr-8">
+          <div data-gsap="split-copy-left" className="order-1 lg:pr-8">
             <div className="inline-flex items-center gap-3 mb-6">
               <span className="text-[10px] uppercase tracking-[0.48em] font-semibold" style={{ color: "hsl(44 78% 54%)" }}>Recommendations</span>
               <span className="block h-px w-8" style={{ background: "hsl(44 78% 54%)" }} />
@@ -142,17 +169,17 @@ const RecommendationSection = () => {
           </div>
 
           {/* Image Feed */}
-          <div className="order-2 relative lg:pl-8">
-            <div className="relative z-10 rounded-3xl p-6 overflow-hidden" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", backdropFilter: "blur(20px)" }}>
+          <div data-gsap="split-media-right" className="order-2 relative lg:pl-8">
+            <div data-gsap="media-reveal" className="relative z-10 rounded-3xl p-6 overflow-hidden" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", backdropFilter: "blur(20px)" }}>
               <div className="flex items-center gap-3 mb-6">
                 <Sparkles className="w-5 h-5 text-[#D4AF37]" />
                 <span className="text-[#F8F2E9] font-medium text-sm">AI Stylist Picks For You</span>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 {AI_PICKS.map((item) => (
-                  <div key={item.id} className="rounded-xl overflow-hidden bg-white/5 border border-white/5 pb-3 transition-all hover:-translate-y-1 hover:bg-white/10 group cursor-pointer">
+                  <div data-gsap="pick-card" data-gsap-hover="lift-card" key={item.id} className="rounded-xl overflow-hidden bg-white/5 border border-white/5 pb-3 transition-all hover:-translate-y-1 hover:bg-white/10 group cursor-pointer">
                     <div className="relative h-48 md:h-56 w-full overflow-hidden mb-3">
-                      <img src={item.src} alt={item.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+                      <img data-gsap="pick-image" src={item.src} alt={item.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
                       <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-md px-2 py-1 rounded text-[9px] font-bold text-[#D4AF37] border border-[#D4AF37]/30">
                         {item.score}
                       </div>
@@ -184,17 +211,17 @@ const AURAS = [
 
 const AuraSection = () => {
   return (
-    <div id="section-aura" className="py-24 relative overflow-hidden" style={{ background: "hsl(30 14% 8%)" }}>
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(212,175,55,0.15)_0%,transparent_70%)]" />
+    <div id="section-aura" data-gsap-group="split-section" className="py-24 relative overflow-hidden" style={{ background: "hsl(30 14% 8%)" }}>
+      <div data-gsap="ambient-orb" data-gsap-drift="24" className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(212,175,55,0.15)_0%,transparent_70%)]" />
       <div className="container-luxury relative z-10">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
           
           {/* Left: Aura Grid (Image Left) */}
-          <div className="order-2 lg:order-1">
+          <div data-gsap="split-media-left" className="order-2 lg:order-1">
             <div className="grid grid-cols-2 gap-4">
               {AURAS.map((aura) => (
-                <div key={aura.name} className="group relative rounded-2xl overflow-hidden border border-white/10 bg-white/5 aspect-[3/4] cursor-pointer">
-                  <img src={aura.src} alt={aura.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" style={{ filter: "brightness(0.85)" }} />
+                <div data-gsap="aura-card" data-gsap-hover="lift-card" key={aura.name} className="group relative rounded-2xl overflow-hidden border border-white/10 bg-white/5 aspect-[3/4] cursor-pointer">
+                  <img data-gsap="aura-image" src={aura.src} alt={aura.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" style={{ filter: "brightness(0.85)" }} />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-transparent" />
                   <div className="absolute bottom-0 left-0 p-4 w-full text-left">
                     <h3 className="font-serif text-xl text-[#F8F2E9] mb-1">{aura.name}</h3>
@@ -209,7 +236,7 @@ const AuraSection = () => {
           </div>
 
           {/* Right: Text (Text Right) */}
-          <div className="order-1 lg:order-2 max-w-xl">
+          <div data-gsap="split-copy-right" className="order-1 lg:order-2 max-w-xl">
             <div className="inline-flex items-center gap-3 mb-6">
               <span className="text-[10px] uppercase tracking-[0.48em] font-semibold" style={{ color: "hsl(44 78% 54%)" }}>Your Aura</span>
               <span className="block h-px w-8" style={{ background: "hsl(44 78% 54%)" }} />

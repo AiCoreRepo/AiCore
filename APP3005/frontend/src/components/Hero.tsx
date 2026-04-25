@@ -9,9 +9,9 @@ const heroHighlights = [
 ];
 
 const heroStats = [
-    { value: "240+", label: "Master Artisans" },
-    { value: "18", label: "Heritage Crafts" },
-    { value: "1.2M+", label: "AI Try-Ons" },
+    { value: "240+", label: "Master Artisans", countTo: 240, suffix: "+" },
+    { value: "18", label: "Heritage Crafts", countTo: 18, suffix: "" },
+    { value: "1.2M+", label: "AI Try-Ons", countTo: 1.2, suffix: "M+", decimals: 1 },
 ];
 
 export const Hero = () => {
@@ -108,6 +108,16 @@ export const Hero = () => {
                             boxShadow: "0 22px 56px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.12)",
                         }}
                     >
+                        <div
+                            data-gsap="hero-panel-shimmer"
+                            className="pointer-events-none absolute inset-y-[-12%] -left-[36%] w-[32%] opacity-0"
+                            style={{
+                                background:
+                                    "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.06) 22%, rgba(255,255,255,0.3) 50%, rgba(255,255,255,0.06) 78%, transparent 100%)",
+                                filter: "blur(10px)",
+                                transform: "skewX(-22deg)",
+                            }}
+                        />
                         <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#D4AF37]/60 to-transparent" />
                         <div className="absolute -left-20 top-16 h-44 w-44 rounded-full bg-[#D4AF37]/8 blur-3xl" />
 
@@ -193,6 +203,7 @@ export const Hero = () => {
                             <div data-gsap="hero-actions" className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mt-9">
                                 <Link
                                     to="/ai-try-on"
+                                    data-gsap-hover="magnetic-strong"
                                     className="inline-flex items-center justify-center gap-2 rounded-full px-8 py-3.5 font-semibold transition-all duration-300 hover:scale-[1.03]"
                                     style={{
                                         fontSize: "11px",
@@ -209,6 +220,7 @@ export const Hero = () => {
 
                                 <a
                                     href="#stories"
+                                    data-gsap-hover="magnetic-soft"
                                     className="inline-flex items-center justify-center gap-2 rounded-full px-8 py-3.5 font-medium transition-all duration-300 hover:bg-white/10 hover:border-white/60"
                                     style={{
                                         fontSize: "11px",
@@ -232,6 +244,10 @@ export const Hero = () => {
                                         style={{ background: "rgba(255,255,255,0.04)" }}
                                     >
                                         <div
+                                            data-gsap="count-up"
+                                            data-count-to={item.countTo}
+                                            data-count-suffix={item.suffix}
+                                            data-count-decimals={item.decimals ?? 0}
                                             className="font-serif leading-none"
                                             style={{
                                                 fontSize: "clamp(2rem, 3vw, 2.7rem)",
