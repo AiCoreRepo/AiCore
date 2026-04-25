@@ -1,5 +1,6 @@
-import { useRef, useEffect, useState } from "react";
+import { useState } from "react";
 import { ArrowRight } from "lucide-react";
+import { cloudinaryImages } from "@/constants/cloudinaryImages";
 
 /* ─── STORY CARD DATA ─────────────────────────────────────── */
 const storyCards = [
@@ -10,7 +11,7 @@ const storyCards = [
     category: "Heritage",
     title: "From Hands\nto Heritage",
     tagline: "Every thread carries a story of generations.",
-    image: "/images/jaipur-artisans-thread.jpg",
+    image: cloudinaryImages.stories.jaipurArtisansThread,
     accent: "#D4AF37",
     accentRgb: "212,175,55",
   },
@@ -21,7 +22,7 @@ const storyCards = [
     category: "Experience",
     title: "See It Before\nYou Wear It",
     tagline: "Confidence before every purchase.",
-    image: "/images/jaipur-women-craft.jpg",
+    image: cloudinaryImages.stories.jaipurWomenCraft,
     accent: "#C9A55C",
     accentRgb: "201,165,92",
   },
@@ -32,7 +33,7 @@ const storyCards = [
     category: "Intelligence",
     title: "Styled Just\nFor You",
     tagline: "Your personal AI stylist, always learning.",
-    image: "/images/jaipur-shop-women.jpg",
+    image: cloudinaryImages.stories.jaipurShopWomen,
     accent: "#B8860B",
     accentRgb: "184,134,11",
   },
@@ -43,7 +44,7 @@ const storyCards = [
     category: "Identity",
     title: "Your Style Has\nan Identity",
     tagline: "Not just fashion — your evolving aura.",
-    image: "/images/jaipur-street-mural.jpg",
+    image: cloudinaryImages.stories.jaipurStreetMural,
     accent: "#D4AF37",
     accentRgb: "212,175,55",
   },
@@ -52,12 +53,8 @@ const storyCards = [
 /* ─── STORY CARD COMPONENT ────────────────────────────────── */
 const StoryCard = ({
   card,
-  index,
-  visible,
 }: {
   card: (typeof storyCards)[0];
-  index: number;
-  visible: boolean;
 }) => {
   const [hovered, setHovered] = useState(false);
 
@@ -68,6 +65,8 @@ const StoryCard = ({
 
   return (
     <div
+      data-gsap="story-card"
+      data-gsap-hover="tilt-card"
       onClick={handleClick}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
@@ -77,9 +76,7 @@ const StoryCard = ({
         overflow: "hidden",
         cursor: "pointer",
         minHeight: "480px",
-        opacity: visible ? 1 : 0,
-        transform: visible ? "translateY(0)" : "translateY(36px)",
-        transition: `opacity 0.8s ease ${index * 0.15}s, transform 0.8s cubic-bezier(0.22,1,0.36,1) ${index * 0.15}s`,
+        transformStyle: "preserve-3d",
         boxShadow: hovered
           ? `0 32px 80px rgba(0,0,0,0.55), 0 0 0 1px rgba(${card.accentRgb},0.45), 0 0 40px rgba(${card.accentRgb},0.18)`
           : "0 8px 32px rgba(0,0,0,0.3), 0 0 0 1px rgba(255,255,255,0.06)",
@@ -87,6 +84,7 @@ const StoryCard = ({
     >
       {/* Background image */}
       <div
+        data-gsap="story-card-bg"
         style={{
           position: "absolute",
           inset: 0,
@@ -136,6 +134,7 @@ const StoryCard = ({
 
       {/* Content */}
       <div
+        data-gsap="story-card-content"
         style={{
           position: "relative",
           zIndex: 2,
@@ -250,21 +249,8 @@ const StoryCard = ({
 
 /* ─── MAIN SECTION ────────────────────────────────────────── */
 export const ValueCards = () => {
-  const sectionRef = useRef<HTMLElement>(null);
-  const [visible, setVisible] = useState(false);
-
-  useEffect(() => {
-    const obs = new IntersectionObserver(
-      ([e]) => { if (e.isIntersecting) setVisible(true); },
-      { threshold: 0.06 }
-    );
-    if (sectionRef.current) obs.observe(sectionRef.current);
-    return () => obs.disconnect();
-  }, []);
-
   return (
     <section
-      ref={sectionRef}
       id="stories"
       style={{
         background: "hsl(30 14% 8%)",
@@ -293,12 +279,10 @@ export const ValueCards = () => {
       <div className="container-luxury">
         {/* ── Section Header ── */}
         <div
+          data-gsap="section-heading"
           style={{
             textAlign: "center",
             marginBottom: "4.5rem",
-            opacity: visible ? 1 : 0,
-            transform: visible ? "translateY(0)" : "translateY(20px)",
-            transition: "opacity 0.8s ease, transform 0.8s ease",
           }}
         >
           <div
@@ -377,9 +361,9 @@ export const ValueCards = () => {
         </div>
 
         {/* ── 2×2 Story Card Grid ── */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {storyCards.map((card, i) => (
-            <StoryCard key={card.id} card={card} index={i} visible={visible} />
+        <div data-gsap-group="story-grid" className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {storyCards.map((card) => (
+            <StoryCard key={card.id} card={card} />
           ))}
         </div>
       </div>

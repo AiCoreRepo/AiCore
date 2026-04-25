@@ -21,7 +21,7 @@ import {
     getProductById,
     FeedbackContextType,
 } from '@/lib/api';
-import collectionHeaderImage from "@/assets/collectionHeader.jpeg";
+import { cloudinaryImages } from "@/constants/cloudinaryImages";
 import {
     getTryOnLimitSnapshot,
     getTryOnUsageSnapshot,
@@ -491,7 +491,7 @@ const CollectionPage = () => {
             {/* Hero Header Image - Includes both hero and quote */}
             <section className="relative w-full bg-white pt-16 md:pt-20">
                 <img
-                    src={collectionHeaderImage}
+                    src={cloudinaryImages.collectionHeader}
                     alt="Crafted for the Confident"
                     className="w-full h-auto object-contain"
                 />

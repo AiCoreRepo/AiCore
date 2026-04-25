@@ -14,9 +14,10 @@ import { useToast } from "@/hooks/use-toast";
 // import { useOTP } from "@/hooks/useOTP";
 import { signup as signupApi, login as loginApi, googleAuth, acceptCreatorTerms } from "@/lib/api";
 import { useGoogleLogin } from "@react-oauth/google";
-import heroImage from "@/assets/auth-hero-signup.jpg";
+import { cloudinaryImages } from "@/constants/cloudinaryImages";
 
 const Signup = () => {
+  const heroImage = cloudinaryImages.auth.signup;
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);

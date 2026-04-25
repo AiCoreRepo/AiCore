@@ -12,9 +12,10 @@ import { useToast } from "@/hooks/use-toast";
 import { login as loginApi, googleAuth } from "@/lib/api";
 import { useGoogleLogin } from "@react-oauth/google";
 import { usePopup } from "@/components/common/popups/PopupTime";
-import heroImage from "@/assets/auth-hero-login.jpg";
+import { cloudinaryImages } from "@/constants/cloudinaryImages";
 
 const Login = () => {
+  const heroImage = cloudinaryImages.auth.login;
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();

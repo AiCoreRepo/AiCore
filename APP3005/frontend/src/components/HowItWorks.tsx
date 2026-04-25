@@ -1,9 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { ScanFace, Shirt, Rotate3D, Bot } from "lucide-react";
-import iconAura from "@/assets/icon-aura.png";
-import iconTryon from "@/assets/icon-tryon.png";
-import icon360 from "@/assets/icon-360.png";
-import iconStylist from "@/assets/icon-stylist.png";
+import { cloudinaryImages } from "@/constants/cloudinaryImages";
 
 const steps = [
     {
@@ -15,7 +12,7 @@ const steps = [
             "Upload a single photo. Our advanced AI scans your measurements and posture to create a hyper-realistic digital twin — your Aura. It's not just an avatar; it's you.",
         image: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=900&auto=format&fit=crop",
         icon: ScanFace,
-        cartoonIcon: iconAura,
+        cartoonIcon: cloudinaryImages.icons.aura,
         align: "left",
     },
     {
@@ -27,7 +24,7 @@ const steps = [
             "Browse our premium collection and tap to try. Watch as fabrics drape naturally over your Aura, respecting gravity, texture, and your unique body shape.",
         image: "https://images.unsplash.com/photo-1483985988355-763728e1935b?q=80&w=900&auto=format&fit=crop",
         icon: Shirt,
-        cartoonIcon: iconTryon,
+        cartoonIcon: cloudinaryImages.icons.tryOn,
         align: "right",
     },
     {
@@ -39,7 +36,7 @@ const steps = [
             "Don't just guess. View your outfit from the front, side, and back. Ensure the fit is perfect from every perspective before you buy.",
         image: "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?q=80&w=900&auto=format&fit=crop",
         icon: Rotate3D,
-        cartoonIcon: icon360,
+        cartoonIcon: cloudinaryImages.icons.image360,
         align: "left",
     },
     {
@@ -51,7 +48,7 @@ const steps = [
             "Not sure what matches? Our AI suggests accessories, shoes, and complementary pieces to complete your look based on your Aura's unique style profile.",
         image: "https://images.unsplash.com/photo-1485217988980-11786ced9454?q=80&w=900&auto=format&fit=crop",
         icon: Bot,
-        cartoonIcon: iconStylist,
+        cartoonIcon: cloudinaryImages.icons.stylist,
         align: "right",
     },
 ];

@@ -36,7 +36,7 @@ export const Footer = () => {
 
             <div className="relative mx-auto max-w-7xl px-4 pb-4 pt-6 sm:px-6 sm:pt-8 lg:px-10 lg:pb-5">
                 <div className="grid gap-4 xl:grid-cols-[minmax(0,1.08fr)_minmax(0,0.92fr)]">
-                    <div className="rounded-[26px] border border-white/10 bg-[linear-gradient(155deg,rgba(255,255,255,0.07)_0%,rgba(255,255,255,0.02)_100%)] p-5 shadow-[0_18px_48px_rgba(0,0,0,0.2)] backdrop-blur-sm sm:p-6">
+                    <div data-gsap="footer-panel" className="rounded-[26px] border border-white/10 bg-[linear-gradient(155deg,rgba(255,255,255,0.07)_0%,rgba(255,255,255,0.02)_100%)] p-5 shadow-[0_18px_48px_rgba(0,0,0,0.2)] backdrop-blur-sm sm:p-6">
                         <div className="inline-flex items-center gap-2 rounded-full border border-[#D4AF37]/30 bg-[#D4AF37]/10 px-3.5 py-1.5 text-[10px] font-semibold uppercase tracking-[0.22em] text-[#E7C870]">
                             <Sparkles className="h-3.5 w-3.5" />
                             Ai Fashiontech LLP
@@ -89,7 +89,7 @@ export const Footer = () => {
                         </div>
                     </div>
 
-                    <div className="rounded-[26px] border border-white/10 bg-[linear-gradient(155deg,rgba(255,255,255,0.05)_0%,rgba(255,255,255,0.015)_100%)] p-5 shadow-[0_18px_48px_rgba(0,0,0,0.18)] backdrop-blur-sm">
+                    <div data-gsap="footer-panel" className="rounded-[26px] border border-white/10 bg-[linear-gradient(155deg,rgba(255,255,255,0.05)_0%,rgba(255,255,255,0.015)_100%)] p-5 shadow-[0_18px_48px_rgba(0,0,0,0.18)] backdrop-blur-sm">
                         <div className="flex flex-col gap-2.5 sm:flex-row sm:items-start sm:justify-between">
                             <div className="max-w-md">
                                 <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#E7C870]">
@@ -123,7 +123,7 @@ export const Footer = () => {
                     </div>
                 </div>
 
-                <div className="mt-4 rounded-[20px] border border-white/10 bg-white/[0.03] px-4 py-3 shadow-[0_12px_32px_rgba(0,0,0,0.14)] sm:px-5">
+                <div data-gsap="footer-bottom" className="mt-4 rounded-[20px] border border-white/10 bg-white/[0.03] px-4 py-3 shadow-[0_12px_32px_rgba(0,0,0,0.14)] sm:px-5">
                     <div className="flex flex-col gap-2.5 lg:flex-row lg:items-center lg:justify-between">
                         <div className="min-w-0">
                             <p className="text-sm font-medium text-white">

@@ -9,9 +9,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { forgotPasswordSchema, type ForgotPasswordFormData } from "@/lib/validation";
-import heroImage from "@/assets/auth-hero-forgot.jpg"; // Reusing existing asset
+import { cloudinaryImages } from "@/constants/cloudinaryImages";
 
 const UserForgotPassword = () => {
+    const heroImage = cloudinaryImages.auth.forgot;
     const [isLoading, setIsLoading] = useState(false);
     const [isSuccess, setIsSuccess] = useState(false);
     const [submittedEmail, setSubmittedEmail] = useState("");

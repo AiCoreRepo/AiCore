@@ -8,9 +8,10 @@ import { useToast } from '@/hooks/use-toast';
 import { signup as signupApi, userSignup as userSignupApi, login as loginApi } from '@/lib/api';
 import { getErrorMessage } from '@/lib/error-utils';
 import { CheckCircle2, ArrowLeft } from 'lucide-react';
-import heroImage from '@/assets/auth-hero-signup.jpg';
+import { cloudinaryImages } from "@/constants/cloudinaryImages";
 
 export const OTPVerification = () => {
+    const heroImage = cloudinaryImages.auth.signup;
     const [otp, setOtp] = useState('');
     const [isVerified, setIsVerified] = useState(false);
     const [isVerifying, setIsVerifying] = useState(false);

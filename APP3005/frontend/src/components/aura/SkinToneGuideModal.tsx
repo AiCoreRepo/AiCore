@@ -1,6 +1,7 @@
 import { X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { createPortal } from "react-dom";
+import { cloudinaryImages } from "@/constants/cloudinaryImages";
 
 interface SkinToneGuideModalProps {
     isOpen: boolean;
@@ -102,7 +103,7 @@ export const SkinToneGuideModal = ({ isOpen, onClose }: SkinToneGuideModalProps)
                                 className="bg-gradient-to-br from-cream/20 via-white to-ivory/20 rounded-3xl p-10 mb-8 border-2 border-gold/20 shadow-inner"
                             >
                                 <img
-                                    src="/images/skin-tone-guide.png"
+                                    src={cloudinaryImages.guides.skinTone}
                                     alt="Professional Skin Tone Reference"
                                     className="w-full h-auto rounded-2xl"
                                     style={{
