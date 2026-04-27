@@ -68,14 +68,18 @@ const StoryCard = ({
       data-gsap="story-card"
       data-gsap-hover="tilt-card"
       onClick={handleClick}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          handleClick();
+        }
+      }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
+      className="relative min-h-[360px] cursor-pointer overflow-hidden rounded-[20px] xs:min-h-[400px] sm:min-h-[480px]"
+      role="button"
+      tabIndex={0}
       style={{
-        position: "relative",
-        borderRadius: "20px",
-        overflow: "hidden",
-        cursor: "pointer",
-        minHeight: "480px",
         transformStyle: "preserve-3d",
         boxShadow: hovered
           ? `0 32px 80px rgba(0,0,0,0.55), 0 0 0 1px rgba(${card.accentRgb},0.45), 0 0 40px rgba(${card.accentRgb},0.18)`
@@ -135,23 +139,14 @@ const StoryCard = ({
       {/* Content */}
       <div
         data-gsap="story-card-content"
-        style={{
-          position: "relative",
-          zIndex: 2,
-          display: "flex",
-          flexDirection: "column",
-          justifyContent: "space-between",
-          height: "100%",
-          minHeight: "480px",
-          padding: "44px 44px 44px 44px",
-        }}
+        className="relative z-10 flex h-full min-h-[360px] flex-col justify-between p-6 xs:min-h-[400px] xs:p-7 sm:min-h-[480px] sm:p-11"
       >
         {/* Top — number + category */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <span
             style={{
               fontFamily: "var(--font-serif)",
-              fontSize: "2.6rem",
+              fontSize: "clamp(2.1rem, 9vw, 2.6rem)",
               fontWeight: 700,
               color: `rgba(${card.accentRgb},0.35)`,
               lineHeight: 1,
@@ -162,9 +157,9 @@ const StoryCard = ({
           </span>
           <span
             style={{
-              fontSize: "9px",
+              fontSize: "8.5px",
               textTransform: "uppercase",
-              letterSpacing: "0.42em",
+              letterSpacing: "0.32em",
               color: `rgba(${card.accentRgb},0.85)`,
               fontWeight: 600,
               background: `rgba(${card.accentRgb},0.12)`,
@@ -185,7 +180,7 @@ const StoryCard = ({
               width: hovered ? "56px" : "32px",
               height: "1px",
               background: `rgba(${card.accentRgb},0.7)`,
-              marginBottom: "20px",
+              marginBottom: "16px",
               transition: "width 0.4s ease",
             }}
           />
@@ -193,11 +188,11 @@ const StoryCard = ({
           <h3
             style={{
               fontFamily: "var(--font-serif)",
-              fontSize: "clamp(1.6rem, 2.6vw, 2.2rem)",
+              fontSize: "clamp(1.45rem, 6vw, 2.2rem)",
               fontWeight: 400,
               color: "#fff",
               lineHeight: 1.22,
-              marginBottom: "14px",
+              marginBottom: "12px",
               whiteSpace: "pre-line",
             }}
           >
@@ -206,11 +201,11 @@ const StoryCard = ({
 
           <p
             style={{
-              fontSize: "0.9rem",
+              fontSize: "0.92rem",
               color: "rgba(255,255,255,0.62)",
               lineHeight: 1.65,
-              marginBottom: "28px",
-              maxWidth: "280px",
+              marginBottom: "24px",
+              maxWidth: "20rem",
             }}
           >
             {card.tagline}
@@ -222,9 +217,9 @@ const StoryCard = ({
               display: "inline-flex",
               alignItems: "center",
               gap: "10px",
-              fontSize: "11px",
+              fontSize: "10px",
               textTransform: "uppercase",
-              letterSpacing: "0.32em",
+              letterSpacing: "0.24em",
               fontWeight: 600,
               color: `hsl(44 78% 72%)`,
               transform: hovered ? "translateX(6px)" : "translateX(0)",
@@ -252,11 +247,9 @@ export const ValueCards = () => {
   return (
     <section
       id="stories"
+      className="relative overflow-hidden py-20 sm:py-24 lg:py-32"
       style={{
         background: "hsl(30 14% 8%)",
-        padding: "7rem 0 8rem",
-        position: "relative",
-        overflow: "hidden",
       }}
     >
       {/* Subtle BG noise/glow */}
@@ -282,17 +275,14 @@ export const ValueCards = () => {
         {/* ── Section Header ── */}
         <div
           data-gsap="section-heading"
-          style={{
-            textAlign: "center",
-            marginBottom: "4.5rem",
-          }}
+          className="mb-12 text-center sm:mb-16 lg:mb-[4.5rem]"
         >
           <div
             style={{
               display: "inline-flex",
               alignItems: "center",
-              gap: "14px",
-              marginBottom: "20px",
+              gap: "12px",
+              marginBottom: "18px",
             }}
           >
             <span
@@ -305,9 +295,9 @@ export const ValueCards = () => {
             />
             <span
               style={{
-                fontSize: "9px",
+                fontSize: "8.5px",
                 textTransform: "uppercase",
-                letterSpacing: "0.52em",
+                letterSpacing: "0.34em",
                 fontWeight: 600,
                 color: "hsl(44 78% 54%)",
               }}
@@ -330,7 +320,7 @@ export const ValueCards = () => {
               fontSize: "clamp(1.9rem, 3.5vw, 3rem)",
               color: "hsl(40 38% 92%)",
               lineHeight: 1.1,
-              marginBottom: "16px",
+              marginBottom: "14px",
             }}
           >
             Where would you like to{" "}
@@ -351,11 +341,11 @@ export const ValueCards = () => {
 
           <p
             style={{
-              fontSize: "1rem",
+              fontSize: "0.98rem",
               color: "rgba(255,255,255,0.38)",
               maxWidth: "42rem",
               margin: "0 auto",
-              lineHeight: 1.75,
+              lineHeight: 1.7,
             }}
           >
             Each card is a portal — click to immerse yourself in a chapter of the Aivestire story.
@@ -363,7 +353,7 @@ export const ValueCards = () => {
         </div>
 
         {/* ── 2×2 Story Card Grid ── */}
-        <div data-gsap-group="story-grid" className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div data-gsap-group="story-grid" className="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2">
           {storyCards.map((card) => (
             <StoryCard key={card.id} card={card} />
           ))}

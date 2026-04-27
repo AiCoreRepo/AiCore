@@ -34,9 +34,9 @@ export const Footer = () => {
             <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#D4AF37]/55 to-transparent" />
             <div data-gsap="ambient-orb" data-gsap-drift="20" className="absolute left-1/2 top-0 h-64 w-[42rem] -translate-x-1/2 bg-[radial-gradient(circle,rgba(212,175,55,0.18)_0%,rgba(212,175,55,0)_72%)] opacity-70" />
 
-            <div className="relative mx-auto max-w-7xl px-4 pb-4 pt-6 sm:px-6 sm:pt-8 lg:px-10 lg:pb-5">
-                <div className="grid gap-4 xl:grid-cols-[minmax(0,1.08fr)_minmax(0,0.92fr)]">
-                    <div data-gsap="footer-panel" className="rounded-[26px] border border-white/10 bg-[linear-gradient(155deg,rgba(255,255,255,0.07)_0%,rgba(255,255,255,0.02)_100%)] p-5 shadow-[0_18px_48px_rgba(0,0,0,0.2)] backdrop-blur-sm sm:p-6">
+            <div className="relative mx-auto max-w-7xl px-4 pb-4 pt-5 sm:px-6 sm:pt-8 lg:px-10 lg:pb-5">
+                <div className="grid gap-3.5 sm:gap-4 xl:grid-cols-[minmax(0,1.08fr)_minmax(0,0.92fr)]">
+                    <div data-gsap="footer-panel" className="rounded-[24px] border border-white/10 bg-[linear-gradient(155deg,rgba(255,255,255,0.07)_0%,rgba(255,255,255,0.02)_100%)] p-4 shadow-[0_18px_48px_rgba(0,0,0,0.2)] backdrop-blur-sm sm:rounded-[26px] sm:p-6">
                         <div className="inline-flex items-center gap-2 rounded-full border border-[#D4AF37]/30 bg-[#D4AF37]/10 px-3.5 py-1.5 text-[10px] font-semibold uppercase tracking-[0.22em] text-[#E7C870]">
                             <Sparkles className="h-3.5 w-3.5" />
                             Ai Fashiontech LLP
@@ -45,7 +45,7 @@ export const Footer = () => {
                         <div className="mt-4 max-w-xl">
                             <Link
                                 to="/"
-                                className="font-serif text-[1.85rem] font-semibold leading-none text-white transition-colors hover:text-[#E7C870] sm:text-[2.1rem]"
+                                className="font-serif text-[1.6rem] font-semibold leading-none text-white transition-colors hover:text-[#E7C870] xs:text-[1.75rem] sm:text-[2.1rem]"
                             >
                                 AiVestire
                             </Link>
@@ -60,7 +60,7 @@ export const Footer = () => {
                             <a
                                 href="mailto:support@aivestire.com"
                                 data-gsap-hover="magnetic-soft"
-                                className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/[0.05] px-4 py-2 text-sm font-medium text-[#F8F2E9] transition-colors hover:border-[#D4AF37]/45 hover:bg-[#D4AF37]/10 hover:text-white"
+                                className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-white/12 bg-white/[0.05] px-4 py-2 text-sm font-medium text-[#F8F2E9] transition-colors hover:border-[#D4AF37]/45 hover:bg-[#D4AF37]/10 hover:text-white sm:w-auto sm:justify-start"
                             >
                                 <Mail className="h-4 w-4 text-[#E7C870]" />
                                 support@aivestire.com
@@ -91,7 +91,7 @@ export const Footer = () => {
                         </div>
                     </div>
 
-                    <div data-gsap="footer-panel" className="rounded-[26px] border border-white/10 bg-[linear-gradient(155deg,rgba(255,255,255,0.05)_0%,rgba(255,255,255,0.015)_100%)] p-5 shadow-[0_18px_48px_rgba(0,0,0,0.18)] backdrop-blur-sm">
+                    <div data-gsap="footer-panel" className="rounded-[24px] border border-white/10 bg-[linear-gradient(155deg,rgba(255,255,255,0.05)_0%,rgba(255,255,255,0.015)_100%)] p-4 shadow-[0_18px_48px_rgba(0,0,0,0.18)] backdrop-blur-sm sm:rounded-[26px] sm:p-5">
                         <div className="flex flex-col gap-2.5 sm:flex-row sm:items-start sm:justify-between">
                             <div className="max-w-md">
                                 <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#E7C870]">
@@ -111,13 +111,13 @@ export const Footer = () => {
                             </div>
                         </div>
 
-                        <div className="mt-4 flex flex-wrap gap-2.5">
+                        <div className="mt-4 grid grid-cols-1 gap-2.5 xs:grid-cols-2">
                             {footerLinks.map((link) => (
                                 <Link
                                     key={link.to}
                                     to={link.to}
                                     data-gsap-hover="magnetic-soft"
-                                    className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2.5 text-sm font-medium text-[#F8F2E9]/72 transition-all duration-300 hover:-translate-y-0.5 hover:border-[#D4AF37]/40 hover:bg-[#D4AF37]/10 hover:text-white"
+                                    className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2.5 text-center text-sm font-medium text-[#F8F2E9]/72 transition-all duration-300 hover:-translate-y-0.5 hover:border-[#D4AF37]/40 hover:bg-[#D4AF37]/10 hover:text-white"
                                 >
                                     {link.label}
                                 </Link>
@@ -126,7 +126,7 @@ export const Footer = () => {
                     </div>
                 </div>
 
-                <div data-gsap="footer-bottom" className="mt-4 rounded-[20px] border border-white/10 bg-white/[0.03] px-4 py-3 shadow-[0_12px_32px_rgba(0,0,0,0.14)] sm:px-5">
+                <div data-gsap="footer-bottom" className="mt-3.5 rounded-[20px] border border-white/10 bg-white/[0.03] px-4 py-3 shadow-[0_12px_32px_rgba(0,0,0,0.14)] sm:mt-4 sm:px-5">
                     <div className="flex flex-col gap-2.5 lg:flex-row lg:items-center lg:justify-between">
                         <div className="min-w-0">
                             <p className="text-sm font-medium text-white">

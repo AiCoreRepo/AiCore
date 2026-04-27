@@ -50,6 +50,10 @@ export const Navbar = () => {
     }, [location]);
 
     useEffect(() => {
+        setIsMobileMenuOpen(false);
+    }, [location.pathname, location.hash]);
+
+    useEffect(() => {
         const checkAura = async () => {
             const token = localStorage.getItem("access_token");
             if (token) {
@@ -87,6 +91,18 @@ export const Navbar = () => {
         return () => document.removeEventListener("mousedown", handleOut);
     }, [showUserMenu]);
 
+    useEffect(() => {
+        if (!isMobileMenuOpen) {
+            document.body.style.overflow = "";
+            return;
+        }
+
+        document.body.style.overflow = "hidden";
+        return () => {
+            document.body.style.overflow = "";
+        };
+    }, [isMobileMenuOpen]);
+
     const isActive = (href: string) =>
         href === "/" ? location.pathname === "/" : location.pathname === href;
 
@@ -105,7 +121,7 @@ export const Navbar = () => {
                     borderColor: isScrolled ? "rgba(212,175,55,0.15)" : "rgba(255,255,255,0.05)",
                 }}
             >
-                <div className="w-full px-6 md:px-12 py-5 transition-all duration-500" style={{ paddingBottom: isScrolled ? "1rem" : "1.25rem", paddingTop: isScrolled ? "1rem" : "1.25rem" }}>
+                <div className="w-full px-4 py-4 transition-all duration-500 sm:px-6 sm:py-5 md:px-12" style={{ paddingBottom: isScrolled ? "0.95rem" : "1.1rem", paddingTop: isScrolled ? "0.95rem" : "1.1rem" }}>
                     <div className="flex items-center justify-between">
                         {/* ── LOGO ── */}
                         <Link
@@ -116,7 +132,7 @@ export const Navbar = () => {
                             <span
                                 className="font-serif font-bold tracking-[0.05em] transition-all duration-300 group-hover:opacity-90"
                                 style={{
-                                    fontSize: "1.45rem",
+                                    fontSize: "clamp(1.2rem, 4vw, 1.45rem)",
                                     background: "linear-gradient(135deg, hsl(44 78% 68%), hsl(40 62% 52%))",
                                     WebkitBackgroundClip: "text",
                                     WebkitTextFillColor: "transparent",
@@ -127,7 +143,7 @@ export const Navbar = () => {
                             </span>
                             <span
                                 className="font-serif font-bold tracking-[0.05em] transition-all duration-300"
-                                style={{ fontSize: "1.45rem", color: "rgba(255,255,255,0.92)" }}
+                                style={{ fontSize: "clamp(1.2rem, 4vw, 1.45rem)", color: "rgba(255,255,255,0.92)" }}
                             >
                                 Vestire
                             </span>
@@ -199,7 +215,7 @@ export const Navbar = () => {
                         </nav>
 
                         {/* ── RIGHT ICONS ── */}
-                        <div data-gsap="nav-actions" className="flex items-center gap-3 md:gap-4">
+                        <div data-gsap="nav-actions" className="flex items-center gap-2.5 sm:gap-3 md:gap-4">
                             {/* Join as Creator */}
                             {!isLoggedIn && (
                                 <Link
@@ -312,7 +328,7 @@ export const Navbar = () => {
                             {/* Mobile hamburger */}
                             <button
                                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                                className="lg:hidden w-9 h-9 flex items-center justify-center rounded-full transition-all duration-300"
+                                className="flex h-10 w-10 items-center justify-center rounded-full transition-all duration-300 lg:hidden"
                                 style={{
                                     background: "rgba(255,255,255,0.07)",
                                     border: "1px solid rgba(255,255,255,0.1)",
@@ -326,27 +342,36 @@ export const Navbar = () => {
 
                     {/* ── MOBILE MENU ── */}
                     <div
-                        className="lg:hidden overflow-hidden transition-all duration-500"
+                        className="overflow-hidden transition-all duration-500 lg:hidden"
                         style={{
-                            maxHeight: isMobileMenuOpen ? "600px" : "0",
+                            maxHeight: isMobileMenuOpen ? "calc(100vh - 5.5rem)" : "0",
                             opacity: isMobileMenuOpen ? 1 : 0,
                         }}
                     >
                         <div
-                            className="mt-2 rounded-2xl px-4 py-5 flex flex-col gap-1"
+                            className="mt-2 flex max-h-[calc(100vh-7rem)] flex-col gap-1 overflow-y-auto rounded-[1.5rem] px-3.5 py-4 sm:px-4 sm:py-5"
                             style={{
                                 background: "rgba(8, 6, 4, 0.92)",
                                 backdropFilter: "blur(20px)",
                                 border: "1px solid rgba(212,175,55,0.15)",
                             }}
                         >
+                            <div className="mb-3 rounded-[1.25rem] border border-white/10 bg-white/[0.04] px-4 py-3.5">
+                                <div className="text-[10px] font-semibold uppercase tracking-[0.26em]" style={{ color: "hsl(44 78% 66%)" }}>
+                                    Explore Aivestire
+                                </div>
+                                <p className="mt-2 text-sm leading-6" style={{ color: "rgba(255,255,255,0.62)" }}>
+                                    Heritage fashion, AI try-on, and curated styling designed for mobile browsing.
+                                </p>
+                            </div>
+
                             {navLinks.map((link) =>
                                 link.isRoute ? (
                                     <Link
                                         key={link.name}
                                         to={link.href}
                                         onClick={() => setIsMobileMenuOpen(false)}
-                                        className="px-4 py-3 rounded-xl text-sm font-medium tracking-wide transition-all duration-200"
+                                        className="rounded-xl px-4 py-3 text-sm font-medium tracking-wide transition-all duration-200"
                                         style={{
                                             color: isActive(link.href) ? "hsl(44 78% 66%)" : "rgba(255,255,255,0.62)",
                                             background: isActive(link.href) ? "rgba(212,175,55,0.1)" : "transparent",
@@ -359,7 +384,7 @@ export const Navbar = () => {
                                         key={link.name}
                                         href={link.href}
                                         onClick={() => setIsMobileMenuOpen(false)}
-                                        className="px-4 py-3 rounded-xl text-sm font-medium tracking-wide transition-all duration-200"
+                                        className="rounded-xl px-4 py-3 text-sm font-medium tracking-wide transition-all duration-200"
                                         style={{ color: "rgba(255,255,255,0.62)" }}
                                     >
                                         {link.name}
@@ -367,23 +392,25 @@ export const Navbar = () => {
                                 )
                             )}
 
-                            <div className="my-2 h-px mx-2" style={{ background: "rgba(255,255,255,0.06)" }} />
+                            <div className="mx-2 my-2 h-px" style={{ background: "rgba(255,255,255,0.06)" }} />
 
-                            <Link to="/cart" onClick={() => setIsMobileMenuOpen(false)} className="px-4 py-3 rounded-xl text-sm font-medium transition-all" style={{ color: "rgba(255,255,255,0.62)" }}>Cart</Link>
-                            <Link to="/wishlist" onClick={() => setIsMobileMenuOpen(false)} className="px-4 py-3 rounded-xl text-sm font-medium transition-all" style={{ color: "rgba(255,255,255,0.62)" }}>Wishlist</Link>
+                            <div className="grid grid-cols-2 gap-2">
+                                <Link to="/cart" onClick={() => setIsMobileMenuOpen(false)} className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-center text-sm font-medium transition-all" style={{ color: "rgba(255,255,255,0.72)" }}>Cart</Link>
+                                <Link to="/wishlist" onClick={() => setIsMobileMenuOpen(false)} className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-center text-sm font-medium transition-all" style={{ color: "rgba(255,255,255,0.72)" }}>Wishlist</Link>
+                            </div>
 
                             {isLoggedIn && (
                                 <>
-                                    <div className="my-2 h-px mx-2" style={{ background: "rgba(255,255,255,0.06)" }} />
-                                    <Link to="/my-orders" onClick={() => setIsMobileMenuOpen(false)} className="px-4 py-3 rounded-xl text-sm font-medium transition-all" style={{ color: "rgba(255,255,255,0.62)" }}>My Orders</Link>
+                                    <div className="mx-2 my-2 h-px" style={{ background: "rgba(255,255,255,0.06)" }} />
+                                    <Link to="/my-orders" onClick={() => setIsMobileMenuOpen(false)} className="rounded-xl px-4 py-3 text-sm font-medium transition-all" style={{ color: "rgba(255,255,255,0.62)" }}>My Orders</Link>
                                     {hasAura ? (
-                                        <Link to="/aura-profile" onClick={() => setIsMobileMenuOpen(false)} className="px-4 py-3 rounded-xl text-sm font-medium transition-all" style={{ color: "rgba(255,255,255,0.62)" }}>Aura Profile</Link>
+                                        <Link to="/aura-profile" onClick={() => setIsMobileMenuOpen(false)} className="rounded-xl px-4 py-3 text-sm font-medium transition-all" style={{ color: "rgba(255,255,255,0.62)" }}>Aura Profile</Link>
                                     ) : (
-                                        <Link to="/aura-dashboard" onClick={() => setIsMobileMenuOpen(false)} className="px-4 py-3 rounded-xl text-sm font-medium transition-all" style={{ color: "rgba(255,255,255,0.62)" }}>Create Aura</Link>
+                                        <Link to="/aura-dashboard" onClick={() => setIsMobileMenuOpen(false)} className="rounded-xl px-4 py-3 text-sm font-medium transition-all" style={{ color: "rgba(255,255,255,0.62)" }}>Create Aura</Link>
                                     )}
                                     <button
                                         onClick={() => { setIsMobileMenuOpen(false); setShowLogoutDialog(true); }}
-                                        className="text-left px-4 py-3 rounded-xl text-sm font-medium transition-all"
+                                        className="rounded-xl px-4 py-3 text-left text-sm font-medium transition-all"
                                         style={{ color: "rgba(255,100,100,0.75)" }}
                                     >
                                         Logout
@@ -392,11 +419,11 @@ export const Navbar = () => {
                             )}
 
                             {!isLoggedIn && (
-                                <div className="flex flex-col gap-2 mt-2">
+                                <div className="mt-2 flex flex-col gap-2">
                                     <Link
                                         to="/user-login"
                                         onClick={() => setIsMobileMenuOpen(false)}
-                                        className="px-4 py-3 rounded-xl text-sm font-semibold text-center transition-all"
+                                        className="rounded-xl px-4 py-3 text-center text-sm font-semibold transition-all"
                                         style={{
                                             background: "linear-gradient(135deg, hsl(44 78% 56%), hsl(40 62% 44%))",
                                             color: "hsl(30 14% 10%)",
@@ -407,7 +434,7 @@ export const Navbar = () => {
                                     <Link
                                         to="/login"
                                         onClick={() => setIsMobileMenuOpen(false)}
-                                        className="px-4 py-3 rounded-xl text-sm font-medium text-center transition-all"
+                                        className="rounded-xl px-4 py-3 text-center text-sm font-medium transition-all"
                                         style={{
                                             border: "1px solid rgba(212,175,55,0.3)",
                                             color: "hsl(44 78% 62%)",

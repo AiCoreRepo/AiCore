@@ -23,7 +23,7 @@ const quotes = [
 
 export const ArtisanTestimonials = () => {
   return (
-    <section className="py-24 relative overflow-hidden bg-[#0c0907] border-t border-white/5">
+    <section className="relative overflow-hidden border-t border-white/5 bg-[#0c0907] py-16 sm:py-20 lg:py-24">
       <div
         data-gsap="ambient-orb"
         data-gsap-drift="16"
@@ -45,8 +45,8 @@ export const ArtisanTestimonials = () => {
         }}
       />
       <div className="container-luxury relative z-10">
-        <div data-gsap="section-heading" className="text-center mb-16">
-          <div className="inline-flex items-center gap-3 mb-4">
+        <div data-gsap="section-heading" className="mb-12 text-center sm:mb-16">
+          <div className="mb-4 inline-flex items-center gap-3">
             <span className="block h-px w-8" style={{ background: "hsl(44 78% 54%)" }} />
             <span className="text-[10px] uppercase tracking-[0.48em] font-semibold text-white">Voices of Craft</span>
             <span className="block h-px w-8" style={{ background: "hsl(44 78% 54%)" }} />
@@ -56,13 +56,13 @@ export const ArtisanTestimonials = () => {
           </h2>
         </div>
 
-        <div data-gsap-group="testimonial-grid" className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div data-gsap-group="testimonial-grid" className="grid grid-cols-1 gap-5 sm:gap-6 md:grid-cols-3 md:gap-8">
           {quotes.map((q, i) => (
             <article
               data-gsap="testimonial-card"
               data-gsap-hover="lift-card"
               key={i}
-              className="relative overflow-hidden rounded-[1.7rem] border border-[#D4AF37]/20 bg-[linear-gradient(160deg,rgba(255,255,255,0.06)_0%,rgba(255,255,255,0.025)_48%,rgba(212,175,55,0.04)_100%)] p-8 transition-all duration-500 hover:bg-[linear-gradient(160deg,rgba(255,255,255,0.08)_0%,rgba(255,255,255,0.03)_48%,rgba(212,175,55,0.08)_100%)]"
+              className="relative overflow-hidden rounded-[1.7rem] border border-[#D4AF37]/20 bg-[linear-gradient(160deg,rgba(255,255,255,0.06)_0%,rgba(255,255,255,0.025)_48%,rgba(212,175,55,0.04)_100%)] p-6 transition-all duration-500 hover:bg-[linear-gradient(160deg,rgba(255,255,255,0.08)_0%,rgba(255,255,255,0.03)_48%,rgba(212,175,55,0.08)_100%)] sm:p-8"
             >
               <div
                 data-gsap="testimonial-card-glow"
@@ -76,7 +76,7 @@ export const ArtisanTestimonials = () => {
 
               <div data-gsap="lift-content" className="relative z-10">
                 <div data-gsap="testimonial-quote-mark" className="absolute -top-4 -left-2 text-6xl text-white/22 font-serif leading-none group-hover:text-white/40 transition-colors">"</div>
-                <p data-gsap="testimonial-copy" className="text-white italic leading-relaxed mb-8 relative z-10 pr-2">
+                <p data-gsap="testimonial-copy" className="relative z-10 mb-6 pr-2 text-sm italic leading-relaxed text-white sm:mb-8 sm:text-base">
                   {q.quote}
                 </p>
                 <div data-gsap="testimonial-meta" className="flex items-center gap-4">
