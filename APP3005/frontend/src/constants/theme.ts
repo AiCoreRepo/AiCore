@@ -10,6 +10,9 @@ import {
     Upload,
     Package,
     MessageSquare,
+    Ticket,
+    Layers,
+    BarChart,
 } from 'lucide-react';
 
 /**
@@ -95,12 +98,11 @@ export const menuItems: MenuItem[] = [
         // High-level pulse check: Revenue + Aura Counts + Creator Activity (Both Microservices)
     },
     {
-        id: 'approvals',
-        label: 'Atelier Approval',
-        icon: CheckSquare,
-        href: '/admin-approvals',
+        id: 'categories',
+        label: 'Categories',
+        icon: Layers,
+        href: '/admin-categories',
         isBeta: false,
-        // Microservice 2 (Creator): The Gatekeeper - Review pending 20-item uploads from creators
     },
     {
         id: 'try-on-approvals',
@@ -115,7 +117,20 @@ export const menuItems: MenuItem[] = [
         icon: Package,
         href: '/admin-orders',
         isBeta: false,
-        // View and manage all customer orders - approve, track, update status
+    },
+    {
+        id: 'products',
+        label: 'Products Management',
+        icon: ShoppingBag,
+        href: '/admin-products',
+        isBeta: false,
+    },
+    {
+        id: 'inventory',
+        label: 'Inventory Management',
+        icon: Package, // Keep package icon for stock tracking
+        href: '/admin-inventory',
+        isBeta: false,
     },
     {
         id: 'collection',
@@ -133,11 +148,18 @@ export const menuItems: MenuItem[] = [
         isBeta: false,
     },
     {
+        id: 'admin-cloth-upload',
+        label: 'Admin Cloth Upload',
+        icon: Upload,
+        href: '/admin-cloth-upload',
+        isBeta: false,
+    },
+    {
         id: 'artisans',
-        label: 'Artisans',
+        label: 'Creator Management',
         icon: Palette,
         href: '/admin-artisans',
-        isBeta: true,
+        isBeta: false,
         // Microservice 2 (Creator): Creator Management - Designer directory, verify profiles, monitor upload limits
     },
     {
@@ -147,6 +169,14 @@ export const menuItems: MenuItem[] = [
         href: '/admin-clientele',
         isBeta: true,
         // Microservice 1 (Consumer): Buyer Management - User list, check Aura status, help stuck users
+    },
+
+    {
+        id: 'coupons',
+        label: 'Coupons & Referrals',
+        icon: Ticket,
+        href: '/admin-coupons',
+        isBeta: false,
     },
     {
         id: 'settings',

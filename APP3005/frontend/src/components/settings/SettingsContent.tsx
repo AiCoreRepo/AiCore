@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { updateProfile } from "@/lib/api";
 import { LuxeButton } from "@/components/common/Buttons/LuxeButton";
-import { User, LayoutDashboard, Palette } from "lucide-react";
+import { User, LayoutDashboard, Palette, Building2, Smartphone, ShieldCheck } from "lucide-react";
 import EditProfileModal from "../dashboard/EditProfileModal";
 import { useAuth } from "@/context/AuthContext";
 
@@ -14,18 +14,23 @@ interface DashboardConfig {
     showUploads: boolean;
 }
 
+const UPI_ID_REGEX = /^[a-zA-Z0-9._-]{2,256}@[a-zA-Z]{2,64}$/;
+
 const SettingsContent: React.FC = () => {
     const { user, fetchUser, loading } = useAuth();
     const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
     const [formData, setFormData] = useState({
         name: "",
         subtitle: "",
+        paymentBeneficiaryName: "",
+        paymentUpiId: "",
     });
     const [dashboardConfig, setDashboardConfig] = useState<DashboardConfig>({
         showStats: true,
         showUploads: true,
     });
     const [hasChanges, setHasChanges] = useState(false);
+    const [paymentError, setPaymentError] = useState("");
     const { toast } = useToast();
 
     useEffect(() => {
@@ -33,7 +38,10 @@ const SettingsContent: React.FC = () => {
             setFormData({
                 name: user.store_name || "Creator",
                 subtitle: user.subtitle || "Creator",
+                paymentBeneficiaryName: user.paymentDetails?.beneficiaryName || "",
+                paymentUpiId: user.paymentDetails?.upiId || "",
             });
+            setPaymentError("");
         }
     }, [user]);
 
@@ -53,6 +61,9 @@ const SettingsContent: React.FC = () => {
     const handleInputChange = (field: string, value: string) => {
         setFormData(prev => ({ ...prev, [field]: value }));
         setHasChanges(true);
+        if (field === "paymentBeneficiaryName" || field === "paymentUpiId") {
+            setPaymentError("");
+        }
     };
 
     const handleProfileUpdate = async () => {
@@ -61,6 +72,22 @@ const SettingsContent: React.FC = () => {
 
     const handleSave = async () => {
         try {
+            const beneficiaryName = formData.paymentBeneficiaryName.trim();
+            const paymentUpiId = formData.paymentUpiId.trim().toLowerCase();
+            const hasAnyPaymentValue = beneficiaryName.length > 0 || paymentUpiId.length > 0;
+
+            if (hasAnyPaymentValue) {
+                if (!beneficiaryName || !paymentUpiId) {
+                    setPaymentError("Add both beneficiary name and UPI ID to save payout details.");
+                    return;
+                }
+
+                if (!UPI_ID_REGEX.test(paymentUpiId)) {
+                    setPaymentError("Enter a valid UPI ID like yourname@upi.");
+                    return;
+                }
+            }
+
             // Save dashboard config
             localStorage.setItem('dashboardConfig', JSON.stringify(dashboardConfig));
 
@@ -68,10 +95,13 @@ const SettingsContent: React.FC = () => {
             await updateProfile({
                 name: formData.name,
                 subtitle: formData.subtitle,
+                paymentBeneficiaryName: beneficiaryName,
+                paymentUpiId,
             });
 
             await fetchUser();
             setHasChanges(false);
+            setPaymentError("");
             toast({
                 title: "Settings Saved",
                 description: "Your changes have been successfully saved.",
@@ -175,6 +205,83 @@ const SettingsContent: React.FC = () => {
                         </div>
                     </div>
                 </div>
+            </section>
+
+            <section className="bg-white rounded-3xl p-8 border border-stone-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-shadow duration-300">
+                <div className="flex items-center gap-4 mb-8">
+                    <div className="p-3 bg-[#F5F2EB] rounded-2xl text-luxury-gold">
+                        <Building2 size={28} strokeWidth={1.5} />
+                    </div>
+                    <h3 className="text-2xl font-serif text-luxury-black tracking-wide">Payout Details</h3>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <div className="space-y-2">
+                        <Label className="text-base font-medium text-luxury-black">Settlement Gateway</Label>
+                        <Input
+                            value="PayU"
+                            disabled
+                            className="h-12 bg-[#F5F2EB]/40 border-stone-200 text-stone-600 text-lg"
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <Label className="text-base font-medium text-luxury-black">Payout Method</Label>
+                        <Input
+                            value="UPI"
+                            disabled
+                            className="h-12 bg-[#F5F2EB]/40 border-stone-200 text-stone-600 text-lg"
+                        />
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                        <Label htmlFor="paymentBeneficiaryName" className="text-base font-medium text-luxury-black">
+                            Beneficiary Name
+                        </Label>
+                        <Input
+                            id="paymentBeneficiaryName"
+                            value={formData.paymentBeneficiaryName}
+                            onChange={(e) => handleInputChange("paymentBeneficiaryName", e.target.value)}
+                            className="h-12 bg-[#F5F2EB]/30 border-stone-200 !text-[#1B150C] caret-[#1B150C] placeholder:!text-stone-500 focus:border-luxury-gold focus:ring-luxury-gold/20 text-lg"
+                            placeholder="Name on receiving UPI account"
+                        />
+                    </div>
+
+                    <div className="space-y-2">
+                        <Label htmlFor="paymentUpiId" className="text-base font-medium text-luxury-black">
+                            UPI ID
+                        </Label>
+                        <div className="relative">
+                            <Smartphone size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400" />
+                            <Input
+                                id="paymentUpiId"
+                                value={formData.paymentUpiId}
+                                onChange={(e) => handleInputChange("paymentUpiId", e.target.value)}
+                                className="h-12 pl-11 bg-[#F5F2EB]/30 border-stone-200 !text-[#1B150C] caret-[#1B150C] placeholder:!text-stone-500 focus:border-luxury-gold focus:ring-luxury-gold/20 text-lg"
+                                placeholder="yourname@upi"
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                <div className="mt-6 rounded-2xl border border-[#E8D9BC] bg-[#FCF8F1] p-4">
+                    <div className="flex items-start gap-3">
+                        <ShieldCheck size={18} className="text-luxury-gold mt-0.5 shrink-0" />
+                        <div className="space-y-1">
+                            <p className="text-sm font-medium text-luxury-black">
+                                Creator payouts will be settled through PayU to this UPI ID.
+                            </p>
+                            <p className="text-sm text-stone-500">
+                                Enter only the receiving UPI ID. Never enter your UPI PIN or OTP here.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                {paymentError && (
+                    <p className="mt-4 text-sm font-medium text-red-600">{paymentError}</p>
+                )}
             </section>
 
             {/* Dashboard Customization Section */}

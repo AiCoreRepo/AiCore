@@ -7,9 +7,10 @@ import { creatorLogin } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { getErrorMessage } from "@/lib/error-utils";
 import { AuthLayout } from "@/components/auth/AuthLayout";
-import heroImage from "@/assets/auth-hero-login.jpg"; // Using a consistent high-quality asset
+import { cloudinaryImages } from "@/constants/cloudinaryImages";
 
 const CreatorLogin = () => {
+  const heroImage = cloudinaryImages.auth.login;
   const [email, setEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
@@ -27,7 +28,8 @@ const CreatorLogin = () => {
         title: "Logged in as Creator!",
         description: "Welcome back to your workspace.",
       });
-      navigate("/creator-dashboard");
+      window.dispatchEvent(new Event("auth-refresh"));
+      navigate("/creator-onboarding");
     } catch (error: unknown) {
       toast({
         title: "Login Failed",

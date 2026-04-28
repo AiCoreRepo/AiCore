@@ -49,6 +49,7 @@ export const CART_QUERY_SELECT = {
     title: true,
     slug: true,
     price_cents: true,
+    commission_percentage: true,
     currency: true,
     inventory_count: true,
     category: true,

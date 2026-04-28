@@ -8,15 +8,8 @@ import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { Prisma, ProductStatus, ApprovalStatus } from '@prisma/client';
 import { CloudinaryService } from '../common/cloudinary.service';
-
-function slugify(input: string): string {
-  return input
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9\s-]/g, '')
-    .replace(/\s+/g, '-')
-    .replace(/-+/g, '-');
-}
+import { slugify } from '../common/utils/string.utils';
+import { extractAvailableFilters } from './filter.helpers';
 
 @Injectable()
 export class ProductsService {
@@ -50,6 +43,8 @@ export class ProductsService {
         price_cents: dto.price_cents,
         currency: dto.currency ?? undefined,
         inventory_count: dto.inventory_count ?? undefined,
+        category_rel: dto.category_id ? { connect: { category_id: dto.category_id } } : undefined,
+        sub_category_rel: dto.sub_category_id ? { connect: { sub_category_id: dto.sub_category_id } } : undefined,
         creator: { connect: { creator_id: dto.creator_id } },
         images: {
           create: imageUrls.map((image, index) => ({
@@ -59,7 +54,19 @@ export class ProductsService {
           })),
         },
       };
-      return await this.prisma.product.create({ data });
+      
+      const product = await this.prisma.product.create({ data });
+
+      if (dto.group_ids && dto.group_ids.length > 0) {
+        await this.prisma.productGroupAssignment.createMany({
+          data: dto.group_ids.map((groupId) => ({
+            product_id: product.product_id,
+            group_id: groupId,
+          })),
+        });
+      }
+
+      return product;
     } catch (e: unknown) {
       throw new BadRequestException(
         e instanceof Error ? e.message : 'Unknown error',
@@ -76,6 +83,8 @@ export class ProductsService {
         currency: dto.currency,
         inventory_count: dto.inventory_count,
         slug: dto.slug,
+        category_rel: dto.category_id ? { connect: { category_id: dto.category_id } } : undefined,
+        sub_category_rel: dto.sub_category_id ? { connect: { sub_category_id: dto.sub_category_id } } : undefined,
       };
 
       Object.keys(updateData).forEach(
@@ -162,6 +171,8 @@ export class ProductsService {
             comments_count: true,
           },
         },
+        category_rel: true,
+        sub_category_rel: true,
       },
     });
 
@@ -169,11 +180,15 @@ export class ProductsService {
       throw new NotFoundException('Product not found');
     }
 
+    const commissionAddon = Math.round(product.price_cents * (product.commission_percentage / 100));
+    const sellingPrice = product.price_cents + commissionAddon;
+
     return {
       product_id: product.product_id,
       title: product.title,
       description: product.description,
-      price_cents: product.price_cents,
+      price_cents: sellingPrice,
+      original_price_cents: product.price_cents,
       currency: product.currency,
       thumbnail: product.images[0]?.url || null,
       images: product.images.map((img) => ({
@@ -182,6 +197,10 @@ export class ProductsService {
         order_index: img.order_index,
       })),
       category: product.category,
+      category_id: product.category_id,
+      sub_category_id: product.sub_category_id,
+      category_name: product.category_rel?.name,
+      sub_category_name: product.sub_category_rel?.name,
       is_featured: product.is_featured,
       likes: product.stats?.likes_count || 0,
       reviews: product.stats?.comments_count || 0,
@@ -211,12 +230,17 @@ export class ProductsService {
     sortBy?: string,
     sizes?: string,
     colors?: string,
+    bodyShapes?: string,
+    skinTones?: string,
+    availability?: string,
+    groupId?: string,
   ) {
     // Fetch all approved products to filter in memory (efficient for < 5000 items)
     const allProducts = await this.prisma.product.findMany({
       where: {
         status: ProductStatus.APPROVED,
         is_deleted: false,
+        ...(groupId ? { group_assignments: { some: { group_id: groupId } } } : {}),
       },
       include: {
         creator: {
@@ -237,9 +261,13 @@ export class ProductsService {
             comments_count: true,
           },
         },
+        category_rel: true,
+        sub_category_rel: true,
       },
       orderBy: { updated_at: 'desc' },
     });
+
+    const availableFilters = extractAvailableFilters(allProducts);
 
     let filtered = allProducts;
 
@@ -253,9 +281,10 @@ export class ProductsService {
       );
     }
 
-    // 2. Category Filter
+    // 2. Category Filter (comma-separated list)
     if (category && category !== 'All') {
-      filtered = filtered.filter((p) => p.category === category);
+      const categoryList = category.split(',').map((c) => c.trim().toLowerCase());
+      filtered = filtered.filter((p) => p.category && categoryList.includes(p.category.toLowerCase()));
     }
 
     // 3. Price Filter
@@ -287,6 +316,37 @@ export class ProductsService {
         if (!meta || !meta.color) return false;
         const productColors = String(meta.color).toLowerCase();
         return colorList.some((c) => productColors.includes(c));
+      });
+    }
+
+    // 5.1 Body Shapes Filter
+    if (bodyShapes) {
+      const shapeList = bodyShapes.split(',').map(s => s.trim().toLowerCase());
+      filtered = filtered.filter((p) => {
+        if (!p.body_shapes || !Array.isArray(p.body_shapes)) return false;
+        const productShapes = p.body_shapes.map(s => s.toLowerCase());
+        return shapeList.some(s => productShapes.includes(s));
+      });
+    }
+
+    // 5.2 Skin Tones Filter
+    if (skinTones) {
+      const toneList = skinTones.split(',').map(s => s.trim().toLowerCase());
+      filtered = filtered.filter((p) => {
+        if (!p.skin_tones || !Array.isArray(p.skin_tones)) return false;
+        const productTones = p.skin_tones.map(s => s.toLowerCase());
+        return toneList.some(s => productTones.includes(s));
+      });
+    }
+
+    // 5.5 Availability Filter
+    if (availability) {
+      const availList = availability.split(',').map((a) => a.trim().toLowerCase());
+      filtered = filtered.filter((p) => {
+        const isInStock = p.inventory_count > 0;
+        if (availList.includes('in stock') && isInStock) return true;
+        if (availList.includes('out of stock') && !isInStock) return true;
+        return false;
       });
     }
 
@@ -323,12 +383,17 @@ export class ProductsService {
     const paginatedProducts = filtered.slice(skip, skip + limit);
 
     return {
-      products: paginatedProducts.map((product) => ({
-        product_id: product.product_id,
-        title: product.title,
-        description: product.description,
-        price_cents: product.price_cents,
-        currency: product.currency,
+      products: paginatedProducts.map((product) => {
+        const commissionAddon = Math.round(product.price_cents * (product.commission_percentage / 100));
+        const sellingPrice = product.price_cents + commissionAddon;
+        
+        return {
+          product_id: product.product_id,
+          title: product.title,
+          description: product.description,
+          price_cents: sellingPrice,
+          original_price_cents: product.price_cents,
+          currency: product.currency,
         thumbnail: product.images[0]?.url || null,
         images: product.images.map((img) => ({
           url: img.url,
@@ -336,6 +401,10 @@ export class ProductsService {
           order_index: img.order_index,
         })),
         category: product.category,
+        category_id: product.category_id,
+        sub_category_id: product.sub_category_id,
+        category_name: product.category_rel?.name,
+        sub_category_name: product.sub_category_rel?.name,
         is_featured: product.is_featured,
         likes: product.stats?.likes_count || 0,
         reviews: product.stats?.comments_count || 0,
@@ -346,8 +415,8 @@ export class ProductsService {
           store_slug: product.creator.store_slug,
           verified: product.creator.verified,
         },
-        metadata: product.metadata,
-      })),
+        };
+      }),
       pagination: {
         page,
         limit,
@@ -355,6 +424,7 @@ export class ProductsService {
         totalPages: Math.ceil(total / limit),
         hasMore: page * limit < total,
       },
+      availableFilters,
     };
   }
 

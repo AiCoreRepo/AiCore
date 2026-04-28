@@ -25,7 +25,11 @@ import {
   REFRESH_TOKEN_COOKIE_OPTIONS,
   JWT_ACCESS_TOKEN_EXPIRES_IN,
 } from '../common/constants';
-import { getEffectiveTryOnLimit } from './utils/try-on-limit.util';
+import {
+  getEffectiveAvatarRecreationLimit,
+  getEffectiveTryOnLimit,
+} from './utils/try-on-limit.util';
+import { normalizeAuraAvatarHistory } from '../aura/utils/aura-avatar-history.util';
 
 // Dynamic import for bcrypt to avoid require and type issues
 let bcryptPromise: Promise<typeof import('bcrypt')> | null = null;
@@ -66,6 +70,55 @@ export class AuthService {
       .replace(/[^a-z0-9\s-]/g, '')
       .replace(/\s+/g, '-')
       .replace(/-+/g, '-');
+  }
+
+  private isUsableAuraImageUrl(imageUrl?: string | null): imageUrl is string {
+    if (!imageUrl) {
+      return false;
+    }
+
+    const trimmed = imageUrl.trim();
+    return trimmed.length > 0 && trimmed.toLowerCase() !== 'background-uploading';
+  }
+
+  private resolveAuraAvatarUrl(
+    aura:
+      | {
+          image_url: string | null;
+          model_url: string | null;
+          tryon_model_url: string | null;
+          generated_avatar_urls?: string[] | null;
+          attributes?: unknown;
+          created_at?: Date | null;
+          updated_at?: Date | null;
+        }
+      | null
+      | undefined,
+  ): string | null {
+    if (!aura) {
+      return null;
+    }
+
+    if (this.isUsableAuraImageUrl(aura.image_url)) {
+      return aura.image_url.trim();
+    }
+
+    const { selectedAvatar } = normalizeAuraAvatarHistory({
+      attributesJson: aura.attributes,
+      modelUrl: aura.model_url,
+      tryOnModelUrl: aura.tryon_model_url,
+      generatedAvatarUrls: aura.generated_avatar_urls ?? null,
+      createdAt: aura.created_at,
+      updatedAt: aura.updated_at,
+    });
+
+    return (
+      selectedAvatar?.tryon_model_url ||
+      selectedAvatar?.model_url ||
+      aura.tryon_model_url ||
+      aura.model_url ||
+      null
+    );
   }
 
   async register(dto: RegisterDto) {
@@ -275,6 +328,18 @@ export class AuthService {
         creatorProfile: {
           select: {
             store_name: true,
+            verification_data: true,
+          },
+        },
+        aura: {
+          select: {
+            image_url: true,
+            model_url: true,
+            tryon_model_url: true,
+            generated_avatar_urls: true,
+            attributes: true,
+            created_at: true,
+            updated_at: true,
           },
         },
       },
@@ -288,9 +353,16 @@ export class AuthService {
       user.max_try_ons,
       request,
     );
+    const effectiveAvatarRecreationLimit = getEffectiveAvatarRecreationLimit(
+      user.max_avatar_regenerations,
+      request,
+    );
+    const auraAvatar = this.resolveAuraAvatarUrl(user.aura);
 
     // If the user is a creator, return their creator profile details
     if (user.role === UserRole.CREATOR && user.creatorProfile) {
+      const verificationData = (user.creatorProfile.verification_data as any) || {};
+
       return {
         user_id: user.user_id,
         email: user.email,
@@ -299,10 +371,13 @@ export class AuthService {
         needs_dob_collection: !user.date_of_birth && !user.password_hash,
         try_on_permission: user.try_on_permission,
         store_name: user.creatorProfile.store_name,
+        subtitle: verificationData.subtitle || null,
+        avatar: verificationData.avatar || auraAvatar || null,
+        paymentDetails: verificationData.paymentDetails || null,
         try_ons_used: user.try_ons_used,
         max_try_ons: effectiveTryOnLimit,
         avatar_regenerations_used: user.avatar_regenerations_used,
-        max_avatar_regenerations: user.max_avatar_regenerations,
+        max_avatar_regenerations: effectiveAvatarRecreationLimit,
         // Add other creator-specific fields you might need
       };
     }
@@ -315,10 +390,11 @@ export class AuthService {
       dob: user.date_of_birth?.toISOString().split('T')[0],
       needs_dob_collection: !user.date_of_birth && !user.password_hash,
       try_on_permission: user.try_on_permission,
+      avatar: auraAvatar,
       try_ons_used: user.try_ons_used,
       max_try_ons: effectiveTryOnLimit,
       avatar_regenerations_used: user.avatar_regenerations_used,
-      max_avatar_regenerations: user.max_avatar_regenerations,
+      max_avatar_regenerations: effectiveAvatarRecreationLimit,
     };
   }
 
@@ -448,54 +524,12 @@ export class AuthService {
     const email = payload.email;
     const name = payload.name || email.split('@')[0];
 
+    // Admin login is intentionally disabled on Google auth.
+    // Admins must use env-based secret verification endpoint instead.
     if (dto.role === 'ADMIN') {
-      const adminEmail = process.env.ADMIN_EMAIL;
-      if (!adminEmail || email !== adminEmail) {
-        throw new UnauthorizedException('Access denied. Invalid admin email.');
-      }
-
-      // For admin, just find or create a user record — skip role mismatch checks
-      let user = await this.prisma.user.findUnique({ where: { email } });
-      if (!user) {
-        user = await this.prisma.user.create({
-          data: {
-            email,
-            role: UserRole.ADMIN,
-            status: 'active',
-          },
-        });
-      }
-
-      // Issue tokens for admin
-      const tokens = await this.issueTokens(user.user_id, 'ADMIN');
-      const bcryptMod = await getBcrypt();
-      if (!isBcryptModule(bcryptMod)) {
-        throw new Error('Failed to load bcrypt module');
-      }
-      const refresh_token_hash: string = await bcryptMod.hash(
-        tokens.refresh_token,
-        10,
+      throw new UnauthorizedException(
+        'Admin Google login is disabled. Use /auth/admin/verify-secret with ADMIN_EMAIL and ADMIN_SECRET.',
       );
-      await this.prisma.user.update({
-        where: { user_id: user.user_id },
-        data: { refresh_token_hash, last_login: new Date() },
-      });
-
-      res.cookie(
-        'refresh_token',
-        tokens.refresh_token,
-        REFRESH_TOKEN_COOKIE_OPTIONS,
-      );
-
-      return {
-        access_token: tokens.access_token,
-        user: {
-          user_id: user.user_id,
-          email: user.email,
-          role: 'ADMIN',
-          try_on_permission: user.try_on_permission,
-        },
-      };
     }
 
     // Check if user exists

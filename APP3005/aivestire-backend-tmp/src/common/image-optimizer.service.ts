@@ -23,6 +23,21 @@ export interface CompressionOptions {
   format?: 'jpeg' | 'png' | 'webp'; // Output format, default 'jpeg'
 }
 
+export interface PortraitCanvasOptions {
+  targetAspectRatio?: number;
+  maxWidth?: number;
+  maxHeight?: number;
+  quality?: number;
+  format?: 'jpeg' | 'png' | 'webp';
+  backgroundStyle?: 'blurred' | 'solid';
+  backgroundColor?: {
+    r: number;
+    g: number;
+    b: number;
+    alpha?: number;
+  };
+}
+
 /**
  * Service for optimizing and compressing images before sending to AI models
  * Reduces token consumption and improves processing speed
@@ -36,6 +51,9 @@ export class ImageOptimizerService {
   private readonly DEFAULT_MAX_DIMENSION = 1024;
   private readonly THUMBNAIL_SIZE = 512;
   private readonly TRY_ON_AVATAR_RETAIN_RATIO = 0.88;
+  private readonly DEFAULT_PORTRAIT_ASPECT_RATIO = 2 / 3;
+  private readonly DEFAULT_PORTRAIT_MAX_WIDTH = 1200;
+  private readonly DEFAULT_PORTRAIT_MAX_HEIGHT = 1800;
 
   /**
    * Compress a base64 image to reduce payload size
@@ -171,6 +189,193 @@ export class ImageOptimizerService {
       this.logger.error(`Failed to crop avatar for try-on: ${error.message}`);
       throw new Error(`Avatar crop failed: ${error.message}`);
     }
+  }
+
+  async normalizeToPortraitCanvas(
+    imageInput: string,
+    options: PortraitCanvasOptions = {},
+  ): Promise<string> {
+    try {
+      const imageBuffer = await this.loadImageBuffer(imageInput);
+      const metadata = await sharp(imageBuffer).metadata();
+      const width = metadata.width || 0;
+      const height = metadata.height || 0;
+
+      if (!width || !height) {
+        throw new Error('Unable to determine image dimensions');
+      }
+
+      const {
+        targetAspectRatio = this.DEFAULT_PORTRAIT_ASPECT_RATIO,
+        maxWidth = this.DEFAULT_PORTRAIT_MAX_WIDTH,
+        maxHeight = this.DEFAULT_PORTRAIT_MAX_HEIGHT,
+        quality = 90,
+        format = 'jpeg',
+        backgroundStyle = 'blurred',
+        backgroundColor = { r: 255, g: 255, b: 255, alpha: 1 },
+      } = options;
+
+      let targetWidth = width;
+      let targetHeight = height;
+      const currentAspectRatio = width / height;
+
+      if (currentAspectRatio > targetAspectRatio) {
+        targetHeight = Math.ceil(width / targetAspectRatio);
+      } else if (currentAspectRatio < targetAspectRatio) {
+        targetWidth = Math.ceil(height * targetAspectRatio);
+      }
+
+      const scale = Math.min(
+        1,
+        maxWidth / targetWidth,
+        maxHeight / targetHeight,
+      );
+
+      targetWidth = Math.max(1, Math.round(targetWidth * scale));
+      targetHeight = Math.max(1, Math.round(targetHeight * scale));
+
+      this.logger.log(
+        `🖼️ Normalizing image to portrait canvas: ${width}x${height} → ${targetWidth}x${targetHeight}`,
+      );
+
+      const foregroundBuffer = await sharp(imageBuffer)
+        .resize(targetWidth, targetHeight, {
+          fit: 'contain',
+          background: { r: 0, g: 0, b: 0, alpha: 0 },
+          withoutEnlargement: true,
+        })
+        .png()
+        .toBuffer();
+
+      let pipeline: sharp.Sharp;
+
+      if (backgroundStyle === 'solid') {
+        pipeline = sharp({
+          create: {
+            width: targetWidth,
+            height: targetHeight,
+            channels: 4,
+            background: {
+              r: backgroundColor.r,
+              g: backgroundColor.g,
+              b: backgroundColor.b,
+              alpha: backgroundColor.alpha ?? 1,
+            },
+          },
+        }).composite([
+          {
+            input: foregroundBuffer,
+            gravity: 'center',
+          },
+        ]);
+      } else {
+        const backgroundBuffer = await sharp(imageBuffer)
+          .resize(targetWidth, targetHeight, {
+            fit: 'cover',
+          })
+          .blur(24)
+          .modulate({
+            brightness: 1.03,
+            saturation: 0.92,
+          })
+          .jpeg({ quality: 70, mozjpeg: true })
+          .toBuffer();
+
+        pipeline = sharp(backgroundBuffer).composite([
+          {
+            input: foregroundBuffer,
+            gravity: 'center',
+          },
+        ]);
+      }
+
+      if (format === 'png') {
+        pipeline = pipeline.png({ quality, compressionLevel: 9 });
+      } else if (format === 'webp') {
+        pipeline = pipeline.webp({ quality });
+      } else {
+        pipeline = pipeline.jpeg({ quality, mozjpeg: true });
+      }
+
+      const normalizedBuffer = await pipeline.toBuffer();
+      const mimeType =
+        format === 'png'
+          ? 'image/png'
+          : format === 'webp'
+            ? 'image/webp'
+            : 'image/jpeg';
+
+      return `data:${mimeType};base64,${normalizedBuffer.toString('base64')}`;
+    } catch (error) {
+      this.logger.error(
+        `Failed to normalize portrait canvas: ${error.message}`,
+      );
+      throw new Error(`Portrait normalization failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Compare two images after normalizing them to a small RGB buffer.
+   * Returns a similarity score between 0 and 1, where 1 means visually identical.
+   */
+  async calculateVisualSimilarity(
+    firstImage: string,
+    secondImage: string,
+    size: number = 64,
+  ): Promise<number> {
+    try {
+      const [firstBuffer, secondBuffer] = await Promise.all([
+        this.loadImageBuffer(firstImage),
+        this.loadImageBuffer(secondImage),
+      ]);
+
+      const normalize = async (buffer: Buffer) =>
+        sharp(buffer)
+          .resize(size, size, { fit: 'fill' })
+          .removeAlpha()
+          .raw()
+          .toBuffer();
+
+      const [firstRaw, secondRaw] = await Promise.all([
+        normalize(firstBuffer),
+        normalize(secondBuffer),
+      ]);
+
+      if (firstRaw.length !== secondRaw.length || firstRaw.length === 0) {
+        return 0;
+      }
+
+      let totalDiff = 0;
+      for (let index = 0; index < firstRaw.length; index += 1) {
+        totalDiff += Math.abs(firstRaw[index] - secondRaw[index]);
+      }
+
+      const maxDiff = firstRaw.length * 255;
+      const similarity = 1 - totalDiff / maxDiff;
+      return Math.max(0, Math.min(1, similarity));
+    } catch (error) {
+      this.logger.warn(
+        `Failed to calculate visual similarity: ${error.message}`,
+      );
+      return 0;
+    }
+  }
+
+  async areImagesVisuallySimilar(
+    firstImage: string,
+    secondImage: string,
+    threshold: number = 0.985,
+  ): Promise<boolean> {
+    const similarity = await this.calculateVisualSimilarity(
+      firstImage,
+      secondImage,
+    );
+
+    this.logger.log(
+      `🧮 Visual similarity score: ${similarity.toFixed(4)} (threshold: ${threshold})`,
+    );
+
+    return similarity >= threshold;
   }
 
   /**

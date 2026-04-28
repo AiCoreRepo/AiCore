@@ -2,14 +2,30 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { CheckCircle2, Package, ArrowRight, ShoppingBag } from 'lucide-react';
+import { useCart } from '@/context/CartContext';
 
 const GOLD = '#D4AF37';
 
 const PaymentSuccessPage = () => {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
+    const { clearCart, refreshCart } = useCart();
     const orderNumber = searchParams.get('order') || '';
     const [countdown, setCountdown] = useState(5);
+
+    // Clear cart and pending session on successful return from PayU
+    useEffect(() => {
+        (async () => {
+            try {
+                await clearCart({ silent: true });
+            } catch {
+                // If backend already cleared cart, a refresh will sync UI
+                await refreshCart().catch(() => { });
+            }
+        })();
+        sessionStorage.removeItem('pending_order_id');
+        sessionStorage.removeItem('aivestire_applied_coupon');
+    }, [clearCart, refreshCart]);
 
     useEffect(() => {
         const timer = setInterval(() => {

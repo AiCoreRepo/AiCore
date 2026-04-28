@@ -112,12 +112,12 @@ export function AnimatedComplimentText({
     <div className="relative">
       <span
         aria-hidden="true"
-        className={`invisible block whitespace-pre-wrap ${className}`}
+        className={`invisible block break-words whitespace-pre-wrap ${className}`}
       >
         {text}
       </span>
       <span
-        className={`absolute inset-0 block whitespace-pre-wrap transition-all duration-500 ${
+        className={`absolute inset-0 block break-words whitespace-pre-wrap transition-all duration-500 ${
           isVisible ? "translate-y-0 opacity-100" : "translate-y-2 opacity-0"
         } ${className}`}
       >

@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { LuxeButton } from "@/components/common/Buttons/LuxeButton";
-import { Heart, MessageCircle, Share2, CheckCircle2, Clock, Tag, FileText } from "lucide-react";
+import { Heart, MessageCircle, Eye, CheckCircle2, Clock, Tag, FileText, ShieldAlert } from "lucide-react";
 
 interface ProductDetailsModalProps {
     open: boolean;
@@ -13,12 +13,13 @@ interface ProductDetailsModalProps {
         description?: string;
         tags: string[];
         revenue: string;
-        status: "Active" | "Pending" | "Draft";
+        status: "Active" | "Pending" | "Draft" | "Rejected";
         stats?: {
             likes_count: number;
             comments_count: number;
             shares_count?: number;
             tries_count?: number;
+            views?: number;
         };
     };
 }
@@ -85,9 +86,11 @@ const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({ open, onOpenC
                                         ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
                                         : product.status === "Draft"
                                             ? "bg-blue-500/10 text-blue-400 border border-blue-500/20"
+                                            : product.status === "Rejected"
+                                                ? "bg-rose-500/10 text-rose-400 border border-rose-500/20"
                                             : "bg-yellow-500/10 text-yellow-400 border border-yellow-500/20"
                                     }`}>
-                                    {product.status === "Active" ? <CheckCircle2 size={12} /> : product.status === "Draft" ? <FileText size={12} /> : <Clock size={12} />}
+                                    {product.status === "Active" ? <CheckCircle2 size={12} /> : product.status === "Draft" ? <FileText size={12} /> : product.status === "Rejected" ? <ShieldAlert size={12} /> : <Clock size={12} />}
                                     {product.status}
                                 </span>
                             </div>
@@ -113,9 +116,9 @@ const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({ open, onOpenC
                                     <span className="text-xs text-stone-500 uppercase tracking-wider">Comments</span>
                                 </div>
                                 <div className="flex flex-col items-center gap-1 text-center">
-                                    <Share2 className="text-luxury-gold" size={20} />
-                                    <span className="text-lg font-bold text-white">{product.stats?.shares_count || 0}</span>
-                                    <span className="text-xs text-stone-500 uppercase tracking-wider">Shares</span>
+                                    <Eye className="text-luxury-gold" size={20} />
+                                    <span className="text-lg font-bold text-white">{product.stats?.views || product.stats?.tries_count || 0}</span>
+                                    <span className="text-xs text-stone-500 uppercase tracking-wider">Views</span>
                                 </div>
                             </div>
                         </div>

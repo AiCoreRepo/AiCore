@@ -30,9 +30,20 @@ interface ProductDetailsModalProps {
         };
     };
     onTryOn?: () => void;
+    onTryOnGemini?: () => void;
+    primaryTryOnLabel?: string;
+    secondaryTryOnLabel?: string;
 }
 
-export const ProductDetailsModal = ({ isOpen, onClose, product, onTryOn }: ProductDetailsModalProps) => {
+export const ProductDetailsModal = ({
+    isOpen,
+    onClose,
+    product,
+    onTryOn,
+    onTryOnGemini,
+    primaryTryOnLabel,
+    secondaryTryOnLabel,
+}: ProductDetailsModalProps) => {
     const { toast } = useToast();
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
     const [isLiked, setIsLiked] = useState(false);
@@ -99,6 +110,9 @@ export const ProductDetailsModal = ({ isOpen, onClose, product, onTryOn }: Produ
 
     // Calculate average rating (mock)
     const averageRating = 4.5;
+    const resolvedPrimaryTryOnLabel =
+        primaryTryOnLabel ?? (onTryOnGemini ? 'Vertex Try On' : 'Try On');
+    const resolvedSecondaryTryOnLabel = secondaryTryOnLabel ?? 'Gemini Try On';
 
     if (!isOpen) return null;
 
@@ -282,19 +296,38 @@ export const ProductDetailsModal = ({ isOpen, onClose, product, onTryOn }: Produ
 
                             {/* Action Buttons */}
                             <div className="flex gap-3">
-                                <button
-                                    onClick={() => {
-                                        if (onTryOn) onTryOn();
-                                        onClose();
-                                    }}
-                                    className="flex-1 px-6 py-4 rounded-xl font-semibold text-sm uppercase tracking-wider transition-all duration-300 hover:scale-105 shadow-[0_4px_16px_rgba(212,175,55,0.4)]"
-                                    style={{
-                                        background: 'linear-gradient(135deg, #D4AF37 0%, #C9A55C 100%)',
-                                        color: '#1a1a1a',
-                                    }}
+                                <div
+                                    className={`flex-1 grid gap-3 ${onTryOnGemini ? 'grid-cols-2' : 'grid-cols-1'}`}
                                 >
-                                    Vestire Try On
-                                </button>
+                                    <button
+                                        onClick={() => {
+                                            if (onTryOn) onTryOn();
+                                            onClose();
+                                        }}
+                                        className="px-6 py-4 rounded-xl font-semibold text-sm uppercase tracking-wider transition-all duration-300 hover:scale-105 shadow-[0_4px_16px_rgba(212,175,55,0.4)]"
+                                        style={{
+                                            background: 'linear-gradient(135deg, #D4AF37 0%, #C9A55C 100%)',
+                                            color: '#1a1a1a',
+                                        }}
+                                    >
+                                        {resolvedPrimaryTryOnLabel}
+                                    </button>
+                                    {onTryOnGemini && (
+                                        <button
+                                            onClick={() => {
+                                                onTryOnGemini();
+                                                onClose();
+                                            }}
+                                            className="px-6 py-4 rounded-xl font-semibold text-sm uppercase tracking-wider transition-all duration-300 hover:scale-105 border border-[#D4AF37]/60"
+                                            style={{
+                                                background: '#FFFFFF',
+                                                color: '#1a1a1a',
+                                            }}
+                                        >
+                                            {resolvedSecondaryTryOnLabel}
+                                        </button>
+                                    )}
+                                </div>
                                 <button
                                     onClick={handleLike}
                                     disabled={isLiking}

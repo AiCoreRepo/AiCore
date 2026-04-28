@@ -1,4 +1,4 @@
-import heroImage from "@/assets/hero-fashion.jpg";
+import { cloudinaryImages } from "@/constants/cloudinaryImages";
 import { Link } from "react-router-dom";
 
 const HeroSection = () => {
@@ -7,7 +7,7 @@ const HeroSection = () => {
             {/* Background Image */}
             <div className="absolute inset-0">
                 <img
-                    src={heroImage}
+                    src={cloudinaryImages.heroFashion}
                     alt="AI Fashion Model in elegant black dress beside a majestic horse"
                     className="h-full w-full object-cover object-[50%_20%]"
                 />

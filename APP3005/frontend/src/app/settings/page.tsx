@@ -3,16 +3,17 @@ import { LuxeColors } from "../../lib/luxe-theme";
 import LuxeSidebar from "../../components/common/LuxeSidebar";
 import SettingsContent from "../../components/settings/SettingsContent";
 import { useAuth } from "../../context/AuthContext";
-import { LayoutDashboard, Shirt, BarChart3, Settings } from "lucide-react";
+import { LayoutDashboard, Shirt, BarChart3, Settings, Ticket, Upload, FolderTree } from "lucide-react";
 import { useSidebar } from "@/context/SidebarContext";
 
 const SettingsPage: React.FC = () => {
     const { user } = useAuth();
-    const { sidebarWidth } = useSidebar();
+    const { sidebarWidth, isMobile } = useSidebar();
 
     const navLinks = [
         { label: "Dashboard", icon: <LayoutDashboard size={20} />, href: "/creator-dashboard" },
         { label: "My Wardrobe", icon: <Shirt size={20} />, href: "/wardrobe" },
+        { label: "My Coupons", icon: <Ticket size={20} />, href: "/creator-coupons" },
         { label: "Analytics", icon: <BarChart3 size={20} />, href: "/analytics" },
         { label: "Settings", icon: <Settings size={20} />, href: "/settings" },
     ];
@@ -29,10 +30,13 @@ const SettingsPage: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen flex" style={{ background: LuxeColors.background }}>
+        <div className="min-h-screen flex overflow-x-hidden" style={{ background: LuxeColors.background }}>
             <LuxeSidebar user={sidebarUser} navLinks={navLinks} />
-            <div className="flex-1 dashboard-theme transition-all duration-300 ease-in-out" style={{ marginLeft: sidebarWidth }}>
-                <div className="min-h-screen dashboard-gradient p-8">
+            <div
+                className="flex-1 dashboard-theme min-w-0 transition-all duration-300 ease-in-out"
+                style={{ marginLeft: isMobile ? "0px" : sidebarWidth }}
+            >
+                <div className="min-h-screen dashboard-gradient px-4 py-5 sm:px-6 sm:py-6 lg:p-8">
                     <SettingsContent />
                 </div>
             </div>

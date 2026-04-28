@@ -1,4 +1,4 @@
-import { useInfiniteQuery } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 
 export interface PublicProduct {
     product_id: string;
@@ -26,6 +26,18 @@ export interface PublicProduct {
     metadata?: any;
 }
 
+export interface AvailableFilters {
+    categories: string[];
+    brands: string[];
+    sizes: string[];
+    colors: string[];
+    bodyShapes: string[];
+    skinTones: string[];
+    ratings: string[];
+    discounts: string[];
+    availability: string[];
+}
+
 export interface PublicProductsResponse {
     products: PublicProduct[];
     pagination: {
@@ -35,36 +47,45 @@ export interface PublicProductsResponse {
         totalPages: number;
         hasMore: boolean;
     };
+    availableFilters?: AvailableFilters;
 }
 
 /**
  * Hook to fetch approved products with infinite scroll pagination
  * Public endpoint - No authentication required
  */
-export function useInfinitePublicProducts(
+export function usePublicProducts(
+    page: number = 1,
+    limit: number = 30,
     search?: string,
-    category?: string,
+    categories?: string[],
     minPrice?: number,
     maxPrice?: number,
     sortBy?: string,
     sizes?: string[],
     colors?: string[],
+    bodyShapes?: string[],
+    skinTones?: string[],
+    availability?: string[],
 ) {
-    return useInfiniteQuery<PublicProductsResponse>({
-        queryKey: ['infinite-public-products', search, category, minPrice, maxPrice, sortBy, sizes, colors],
-        queryFn: async ({ pageParam = 1 }) => {
+    return useQuery<PublicProductsResponse>({
+        queryKey: ['public-products', page, limit, search, categories, minPrice, maxPrice, sortBy, sizes, colors, bodyShapes, skinTones, availability],
+        queryFn: async () => {
             const params = new URLSearchParams({
-                page: pageParam.toString(),
-                limit: '20',
+                page: page.toString(),
+                limit: limit.toString(),
             });
 
             if (search) params.append('search', search);
-            if (category && category !== 'All') params.append('category', category);
+            if (categories && categories.length > 0) params.append('category', categories.join(','));
             if (minPrice !== undefined) params.append('minPrice', minPrice.toString());
             if (maxPrice !== undefined) params.append('maxPrice', maxPrice.toString());
             if (sortBy) params.append('sortBy', sortBy);
             if (sizes && sizes.length > 0) params.append('sizes', sizes.join(','));
             if (colors && colors.length > 0) params.append('colors', colors.join(','));
+            if (bodyShapes && bodyShapes.length > 0) params.append('bodyShapes', bodyShapes.join(','));
+            if (skinTones && skinTones.length > 0) params.append('skinTones', skinTones.join(','));
+            if (availability && availability.length > 0) params.append('availability', availability.join(','));
 
             const url = `${import.meta.env.VITE_API_URL ?? 'http://localhost:3000'}/products/approved?${params}`;
 
@@ -77,13 +98,6 @@ export function useInfinitePublicProducts(
             const data = await response.json();
             return data;
         },
-        getNextPageParam: (lastPage) => {
-            // Return next page number if there are more pages, otherwise undefined
-            return lastPage.pagination.hasMore
-                ? lastPage.pagination.page + 1
-                : undefined;
-        },
-        initialPageParam: 1,
         staleTime: 60000, // Consider data fresh for 1 minute
     });
 }

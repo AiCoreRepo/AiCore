@@ -1,35 +1,45 @@
 import { Module } from '@nestjs/common';
+import { BullModule } from '@nestjs/bull';
 import { ConfigModule } from '@nestjs/config';
-import { PrismaModule } from '../prisma/prisma.module';
-// import { GeminiTryOnService } from './services/providers/gemini-tryon.service';
+import { DirectGeminiTryOnService } from './services/providers/direct-gemini-tryon.service';
 import { DirectVertexTryOnService } from './services/providers/direct-vertex-tryon.service';
-import { ImageValidatorService } from './services/common/image-validator.service';
-import { BodyAnalyzerService } from './services/body-analyzer.service';
-import { TryOn3DService } from './services/tryon-3d.service';
 import { TryOnController } from './controllers/tryon.controller';
-import { AuraGuard } from '../common/guards/aura.guard';
-import { CloudinaryService } from '../common/cloudinary.service';
 import { ImageOptimizerService } from '../common/image-optimizer.service';
+import { QUEUE_NAMES } from '../common/constants/queue.constants';
+import { TryOnQueueService } from '../queues/tryon-queue.service';
+import { BodyAnalyzerModule } from '../body-analyzer/body-analyzer.module';
+import { PrismaModule } from '../prisma/prisma.module';
+import { TryOnHistoryService } from './services/tryon-history.service';
 
+/**
+ * AiTryOnModule
+ * Provides all try-on services consumed by both the API controllers and the Worker.
+ * NOTE: TryOnProcessor lives in src/worker/ — it is registered only by WorkerModule,
+ * not here, to keep Worker and API concerns cleanly separated.
+ */
 @Module({
-  imports: [ConfigModule, PrismaModule],
+  imports: [
+    ConfigModule,
+    BodyAnalyzerModule,
+    PrismaModule,
+    BullModule.registerQueue({
+      name: QUEUE_NAMES.TRY_ON_PROCESSING,
+    }),
+  ],
   controllers: [TryOnController],
   providers: [
-    // GeminiTryOnService,
+    DirectGeminiTryOnService,
     DirectVertexTryOnService,
-    ImageValidatorService,
-    BodyAnalyzerService,
-    TryOn3DService,
-    AuraGuard,
-    CloudinaryService,
     ImageOptimizerService,
+    TryOnQueueService,
+    TryOnHistoryService,
   ],
   exports: [
-    // GeminiTryOnService,
+    DirectGeminiTryOnService,
     DirectVertexTryOnService,
-    BodyAnalyzerService,
-    TryOn3DService,
     ImageOptimizerService,
+    TryOnQueueService,
   ],
 })
 export class AiTryOnModule {}
+

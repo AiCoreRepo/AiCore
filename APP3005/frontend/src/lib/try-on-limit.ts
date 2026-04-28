@@ -1,18 +1,11 @@
 import type { ApiError } from '@/lib/api';
+import { isUatOrLocalTryOnHost } from '@/lib/try-on-environment';
 
 export const DEFAULT_TRY_ON_LIMIT = 3;
-export const UAT_TRY_ON_LIMIT = 50;
+export const UAT_TRY_ON_LIMIT = 200;
 export const TRY_ON_LIMIT_REACHED_CODE = 'TRY_ON_LIMIT_REACHED';
 export const TRY_ON_PREMIUM_UPGRADE_URL =
   'mailto:support@aivestire.com?subject=Premium%20Try-On%20Upgrade';
-
-function isUatAivestireHost(): boolean {
-  if (typeof window === 'undefined') {
-    return false;
-  }
-
-  return window.location.hostname === 'uat.aivestire.com';
-}
 
 interface TryOnUserUsage {
   try_ons_used?: number;
@@ -35,11 +28,11 @@ export function getEffectiveTryOnLimit(maxTryOns?: number): number {
     ? maxTryOns
     : DEFAULT_TRY_ON_LIMIT;
 
-  if (isUatAivestireHost()) {
+  if (isUatOrLocalTryOnHost()) {
     return Math.max(storedLimit, UAT_TRY_ON_LIMIT);
   }
 
-  return storedLimit;
+  return Math.min(storedLimit, DEFAULT_TRY_ON_LIMIT);
 }
 
 export function getTryOnUsageSnapshot(

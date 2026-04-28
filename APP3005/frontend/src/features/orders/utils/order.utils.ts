@@ -130,6 +130,23 @@ export const REPLACEMENT_STATUS_CONFIG: Record<
     COMPLETED: { label: 'Replacement Completed', color: '#059669' },
 };
 
+export const REFUND_STATUS_CONFIG: Record<
+    RefundStatus,
+    { label: string; color: string }
+> = {
+    PENDING_REVIEW: { label: 'Refund Initiated', color: '#10B981' },
+    APPROVED: { label: 'Refund Approved', color: '#3B82F6' },
+    REJECTED: { label: 'Refund Rejected', color: '#EF4444' },
+    PROCESSING: { label: 'Processing Refund', color: '#8B5CF6' },
+    COMPLETED: { label: 'Refund Completed', color: '#059669' },
+    FAILED: { label: 'Refund Failed', color: '#EF4444' },
+};
+
+export const formatRefundStatus = (status?: string | null): string => {
+    if (!status) return '';
+    return REFUND_STATUS_CONFIG[status as RefundStatus]?.label || status.replace(/_/g, ' ');
+};
+
 // ============================================
 // TIMELINE HELPERS
 // ============================================

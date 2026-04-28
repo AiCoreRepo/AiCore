@@ -32,11 +32,20 @@ interface ProductCardProps {
         };
     };
     onTryOn?: () => void;
+    onTryOnGemini?: () => void;
+    primaryTryOnLabel?: string;
+    secondaryTryOnLabel?: string;
 }
 
 import { useNavigate } from "react-router-dom";
 
-export const ProductCard = ({ product, onTryOn }: ProductCardProps) => {
+export const ProductCard = ({
+    product,
+    onTryOn,
+    onTryOnGemini,
+    primaryTryOnLabel,
+    secondaryTryOnLabel,
+}: ProductCardProps) => {
     const navigate = useNavigate();
     const { toast } = useToast();
     const { addToCart } = useCart();
@@ -110,10 +119,14 @@ export const ProductCard = ({ product, onTryOn }: ProductCardProps) => {
 
     // Calculate average rating (mock - you can replace with real data)
     const averageRating = 4.5;
+    const resolvedPrimaryTryOnLabel =
+        primaryTryOnLabel ?? (onTryOnGemini ? 'Vertex Try On' : 'Try On');
+    const resolvedSecondaryTryOnLabel = secondaryTryOnLabel ?? 'Gemini Try On';
 
     return (
         <>
             <div
+                id={`product-card-${product.product_id}`}
                 className="group cursor-pointer"
                 onClick={() => navigate(`/product/${product.product_id}`)}
             >
@@ -215,35 +228,58 @@ export const ProductCard = ({ product, onTryOn }: ProductCardProps) => {
                             </>
                         )}
 
-                        {/* Hover Overlay with Two Buttons */}
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-end justify-center p-4 gap-2">
-                            <button
-                                onClick={handleAddToCart}
-                                disabled={isAddingToCart}
-                                className="flex-1 px-4 py-2.5 rounded-lg font-medium text-xs uppercase tracking-wider transition-all duration-300 hover:scale-105 transform translate-y-4 group-hover:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                                style={{
-                                    background: '#FFFFFF',
-                                    color: '#1a1a1a',
-                                    boxShadow: '0 4px 16px rgba(255, 255, 255, 0.3)',
-                                }}
-                            >
-                                <ShoppingCart className="w-4 h-4" />
-                                {isAddingToCart ? 'Adding...' : 'Add to Cart'}
-                            </button>
-                            <button
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    if (onTryOn) onTryOn();
-                                }}
-                                className="flex-1 px-4 py-2.5 rounded-lg font-medium text-xs uppercase tracking-wider transition-all duration-300 hover:scale-105 transform translate-y-4 group-hover:translate-y-0"
-                                style={{
-                                    background: 'linear-gradient(135deg, #D4AF37 0%, #C9A55C 100%)',
-                                    color: '#1a1a1a',
-                                    boxShadow: '0 4px 16px rgba(212, 175, 55, 0.5)',
-                                }}
-                            >
-                                Vestire Try On
-                            </button>
+                        {/* Hover Overlay with Action Buttons */}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all duration-300 flex items-end justify-center p-4">
+                            <div className="w-full flex flex-col gap-2">
+                                <button
+                                    onClick={handleAddToCart}
+                                    disabled={isAddingToCart}
+                                    className="w-full px-4 py-2.5 rounded-lg font-medium text-xs uppercase tracking-wider transition-all duration-300 hover:scale-105 transform translate-y-0 md:translate-y-4 md:group-hover:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                    style={{
+                                        background: '#FFFFFF',
+                                        color: '#1a1a1a',
+                                        boxShadow: '0 4px 16px rgba(255, 255, 255, 0.3)',
+                                    }}
+                                >
+                                    <ShoppingCart className="w-4 h-4" />
+                                    {isAddingToCart ? 'Adding...' : 'Add to Cart'}
+                                </button>
+                                <div
+                                    className={`grid gap-2 ${onTryOnGemini ? 'grid-cols-2' : 'grid-cols-1'}`}
+                                >
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            if (onTryOn) onTryOn();
+                                        }}
+                                        className="px-4 py-2.5 rounded-lg font-medium text-[10px] uppercase tracking-wider transition-all duration-300 hover:scale-105 transform translate-y-0 md:translate-y-4 md:group-hover:translate-y-0"
+                                        style={{
+                                            background: 'linear-gradient(135deg, #D4AF37 0%, #C9A55C 100%)',
+                                            color: '#1a1a1a',
+                                            boxShadow: '0 4px 16px rgba(212, 175, 55, 0.5)',
+                                        }}
+                                    >
+                                        {resolvedPrimaryTryOnLabel}
+                                    </button>
+                                    {onTryOnGemini && (
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                onTryOnGemini();
+                                            }}
+                                            className="px-4 py-2.5 rounded-lg font-medium text-[10px] uppercase tracking-wider transition-all duration-300 hover:scale-105 transform translate-y-0 md:translate-y-4 md:group-hover:translate-y-0"
+                                            style={{
+                                                background: 'rgba(255, 255, 255, 0.9)',
+                                                color: '#1a1a1a',
+                                                boxShadow: '0 4px 16px rgba(255, 255, 255, 0.3)',
+                                                border: '1px solid rgba(212, 175, 55, 0.6)',
+                                            }}
+                                        >
+                                            {resolvedSecondaryTryOnLabel}
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
                         </div>
                     </div>
 

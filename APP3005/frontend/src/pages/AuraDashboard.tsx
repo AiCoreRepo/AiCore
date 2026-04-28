@@ -144,7 +144,10 @@ const AuraDashboard = () => {
       };
 
       navigate("/aura-profile", {
-        state: feedbackContext ? { feedbackContext } : undefined,
+        state: {
+          ...(feedbackContext ? { feedbackContext } : {}),
+          hideAuraLibrary: true,
+        },
       });
     }, 1000);
   }
@@ -158,7 +161,7 @@ const AuraDashboard = () => {
   }
 
   return (
-    <div className="min-h-screen flex flex-col lg:flex-row overflow-hidden">
+    <div className="flex min-h-screen min-h-[100dvh] flex-col lg:flex-row overflow-x-hidden lg:overflow-hidden">
       {/* Hero Image Section - Left side on desktop, top on mobile */}
       <HeroImageSection />
 

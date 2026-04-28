@@ -3,29 +3,31 @@
 // ============================================
 
 /**
- * Razorpay configuration constants
+ * PayU configuration constants
  */
-export const RAZORPAY_CONSTANTS = {
+export const PAYU_CONSTANTS = {
   /** Currency for all transactions (ISO 4217) */
   CURRENCY: 'INR',
 
-  /** Razorpay order receipt prefix */
-  RECEIPT_PREFIX: 'AIV_',
+  /** Transaction ID prefix */
+  TXN_PREFIX: 'AIV_',
 
-  /** Payment expiry in seconds (15 minutes) */
-  PAYMENT_EXPIRY_SECONDS: 15 * 60,
+  /** Base URL for PayU (test environment by default, update in env) */
+  TEST_URL: 'https://test.payu.in/_payment',
+  PROD_URL: 'https://secure.payu.in/_payment',
 
-  /** Maximum retry attempts for payment verification */
-  MAX_VERIFICATION_RETRIES: 3,
+  /** PayU Refund (cancel_refund_transaction) API endpoints */
+  REFUND_TEST_URL: 'https://test.payu.in/merchant/postservice?form=2',
+  REFUND_PROD_URL: 'https://info.payu.in/merchant/postservice?form=2',
 
-  /** Razorpay API base URL */
-  API_BASE_URL: 'https://api.razorpay.com/v1',
+  /** PayU command for refund */
+  REFUND_COMMAND: 'cancel_refund_transaction',
 
-  /** Minimum order amount in paise (₹1) */
-  MIN_AMOUNT_PAISE: 100,
+  /** Minimum order amount */
+  MIN_AMOUNT: 1,
 
-  /** Maximum order amount in paise (₹5,00,000) */
-  MAX_AMOUNT_PAISE: 50_000_000,
+  /** Maximum order amount */
+  MAX_AMOUNT: 500000,
 } as const;
 
 /**
@@ -47,28 +49,11 @@ export const PAYMENT_ERROR_CODES = {
  * Payment success/failure messages
  */
 export const PAYMENT_MESSAGES = {
-  ORDER_CREATED: 'Razorpay order created successfully',
+  ORDER_CREATED: 'Payment transaction initialized successfully',
   PAYMENT_VERIFIED: 'Payment verified and captured successfully',
   PAYMENT_FAILED: 'Payment verification failed',
   REFUND_INITIATED: 'Refund initiated successfully',
   ALREADY_PAID: 'This order has already been paid',
   INVALID_SIGNATURE: 'Payment signature verification failed',
   WEBHOOK_PROCESSED: 'Webhook event processed successfully',
-} as const;
-
-/**
- * Razorpay checkout configuration defaults
- */
-export const RAZORPAY_CHECKOUT_CONFIG = {
-  name: 'Aivestire',
-  description: 'Fashion & Lifestyle Purchase',
-  image: '/logo.png',
-  theme: {
-    color: '#D4AF37', // Brand gold
-  },
-  prefill: {
-    name: '',
-    email: '',
-    contact: '',
-  },
 } as const;

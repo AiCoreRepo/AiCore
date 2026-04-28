@@ -3,17 +3,25 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { ProductCard } from "@/components/collection/ProductCard";
-import { useInfinitePublicProducts } from "@/hooks/useInfinitePublicProducts";
+import { usePublicProducts } from "@/hooks/useInfinitePublicProducts";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useAuth } from "@/context/AuthContext";
+import { useCart } from "@/context/CartContext";
 import { auraGate } from "@/utils/auraGate";
 import { ChevronDown, Heart, Search, X, SlidersHorizontal, ArrowUpDown } from "lucide-react";
 import { TryOnInterstitialModal } from "@/components/TryOnInterstitialModal";
 import { TryOnResultModal } from '@/components/ai-tryon/TryOnResultModal';
 import { TryOnUpgradePopup } from '@/components/ai-tryon/TryOnUpgradePopup';
 import { AuraPromptDialog } from '@/components/aura/AuraPromptDialog';
-import { tryOnWithVertex, generateMoreAngles, getAura, FeedbackContextType } from '@/lib/api';
-import collectionHeaderImage from "@/assets/collectionHeader.jpeg";
+import {
+    tryOnWithGemini,
+    tryOnWithVertex,
+    generateMoreAngles,
+    getAura,
+    getProductById,
+    FeedbackContextType,
+} from '@/lib/api';
+import { cloudinaryImages } from "@/constants/cloudinaryImages";
 import {
     getTryOnLimitSnapshot,
     getTryOnUsageSnapshot,
@@ -21,31 +29,86 @@ import {
     TRY_ON_PREMIUM_UPGRADE_URL,
     type TryOnUsageSnapshot,
 } from '@/lib/try-on-limit';
+import {
+    TRYON_PROVIDER,
+    getDefaultTryOnProvider,
+    shouldShowMultipleTryOnProviders,
+    type TryOnProvider,
+} from '@/lib/try-on-environment';
+import _ from 'lodash';
+import type { PublicProduct } from '@/hooks/useInfinitePublicProducts';
 
-const categories = ["All", "Dresses", "Outerwear", "Accessories", "Tops", "Bottoms"];
-const sizes = ["XS", "S", "M", "L", "XL", "XXL"];
-const colorOptions = ["Black", "White", "Beige", "Gold", "Navy", "Red", "Brown", "Gray"];
-const sortOptions = ["Price: Low to High", "Price: High to Low", "Newest", "Most Popular"];
+import { SORT_OPTIONS, STATIC_SIZES, STATIC_RATINGS, STATIC_DISCOUNTS } from '@/constants/filters';
+import { FilterMultiSelect } from '@/components/collection/FilterMultiSelect';
+import { CLOTHING_COLORS, BODY_SHAPES, SKIN_TONES } from '@/constants/product-hierarchy.enums';
+import { Pagination } from "@/components/common/Pagination";
+import { useCategories } from '@/hooks/useCategories';
+
+const getProductImageUrl = (product: PublicProduct): string | null => {
+    const primaryImage = _.find(product.images, (image) => image.is_primary);
+    const fallbackImage = primaryImage ?? _.head(product.images);
+    return fallbackImage?.url ?? product.thumbnail ?? null;
+};
+
+const getAvatarImageUrl = (aura: any): string | null =>
+    aura?.tryon_model_url || aura?.model_url || aura?.image_url || null;
+
+const buildGeminiTryOnAdditionalParams = (aura: any) => ({
+    aura_attributes: aura
+        ? {
+            height_cm: aura.height_cm,
+            weight_kg: aura.weight_kg,
+            skin_tone: aura.skin_tone,
+            gender: aura.gender,
+            body_shape: aura.body_shape,
+            body_size: aura.body_size,
+            age_range: aura.age_range,
+            hair_style: aura.hair_style,
+            beard: aura.beard,
+            ...(aura.extra_attributes && typeof aura.extra_attributes === 'object'
+                ? aura.extra_attributes
+                : {}),
+        }
+        : undefined,
+    maskClothingModel: true,
+});
+
+type TryOnResult = {
+    success: boolean;
+    resultImage?: string;
+    message?: string;
+    tryOnId?: string | number;
+};
 
 const CollectionPage = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const { user, fetchUser } = useAuth();
+    const showMultipleTryOnProviders = shouldShowMultipleTryOnProviders();
+    const defaultTryOnProvider = getDefaultTryOnProvider();
+    const { lastAddedProductId, clearLastAddedProductId } = useCart();
 
     // Aura Welcome Modal State
     const [showAuraWelcomeModal, setShowAuraWelcomeModal] = useState(false);
 
     // Filter States
     const [searchQuery, setSearchQuery] = useState("");
-    const [activeCategory, setActiveCategory] = useState("All");
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage, setItemsPerPage] = useState(30);
+    const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
     const [selectedSizes, setSelectedSizes] = useState<string[]>([]);
     const [selectedColors, setSelectedColors] = useState<string[]>([]);
+    const [selectedBodyShapes, setSelectedBodyShapes] = useState<string[]>([]);
+    const [selectedSkinTones, setSelectedSkinTones] = useState<string[]>([]);
+    const [selectedRatings, setSelectedRatings] = useState<string[]>([]);
+    const [selectedDiscounts, setSelectedDiscounts] = useState<string[]>([]);
     const [priceRange, setPriceRange] = useState<[number, number]>([0, 5000]);
     const [sortBy, setSortBy] = useState("Price: Low to High");
     const [showFilters, setShowFilters] = useState(false);
 
-    const [selectedTryOnProduct, setSelectedTryOnProduct] = useState<string | null>(null);
+    const [selectedTryOnProduct, setSelectedTryOnProduct] = useState<PublicProduct | null>(null);
     const [isTryOnModalOpen, setIsTryOnModalOpen] = useState(false);
+    const [selectedTryOnProvider, setSelectedTryOnProvider] = useState<TryOnProvider>(defaultTryOnProvider);
 
     // AI Try-On State
     const [aura, setAura] = useState<any>(null);
@@ -70,7 +133,7 @@ const CollectionPage = () => {
     const [selectedTryOnLabel, setSelectedTryOnLabel] = useState<string>('');
 
     const resolveProductLabel = (productId: string) => {
-        const product = filteredProducts.find((item: any) => item.product_id === productId);
+        const product = _.find(filteredProducts, (item) => item.product_id === productId);
         return product?.title || product?.name || productId;
     };
     const currentUserName = user?.store_name || user?.email?.split('@')[0] || 'You';
@@ -128,43 +191,64 @@ const CollectionPage = () => {
     // Debounce search
     const debouncedSearch = useDebounce(searchQuery, 500);
 
-    // Fetch products with infinite scroll
+    // Reset to page 1 when filters change
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [debouncedSearch, selectedCategories, priceRange, sortBy, selectedSizes, selectedColors, selectedBodyShapes, selectedSkinTones, itemsPerPage]);
+
+    // Fetch products with pagination
     const {
         data,
         isLoading,
         error,
-        fetchNextPage,
-        hasNextPage,
-        isFetchingNextPage,
-    } = useInfinitePublicProducts(
+    } = usePublicProducts(
+        currentPage,
+        itemsPerPage,
         debouncedSearch,
-        activeCategory === "All" ? undefined : activeCategory,
+        selectedCategories.length > 0 ? selectedCategories : undefined,
         priceRange[0] === 0 ? undefined : priceRange[0],
         priceRange[1] === 5000 ? undefined : priceRange[1],
         sortBy,
         selectedSizes,
-        selectedColors
+        selectedColors,
+        selectedBodyShapes,
+        selectedSkinTones
     );
 
-    // Intersection Observer for infinite scroll
-    const loadMoreRef = useRef<HTMLDivElement>(null);
+    const availableFilters = data?.availableFilters;
 
+    // Fetch real admin-created categories from the backend
+    const { data: categoriesData } = useCategories();
+    const backendCategories = categoriesData && categoriesData.length > 0
+        ? categoriesData.map((c) => c.name)
+        : (availableFilters?.categories ?? []);
+
+    // Scroll-to-last-added-item on back navigation
     useEffect(() => {
-        if (!loadMoreRef.current || !hasNextPage || isFetchingNextPage) return;
+        if (!lastAddedProductId || isLoading) return;
 
-        const observer = new IntersectionObserver(
-            (entries) => {
-                if (entries[0].isIntersecting && hasNextPage) {
-                    fetchNextPage();
-                }
-            },
-            { threshold: 0.1 }
-        );
+        // Small delay to ensure DOM is rendered
+        const timeout = setTimeout(() => {
+            const el = document.getElementById(`product-card-${lastAddedProductId}`);
+            if (el) {
+                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                // Apply gold pulse highlight
+                el.style.transition = 'box-shadow 0.3s ease, transform 0.3s ease';
+                el.style.boxShadow = '0 0 0 3px rgba(212, 175, 55, 0.6), 0 8px 24px rgba(212, 175, 55, 0.25)';
+                el.style.transform = 'scale(1.02)';
+                el.style.borderRadius = '12px';
 
-        observer.observe(loadMoreRef.current);
+                // Remove highlight after 2s
+                setTimeout(() => {
+                    el.style.boxShadow = '';
+                    el.style.transform = '';
+                }, 2000);
+            }
+            clearLastAddedProductId();
+        }, 500);
 
-        return () => observer.disconnect();
-    }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+        return () => clearTimeout(timeout);
+    }, [lastAddedProductId, isLoading, clearLastAddedProductId]);
 
     // Helper functions
     // ... kept for potential usage or removed if unused. 
@@ -172,7 +256,7 @@ const CollectionPage = () => {
 
     // Sort products: prioritize younger models (age <= 40) at the top, older (> 40) at bottom
     // This runs client-side on the fetched pages
-    const rawProducts = data?.pages.flatMap(page => page.products) ?? [];
+    const rawProducts = data?.products ?? [];
     const filteredProducts = [...rawProducts].sort((a, b) => {
         const ageA = a.metadata?.model_age ? parseInt(a.metadata.model_age) : 0;
         const ageB = b.metadata?.model_age ? parseInt(b.metadata.model_age) : 0;
@@ -188,12 +272,19 @@ const CollectionPage = () => {
 
     // Count active filters for badge
     const activeFilterCount =
-        (activeCategory !== 'All' ? 1 : 0) +
+        selectedCategories.length +
         selectedSizes.length +
         selectedColors.length +
+        selectedBodyShapes.length +
+        selectedSkinTones.length +
+        selectedRatings.length +
+        selectedDiscounts.length +
         (priceRange[0] !== 0 || priceRange[1] !== 5000 ? 1 : 0);
 
-    const handleTryOn = async (productId: string) => {
+    const handleTryOn = async (
+        product: PublicProduct,
+        provider: TryOnProvider = defaultTryOnProvider,
+    ) => {
         const token = localStorage.getItem('access_token');
         if (!token) {
             navigate('/user-login');
@@ -213,8 +304,9 @@ const CollectionPage = () => {
 
         // OPTIMIZATION: Check local aura state first for instant response
         if (aura) {
-            setSelectedTryOnProduct(productId);
-            setSelectedTryOnLabel(resolveProductLabel(productId));
+            setSelectedTryOnProduct(product);
+            setSelectedTryOnProvider(provider);
+            setSelectedTryOnLabel(resolveProductLabel(product.product_id));
             setIsTryOnModalOpen(true);
             return;
         }
@@ -222,7 +314,9 @@ const CollectionPage = () => {
         // Fallback to network check if local state isn't ready
         const hasValidAura = await auraGate(navigate, '/aura-dashboard');
         if (hasValidAura) {
-            setSelectedTryOnProduct(productId);
+            setSelectedTryOnProduct(product);
+            setSelectedTryOnProvider(provider);
+            setSelectedTryOnLabel(resolveProductLabel(product.product_id));
             setIsTryOnModalOpen(true);
         }
     };
@@ -230,11 +324,14 @@ const CollectionPage = () => {
     const handleConfirmTryOn = () => {
         if (selectedTryOnProduct) {
             setIsTryOnModalOpen(false);
-            executeTryOn(selectedTryOnProduct);
+            executeTryOn(selectedTryOnProduct, selectedTryOnProvider);
         }
     };
 
-    const executeTryOn = async (productId: string) => {
+    const executeTryOn = async (
+        product: PublicProduct,
+        provider: TryOnProvider,
+    ) => {
         if (!user) return; // Aura check handled by gate, but need user context
 
         try {
@@ -250,11 +347,55 @@ const CollectionPage = () => {
 
             // Use aura.user_id if available, otherwise fallback to user.user_id (though aura is preferred)
             const userId = aura?.user_id || user.user_id;
+            let result: TryOnResult;
+            let resolvedProductLabel =
+                selectedTryOnLabel || resolveProductLabel(product.product_id);
 
-            const result = await tryOnWithVertex({
-                userId: userId,
-                clothingItemId: productId,
-            });
+            if (provider === TRYON_PROVIDER.GEMINI) {
+                let refreshedProduct = product;
+
+                try {
+                    refreshedProduct =
+                        ((await getProductById(product.product_id)) as PublicProduct) ??
+                        product;
+                } catch (refreshError) {
+                    console.warn(
+                        'Failed to refresh product before Gemini try-on, using existing product data.',
+                        refreshError,
+                    );
+                }
+
+                const avatarImage = getAvatarImageUrl(aura);
+                const clothingImage = getProductImageUrl(refreshedProduct);
+                resolvedProductLabel =
+                    refreshedProduct.title || resolvedProductLabel;
+
+                if (!avatarImage || !clothingImage) {
+                    throw new Error('Try-on requires both avatar and clothing images');
+                }
+
+                result = await tryOnWithGemini({
+                    avatarImage,
+                    clothingImage,
+                    additionalParams: buildGeminiTryOnAdditionalParams(aura),
+                    productId: product.product_id,
+                    auraId: aura?.aura_id,
+                });
+            } else {
+                const avatarImage = getAvatarImageUrl(aura);
+                const clothingImage = getProductImageUrl(refreshedProduct);
+
+                if (!avatarImage || !clothingImage) {
+                    throw new Error('Try-on requires both avatar and clothing images');
+                }
+
+                result = await tryOnWithVertex({
+                    avatarImage,
+                    clothingImage,
+                    productId: product.product_id,
+                    auraId: aura?.aura_id,
+                });
+            }
 
             if (result.success && result.resultImage) {
                 const imageData = result.resultImage.startsWith('data:')
@@ -268,10 +409,11 @@ const CollectionPage = () => {
                     clearTimeout(feedbackCloseTimerRef.current);
                     feedbackCloseTimerRef.current = null;
                 }
+                setSelectedTryOnLabel(resolvedProductLabel);
                 setFeedbackContext({
                     type: "VIRTUAL_TRYON",
                     referenceId: result.tryOnId ? String(result.tryOnId) : undefined,
-                    label: selectedTryOnLabel || resolveProductLabel(productId),
+                    label: resolvedProductLabel,
                 });
             } else {
                 throw new Error(result.message || 'Try-on failed');
@@ -319,7 +461,7 @@ const CollectionPage = () => {
             setGeneratingAngles(true);
             const result = await generateMoreAngles({
                 userId: aura?.user_id || user.user_id,
-                productId: selectedTryOnProduct,
+                productId: selectedTryOnProduct.product_id,
                 previousImageUrl: originalTryOnImage || resultImage,
             });
 
@@ -349,7 +491,7 @@ const CollectionPage = () => {
             {/* Hero Header Image - Includes both hero and quote */}
             <section className="relative w-full bg-white pt-16 md:pt-20">
                 <img
-                    src={collectionHeaderImage}
+                    src={cloudinaryImages.collectionHeader}
                     alt="Crafted for the Confident"
                     className="w-full h-auto object-contain"
                 />
@@ -429,17 +571,17 @@ const CollectionPage = () => {
 
                         {/* Active Filters Pills - Center */}
                         <div className="flex-1 flex items-center gap-2 overflow-x-auto hide-scrollbar">
-                            {activeCategory !== 'All' && (
-                                <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-[#D4C5A9] rounded-full text-sm whitespace-nowrap shadow-sm">
-                                    <span className="text-[#2C2416]">{activeCategory}</span>
+                            {selectedCategories.map(cat => (
+                                <div key={cat} className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-[#D4C5A9] rounded-full text-sm whitespace-nowrap shadow-sm">
+                                    <span className="text-[#2C2416]">{cat}</span>
                                     <button
-                                        onClick={() => setActiveCategory('All')}
+                                        onClick={() => setSelectedCategories(selectedCategories.filter(c => c !== cat))}
                                         className="text-[#9B8B7E] hover:text-[#D4AF37] transition-colors"
                                     >
                                         <X className="w-3.5 h-3.5" />
                                     </button>
                                 </div>
-                            )}
+                            ))}
                             {selectedSizes.map(size => (
                                 <div key={size} className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-[#D4C5A9] rounded-full text-sm whitespace-nowrap shadow-sm">
                                     <span className="text-[#2C2416]">Size: {size}</span>
@@ -456,6 +598,28 @@ const CollectionPage = () => {
                                     <span className="text-[#2C2416]">{color}</span>
                                     <button
                                         onClick={() => setSelectedColors(selectedColors.filter(c => c !== color))}
+                                        className="text-[#9B8B7E] hover:text-[#D4AF37] transition-colors"
+                                    >
+                                        <X className="w-3.5 h-3.5" />
+                                    </button>
+                                </div>
+                            ))}
+                            {selectedRatings.map(rating => (
+                                <div key={rating} className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-[#D4C5A9] rounded-full text-sm whitespace-nowrap shadow-sm">
+                                    <span className="text-[#2C2416]">Rating: {rating}</span>
+                                    <button
+                                        onClick={() => setSelectedRatings(selectedRatings.filter(r => r !== rating))}
+                                        className="text-[#9B8B7E] hover:text-[#D4AF37] transition-colors"
+                                    >
+                                        <X className="w-3.5 h-3.5" />
+                                    </button>
+                                </div>
+                            ))}
+                            {selectedDiscounts.map(discount => (
+                                <div key={discount} className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-[#D4C5A9] rounded-full text-sm whitespace-nowrap shadow-sm">
+                                    <span className="text-[#2C2416]">Discount: {discount}</span>
+                                    <button
+                                        onClick={() => setSelectedDiscounts(selectedDiscounts.filter(d => d !== discount))}
                                         className="text-[#9B8B7E] hover:text-[#D4AF37] transition-colors"
                                     >
                                         <X className="w-3.5 h-3.5" />
@@ -482,7 +646,7 @@ const CollectionPage = () => {
                                 onChange={(e) => setSortBy(e.target.value)}
                                 className="flex items-center gap-2 px-4 py-2 pr-10 rounded-full border border-[#D4C5A9] hover:border-[#D4AF37] transition-all text-sm bg-white appearance-none cursor-pointer focus:outline-none focus:border-[#D4AF37] shadow-sm text-[#2C2416]"
                             >
-                                {sortOptions.map(option => (
+                                {SORT_OPTIONS.map(option => (
                                     <option key={option} value={option}>{option}</option>
                                 ))}
                             </select>
@@ -494,58 +658,61 @@ const CollectionPage = () => {
                     {showFilters && (
                         <div className="mt-4 pt-4 border-t border-[#E8DCC4] animate-slideDown">
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                                {/* Category */}
-                                <div>
-                                    <label className="block text-xs font-medium text-[#6B5D4F] mb-2 uppercase tracking-wide">Category</label>
-                                    <div className="relative">
-                                        <select
-                                            value={activeCategory}
-                                            onChange={(e) => setActiveCategory(e.target.value)}
-                                            className="w-full px-4 py-2.5 bg-white border border-[#E8DCC4] rounded-lg text-sm text-[#2C2416] focus:outline-none focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/20 appearance-none cursor-pointer transition-all"
-                                        >
-                                            {categories.map(cat => (
-                                                <option key={cat} value={cat}>{cat}</option>
-                                            ))}
-                                        </select>
-                                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#6B5D4F] pointer-events-none" />
-                                    </div>
-                                </div>
+                                {/* Category - populated from admin-created backend categories */}
+                                <FilterMultiSelect
+                                    label="Category"
+                                    options={backendCategories}
+                                    selectedValues={selectedCategories}
+                                    onChange={setSelectedCategories}
+                                />
 
                                 {/* Size */}
-                                <div>
-                                    <label className="block text-xs font-medium text-[#6B5D4F] mb-2 uppercase tracking-wide">Size</label>
-                                    <div className="relative">
-                                        <select
-                                            value={selectedSizes[0] || ""}
-                                            onChange={(e) => setSelectedSizes(e.target.value ? [e.target.value] : [])}
-                                            className="w-full px-4 py-2.5 bg-white border border-[#E8DCC4] rounded-lg text-sm text-[#2C2416] focus:outline-none focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/20 appearance-none cursor-pointer transition-all"
-                                        >
-                                            <option value="">All Sizes</option>
-                                            {sizes.map(size => (
-                                                <option key={size} value={size}>{size}</option>
-                                            ))}
-                                        </select>
-                                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#6B5D4F] pointer-events-none" />
-                                    </div>
-                                </div>
+                                <FilterMultiSelect
+                                    label="Size"
+                                    options={STATIC_SIZES}
+                                    selectedValues={selectedSizes}
+                                    onChange={setSelectedSizes}
+                                />
 
                                 {/* Color */}
-                                <div>
-                                    <label className="block text-xs font-medium text-[#6B5D4F] mb-2 uppercase tracking-wide">Color</label>
-                                    <div className="relative">
-                                        <select
-                                            value={selectedColors[0] || ""}
-                                            onChange={(e) => setSelectedColors(e.target.value ? [e.target.value] : [])}
-                                            className="w-full px-4 py-2.5 bg-white border border-[#E8DCC4] rounded-lg text-sm text-[#2C2416] focus:outline-none focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/20 appearance-none cursor-pointer transition-all"
-                                        >
-                                            <option value="">All Colors</option>
-                                            {colorOptions.map(color => (
-                                                <option key={color} value={color}>{color}</option>
-                                            ))}
-                                        </select>
-                                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#6B5D4F] pointer-events-none" />
-                                    </div>
-                                </div>
+                                <FilterMultiSelect
+                                    label="Color"
+                                    options={CLOTHING_COLORS.map(c => c.label)}
+                                    selectedValues={selectedColors}
+                                    onChange={setSelectedColors}
+                                />
+
+                                {/* Body Shape */}
+                                <FilterMultiSelect
+                                    label="Body Shape"
+                                    options={BODY_SHAPES.map(b => b.label)}
+                                    selectedValues={selectedBodyShapes}
+                                    onChange={setSelectedBodyShapes}
+                                />
+                                
+                                {/* Skin Tone */}
+                                <FilterMultiSelect
+                                    label="Skin Tone"
+                                    options={SKIN_TONES.map(s => s.label)}
+                                    selectedValues={selectedSkinTones}
+                                    onChange={setSelectedSkinTones}
+                                />
+
+                                {/* Rating */}
+                                <FilterMultiSelect
+                                    label="Rating"
+                                    options={STATIC_RATINGS}
+                                    selectedValues={selectedRatings}
+                                    onChange={setSelectedRatings}
+                                />
+
+                                {/* Discount */}
+                                <FilterMultiSelect
+                                    label="Discount"
+                                    options={STATIC_DISCOUNTS}
+                                    selectedValues={selectedDiscounts}
+                                    onChange={setSelectedDiscounts}
+                                />
 
                                 {/* Price Range */}
                                 <div>
@@ -598,30 +765,49 @@ const CollectionPage = () => {
                                     <ProductCard
                                         key={product.product_id}
                                         product={product}
-                                        onTryOn={() => handleTryOn(product.product_id)}
+                                        onTryOn={() =>
+                                            handleTryOn(
+                                                product,
+                                                defaultTryOnProvider,
+                                            )
+                                        }
+                                        onTryOnGemini={
+                                            showMultipleTryOnProviders
+                                                ? () =>
+                                                    handleTryOn(
+                                                        product,
+                                                        TRYON_PROVIDER.GEMINI,
+                                                    )
+                                                : undefined
+                                        }
                                     />
                                 ))}
                             </div>
 
-                            {/* Infinite Scroll Trigger */}
-                            <div ref={loadMoreRef} className="h-20" />
-
-                            {/* Loading More Indicator */}
-                            {isFetchingNextPage && (
-                                <div className="text-center py-8">
-                                    <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-[#D4AF37] border-t-transparent"></div>
-                                    <p className="mt-4 text-sm text-[#6B5D4F]">Loading more products...</p>
-                                </div>
+                            {/* Pagination and Items Per Page selection */}
+                            {data?.pagination && data.pagination.totalPages > 1 && (
+                                <Pagination
+                                    currentPage={currentPage}
+                                    totalPages={data.pagination.totalPages}
+                                    onPageChange={setCurrentPage}
+                                />
                             )}
-
-                            {/* End of Results */}
-                            {!hasNextPage && filteredProducts.length > 0 && (
-                                <div className="text-center py-8">
-                                    <p className="text-sm text-[#6B5D4F]">
-                                        You've reached the end of our collection
-                                    </p>
-                                </div>
-                            )}
+                            
+                            <div className="flex flex-wrap justify-center items-center mt-6 gap-2">
+                                <span className="text-sm text-[#6B5D4F]">Items per page:</span>
+                                <select 
+                                    className="px-2 py-1 rounded-md bg-[#F8F4EC] border border-[#D4C5A9] text-sm focus:outline-none"
+                                    value={itemsPerPage}
+                                    onChange={(e) => {
+                                        setItemsPerPage(Number(e.target.value));
+                                        setCurrentPage(1);
+                                    }}
+                                >
+                                    <option value={30}>30</option>
+                                    <option value={40}>40</option>
+                                    <option value={50}>50</option>
+                                </select>
+                            </div>
                         </>
                     )}
                 </div>
@@ -662,7 +848,7 @@ const CollectionPage = () => {
                 onGenerateMoreAngles={handleGenerateMoreAngles}
                 generatingAngles={generatingAngles}
                 userPhoto={aura?.image_url}
-                garmentId={selectedTryOnProduct || undefined}
+                garmentId={selectedTryOnProduct?.product_id}
                 garmentTitle={selectedTryOnLabel || undefined}
                 generatedImages={generatedImages}
                 onSelectImage={(img) => setResultImage(img)}

@@ -33,7 +33,7 @@ const REASON_META: Record<string, { icon: React.ReactNode; desc: string }> = {
 const STEPS = [
     { n: '1', title: 'Select a Reason', desc: 'Help us understand why you\'re returning this item.' },
     { n: '2', title: 'Schedule Pickup', desc: 'We will coordinate a convenient doorstep pickup time.' },
-    { n: '3', title: 'Get Refund', desc: 'Once verified, your refund will be initiated instantly.' },
+    { n: '3', title: 'Get Wallet Refund', desc: 'Once verified, the approved refund is credited to your wallet.' },
 ];
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -233,7 +233,7 @@ export const ReturnOrderPage: React.FC = () => {
                     <div className="space-y-1">
                         <p className="text-[11px] font-bold text-[#B45309] uppercase tracking-wider">Secure Returns</p>
                         <p className="text-[11px] text-[#92400E] leading-relaxed">
-                            Once your return is picked up, it usually takes 2-3 business days for our quality team to verify the product. After verification, your refund will be processed immediately.
+                            Once your return is picked up, it usually takes 2-3 business days for our quality team to verify the product. After verification, the approved refund is credited to your wallet and will appear on the Wallet page.
                         </p>
                     </div>
                 </div>

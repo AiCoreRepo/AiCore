@@ -13,56 +13,105 @@ export enum ComplimentMessageId {
     CMP_06 = "cmp_06",
     CMP_07 = "cmp_07",
     CMP_08 = "cmp_08",
+    CMP_09 = "cmp_09",
+    CMP_10 = "cmp_10",
+    CMP_11 = "cmp_11",
+    CMP_12 = "cmp_12",
+    CMP_13 = "cmp_13",
+    CMP_14 = "cmp_14",
+    CMP_15 = "cmp_15",
 }
 
 export const COMPLIMENT_MESSAGES: ComplimentMessage[] = [
     {
         id: ComplimentMessageId.CMP_01,
         message:
-            "Ye look aap par bahut khoobsurati se baith raha hai. Grace bhi dikh rahi hai, aur poora finish premium feel de raha hai.",
-        highlights: ["Graceful", "Polished"],
+            "Apni nigaahon se khud ko mat dekhiye 🫶, Heera bhi aapko patthar lagega 🤍; Sab kehte honge \"chaand ka tukda ho aap\" 😍… Meri nazar se dekhiye 🎀, Chaand bhi aapka tukda lagega ✨🤌",
+        highlights: ["✨", "🫶"],
     },
     {
         id: ComplimentMessageId.CMP_02,
         message:
-            "Is outfit ne aapki presence ko aur nikhara hai. Sach kahun, aap is look ko sirf pehen nahi rahi, poore confidence ke saath own kar rahi hain.",
-        highlights: ["Confident", "Refined"],
+            "Khud ko aapki yaadon ka gulaam kar diya 🫶, Aapke khaatir khud ko badnaam kar diya 😍. Aur kya saboot doon aapki khoobsurti ka 🎀, Mere paas ek hi dil tha 💓— Wo bhi aapke naam kar diya 🤌✨",
+        highlights: ["💓", "🫶"],
     },
     {
         id: ComplimentMessageId.CMP_03,
         message:
-            "Ye rang aap par itni narmi se khil raha hai jaise design ko apni sahi jagah mil gayi ho. Bahut balanced aur elegant pairing hai.",
-        highlights: ["Elegant", "Balanced"],
+            "Nazar ko nazar ki nazar na lage 🧿🫶, Koi achha bhi is kadar na lage 😍, Aapko dekha hai is nazar se 🎀, Jis nazar se aapko nazar hi na lage 🤌✨",
+        highlights: ["🧿", "✨"],
     },
     {
         id: ComplimentMessageId.CMP_04,
         message:
-            "Silhouette clean hai, fall flattering hai, aur overall vibe bahut composed lag rahi hai. Is look mein aap effortlessly standout kar rahi hain.",
-        highlights: ["Flattering", "Composed"],
+            "Aaj chaand bhi der tak nikla nahi 🌙, Shayad kisi ne keh diya ho— \"Zameen par aaj khoobsurti ka mukammal jawaab hai\" 😍🫶",
+        highlights: ["🌙", "😍"],
     },
     {
         id: ComplimentMessageId.CMP_05,
         message:
-            "Aaj ka style verdict seedha sa hai: ye outfit aap par bahut jach raha hai. Softness bhi hai, statement bhi hai, aur poori look yaad reh jaati hai.",
-        highlights: ["Statement", "Soft"],
+            "Chaand se poocha, tumse sundar kaun? 🌙 Chaand muskuraya 😊, kuch pal raha maun 🤍. Usne na lafzon ka sahaara liya 🤌, Bas ek pari ki taraf ishara kiya ✨🎀",
+        highlights: ["🌙", "✨"],
     },
     {
         id: ComplimentMessageId.CMP_06,
         message:
-            "Is look ko dekhkar nazar thehar si jaati hai. Fit aur finish dono milkar aapki natural elegance ko aur strong bana rahe hain.",
-        highlights: ["Elegant", "Sharp"],
+            "Hey, are you ubalta hua doodh on the gas? 😜 'Cause tumse bilkul nazar nahi hatti 😍🫶🤌",
+        highlights: ["😜", "😍"],
     },
     {
         id: ComplimentMessageId.CMP_07,
         message:
-            "Aapki personality aur is outfit ka mood ekdum sync mein lag raha hai. Poora styling result tasteful, graceful, aur bahut flattering hai.",
-        highlights: ["Tasteful", "Graceful"],
+            "Chaand ki roshni-si hain jinki aankhein ✨, Ada-e-khaas rakhti ho tum 😍— Har libaas tum par jachta hai 🎀, Is rang mein to aur bhi kamaal lagti ho 🫶🤌",
+        highlights: ["✨", "🎀"],
     },
     {
         id: ComplimentMessageId.CMP_08,
         message:
-            "Is dress ki detailing aur aapki presence ek dusre ko beautifully complement kar rahi hain. Sach mein, ye look aap par bahut hi khoobsurat lag raha hai.",
-        highlights: ["Detailed", "Beautiful"],
+            "Sitaaron se poocha tumse sundar kaun ✨, Chaand se poocha tumse sundar kaun 🌙, Unhone dekha ek pari ki ore— Muskurate hue 😊, sharmate hue 😍… Muskurate hue, sharmate hue 🎀🫶",
+        highlights: ["✨", "🌙"],
+    },
+    {
+        id: ComplimentMessageId.CMP_09,
+        message:
+            "Aaj rangon ko bolne ki zarurat nahi padi 🎨, Silwaton ne hi poora kissa keh diya 😍, Jo pehen kar saamne aayi— Nazrein thehar gayi 🫶, Baat adhoori reh gayi 🤌✨",
+        highlights: ["🎨", "✨"],
+    },
+    {
+        id: ComplimentMessageId.CMP_10,
+        message:
+            "Phoolon ne aaj aaina badal liya 🌸, Jab aapko in rangon mein saja dekha 😍. Ye pehnaava jaise mausam ki pasand ho 🎀, Aap par har saadgi khil uthti hai 🫶, Aur har nazar thehar kar wajah dhoondhti hai ✨🤌",
+        highlights: ["🌸", "✨"],
+    },
+    {
+        id: ComplimentMessageId.CMP_11,
+        message:
+            "Kahan se laaun wo shabd 🤍, Jo sirf aap tak pahunch paayein 🫶… Duniya chaand ko dekhti rahe 🌙, Aur mujhe sirf aap hi nazar aayein 😍🎀",
+        highlights: ["🤍", "🌙"],
+    },
+    {
+        id: ComplimentMessageId.CMP_12,
+        message:
+            "Sitaaron bhari raaton ki baatein sab karte hain ✨, Door se suni kahaniyon par sab marte hain 😌… Tareef ke kaabil to aap mein bahut kuch hai 🫶, Par is andaaz mein ye roop Kuch zyada hi jachta hai 😍🤌✨",
+        highlights: ["✨", "😍"],
+    },
+    {
+        id: ComplimentMessageId.CMP_13,
+        message:
+            "Apni nigaahon se khud ko mat dekhiye 🫶, Heera bhi aapko patthar lagega 🤍",
+        highlights: ["🫶", "🤍"],
+    },
+    {
+        id: ComplimentMessageId.CMP_14,
+        message:
+            "Chaand ki roshni-si hain jinki aankhein ✨, Ada-e-khaas rakhti ho tum 😍",
+        highlights: ["✨", "😍"],
+    },
+    {
+        id: ComplimentMessageId.CMP_15,
+        message:
+            "Aaj chaand bhi der tak nikla nahi 🌙, Shayad kisi ne keh diya ho— \"Zameen par aaj khoobsurti ka mukammal jawaab hai\" 😍🫶",
+        highlights: ["🌙", "🫶"],
     },
 ];
 
@@ -87,7 +136,6 @@ export const getRandomCompliment = (): ComplimentMessage => {
 
         shownIds.push(selectedMessage.id);
         localStorage.setItem(SHOWN_COMPLIMENTS_KEY, JSON.stringify(shownIds));
-
         return selectedMessage;
     } catch (error) {
         console.warn("Failed to track compliments, using simple random:", error);

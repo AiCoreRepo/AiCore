@@ -249,6 +249,7 @@ jobs:
             GCP_COMPOSE_FILE="${{ vars.GCP_UAT_COMPOSE_FILE }}"
             GCP_COMPOSE_SERVICES="${{ vars.GCP_UAT_COMPOSE_SERVICES }}"
             GCP_BACKEND_ENV_B64="${{ secrets.GCP_UAT_BACKEND_ENV_B64 }}"
+            GCP_SERVICE_ACCOUNT_JSON_B64="${{ secrets.GCP_UAT_SERVICE_ACCOUNT_JSON_B64 }}"
             GCP_USE_LOCAL_INFRA="${{ vars.GCP_UAT_USE_LOCAL_INFRA }}"
             GCP_SERVER_BASE_URL="${{ vars.GCP_UAT_SERVER_BASE_URL }}"
             if [ -z "$GCP_SERVER_BASE_URL" ]; then
@@ -263,6 +264,7 @@ jobs:
             GCP_COMPOSE_FILE="${{ vars.GCP_COMPOSE_FILE }}"
             GCP_COMPOSE_SERVICES="${{ vars.GCP_COMPOSE_SERVICES }}"
             GCP_BACKEND_ENV_B64="${{ secrets.GCP_BACKEND_ENV_B64 }}"
+            GCP_SERVICE_ACCOUNT_JSON_B64="${{ secrets.GCP_SERVICE_ACCOUNT_JSON_B64 }}"
             GCP_USE_LOCAL_INFRA="${{ vars.GCP_USE_LOCAL_INFRA }}"
             GCP_SERVER_BASE_URL="${{ vars.GCP_SERVER_BASE_URL }}"
             if [ -z "$GCP_SERVER_BASE_URL" ]; then
@@ -348,6 +350,11 @@ jobs:
           else
             echo "  Backend env payload: not provided"
           fi
+          if [ -n "$GCP_SERVICE_ACCOUNT_JSON_B64" ]; then
+            echo "  Vertex service account payload: provided (base64 length ${#GCP_SERVICE_ACCOUNT_JSON_B64})"
+          else
+            echo "  Vertex service account payload: not provided"
+          fi
 
           if [ -z "$GCP_INSTANCE_HOST" ] || [ -z "$GCP_INSTANCE_USER" ] || [ -z "$GCP_INSTANCE_SSH_KEY" ] || [ -z "$GCP_DEPLOY_PATH" ]; then
             echo "Missing required deployment config for branch '$GCP_TARGET_BRANCH':"
@@ -378,6 +385,7 @@ jobs:
           COMPOSE_SERVICES_B64="$(printf '%s' "$COMPOSE_SERVICES" | base64 -w0)"
           DEPLOY_PATH_B64="$(printf '%s' "$SSH_DEPLOY_PATH" | base64 -w0)"
           BACKEND_ENV_B64="$(printf '%s' "$GCP_BACKEND_ENV_B64" | base64 -w0)"
+          SERVICE_ACCOUNT_ENV_B64="$(printf '%s' "$GCP_SERVICE_ACCOUNT_JSON_B64" | base64 -w0)"
           LOCAL_INFRA_B64="$(printf '%s' "$GCP_USE_LOCAL_INFRA" | base64 -w0)"
           TARGET_BRANCH_B64="$(printf '%s' "$GCP_TARGET_BRANCH" | base64 -w0)"
           echo "Encoded payload lengths: file=$(( ${#COMPOSE_FILE_B64} )) services=$(( ${#COMPOSE_SERVICES_B64} )) deploy=$(( ${#DEPLOY_PATH_B64} ))"
@@ -409,12 +417,13 @@ jobs:
 
           ssh -o IdentitiesOnly=yes -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa \
             "$GCP_INSTANCE_USER@$GCP_INSTANCE_HOST" \
-            "COMPOSE_FILE_B64='${COMPOSE_FILE_B64}' COMPOSE_SERVICES_B64='${COMPOSE_SERVICES_B64}' DEPLOY_PATH_B64='${DEPLOY_PATH_B64}' BACKEND_ENV_B64='${BACKEND_ENV_B64}' LOCAL_INFRA_B64='${LOCAL_INFRA_B64}' TARGET_BRANCH_B64='${TARGET_BRANCH_B64}' bash -s" <<'EOF'
+            "COMPOSE_FILE_B64='${COMPOSE_FILE_B64}' COMPOSE_SERVICES_B64='${COMPOSE_SERVICES_B64}' DEPLOY_PATH_B64='${DEPLOY_PATH_B64}' BACKEND_ENV_B64='${BACKEND_ENV_B64}' SERVICE_ACCOUNT_ENV_B64='${SERVICE_ACCOUNT_ENV_B64}' LOCAL_INFRA_B64='${LOCAL_INFRA_B64}' TARGET_BRANCH_B64='${TARGET_BRANCH_B64}' bash -s" <<'EOF'
           set -e
           COMPOSE_FILE="$(printf '%s' "$COMPOSE_FILE_B64" | base64 -d)"
           COMPOSE_SERVICES="$(printf '%s' "$COMPOSE_SERVICES_B64" | base64 -d)"
           DEPLOY_PATH="$(printf '%s' "$DEPLOY_PATH_B64" | base64 -d)"
           BACKEND_ENV_B64="$(printf '%s' "$BACKEND_ENV_B64" | base64 -d)"
+          GCP_SERVICE_ACCOUNT_JSON_B64="$(printf '%s' "$SERVICE_ACCOUNT_ENV_B64" | base64 -d)"
           GCP_USE_LOCAL_INFRA="$(printf '%s' "$LOCAL_INFRA_B64" | base64 -d)"
           GCP_TARGET_BRANCH="$(printf '%s' "$TARGET_BRANCH_B64" | base64 -d)"
           if [ -z "$GCP_TARGET_BRANCH" ]; then
@@ -476,9 +485,21 @@ jobs:
           else
             echo "External infra mode enabled: using DATABASE_URL/REDIS_* from backend env file"
           fi
+
+          sed -i '/^GOOGLE_SERVICE_ACCOUNT_JSON=/d;/^GOOGLE_SERVICE_ACCOUNT_JSON_B64=/d;/^GOOGLE_SERVICE_ACCOUNT_JSON_BASE64=/d' "$BACKEND_ENV_FILE"
+          if [ -n "$GCP_SERVICE_ACCOUNT_JSON_B64" ]; then
+            echo "Writing GOOGLE_SERVICE_ACCOUNT_JSON_B64 to backend env"
+            printf '%s\n' "GOOGLE_SERVICE_ACCOUNT_JSON_B64=${GCP_SERVICE_ACCOUNT_JSON_B64}" >> "$BACKEND_ENV_FILE"
+          else
+            echo "No deploy-time service account secret supplied; using existing file/env fallback only"
+          fi
+
           chmod 600 "$BACKEND_ENV_FILE"
           echo "Backend env resolved snapshot:"
           grep -E '^(DATABASE_URL|DB_WAIT_HOST|DB_WAIT_PORT|REDIS_HOST|REDIS_PORT|FORCE_LOCAL_REDIS)=' "$BACKEND_ENV_FILE" || true
+          if grep -q '^GOOGLE_SERVICE_ACCOUNT_JSON_B64=' "$BACKEND_ENV_FILE"; then
+            echo "GOOGLE_SERVICE_ACCOUNT_JSON_B64=<redacted>"
+          fi
 
           if [ ! -d "$DEPLOY_PATH" ]; then
             echo "Deploy path does not exist: $DEPLOY_PATH"

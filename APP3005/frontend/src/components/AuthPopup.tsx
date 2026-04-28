@@ -9,13 +9,11 @@ interface AuthPopupProps {
     onAction: () => void;
 }
 
+// TODO: modification needed
 const greetings = [
     "Hello, Beautiful! ✨",
-    "Welcome, Style Icon! 🌟",
-    "Greetings, Trendsetter! 💫",
     "Hello, Gorgeous! 💖",
-    "Hey there, Charming! ✨",
-    "Welcome to Elegance! 🌹"
+    "Hello, Charming! ✨",
 ];
 
 const getRandomGreeting = () => {
@@ -37,14 +35,14 @@ export const AuthPopup = ({ isOpen, onClose, type, onAction }: AuthPopupProps) =
             title: "Unlock Your Style Journey",
             message: "Experience the ultimate personalized shopping adventure. Sign in to discover outfits curated specifically for your unique taste and aura.",
             actionText: "Login to Continue",
-            gradient: "from-purple-500 to-pink-500"
+            gradient: "from-[#D4AF37] to-[#C9A55C]"
         }
         : {
             icon: Camera,
             title: "Create Your Digital Aura",
             message: "Step into the spotlight! Create your lifelike digital twin to instantly try on any outfit. See exactly how it looks on you before you buy.",
             actionText: "Start Your Transformation",
-            gradient: "from-amber-500 to-orange-500"
+            gradient: "from-[#D4AF37] to-[#C9A55C]"
         };
 
     const Icon = content.icon;

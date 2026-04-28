@@ -29,10 +29,30 @@ export const SUPPORTED_MIME_TYPES = [
 // Supported File Extensions
 export const SUPPORTED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp'] as const;
 
+const getEnvTimeout = (key: string, fallback: number): number => {
+  const rawValue = process.env[key];
+  if (!rawValue) {
+    return fallback;
+  }
+
+  const parsedValue = Number.parseInt(rawValue, 10);
+  return Number.isFinite(parsedValue) && parsedValue > 0
+    ? parsedValue
+    : fallback;
+};
+
 // API Timeout Settings (in milliseconds)
-export const DEFAULT_TIMEOUT = 60000; // 60 seconds
-export const VERTEX_AI_TIMEOUT = 90000; // 90 seconds
-export const GEMINI_AI_TIMEOUT = 300000; // 300 seconds (5 minutes) - increased further for slow generation
+export const DEFAULT_TIMEOUT = getEnvTimeout('DEFAULT_TIMEOUT', 60000); // 60 seconds
+export const VERTEX_AI_TIMEOUT = getEnvTimeout('VERTEX_AI_TIMEOUT', 120000); // 120 seconds
+
+// Gemini Try-On Timeout
+// Increased to 120s because complex outfits (textures, complex geometry) require more processing time from the Gemini model.
+export const GEMINI_AI_TIMEOUT = getEnvTimeout('GEMINI_AI_TIMEOUT', 120000); // 120 seconds
+
+// Hard fail-safe timeouts for Bull job processing.
+// These are used as the `timeout` option in queue.add() to hard-kill stalled jobs.
+export const AURA_JOB_TIMEOUT = getEnvTimeout('AURA_JOB_TIMEOUT', 180000); // 180s job timeout
+export const TRYON_JOB_TIMEOUT = getEnvTimeout('TRYON_JOB_TIMEOUT', 180000); // 180s job timeout
 
 // Retry Configuration
 export const MAX_RETRIES = 3;
@@ -54,33 +74,150 @@ export const PNG_COMPRESSION_LEVEL = 6;
 export const WEBP_QUALITY = 90;
 
 // AI Model Prompts
-export const VERTEX_AI_TRYON_PROMPT = `Generate a realistic virtual try-on image where the person in the avatar image is wearing the clothing item from the product image. 
-Maintain the person's pose, body proportions, and facial features exactly as they appear. 
-Ensure the clothing fits naturally and realistically on the person's body, adapting to their shape and posture. 
-Preserve the original style, color, texture, and all details of the clothing item. 
-The output should be photorealistic, seamless, and look like a professional product photograph. 
-Pay special attention to lighting consistency, shadows, and fabric draping for maximum realism.`;
+export interface GeminiTryOnPromptAttributes {
+  height_cm?: number;
+  weight_kg?: number;
+  skin_tone?: string;
+  gender?: string;
+  body_shape?: string;
+  body_size?: string;
+  age_range?: string;
+  hair_style?: string;
+}
 
-export const GEMINI_AI_TRYON_PROMPT = `You are an expert virtual try-on system with advanced understanding of fashion, body proportions, and photorealistic image composition.
+const formatGeminiPromptAttr = (value: string) => value.replace(/_/g, ' ');
 
-TASK: Create a photorealistic composite image where the person from the avatar image is wearing the clothing item from the product image.
+const convertCmToFeetInches = (heightCm: number): string => {
+  const totalInches = Math.round(heightCm / 2.54);
+  const feet = Math.floor(totalInches / 12);
+  const inches = totalInches % 12;
 
-CRITICAL REQUIREMENTS:
-1. IDENTITY PRESERVATION: Maintain the person's exact facial features, skin tone, hair, and overall appearance
-2. BODY ACCURACY: Preserve the person's body shape, proportions, pose, and stance
-3. CLOTHING FIDELITY: Accurately represent the clothing's color, texture, pattern, style, and all design details
-4. REALISTIC FIT: Ensure the clothing fits naturally on the person's body with proper draping and fabric physics
-5. LIGHTING CONSISTENCY: Match lighting, shadows, and highlights between the person and clothing for seamless integration
-6. PROFESSIONAL QUALITY: Output should be indistinguishable from a professional fashion photograph
+  return `${feet}'${inches}"`;
+};
 
-TECHNICAL SPECIFICATIONS:
-- Maintain high resolution and image quality
-- Ensure proper perspective and scale
-- Create realistic fabric wrinkles and folds
-- Add appropriate shadows and reflections
-- Blend edges seamlessly for natural integration
+const extractRepresentativeAge = (ageRange?: string): number | undefined => {
+  if (!ageRange) {
+    return undefined;
+  }
 
-OUTPUT: A single, high-quality, photorealistic image of the person wearing the clothing item.`;
+  const matches = ageRange.match(/\d+/g);
+  if (!matches || matches.length === 0) {
+    return undefined;
+  }
+
+  return Number(matches[0]);
+};
+
+const buildGeminiPersonProfile = (
+  attributes?: GeminiTryOnPromptAttributes,
+): string[] => {
+  const age = extractRepresentativeAge(attributes?.age_range);
+  const profileLines: string[] = [];
+
+  if (attributes?.height_cm) {
+    profileLines.push(
+      `Height: ${attributes.height_cm} cm (${convertCmToFeetInches(attributes.height_cm)})`,
+    );
+  }
+
+  if (attributes?.body_shape) {
+    profileLines.push(
+      `Body shape: ${formatGeminiPromptAttr(attributes.body_shape)}`,
+    );
+  }
+
+  if (attributes?.body_size) {
+    profileLines.push(
+      `Body size: ${formatGeminiPromptAttr(attributes.body_size)}`,
+    );
+  }
+
+  if (attributes?.weight_kg) {
+    profileLines.push(`Weight: ${attributes.weight_kg} kg`);
+  }
+
+  if (attributes?.skin_tone) {
+    profileLines.push(
+      `Skin tone: ${formatGeminiPromptAttr(attributes.skin_tone)}`,
+    );
+  }
+
+  if (attributes?.gender) {
+    profileLines.push(`Gender: ${formatGeminiPromptAttr(attributes.gender)}`);
+  }
+
+  if (age !== undefined) {
+    profileLines.push(`Approximate age: ${age}`);
+  }
+
+  if (attributes?.hair_style) {
+    profileLines.push(
+      `Hair style: ${formatGeminiPromptAttr(attributes.hair_style)}`,
+    );
+  }
+
+  return profileLines;
+};
+
+export function buildGeminiTryOnPrompt(
+  attributes?: GeminiTryOnPromptAttributes,
+): string {
+  const personProfileLines = buildGeminiPersonProfile(attributes);
+  const personProfileSection = personProfileLines.length
+    ? [
+      'First-image person profile:',
+      ...personProfileLines.map((line) => `- ${line}`),
+    ].join('\n')
+    : 'No extra profile is provided beyond the first image. Preserve the real identity and body proportions visible in the first image.';
+
+  return [
+    'Create exactly one new photorealistic virtual try-on image.',
+    'The first image is the real person/avatar whose identity must remain unchanged in the final result.',
+    'The second image is the garment or outfit reference.',
+    'Take the garment from the second image and make the person from the first image actually wear it.',
+    personProfileSection,
+    'Identity requirements:',
+    '- Preserve the exact same face, skin tone, hairline, hairstyle, hair length, hair volume, hair texture, and body proportions of the first image.',
+    '- Keep the first-image person as the only person in the result.',
+    '- ABSOLUTELY DO NOT use the face, head, or identity from the second image (garment reference). If you can see a human face or head in the second image, IGNORE it completely.',
+    '- Do not replace, beautify, reshape, or blend the first-image face or body with the clothing-model or mannequin identity from the second image.',
+    '- If the first image is cropped or not full body, extend the framing naturally so the same person remains visible head to toe.',
+    '- If height is provided in the first-image person profile, use it as the fit reference for body proportions.',
+    '- Maintain natural human anatomy and realistic proportions, including a correct head-to-body ratio, centered neck placement, aligned shoulders, and proportional torso, arms, hands, legs, and feet.',
+    'Garment requirements:',
+    '- Transfer the full visible outfit from the second image onto the first-image person.',
+    '- We only want the clothing from the second image. The ONLY face and body identity that should appear is the exact face of the first image.',
+    '- Keep garment colors, prints, textures, trims, embroidery, silhouette, neckline, sleeves, layering, shoes, jewelry, and accessories that are visible in the second image.',
+    '- The clothing must look naturally worn by the first-image person, not pasted on, floating, overlaid, or shown as a separate product shot.',
+    '- Fit and scale the outfit to the real first-image person, not to the mannequin or model proportions visible in the second image.',
+    'Output requirements:',
+    '- Return a single newly generated full-body image from head to toe.',
+    '- Use a vertical portrait composition, approximately 2:3, never a wide cinematic or landscape frame.',
+    '- The person should occupy most of the frame height naturally and must not appear tiny inside a large empty background.',
+    '- Keep the full head, full hair silhouette, arms, hands, legs, and feet in frame with comfortable margins.',
+    '- Use a clean studio background, natural lighting, and photorealistic quality.',
+    '- The final image must clearly show that the first-image person is wearing the second-image garment.',
+    'Hard negatives:',
+    '- Do not return either input image unchanged.',
+    '- Do not return the first image with only tiny edits while leaving the original outfit in place.',
+    '- Do not create a collage, side-by-side panel, before/after layout, or multiple people.',
+    '- Do not crop the head, hair, forehead, arms, hands, legs, or feet.',
+    '- Do not output a horizontal, panoramic, or ultra-wide composition.',
+    '- Do not make the person look shrunken, distant, or vertically compressed inside the frame.',
+    '- Do not invent a different outfit from the one visible in the second image.',
+    '- Do not stretch, squeeze, elongate, shrink, warp, or tilt the face, head, neck, shoulders, torso, arms, hands, hips, legs, or feet.',
+    '- Do not generate an oversized face, undersized face, floating face, mismatched face-to-body scale, merged limbs, duplicated limbs, or broken anatomy.',
+  ].join('\n');
+}
+
+export const GEMINI_AI_TRYON_PROMPT_STRICT_SUFFIX = `
+
+STRICT OUTPUT RULES:
+- Return exactly one newly generated try-on image.
+- The first image is the wearer identity and the second image is the garment source.
+- NEVER return either input image unchanged.
+- NEVER output collages, panels, product sheets, or multiple images in one frame.
+- If unsure, still generate a new image where the first-image person is clearly wearing the second-image garment.`;
 
 // Error Messages
 export const ERROR_MESSAGES = {
@@ -119,5 +256,35 @@ export const CONFIG_KEYS = {
 
 // Default Model Names (can be overridden via environment variables)
 export const DEFAULT_VERTEX_MODEL = 'imagegeneration@006';
-export const DEFAULT_GEMINI_MODEL = 'gemini-1.5-pro';
-export const DEFAULT_VERTEX_LOCATION = 'us-central1';
+export const DEFAULT_GEMINI_MODEL = 'gemini-3.1-flash-image-preview'; // Canonical model — do not use gemini-2.5-flash
+export const DEFAULT_VERTEX_LOCATION = 'asia-south1';
+
+// Direct Gemini Try-On Defaults — always use gemini-3.1-flash-image-preview
+export const GEMINI_TRYON_CONFIG = {
+  DEFAULT_MODEL: DEFAULT_GEMINI_MODEL,
+  DEFAULT_MIME_TYPE: 'image/jpeg',
+} as const;
+
+export const GEMINI_TRYON_OUTPUT_VALIDATION = {
+  MAX_LANDSCAPE_RATIO: 1.2,
+  MAX_AVATAR_SIMILARITY: 0.985,
+} as const;
+
+export const GEMINI_CLOTHING_MODEL_MASK = {
+  ENABLED_BY_DEFAULT: true,
+  TOP_REGION_RATIO: 0.35,
+  BLUR_SIGMA: 12,
+} as const;
+
+export const GEMINI_TRYON_ERROR_MESSAGES = {
+  MISSING_API_KEY: 'Gemini API key is not configured',
+  REQUEST_FAILED: 'Gemini try-on request failed',
+  INVALID_RESPONSE: 'Gemini try-on returned an invalid response',
+  NO_IMAGE_DATA: 'Gemini try-on response did not include image data',
+  REQUEST_TIMEOUT: 'Gemini try-on request timed out',
+  OUTPUT_MATCHES_INPUT: 'Gemini try-on output matched an input image',
+  OUTPUT_MATCH_RETRY_FAILED:
+    'Gemini try-on output did not change after retries',
+  OUTPUT_NOT_GENERATED:
+    'Gemini did not generate a new try-on image. Please try again with a different clothing image.',
+} as const;

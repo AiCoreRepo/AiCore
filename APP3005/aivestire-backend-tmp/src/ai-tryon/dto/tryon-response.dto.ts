@@ -56,6 +56,71 @@ export class TryOnResponseDto {
   timestamp: string;
 }
 
+export class TryOnQueuedResponseDto {
+  @ApiProperty({
+    description: 'Whether the try-on job was accepted successfully',
+    example: true,
+  })
+  success: boolean;
+
+  @ApiProperty({
+    description: 'Current async processing status',
+    enum: TryOnStatus,
+    example: TryOnStatus.PENDING,
+  })
+  status: TryOnStatus;
+
+  @ApiProperty({
+    description: 'Background job identifier',
+    example: '42',
+  })
+  jobId: string;
+
+  @ApiProperty({
+    description: 'Human-readable status message',
+    example: 'Try-on job queued successfully',
+  })
+  message: string;
+
+  @ApiProperty({
+    description: 'Timestamp when the job was queued',
+    example: '2026-04-02T12:00:00.000Z',
+  })
+  timestamp: string;
+}
+
+export class TryOnJobStatusResponseDto {
+  @ApiProperty({
+    description: 'Whether the job exists and is available to the current user',
+    example: true,
+  })
+  success: boolean;
+
+  @ApiProperty({
+    description: 'Background job state',
+    example: 'active',
+  })
+  status: string;
+
+  @ApiProperty({
+    description: 'Job progress percentage',
+    example: 65,
+  })
+  progress: number;
+
+  @ApiPropertyOptional({
+    description: 'Completed try-on result',
+    type: TryOnResponseDto,
+  })
+  result?: TryOnResponseDto;
+
+  @ApiPropertyOptional({
+    description: 'Failure reason when the background job fails',
+    example: 'Vertex AI request timed out',
+  })
+  error?: string;
+}
+
 /**
  * Response DTO for error cases
  */

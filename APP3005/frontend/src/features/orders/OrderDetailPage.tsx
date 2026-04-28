@@ -6,6 +6,11 @@
 
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { toast } from 'sonner';
+import { formatRefundStatus } from './utils/order.utils';
+import { useRefundSSE } from './hooks/useRefundSSE';
+import { usePayU } from '@/hooks/usePayU';
+import { paymentApi } from './api/payment.api';
 import {
     ArrowLeft,
     Package,
@@ -122,10 +127,43 @@ const REPLACE_PIPELINE: ReplacementStatus[] = ['REQUESTED', 'APPROVED', 'PICKUP_
 export const OrderDetailPage: React.FC = () => {
     const { orderId } = useParams<{ orderId: string }>();
     const navigate = useNavigate();
+    const { redirectToPayU } = usePayU();
 
     const [order, setOrder] = useState<Order | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [isRetryingPayment, setIsRetryingPayment] = useState(false);
+
+    // ── SSE Real-time Refund Updates ──────────────────────────────────────────
+    useRefundSSE({
+        watchOrderIds: orderId ? [orderId] : undefined,
+        onUpdate: (event) => {
+            console.log('[OrderDetail] SSE Update received:', event);
+            setOrder((prev) => {
+                if (!prev) return prev;
+                
+                let targetStatus = event.status;
+                if (targetStatus === 'FAILED') targetStatus = 'PROCESSING';
+                
+                const updatedStatusFields: any = { refund_status: targetStatus };
+                
+                // If refund Completes, seamlessly resolve ongoing returns/replacements instantly in UI
+                if (targetStatus === 'COMPLETED') {
+                    if (prev.return_status && prev.return_status !== 'COMPLETED') {
+                        updatedStatusFields.return_status = 'COMPLETED';
+                    }
+                    if (prev.replace_status && prev.replace_status !== 'COMPLETED') {
+                        updatedStatusFields.replace_status = 'COMPLETED';
+                    }
+                }
+
+                return {
+                    ...prev,
+                    ...updatedStatusFields,
+                };
+            });
+        },
+    });
 
     useEffect(() => {
         if (!orderId) return;
@@ -136,6 +174,20 @@ export const OrderDetailPage: React.FC = () => {
                 const orders = await ordersApi.getMyOrders();
                 const found = orders.find(o => o.order_id === orderId);
                 if (!found) throw new Error('Order not found');
+                
+                // State coercion logic for user view
+                if (found.refund_status === 'COMPLETED') {
+                    if (found.return_status && found.return_status !== 'COMPLETED') {
+                        found.return_status = 'COMPLETED';
+                    }
+                    if (found.replace_status && found.replace_status !== 'COMPLETED') {
+                        found.replace_status = 'COMPLETED';
+                    }
+                } else if (found.refund_status === 'FAILED') {
+                    // Mask internal PayU failures from users; to them it's still processing while admin retries
+                    found.refund_status = 'PROCESSING';
+                }
+
                 setOrder(found);
             } catch (e: any) {
                 setError(e.message || 'Failed to load order');
@@ -144,6 +196,21 @@ export const OrderDetailPage: React.FC = () => {
             }
         })();
     }, [orderId]);
+
+    const handleRetryPayment = async () => {
+        if (!order) return;
+        setIsRetryingPayment(true);
+        try {
+            sessionStorage.setItem('pending_order_id', order.order_id);
+            sessionStorage.setItem('pending_order_number', order.order_number);
+            const payuPayload = await paymentApi.initiatePayment(order.order_id);
+            redirectToPayU(payuPayload);
+        } catch (err: any) {
+            toast.error(err?.response?.data?.message || err?.message || 'Failed to initiate payment');
+        } finally {
+            setIsRetryingPayment(false);
+        }
+    };
 
     // ── Loading ────────────────────────────────────────────────────────────
     if (isLoading) return (
@@ -245,7 +312,17 @@ export const OrderDetailPage: React.FC = () => {
                     </div>
                     {/* Action buttons in header */}
                     <div className="flex flex-wrap gap-2">
-                        {!isCancelled && !isDelivered && (
+                        {(order.payment_status === 'FAILED' || (order.payment_status === 'PENDING' && order.payment_method !== 'COD')) && !isCancelled && (
+                            <button
+                                onClick={handleRetryPayment}
+                                disabled={isRetryingPayment}
+                                className="px-4 py-2 rounded-xl bg-white text-emerald-700 hover:bg-emerald-50 text-xs font-bold border border-transparent transition-all flex items-center gap-1.5 shadow-sm"
+                            >
+                                {isRetryingPayment ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RotateCcw className="w-3.5 h-3.5 font-bold" />}
+                                {isRetryingPayment ? 'Initiating...' : 'Pay Now'}
+                            </button>
+                        )}
+                        {!isCancelled && !isDelivered && (order.payment_method === 'COD' || order.payment_status === 'COMPLETED') && (
                             <button
                                 onClick={() => navigate(`/track-order/${order.order_id}`)}
                                 className="px-4 py-2 rounded-xl bg-white/20 hover:bg-white/30 text-white text-xs font-semibold border border-white/30 backdrop-blur-sm transition-all flex items-center gap-1.5"
@@ -496,8 +573,8 @@ export const OrderDetailPage: React.FC = () => {
                                 <p className="text-sm font-bold text-[#2C2416]">
                                     {order.payment_method === 'COD'
                                         ? 'Cash on Delivery'
-                                        : order.payment_method === 'RAZORPAY'
-                                            ? 'Razorpay (Online)'
+                                        : order.payment_method === 'PAYU'
+                                            ? 'PayU (Online)'
                                             : 'Prepaid'}
                                 </p>
                             </div>
@@ -526,19 +603,42 @@ export const OrderDetailPage: React.FC = () => {
 
                     {/* Refund info */}
                     {(order.refund_status || order.refund_amount != null) && (
-                        <div className="mt-4 pt-4 border-t border-[#F5F5F5] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                            {order.refund_status && (
-                                <div>
-                                    <p className="text-[10px] text-[#999] font-medium">Refund Status</p>
-                                    <p className="text-sm font-bold text-purple-600">
-                                        {order.refund_status.replace(/_/g, ' ')}
-                                    </p>
-                                </div>
-                            )}
-                            {order.refund_amount != null && (
-                                <div className="text-right">
-                                    <p className="text-[10px] text-[#999] font-medium">Refund Amount</p>
-                                    <p className="text-base font-bold text-emerald-600">{fmtINR(order.refund_amount)}</p>
+                        <div className="mt-4 pt-4 border-t border-[#F5F5F5] space-y-3">
+                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                                {order.refund_status && (
+                                    <div>
+                                        <p className="text-[10px] text-[#999] font-medium">Refund Status</p>
+                                        <p className="text-sm font-bold text-purple-600">
+                                            {formatRefundStatus(order.refund_status)}
+                                        </p>
+                                    </div>
+                                )}
+                                {order.refund_amount != null && (
+                                    <div className="text-right">
+                                        <p className="text-[10px] text-[#999] font-medium">Refund Amount</p>
+                                        <p className="text-base font-bold text-emerald-600">{fmtINR(order.refund_amount)}</p>
+                                    </div>
+                                )}
+                            </div>
+
+                            {order.refund_status === 'COMPLETED' && (
+                                <div className="flex flex-col gap-3 rounded-xl border border-emerald-100 bg-emerald-50/70 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                                    <div>
+                                        <p className="text-xs font-bold uppercase tracking-[0.16em] text-emerald-700">
+                                            Wallet Credit
+                                        </p>
+                                        <p className="mt-1 text-xs leading-5 text-emerald-800">
+                                            Your approved refund has been credited to your wallet and is visible in Wallet transactions.
+                                        </p>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => navigate('/wallet')}
+                                        className="inline-flex items-center justify-center gap-1.5 rounded-full border border-emerald-200 bg-white px-4 py-2 text-xs font-bold uppercase tracking-[0.14em] text-emerald-700 transition-colors hover:bg-emerald-100"
+                                    >
+                                        View Wallet
+                                        <ChevronRight className="w-3.5 h-3.5" />
+                                    </button>
                                 </div>
                             )}
                         </div>
@@ -572,6 +672,7 @@ export const OrderDetailPage: React.FC = () => {
                             <div className="overflow-x-auto pb-1">
                                 <div className="flex items-start min-w-[360px]">
                                     {RETURN_PIPELINE.map((step, idx) => {
+
                                         const cfg = RETURN_STATUS_CONFIG[step];
                                         const rIdx = RETURN_PIPELINE.indexOf(order.return_status as ReturnStatus);
                                         const sIdx = RETURN_PIPELINE.indexOf(step);

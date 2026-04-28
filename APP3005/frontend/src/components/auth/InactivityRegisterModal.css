@@ -1,0 +1,33 @@
+.register-popup-overlay {
+  background:
+    radial-gradient(circle at top, rgba(214, 170, 73, 0.18), transparent 48%),
+    rgba(12, 8, 6, 0.82);
+}
+
+.register-popup-content {
+  background:
+    linear-gradient(160deg, rgba(255, 249, 238, 0.98), rgba(244, 235, 217, 0.94));
+  box-shadow:
+    0 22px 56px rgba(0, 0, 0, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+.register-popup-compact {
+  box-shadow:
+    0 18px 44px rgba(0, 0, 0, 0.26),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+.register-popup-media {
+  background: #ead8b6;
+}
+
+@media (max-width: 639px) {
+  .register-popup-overlay {
+    padding: 0.75rem;
+  }
+
+  .register-popup-content {
+    border-radius: 1.35rem;
+  }
+}

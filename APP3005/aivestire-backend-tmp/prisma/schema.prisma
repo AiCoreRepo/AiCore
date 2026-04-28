@@ -38,61 +38,207 @@ model User {
   addresses                 UserAddress[]
   wishlist                  Wishlist?
   orders                    Order[]
+  wallet                    Wallet?
 }
 
 model Creator {
-  creator_id        String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  user_id           String        @unique @db.Uuid
+  creator_id        String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id           String          @unique @db.Uuid
   store_name        String
-  store_slug        String        @unique
+  store_slug        String          @unique
   about             String?
-  verified          Boolean       @default(false)
+  verified          Boolean         @default(false)
   verification_data Json?
-  created_at        DateTime      @default(now())
-  terms_accepted    Boolean       @default(false)
+  created_at        DateTime        @default(now())
+  terms_accepted    Boolean         @default(false)
   terms_accepted_at DateTime?
   terms_version     String?
-  user              User          @relation(fields: [user_id], references: [user_id], onDelete: Cascade)
+  user              User            @relation(fields: [user_id], references: [user_id], onDelete: Cascade)
   limits            CreatorLimit?
   products          Product[]
+  creator_coupons   CreatorCoupon[]
+  product_groups    ProductGroup[]
+  order_items       OrderItem[]
+  payouts           Payout[]
 }
 
 model CreatorLimit {
   creator_id             String   @id @db.Uuid
-  max_products           Int      @default(100)
+  max_products           Int      @default(30)
   max_images_per_product Int      @default(20)
   created_at             DateTime @default(now())
   creator                Creator  @relation(fields: [creator_id], references: [creator_id])
 }
 
 model Product {
-  product_id       String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  creator_id       String            @db.Uuid
-  title            String
-  slug             String            @unique
-  description      String?
-  price_cents      Int
-  currency         String            @default("INR")
-  inventory_count  Int               @default(0)
-  is_deleted       Boolean           @default(false)
-  max_images       Int               @default(20)
-  metadata         Json? // Recommendation attributes
-  created_at       DateTime          @default(now())
-  updated_at       DateTime?
-  status           ProductStatus     @default(PENDING)
-  category         String?
-  is_featured      Boolean           @default(false)
-  creator          Creator           @relation(fields: [creator_id], references: [creator_id])
-  approvals        ProductApproval[]
-  images           ProductImage[]
-  stats            ProductStat?
-  comments         ProductComment[]
-  likes            ProductLike[]
-  try_ons          TryOn[]
-  cart_items       CartItem[]
-  guest_cart_items GuestCartItem[]
-  wishlist_items   WishlistItem[]
-  order_items      OrderItem[]
+  product_id        String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  creator_id        String                   @db.Uuid
+  title             String
+  slug              String                   @unique
+  description       String?
+  price_cents       Int
+  commission_percentage Int                  @default(10)
+  currency          String                   @default("INR")
+  inventory_count   Int                      @default(0)
+  is_deleted        Boolean                  @default(false)
+  max_images        Int                      @default(20)
+  metadata          Json? // Recommendation attributes
+  created_at        DateTime                 @default(now())
+  updated_at        DateTime?
+  status            ProductStatus            @default(DRAFT)
+  category          String?
+  category_id       String?                  @db.Uuid
+  sub_category_id   String?                  @db.Uuid
+  is_featured       Boolean                  @default(false)
+  stock_label_override String?               // Admin override: 'LOW' | 'OK' | 'HIGH' | null (auto-computed)
+  // Recommendation attribute columns
+  occasions         String[]                 @default([])
+  body_shapes       String[]                 @default([])
+  skin_tones        String[]                 @default([])
+  sizes             String[]                 @default([])
+  age_ranges        String[]                 @default([])
+  creator           Creator                  @relation(fields: [creator_id], references: [creator_id])
+  approvals         ProductApproval[]
+  images            ProductImage[]
+  patterns          ProductPattern[]
+  stats             ProductStat?
+  comments          ProductComment[]
+  likes             ProductLike[]
+  try_ons           TryOn[]
+  cart_items        CartItem[]
+  guest_cart_items  GuestCartItem[]
+  wishlist_items    WishlistItem[]
+  order_items       OrderItem[]
+  creator_coupons   CreatorCoupon[]
+  group_assignments ProductGroupAssignment[]
+  category_rel      Category?                @relation(fields: [category_id], references: [category_id])
+  sub_category_rel  SubCategory?             @relation(fields: [sub_category_id], references: [sub_category_id])
+}
+
+// ============================================
+// CREATOR UPLOAD HIERARCHY
+// Product → Pattern (Body Shape) → Color Variant (Skin Tone + Stock + Images)
+// ============================================
+
+model ProductPattern {
+  pattern_id   String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  product_id   String   @db.Uuid
+  name         String   // e.g. "Slim Fit", "Relaxed Fit"
+  body_shapes  BodyShape[] // which body shapes this pattern suits
+  display_order Int     @default(0)
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+
+  product       Product              @relation(fields: [product_id], references: [product_id], onDelete: Cascade)
+  color_variants ProductColorVariant[]
+
+  @@index([product_id])
+  @@map("product_patterns")
+}
+
+model ProductColorVariant {
+  variant_id    String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  pattern_id    String     @db.Uuid
+  color         ClothingColor
+  hex_code      String?    // Optional custom hex for display
+  stock         Int        @default(0)
+  skin_tones    SkinTone[] // which skin tones this color suits
+  display_order Int        @default(0)
+  created_at    DateTime   @default(now())
+  updated_at    DateTime   @updatedAt
+
+  pattern ProductPattern          @relation(fields: [pattern_id], references: [pattern_id], onDelete: Cascade)
+  images  ProductColorVariantImage[]
+
+  @@index([pattern_id])
+  @@map("product_color_variants")
+}
+
+model ProductColorVariantImage {
+  image_id      String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  variant_id    String   @db.Uuid
+  url           String
+  order_index   Int      @default(0)
+  is_primary    Boolean  @default(false)
+  uploaded_at   DateTime @default(now())
+
+  variant ProductColorVariant @relation(fields: [variant_id], references: [variant_id], onDelete: Cascade)
+
+  @@index([variant_id])
+  @@map("product_color_variant_images")
+}
+
+model ProductGroup {
+  group_id    String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  creator_id  String   @db.Uuid
+  name        String
+  slug        String
+  description String?
+  parent_id   String?  @db.Uuid
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  parent   ProductGroup?            @relation("GroupHierarchy", fields: [parent_id], references: [group_id])
+  children ProductGroup[]           @relation("GroupHierarchy")
+  creator  Creator                  @relation(fields: [creator_id], references: [creator_id], onDelete: Cascade)
+  products ProductGroupAssignment[]
+
+  @@unique([creator_id, slug])
+  @@index([creator_id])
+  @@index([parent_id])
+  @@map("product_groups")
+}
+
+model ProductGroupAssignment {
+  assignment_id String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  product_id    String   @db.Uuid
+  group_id      String   @db.Uuid
+  assigned_at   DateTime @default(now())
+
+  product Product      @relation(fields: [product_id], references: [product_id], onDelete: Cascade)
+  group   ProductGroup @relation(fields: [group_id], references: [group_id], onDelete: Cascade)
+
+  @@unique([product_id, group_id])
+  @@index([group_id])
+  @@index([product_id])
+  @@map("product_group_assignments")
+}
+
+// ============================================
+// CATEGORIES & SUBCATEGORIES
+// ============================================
+
+model Category {
+  category_id String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String   @unique
+  slug        String   @unique
+  description String?
+  is_active   Boolean  @default(true)
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  subcategories SubCategory[]
+  products      Product[]
+
+  @@map("categories")
+}
+
+model SubCategory {
+  sub_category_id String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  category_id     String   @db.Uuid
+  name            String
+  slug            String   @unique
+  description     String?
+  is_active       Boolean  @default(true)
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  category Category  @relation(fields: [category_id], references: [category_id], onDelete: Cascade)
+  products Product[]
+
+  @@unique([category_id, name])
+  @@index([category_id])
+  @@map("sub_categories")
 }
 
 // ============================================
@@ -101,14 +247,15 @@ model Product {
 
 // Guest Cart - Session-based cart for unauthenticated users
 model GuestCart {
-  guest_cart_id String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  session_id    String          @unique // Cookie-based guest session
-  region        String          @default("IN")
-  channel       String          @default("WEB") // WEB, ANDROID, IOS
-  created_at    DateTime        @default(now())
-  updated_at    DateTime        @updatedAt
-  expires_at    DateTime // Auto-expire inactive guest carts
-  items         GuestCartItem[]
+  guest_cart_id       String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  session_id          String          @unique // Cookie-based guest session
+  region              String          @default("IN")
+  channel             String          @default("WEB") // WEB, ANDROID, IOS
+  created_at          DateTime        @default(now())
+  updated_at          DateTime        @updatedAt
+  expires_at          DateTime // Auto-expire inactive guest carts
+  applied_coupon_code String?
+  items               GuestCartItem[]
 
   @@index([session_id])
   @@index([expires_at])
@@ -137,16 +284,17 @@ model GuestCartItem {
 
 // User Cart - Persisted cart for authenticated users
 model Cart {
-  cart_id           String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  user_id           String     @unique @db.Uuid
-  version           Int        @default(1) // Optimistic locking for race conditions
-  merged_from_guest Boolean    @default(false) // Idempotency guard for merge
-  region            String     @default("IN")
-  channel           String     @default("WEB")
-  created_at        DateTime   @default(now())
-  updated_at        DateTime   @updatedAt
-  user              User       @relation(fields: [user_id], references: [user_id], onDelete: Cascade)
-  items             CartItem[]
+  cart_id             String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id             String     @unique @db.Uuid
+  version             Int        @default(1) // Optimistic locking for race conditions
+  merged_from_guest   Boolean    @default(false) // Idempotency guard for merge
+  region              String     @default("IN")
+  channel             String     @default("WEB")
+  applied_coupon_code String?
+  created_at          DateTime   @default(now())
+  updated_at          DateTime   @updatedAt
+  user                User       @relation(fields: [user_id], references: [user_id], onDelete: Cascade)
+  items               CartItem[]
 
   @@index([user_id])
   @@map("carts")
@@ -404,6 +552,68 @@ enum AddressType {
   OTHER
 }
 
+// ============================================
+// CREATOR UPLOAD ENUMS
+// ============================================
+
+enum BodyShape {
+  HOURGLASS
+  PEAR
+  APPLE
+  RECTANGLE
+  INVERTED_TRIANGLE
+  OVAL
+  ATHLETIC
+  PETITE
+  PLUS_SIZE
+}
+
+enum SkinTone {
+  FAIR
+  LIGHT
+  MEDIUM
+  OLIVE
+  TAN
+  BROWN
+  DARK_BROWN
+  DEEP
+}
+
+enum ClothingColor {
+  BLACK
+  WHITE
+  GREY
+  CHARCOAL
+  NAVY
+  ROYAL_BLUE
+  SKY_BLUE
+  TEAL
+  GREEN
+  OLIVE_GREEN
+  MINT
+  RED
+  MAROON
+  PINK
+  HOT_PINK
+  CORAL
+  ORANGE
+  YELLOW
+  GOLD
+  BEIGE
+  CREAM
+  BROWN
+  CHOCOLATE
+  CARAMEL
+  LAVENDER
+  PURPLE
+  INDIGO
+  RUST
+  OFF_WHITE
+  MULTI_COLOR
+  PRINTED
+  OTHER
+}
+
 model UserAddress {
   address_id    String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   user_id       String      @db.Uuid
@@ -442,6 +652,7 @@ model Order {
 
   // Current State
   current_status OrderStatus @default(PENDING)
+  inventory_deducted Boolean @default(false)
 
   // COD Specific
   cod_collected    Boolean   @default(false)
@@ -514,14 +725,28 @@ model OrderItem {
   size            String?
   color           String?
 
+  // Financial Snapshot data
+  creator_id    String      @db.Uuid
+  creator_price Decimal     @db.Decimal(10, 2)
+  commission    Decimal     @db.Decimal(10, 2)
+  selling_price Decimal     @db.Decimal(10, 2)
+  order_status  OrderStatus @default(PENDING)
+  delivered_at  DateTime?
+
   created_at DateTime @default(now())
 
   // Relations
   order   Order   @relation(fields: [order_id], references: [order_id], onDelete: Cascade)
   product Product @relation(fields: [product_id], references: [product_id])
+  creator Creator @relation(fields: [creator_id], references: [creator_id])
 
   @@index([order_id])
   @@index([product_id])
+  @@index([creator_id])
+  @@index([order_status])
+  @@index([delivered_at])
+  @@index([creator_id, order_status])
+  @@index([creator_id, delivered_at])
   @@map("order_items")
 }
 
@@ -592,17 +817,30 @@ model OrderRefund {
 
   // Refund Details
   amount        Decimal      @db.Decimal(10, 2)
-  refund_status RefundStatus @default(INITIATED)
+  refund_status RefundStatus @default(PENDING_REVIEW)
   refund_reason String?
 
-  // Approval
+  // Admin Review Audit
+  reviewed_by   String?   @db.Uuid
+  reviewed_at   DateTime?
+  review_notes  String?
+
+  // Approval (kept for backwards compat)
   approved_by      String?   @db.Uuid
   approved_at      DateTime?
   rejection_reason String?
 
+  // Archive tracking
+  archived_at DateTime?
+  archived_by String?   @db.Uuid
+
   // Processing
   refund_method  String? // Bank transfer, original payment method, etc.
   transaction_id String? // Transaction ref from payment gateway
+
+  // PayU Refund Tracking
+  payu_refund_id String? // PayU refund transaction ID
+  payu_response  Json?   // Full PayU API response for debugging / finance audit
 
   // Timestamps
   initiated_at  DateTime  @default(now())
@@ -747,7 +985,8 @@ enum OrderStatus {
 enum PaymentMethod {
   PREPAID
   COD
-  RAZORPAY
+  PAYU
+  WALLET
 }
 
 enum PaymentStatus {
@@ -778,10 +1017,12 @@ enum LocationType {
 
 enum RefundStatus {
   INITIATED
+  PENDING_REVIEW
   PROCESSING
   COMPLETED
   FAILED
   REJECTED
+  ARCHIVED
 }
 
 enum ReturnReason {
@@ -832,7 +1073,7 @@ enum ReplacementStatus {
 // ============================================
 
 /**
- * Tracks every Razorpay order/payment attempt for an order.
+ * Tracks every PayU transaction attempt for an order.
  * One order can have multiple attempts (e.g., user retries after failure).
  */
 model PaymentTransaction {
@@ -840,21 +1081,21 @@ model PaymentTransaction {
   order_id       String @db.Uuid
 
   // Gateway Info
-  gateway            PaymentGateway @default(RAZORPAY)
-  gateway_order_id   String?        @unique // Razorpay order ID (order_XXXX)
-  gateway_payment_id String? // Razorpay payment ID (pay_XXXX)
+  gateway            PaymentGateway @default(PAYU)
+  gateway_order_id   String?        @unique // PayU txnid
+  gateway_payment_id String? // PayU mihpayid
 
   // Amount
   amount_paise Int // Amount in paise (smallest unit)
   currency     String  @default("INR")
-  receipt      String? // Unique receipt sent to Razorpay
+  receipt      String? // Unique txnid sent to PayU
 
   // Status
   status         PaymentTransactionStatus @default(CREATED)
   payment_method String? // card, upi, netbanking, wallet, etc.
 
   // Refund
-  refund_id   String? // Razorpay refund ID
+  refund_id   String? // PayU refund ID
   refunded_at DateTime?
 
   // Timestamps
@@ -862,7 +1103,7 @@ model PaymentTransaction {
   captured_at DateTime?
   updated_at  DateTime  @updatedAt
 
-  // Metadata (raw Razorpay response)
+  // Metadata (raw PayU postback response)
   metadata Json?
 
   // Relations
@@ -877,7 +1118,7 @@ model PaymentTransaction {
 }
 
 enum PaymentGateway {
-  RAZORPAY
+  PAYU
   COD
 }
 
@@ -890,4 +1131,290 @@ enum PaymentTransactionStatus {
   REFUNDED
   PARTIALLY_REFUNDED
   CANCELLED
+}
+
+// ============================================
+// COUPON SYSTEM
+// ============================================
+
+enum CouponType {
+  FLAT
+  PERCENTAGE
+  DELIVERY
+}
+
+enum CouponStatus {
+  ACTIVE
+  DISABLED
+  EXPIRED
+}
+
+enum CouponScopeType {
+  GLOBAL
+  PRICE_LEVEL
+  FESTIVAL
+  USER
+  COMPANY_SPECIAL
+  COLLECTION
+  USER_BIRTHDAY
+  COMPANY_ANNIVERSARY
+}
+
+enum CouponApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  ARCHIVED
+}
+
+model Coupon {
+  coupon_id   String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title       String
+  code        String  @unique
+  description String?
+
+  // Discount
+  discount_type    CouponType
+  discount_value   Decimal    @db.Decimal(10, 2)
+  min_order_amount Decimal    @default(0) @db.Decimal(10, 2)
+
+  // Usage
+  max_usage     Int @default(1)
+  current_usage Int @default(0)
+
+  // Status & Reason
+  status CouponStatus @default(ACTIVE)
+  reason String? // e.g., festival, event, offer
+
+  // Terms
+  terms_and_conditions String?
+
+  // Validity
+  start_date DateTime
+  end_date   DateTime
+
+  // Timestamps
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  // Location restriction
+  is_location_restricted Boolean @default(false)
+
+  // Production-ready flags
+  is_one_time_per_user Boolean @default(false)
+  is_stackable         Boolean @default(false)
+  is_deleted           Boolean @default(false)
+
+  // Relations
+  allowed_pincodes CouponAllowedPincode[]
+  scope            CouponScope?
+
+  @@index([status])
+  @@index([code])
+  @@index([reason])
+  @@index([start_date])
+  @@index([end_date])
+  @@index([is_deleted])
+  @@map("coupons")
+}
+
+model CouponAllowedPincode {
+  id        String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  coupon_id String @db.Uuid
+  pincode   String
+
+  coupon Coupon @relation(fields: [coupon_id], references: [coupon_id], onDelete: Cascade)
+
+  @@unique([coupon_id, pincode])
+  @@index([coupon_id])
+  @@index([pincode])
+  @@map("coupon_allowed_pincodes")
+}
+
+model CouponScope {
+  scope_id  String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  coupon_id String @unique @db.Uuid
+
+  scope_type CouponScopeType @default(GLOBAL)
+
+  // PRICE_LEVEL fields
+  min_price Decimal? @db.Decimal(10, 2)
+  max_price Decimal? @db.Decimal(10, 2)
+
+  // FESTIVAL field
+  festival_key String? // e.g. "DIWALI", "HOLI" — maps to hardcoded constants
+
+  // COMPANY_ANNIVERSARY field
+  company_anniversary_date DateTime? // The company anniversary date
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  coupon Coupon @relation(fields: [coupon_id], references: [coupon_id], onDelete: Cascade)
+
+  @@index([scope_type])
+  @@index([coupon_id])
+  @@map("coupon_scopes")
+}
+
+// ============================================
+// CREATOR COUPONS
+// ============================================
+
+model CreatorCoupon {
+  creator_coupon_id String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title             String
+  code              String  @unique
+  description       String?
+
+  // Discount
+  discount_type    CouponType
+  discount_value   Decimal    @db.Decimal(10, 2)
+  min_order_amount Decimal    @default(0) @db.Decimal(10, 2)
+
+  // Usage
+  max_usage     Int @default(1)
+  current_usage Int @default(0)
+
+  // Status & Approval
+  status          CouponStatus         @default(ACTIVE)
+  approval_status CouponApprovalStatus @default(PENDING)
+  approval_note   String?
+
+  // Validity
+  start_date DateTime
+  end_date   DateTime
+
+  // Timestamps
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  // Production-ready flags
+  is_deleted Boolean @default(false)
+
+  // Relations
+  creator_id String  @db.Uuid
+  product_id String  @db.Uuid
+  creator    Creator @relation(fields: [creator_id], references: [creator_id], onDelete: Cascade)
+  product    Product @relation(fields: [product_id], references: [product_id], onDelete: Cascade)
+
+  @@index([status])
+  @@index([code])
+  @@index([start_date])
+  @@index([end_date])
+  @@index([is_deleted])
+  @@index([creator_id])
+  @@index([product_id])
+  @@index([approval_status])
+  @@map("creator_coupons")
+}
+
+// ============================================
+// WALLET SYSTEM
+// ============================================
+
+model Wallet {
+  wallet_id  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id    String   @unique @db.Uuid
+  balance    Decimal  @default(0) @db.Decimal(10, 2)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  user         User                @relation(fields: [user_id], references: [user_id], onDelete: Cascade)
+  transactions WalletTransaction[]
+
+  @@index([user_id])
+  @@map("wallets")
+}
+
+model WalletTransaction {
+  transaction_id String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  wallet_id      String                  @db.Uuid
+  type           WalletTransactionType
+  source         WalletTransactionSource
+  amount         Decimal                 @db.Decimal(10, 2)
+  reference_id   String?
+  description    String?
+  status         WalletTransactionStatus @default(SUCCESS)
+  created_at     DateTime                @default(now())
+
+  wallet Wallet @relation(fields: [wallet_id], references: [wallet_id], onDelete: Cascade)
+
+  @@index([wallet_id])
+  @@index([type])
+  @@index([source])
+  @@index([created_at(sort: Desc)])
+  @@map("wallet_transactions")
+}
+
+enum WalletTransactionType {
+  CREDIT
+  DEBIT
+}
+
+enum WalletTransactionSource {
+  REFUND
+  CASHBACK
+  ORDER_PAYMENT
+  ADMIN_CREDIT
+  PROMOTION
+}
+
+enum WalletTransactionStatus {
+  SUCCESS
+  FAILED
+  REVERSED
+}
+
+// ============================================
+// PAYOUT SYSTEM
+// ============================================
+
+enum PayoutStatus {
+  PENDING     // Row created, awaiting dispatch
+  PROCESSING  // Request sent to PayU
+  SUCCESS     // Gateway confirmed transfer
+  FAILED      // Gateway rejected transfer
+  CANCELLED   // Admin cancelled before dispatch
+}
+
+enum PayoutType {
+  FULL
+  PARTIAL
+}
+
+model Payout {
+  payout_id          String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  creator_id         String       @db.Uuid
+  amount             Decimal      @db.Decimal(10, 2)
+  payout_type        PayoutType   @default(FULL)
+  status             PayoutStatus @default(PENDING)
+
+  // Gateway fields
+  gateway_status     String?      // Raw PayU status string (success / failed / pending)
+  transaction_id     String?      // PayU transfer_id / mihpayid
+  payment_gateway    String       @default("PAYU")
+
+  // UPI / beneficiary details
+  upi_id             String?
+  phone_number       String?
+
+  // Audit
+  processed_by_admin String?      @db.Uuid // admin user_id (no FK to keep User model clean)
+
+  // Timestamps
+  initiated_at       DateTime     @default(now())
+  completed_at       DateTime?
+  failed_at          DateTime?
+  failure_reason     String?
+  note               String?
+  created_at         DateTime     @default(now())
+
+  creator Creator @relation(fields: [creator_id], references: [creator_id])
+
+  @@index([creator_id])
+  @@index([status])
+  @@index([creator_id, status])
+  @@index([transaction_id])
+  @@map("payouts")
 }

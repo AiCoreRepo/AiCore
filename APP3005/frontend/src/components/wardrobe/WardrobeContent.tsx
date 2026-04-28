@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { getCreatorProducts } from "@/lib/api";
 import { Search, Plus, Shirt, Loader2, X } from "lucide-react";
 import { LuxeButton } from "@/components/common/Buttons/LuxeButton";
-import UploadCollectionModal from "@/components/dashboard/UploadCollectionModal";
 import ProductDetailsModal from "@/components/dashboard/ProductDetailsModal";
 
 const WardrobeContent: React.FC = () => {
@@ -11,9 +11,9 @@ const WardrobeContent: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [page, setPage] = useState(1);
     const [hasMore, setHasMore] = useState(true);
+    const navigate = useNavigate();
     const [filter, setFilter] = useState("All");
     const [searchQuery, setSearchQuery] = useState("");
-    const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
     const [selectedProduct, setSelectedProduct] = useState<any | null>(null);
 
     const fetchWardrobe = async (pageNum: number, reset: boolean = false) => {
@@ -107,21 +107,21 @@ const WardrobeContent: React.FC = () => {
     }
 
     return (
-        <div className="max-w-7xl mx-auto">
+        <div className="mx-auto max-w-7xl min-w-0">
             {/* Header */}
-            <div className="flex flex-col md:flex-row justify-between items-end mb-10 gap-6">
-                <div>
-                    <h1 className="font-serif text-4xl text-luxury-black mb-2">My Wardrobe</h1>
-                    <p className="text-stone-500">Manage your digital collection and curated looks.</p>
+            <div className="mb-8 flex flex-col gap-4 sm:mb-10 md:flex-row md:items-end md:justify-between md:gap-6">
+                <div className="min-w-0">
+                    <h1 className="mb-2 font-serif text-3xl text-luxury-black sm:text-4xl">My Wardrobe</h1>
+                    <p className="max-w-2xl text-sm text-stone-500 sm:text-base">Manage your digital collection and curated looks.</p>
                 </div>
-                <LuxeButton onClick={() => setIsUploadModalOpen(true)} variant="luxury" className="flex items-center gap-2">
+                <LuxeButton onClick={() => navigate('/creator-upload')} variant="luxury" className="flex items-center gap-2">
                     <Plus size={18} />
                     Add New Item
                 </LuxeButton>
             </div>
 
             {/* Controls */}
-            <div className="flex flex-col md:flex-row gap-4 mb-8 bg-white/50 p-4 rounded-xl border border-stone-100 backdrop-blur-sm">
+            <div className="mb-8 flex min-w-0 flex-col gap-4 rounded-xl border border-stone-100 bg-white/50 p-4 backdrop-blur-sm md:flex-row">
                 <div className="relative flex-1">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" size={18} />
                     <input
@@ -129,7 +129,7 @@ const WardrobeContent: React.FC = () => {
                         placeholder="Search your collection..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2 bg-white border border-stone-200 rounded-lg focus:outline-none focus:border-luxury-gold/50 transition-colors"
+                        className="w-full rounded-lg border border-stone-200 bg-white py-2.5 pl-10 pr-4 text-base focus:border-luxury-gold/50 focus:outline-none transition-colors sm:text-sm"
                     />
                 </div>
                 <div className="flex gap-2 overflow-x-auto pb-2 md:pb-0 no-scrollbar">
@@ -155,7 +155,7 @@ const WardrobeContent: React.FC = () => {
                 </div>
             ) : filteredProducts.length > 0 ? (
                 <>
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                    <div className="grid grid-cols-2 gap-4 sm:gap-5 md:grid-cols-3 lg:grid-cols-4 lg:gap-6">
                         {filteredProducts.map((product) => (
                             <div key={product.id} className="group relative bg-white rounded-xl overflow-hidden border border-stone-100 hover:border-luxury-gold/30 hover:shadow-lg transition-all duration-500">
                                 <div className="aspect-[3/4] overflow-hidden bg-stone-50 relative">
@@ -222,13 +222,6 @@ const WardrobeContent: React.FC = () => {
                     <p className="text-stone-400 mt-2">Start uploading your designs to build your digital closet.</p>
                 </div>
             )}
-
-            <UploadCollectionModal
-                open={isUploadModalOpen}
-                onOpenChange={setIsUploadModalOpen}
-                onSuccess={() => fetchWardrobe(1, true)}
-            />
-
             {/* Product Details Modal */}
             {selectedProduct && (
                 <ProductDetailsModal

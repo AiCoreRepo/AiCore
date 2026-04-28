@@ -142,8 +142,8 @@ export const ReturnOrderModal: React.FC<ReturnOrderModalProps> = ({
                                     <span className="text-[#C9A55C] group-hover:text-[#1A150D] font-bold text-sm transition-colors duration-300">3</span>
                                 </div>
                                 <div>
-                                    <h5 className="text-white font-medium mb-1.5 text-base">Get Refund</h5>
-                                    <p className="text-[#999999] text-sm leading-relaxed">Once verified at our atelier, your refund will be initiated instantly.</p>
+                                    <h5 className="text-white font-medium mb-1.5 text-base">Get Wallet Refund</h5>
+                                    <p className="text-[#999999] text-sm leading-relaxed">Once verified at our atelier, the approved refund is credited to your wallet.</p>
                                 </div>
                             </div>
                         </div>

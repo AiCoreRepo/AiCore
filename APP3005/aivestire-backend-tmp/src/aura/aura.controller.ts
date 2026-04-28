@@ -12,24 +12,24 @@ import {
   Param,
   HttpCode,
   HttpStatus,
+  Req,
 } from '@nestjs/common';
+import type { Request } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { AuraService } from './aura.service';
+import { AuraService } from './services/aura.service';
 import { CreateAuraDto } from './dto/create-aura.dto';
 import { UpdateAuraDto } from './dto/update-aura.dto';
-import { BodyAnalyzerService } from '../ai-tryon/services/body-analyzer.service';
-import { BodyAnalysisResultDto } from '../ai-tryon/dto/body-analyzer.dto';
 
 @Controller('aura')
 export class AuraController {
   constructor(
     private readonly auraService: AuraService,
-    private readonly bodyAnalyzerService: BodyAnalyzerService,
   ) {}
 
   @Post()
+  @HttpCode(HttpStatus.ACCEPTED)
   @UseGuards(JwtAuthGuard)
   @UseInterceptors(FileInterceptor('photo'))
   async createAura(
@@ -63,12 +63,14 @@ export class AuraController {
   }
 
   @Post('recreate')
+  @HttpCode(HttpStatus.ACCEPTED)
   @UseGuards(JwtAuthGuard)
   @UseInterceptors(FileInterceptor('photo'))
   async recreateAura(
     @CurrentUser('user_id') userId: string,
     @UploadedFile() file: Express.Multer.File | undefined,
     @Body() recreateAuraDto: CreateAuraDto,
+    @Req() req: Request,
   ) {
     if (file) {
       const allowedMimeTypes = [
@@ -89,7 +91,7 @@ export class AuraController {
       }
     }
 
-    return this.auraService.recreateAura(userId, file, recreateAuraDto);
+    return this.auraService.recreateAura(userId, file, recreateAuraDto, req);
   }
 
   @Get('status')
@@ -109,6 +111,15 @@ export class AuraController {
     return this.auraService.getAuraByUserId(userId);
   }
 
+  @Patch('avatars/:avatarId/select')
+  @UseGuards(JwtAuthGuard)
+  async selectAvatarForTryOns(
+    @CurrentUser('user_id') userId: string,
+    @Param('avatarId') avatarId: string,
+  ) {
+    return this.auraService.selectAvatarForTryOns(userId, avatarId);
+  }
+
   @Patch()
   @UseGuards(JwtAuthGuard)
   async updateAura(
@@ -124,37 +135,4 @@ export class AuraController {
     return this.auraService.deleteAura(userId);
   }
 
-  @Post('analyze-image')
-  @HttpCode(HttpStatus.OK)
-  @UseInterceptors(FileInterceptor('photo'))
-  async analyzeImage(
-    @UploadedFile() file: Express.Multer.File,
-  ): Promise<BodyAnalysisResultDto> {
-    if (!file) {
-      throw new BadRequestException('Photo is required');
-    }
-
-    const allowedMimeTypes = [
-      'image/jpeg',
-      'image/jpg',
-      'image/png',
-      'image/webp',
-    ];
-    if (!allowedMimeTypes.includes(file.mimetype)) {
-      throw new BadRequestException(
-        'Only JPEG, PNG, and WebP images are allowed',
-      );
-    }
-
-    const maxSize = 10 * 1024 * 1024; // 10MB
-    if (file.size > maxSize) {
-      throw new BadRequestException('File size must be less than 10MB');
-    }
-
-    console.log('📸 Analyzing image for body attributes...');
-    return this.bodyAnalyzerService.analyzeImageBuffer(
-      file.buffer,
-      file.mimetype,
-    );
-  }
 }

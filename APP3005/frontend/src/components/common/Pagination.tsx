@@ -13,7 +13,7 @@ export const Pagination: React.FC<PaginationProps> = ({ currentPage, totalPages,
     const pages = Array.from({ length: totalPages }, (_, i) => i + 1);
 
     return (
-        <div className="flex items-center justify-center space-x-2 mt-8">
+        <div className="flex flex-wrap items-center justify-center gap-2 mt-8">
             <button
                 onClick={() => onPageChange(currentPage - 1)}
                 disabled={currentPage === 1}
@@ -23,14 +23,14 @@ export const Pagination: React.FC<PaginationProps> = ({ currentPage, totalPages,
                 <ChevronLeft size={20} />
             </button>
 
-            <div className="flex items-center space-x-1">
+            <div className="flex flex-wrap items-center justify-center gap-1">
                 {pages.map((page) => (
                     <button
                         key={page}
                         onClick={() => onPageChange(page)}
                         className={`w-8 h-8 rounded-full text-sm font-medium transition-colors ${currentPage === page
-                                ? 'bg-gold text-primary-foreground'
-                                : 'hover:bg-muted text-muted-foreground hover:text-foreground'
+                            ? 'bg-gold text-primary-foreground'
+                            : 'hover:bg-muted text-muted-foreground hover:text-foreground'
                             }`}
                     >
                         {page}

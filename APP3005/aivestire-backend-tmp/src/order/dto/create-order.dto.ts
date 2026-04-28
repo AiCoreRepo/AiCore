@@ -41,4 +41,8 @@ export class CreateOrderDto {
 
   @IsEnum(PaymentMethod)
   paymentMethod: PaymentMethod;
+
+  @IsOptional()
+  @IsString()
+  couponCode?: string;
 }

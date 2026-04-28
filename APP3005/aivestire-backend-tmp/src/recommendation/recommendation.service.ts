@@ -8,6 +8,118 @@ import { Occasion } from './enums/recommendation.enum';
 import { GetRecommendationsDto } from './dto/recommendation-request.dto';
 import { RecommendationsResponseDto } from './dto/recommendation-response.dto';
 import { DummyRecommendationService } from './dummy-recommendation.service';
+import { normalizeAuraAvatarHistory } from '../aura/utils/aura-avatar-history.util';
+
+const RECOMMENDATION_NETWORK_ERROR_CODES = new Set([
+  'ECONNREFUSED',
+  'ECONNRESET',
+  'ENOTFOUND',
+  'EAI_AGAIN',
+  'ETIMEDOUT',
+  'ECONNABORTED',
+]);
+
+const INVALID_AURA_IMAGE_URLS = new Set(['background-uploading']);
+
+type RecommendationAuraImageSource = Pick<
+  Aura,
+  | 'image_url'
+  | 'model_url'
+  | 'tryon_model_url'
+  | 'generated_avatar_urls'
+  | 'attributes'
+  | 'created_at'
+  | 'updated_at'
+>;
+
+export function isUsableRecommendationImageUrl(
+  imageUrl?: string | null,
+): imageUrl is string {
+  if (!imageUrl) {
+    return false;
+  }
+
+  const trimmed = imageUrl.trim();
+  if (!trimmed || INVALID_AURA_IMAGE_URLS.has(trimmed.toLowerCase())) {
+    return false;
+  }
+
+  if (trimmed.startsWith('data:image/')) {
+    return true;
+  }
+
+  try {
+    const parsedUrl = new URL(trimmed);
+    return parsedUrl.protocol === 'http:' || parsedUrl.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
+export function resolveRecommendationAuraImageUrl(
+  aura?: RecommendationAuraImageSource | null,
+): string | null {
+  if (!aura) {
+    return null;
+  }
+
+  const { selectedAvatar } = normalizeAuraAvatarHistory({
+    attributesJson: aura.attributes,
+    modelUrl: aura.model_url,
+    tryOnModelUrl: aura.tryon_model_url,
+    generatedAvatarUrls: aura.generated_avatar_urls,
+    createdAt: aura.created_at,
+    updatedAt: aura.updated_at,
+  });
+
+  const generatedAvatarUrls = Array.isArray(aura.generated_avatar_urls)
+    ? [...aura.generated_avatar_urls].reverse()
+    : [];
+
+  const candidateUrls = [
+    aura.image_url,
+    selectedAvatar?.tryon_model_url,
+    selectedAvatar?.model_url,
+    aura.tryon_model_url,
+    aura.model_url,
+    ...generatedAvatarUrls,
+  ];
+
+  for (const candidateUrl of candidateUrls) {
+    if (isUsableRecommendationImageUrl(candidateUrl)) {
+      return candidateUrl;
+    }
+  }
+
+  return null;
+}
+
+export function shouldFallbackToDummyRecommendations(error: unknown): boolean {
+  const code =
+    typeof error === 'object' && error !== null && 'code' in error
+      ? String((error as { code?: unknown }).code ?? '')
+      : '';
+  const status =
+    typeof error === 'object' && error !== null && 'response' in error
+      ? Number(
+          (
+            error as {
+              response?: { status?: number | string };
+            }
+          ).response?.status,
+        )
+      : NaN;
+
+  if (RECOMMENDATION_NETWORK_ERROR_CODES.has(code)) {
+    return true;
+  }
+
+  if (!Number.isFinite(status)) {
+    return false;
+  }
+
+  return status === 404 || status === 422 || status >= 500;
+}
 
 @Injectable()
 export class RecommendationService {
@@ -113,17 +225,24 @@ export class RecommendationService {
         `Getting ML recommendations for user ${userId}, occasion: ${dto.occasion}`,
       );
 
-      // Validate Aura has required image
-      if (!aura.image_url) {
+      const recommendationImageUrl = resolveRecommendationAuraImageUrl(aura);
+
+      if (!recommendationImageUrl) {
         throw new HttpException(
-          'Aura image is required for AI recommendations. Please update your Aura with a photo.',
+          'Aura image is not ready yet. Please wait for Aura generation to finish or recreate your Aura.',
           HttpStatus.BAD_REQUEST,
         );
       }
 
-      // Download and convert Aura image to base64
-      this.logger.log(`📥 Downloading Aura image: ${aura.image_url}`);
-      const imageBase64 = await this.downloadImageAsBase64(aura.image_url);
+      if (recommendationImageUrl !== aura.image_url) {
+        this.logger.warn(
+          `Aura source image unavailable for user ${userId}; falling back to resolved avatar image ${recommendationImageUrl}`,
+        );
+      }
+
+      this.logger.log(`📥 Downloading Aura image: ${recommendationImageUrl}`);
+      const imageBase64 =
+        await this.downloadImageAsBase64(recommendationImageUrl);
 
       // Extract age from Aura age_range (e.g., "26-35" -> 30)
       const age = this.extractAgeFromAura(aura);
@@ -185,25 +304,18 @@ export class RecommendationService {
         error.stack,
       );
 
-      // If FastAPI is not available, use fallback DB-based recommendations
-      if (error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT') {
-        this.logger.warn(
-          '⚠️ ML service unavailable, falling back to DB-based recommendations',
-        );
-
-        const ageRange = aura?.age_range || null;
-        const skinTone = aura?.skin_tone || null;
-        return this.dummyRecommendationService.getDummyRecommendations(
-          dto.occasion,
-          ageRange,
-          skinTone,
-        );
+      if (error instanceof HttpException) {
+        const status = error.getStatus();
+        if (status >= 400 && status < 500) {
+          throw error;
+        }
       }
 
-      if (error.response?.status === 422) {
+      if (shouldFallbackToDummyRecommendations(error)) {
         this.logger.warn(
-          `⚠️ ML service rejected payload with 422: ${JSON.stringify(error.response?.data)}`,
+          `⚠️ ML service unavailable or misconfigured (code=${error?.code ?? 'unknown'}, status=${error?.response?.status ?? 'none'}), falling back to DB-based recommendations`,
         );
+
         const ageRange = aura?.age_range || null;
         const skinTone = aura?.skin_tone || null;
         return this.dummyRecommendationService.getDummyRecommendations(
@@ -319,6 +431,24 @@ export class RecommendationService {
    */
   private async downloadImageAsBase64(imageUrl: string): Promise<string> {
     try {
+      if (imageUrl.startsWith('data:image/')) {
+        const [, base64Payload] = imageUrl.split(',', 2);
+        if (!base64Payload) {
+          throw new HttpException(
+            'Aura image payload is invalid.',
+            HttpStatus.BAD_REQUEST,
+          );
+        }
+        return base64Payload;
+      }
+
+      if (!isUsableRecommendationImageUrl(imageUrl)) {
+        throw new HttpException(
+          'Aura image URL is invalid.',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
       const response = await firstValueFrom(
         this.httpService.get(imageUrl, {
           responseType: 'arraybuffer',
@@ -329,6 +459,10 @@ export class RecommendationService {
       const buffer = Buffer.from(response.data);
       return buffer.toString('base64');
     } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+
       this.logger.error(
         `Failed to download image from ${imageUrl}: ${error.message}`,
       );

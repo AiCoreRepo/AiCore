@@ -1,9 +1,15 @@
 import React, { ReactNode, useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { ShoppingBag, Heart, MapPin, CreditCard, Settings, LogOut, User, Home, Package, Menu, X } from 'lucide-react';
+import { ShoppingBag, Heart, MapPin, CreditCard, Settings, LogOut, User, Home, Package, Menu, X, Wallet } from 'lucide-react';
 import { LogoutConfirmDialog } from '@/components/LogoutConfirmDialog';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/AuthContext';
+import {
+    getUserDisplayName,
+    getUserInitials,
+    getUserProfileImageUrl,
+    PROFILE_IMAGE_OBJECT_POSITION,
+} from '@/lib/profile-image';
 
 interface UserLayoutProps {
     children: ReactNode;
@@ -24,10 +30,17 @@ export const UserDashboardLayout: React.FC<UserLayoutProps> = ({ children, hideS
     const { user } = useAuth();
     const [showLogoutDialog, setShowLogoutDialog] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const [profileImageError, setProfileImageError] = useState(false);
 
     // Get user info from AuthContext
     const userEmail = user?.email || 'user@example.com';
-    const userName = user?.store_name || user?.email?.split('@')[0] || 'User';
+    const userName = getUserDisplayName(user);
+    const profileImageUrl = getUserProfileImageUrl(user);
+    const userInitials = getUserInitials(user);
+
+    useEffect(() => {
+        setProfileImageError(false);
+    }, [profileImageUrl]);
 
     // Close mobile menu on route change
     useEffect(() => {
@@ -59,11 +72,21 @@ export const UserDashboardLayout: React.FC<UserLayoutProps> = ({ children, hideS
             icon: Package,
             href: '/my-orders',
         },
+        {
+            id: 'wallet',
+            label: 'Wallet',
+            icon: Wallet,
+            href: '/wallet',
+        },
     ];
 
     const handleLogout = () => {
         localStorage.removeItem('access_token');
+        localStorage.removeItem('user_name');
+        localStorage.removeItem('user_email');
         setShowLogoutDialog(false);
+        window.dispatchEvent(new Event('auth-refresh'));
+        window.dispatchEvent(new Event('aura-updated'));
 
         toast({
             title: "Logged out successfully",
@@ -119,7 +142,19 @@ export const UserDashboardLayout: React.FC<UserLayoutProps> = ({ children, hideS
                     <div className="p-8 text-center border-b border-[#D8D6D1]">
                         <div className="relative w-24 h-24 mx-auto mb-4">
                             <div className="w-full h-full rounded-full bg-gradient-to-br from-[#9C8B6C] to-[#8A7A5D] flex items-center justify-center overflow-hidden shadow-lg border-4 border-white">
-                                <User className="w-10 h-10 text-white" />
+                                {profileImageUrl && !profileImageError ? (
+                                    <img
+                                        src={profileImageUrl}
+                                        alt={userName}
+                                        className="w-full h-full object-cover"
+                                        style={{ objectPosition: PROFILE_IMAGE_OBJECT_POSITION }}
+                                        onError={() => setProfileImageError(true)}
+                                    />
+                                ) : (
+                                    <span className="text-3xl font-bold text-white">
+                                        {userInitials}
+                                    </span>
+                                )}
                             </div>
                             <div className="absolute bottom-1 right-1 w-5 h-5 bg-green-500 rounded-full border-2 border-white"></div>
                         </div>

@@ -16,7 +16,7 @@ import {
 
 @Injectable()
 export class CartService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   /**
    * Get or create cart for user
@@ -46,6 +46,7 @@ export class CartService {
       select: {
         cart_id: true,
         user_id: true,
+        applied_coupon_code: true,
         created_at: true,
         updated_at: true,
         items: {
@@ -90,6 +91,7 @@ export class CartService {
     return {
       cart_id: cartWithItems.cart_id,
       user_id: cartWithItems.user_id,
+      applied_coupon_code: cartWithItems.applied_coupon_code,
       created_at: cartWithItems.created_at,
       updated_at: cartWithItems.updated_at,
       items: cartWithItems.items.map((item) => ({
@@ -105,7 +107,7 @@ export class CartService {
           product_id: item.product.product_id,
           title: item.product.title,
           slug: item.product.slug,
-          price_cents: item.product.price_cents,
+          price_cents: item.product.price_cents + Math.round(item.product.price_cents * ((item.product as any).commission_percentage / 100)),
           currency: item.product.currency,
           inventory_count: item.product.inventory_count,
           category: item.product.category || '',
@@ -195,7 +197,7 @@ export class CartService {
           quantity: quantity,
           size: dto.size || null,
           color: dto.color || null,
-          price_cents_snapshot: product.price_cents,
+          price_cents_snapshot: product.price_cents + Math.round(product.price_cents * (product.commission_percentage / 100)),
           currency_snapshot: product.currency,
         },
       });
@@ -323,6 +325,7 @@ export class CartService {
         product: {
           select: {
             price_cents: true,
+            commission_percentage: true,
           },
         },
       },
@@ -337,9 +340,14 @@ export class CartService {
   private calculateSummary(cartItems: any[]): CartSummaryDto {
     const itemCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
 
-    // Use current product price for calculations
+    // Use current product selling price (Base + Commission) for calculations
     const subtotalCents = cartItems.reduce(
-      (sum, item) => sum + item.product.price_cents * item.quantity,
+      (sum, item) => {
+        const p = item.product;
+        const commissionAddon = Math.round(p.price_cents * (p.commission_percentage / 100));
+        const sellingPrice = p.price_cents + commissionAddon;
+        return sum + sellingPrice * item.quantity;
+      },
       0,
     );
 

@@ -15,9 +15,10 @@ import { useToast } from "@/hooks/use-toast";
 import { userSignup, googleAuth, getAuraStatus, login as loginApi } from "@/lib/api";
 import { useGoogleLogin } from "@react-oauth/google";
 import { getErrorMessage } from "@/lib/error-utils";
-import heroImage from "@/assets/aivestire-auth-model.png"; // Refined Indian model with mirror concept
+import { cloudinaryImages } from "@/constants/cloudinaryImages";
 
 const UserSignup = () => {
+    const heroImage = cloudinaryImages.auth.userModel;
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);

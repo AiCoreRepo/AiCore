@@ -19,7 +19,7 @@ interface UploadsGridProps {
     onPublish?: (productId: string) => void;
 }
 
-type FilterStatus = 'all' | 'active' | 'pending';
+type FilterStatus = 'all' | 'active' | 'pending' | 'draft' | 'rejected';
 type SortOrder = 'newest' | 'oldest' | 'price-high' | 'price-low';
 
 const UploadsGrid = ({ uploads, onEdit, onDelete, onPublish }: UploadsGridProps) => {
@@ -31,11 +31,20 @@ const UploadsGrid = ({ uploads, onEdit, onDelete, onPublish }: UploadsGridProps)
 
         // Filter
         if (filterStatus !== 'all') {
-            result = result.filter(item =>
-                filterStatus === 'active'
-                    ? item.status === 'Active'
-                    : item.status === 'Pending'
-            );
+            result = result.filter(item => {
+                switch (filterStatus) {
+                    case 'active':
+                        return item.status === 'Active';
+                    case 'pending':
+                        return item.status === 'Pending';
+                    case 'draft':
+                        return item.status === 'Draft';
+                    case 'rejected':
+                        return item.status === 'Rejected';
+                    default:
+                        return true;
+                }
+            });
         }
 
         // Sort
@@ -118,6 +127,18 @@ const UploadsGrid = ({ uploads, onEdit, onDelete, onPublish }: UploadsGridProps)
                                     className="justify-between cursor-pointer text-stone-300 focus:text-luxury-gold focus:bg-luxury-gold/10 rounded-lg my-0.5"
                                 >
                                     Pending {filterStatus === 'pending' && <Check size={14} className="text-luxury-gold" />}
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                    onClick={() => setFilterStatus(prev => prev === 'draft' ? 'all' : 'draft')}
+                                    className="justify-between cursor-pointer text-stone-300 focus:text-luxury-gold focus:bg-luxury-gold/10 rounded-lg my-0.5"
+                                >
+                                    Draft {filterStatus === 'draft' && <Check size={14} className="text-luxury-gold" />}
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                    onClick={() => setFilterStatus(prev => prev === 'rejected' ? 'all' : 'rejected')}
+                                    className="justify-between cursor-pointer text-stone-300 focus:text-luxury-gold focus:bg-luxury-gold/10 rounded-lg my-0.5"
+                                >
+                                    Rejected {filterStatus === 'rejected' && <Check size={14} className="text-luxury-gold" />}
                                 </DropdownMenuItem>
                             </DropdownMenuGroup>
                             <DropdownMenuSeparator className="bg-luxury-gold/10 my-1" />

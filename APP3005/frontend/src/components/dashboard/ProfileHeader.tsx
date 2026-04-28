@@ -3,6 +3,7 @@ import { ChevronDown, Plus, X, Settings } from "lucide-react";
 import EditProfileModal from "./EditProfileModal";
 import TermsModal from "../TermsModal";
 import { Dialog, DialogContent, DialogClose } from "@/components/ui/dialog";
+import { acceptCreatorTerms, getCreatorTermsStatus } from "@/lib/api";
 
 interface ProfileHeaderProps {
     user: {
@@ -22,6 +23,7 @@ const ProfileHeader = ({ user, onUploadClick, onCustomizeClick, onProfileUpdate 
     const [isTermsModalOpen, setIsTermsModalOpen] = useState(false);
     const [hasAcceptedTerms, setHasAcceptedTerms] = useState(false);
     const [isCheckingTerms, setIsCheckingTerms] = useState(true);
+    const [isAcceptingTerms, setIsAcceptingTerms] = useState(false);
 
     // Check if creator has accepted terms on mount
     useEffect(() => {
@@ -31,16 +33,13 @@ const ProfileHeader = ({ user, onUploadClick, onCustomizeClick, onProfileUpdate 
     const checkTermsStatus = async () => {
         try {
             const token = localStorage.getItem('access_token');
-            const response = await fetch(`${import.meta.env.VITE_API_URL}/creators/terms-status`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                },
-            });
 
-            if (response.ok) {
-                const data = await response.json();
-                setHasAcceptedTerms(data.accepted);
+            if (!token) {
+                return;
             }
+
+            const data = await getCreatorTermsStatus(token);
+            setHasAcceptedTerms(data.accepted);
         } catch (error) {
             console.error('Error checking terms status:', error);
         } finally {
@@ -59,59 +58,29 @@ const ProfileHeader = ({ user, onUploadClick, onCustomizeClick, onProfileUpdate 
     };
 
     const handleAcceptTerms = async () => {
+        const token = localStorage.getItem('access_token');
+
+        if (!token) {
+            alert('Authentication required. Please log in again.');
+            return;
+        }
+
+        setIsAcceptingTerms(true);
+
         try {
-            const token = localStorage.getItem('access_token');
-
-            if (!token) {
-                alert('Authentication required. Please log in again.');
-                return;
-            }
-
-            console.log('Accepting terms...', {
-                url: `${import.meta.env.VITE_API_URL}/creators/accept-terms`,
-                hasToken: !!token
-            });
-
-            const response = await fetch(`${import.meta.env.VITE_API_URL}/creators/accept-terms`, {
-                method: 'PATCH',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                },
-            });
-
-            console.log('Response status:', response.status);
-            const responseText = await response.text();
-            console.log('Response body:', responseText);
-
-            if (response.ok) {
-                setHasAcceptedTerms(true);
-                setIsTermsModalOpen(false);
-                // Proceed to upload
-                onUploadClick();
-            } else {
-                let errorMessage = 'Failed to accept terms. ';
-
-                if (response.status === 401 || response.status === 403) {
-                    errorMessage = 'You need to be logged in as a Creator to accept terms. Please ensure you have creator access.';
-                } else {
-                    try {
-                        const errorData = JSON.parse(responseText);
-                        errorMessage += errorData.message || 'Please try again.';
-                    } catch {
-                        errorMessage += `Status: ${response.status}. Please try again.`;
-                    }
-                }
-
-                alert(errorMessage);
-                console.error('Error response:', {
-                    status: response.status,
-                    body: responseText
-                });
-            }
+            await acceptCreatorTerms(token);
+            setHasAcceptedTerms(true);
+            setIsTermsModalOpen(false);
+            onUploadClick();
         } catch (error) {
             console.error('Error accepting terms:', error);
-            alert('Network error occurred. Please check your connection and try again.');
+            const message =
+                error instanceof Error
+                    ? error.message
+                    : 'Failed to accept terms. Please try again.';
+            alert(message);
+        } finally {
+            setIsAcceptingTerms(false);
         }
     };
 
@@ -161,7 +130,7 @@ const ProfileHeader = ({ user, onUploadClick, onCustomizeClick, onProfileUpdate 
                 </div>
             </div>
 
-            <div className="flex flex-col gap-2.5 items-end w-full md:w-64">
+            <div className="flex flex-col gap-3 items-end w-full md:w-64">
                 <button
                     onClick={handleUploadClick}
                     disabled={isCheckingTerms}
@@ -221,6 +190,7 @@ const ProfileHeader = ({ user, onUploadClick, onCustomizeClick, onProfileUpdate 
                 isOpen={isTermsModalOpen}
                 onAccept={handleAcceptTerms}
                 onDecline={handleDeclineTerms}
+                isSubmitting={isAcceptingTerms}
             />
 
             <Dialog open={isLightboxOpen} onOpenChange={setIsLightboxOpen}>

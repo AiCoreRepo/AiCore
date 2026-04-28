@@ -9,7 +9,14 @@ import { useToast } from "@/hooks/use-toast";
 import { getProductById, getProductLikes, getProductComments } from "@/lib/api";
 import { CommentsModal } from "@/components/collection/CommentsModal";
 import { SizeChartModal } from "@/components/SizeChartModal";
+import { FashionStylistSection } from "@/components/FashionStylistSection";
 import { getSizeChart, getAvailableSizes } from "@/constants/sizeChart";
+import {
+    TRYON_PROVIDER,
+    getDefaultTryOnProvider,
+    shouldShowMultipleTryOnProviders,
+    type TryOnProvider,
+} from "@/lib/try-on-environment";
 
 interface Comment {
     comment_id: string;
@@ -54,6 +61,8 @@ const ProductDetailsPage = () => {
     const { toast } = useToast();
     const { addToCart } = useCart();
     const { toggleWishlist, isInWishlist } = useWishlist();
+    const showMultipleTryOnProviders = shouldShowMultipleTryOnProviders();
+    const defaultTryOnProvider = getDefaultTryOnProvider();
 
     const [product, setProduct] = useState<Product | null>(null);
     const [loading, setLoading] = useState(true);
@@ -138,21 +147,14 @@ const ProductDetailsPage = () => {
                 quantity: 1,
                 creator: product.creator,
             });
-            toast({
-                title: "Added to Cart",
-                description: `${product.title} has been added to your cart.`,
-            });
+            // Toast is handled by CartContext with CartToast component
         } catch (error) {
             console.error('Error adding to cart:', error);
-            toast({
-                variant: "destructive",
-                title: "Error",
-                description: "Failed to add product to cart.",
-            });
+            // Error toast is handled by CartContext
         }
     };
 
-    const handleVirtualTryOn = () => {
+    const handleVirtualTryOn = (provider: TryOnProvider = defaultTryOnProvider) => {
         if (!product) return;
 
         const token = localStorage.getItem('access_token');
@@ -162,7 +164,26 @@ const ProductDetailsPage = () => {
         }
 
         navigate('/ai-try-on', {
-            state: { autoTryOnProductId: product.product_id },
+            state: {
+                autoTryOnProductId: product.product_id,
+                autoTryOnProvider: provider,
+                autoTryOnProduct: {
+                    product_id: product.product_id,
+                    title: product.title,
+                    description: product.description || "",
+                    price_cents: product.price_cents,
+                    currency: product.currency,
+                    thumbnail: product.thumbnail,
+                    images: productImages,
+                    category: product.category,
+                    is_featured: product.is_featured,
+                    likes: product.likes,
+                    reviews: product.reviews,
+                    views: product.views,
+                    creator: product.creator,
+                    metadata: product.metadata,
+                },
+            },
         });
     };
 
@@ -365,13 +386,32 @@ const ProductDetailsPage = () => {
                             </button>
                         </div>
 
-                        <button
-                            onClick={handleVirtualTryOn}
-                            className="w-full bg-black text-white py-3 px-6 rounded font-semibold hover:bg-neutral-800 transition-colors flex items-center justify-center gap-2"
-                        >
-                            <Sparkles className="w-5 h-5" />
-                            VIRTUAL TRY ON
-                        </button>
+                        {showMultipleTryOnProviders ? (
+                            <div className="grid gap-3 sm:grid-cols-2">
+                                <button
+                                    onClick={() => handleVirtualTryOn(TRYON_PROVIDER.VERTEX)}
+                                    className="w-full bg-black text-white py-3 px-6 rounded font-semibold hover:bg-neutral-800 transition-colors flex items-center justify-center gap-2"
+                                >
+                                    <Sparkles className="w-5 h-5" />
+                                    VERTEX TRY ON
+                                </button>
+                                <button
+                                    onClick={() => handleVirtualTryOn(TRYON_PROVIDER.GEMINI)}
+                                    className="w-full border border-[#D4AF37] bg-[#FEF9F0] text-[#2C2416] py-3 px-6 rounded font-semibold hover:bg-[#FBF2DF] transition-colors flex items-center justify-center gap-2"
+                                >
+                                    <Sparkles className="w-5 h-5 text-[#D4AF37]" />
+                                    GEMINI TRY ON
+                                </button>
+                            </div>
+                        ) : (
+                            <button
+                                onClick={() => handleVirtualTryOn(defaultTryOnProvider)}
+                                className="w-full bg-black text-white py-3 px-6 rounded font-semibold hover:bg-neutral-800 transition-colors flex items-center justify-center gap-2"
+                            >
+                                <Sparkles className="w-5 h-5" />
+                                TRY ON
+                            </button>
+                        )}
 
                         {/* Delivery Options */}
                         <div className="pt-3 border-t">
@@ -522,6 +562,9 @@ const ProductDetailsPage = () => {
                     </div>
                 </div>
             </div>
+
+            {/* Fashion Stylist Section */}
+            <FashionStylistSection category={product.category} title={product.title} />
 
             {/* Image Modal */}
             {showImageModal && (

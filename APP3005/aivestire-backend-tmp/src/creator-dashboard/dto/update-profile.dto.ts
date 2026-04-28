@@ -12,4 +12,12 @@ export class UpdateProfileDto {
   @IsOptional()
   @IsString()
   avatar?: string; // base64 or URL
+
+  @IsOptional()
+  @IsString()
+  paymentBeneficiaryName?: string;
+
+  @IsOptional()
+  @IsString()
+  paymentUpiId?: string;
 }

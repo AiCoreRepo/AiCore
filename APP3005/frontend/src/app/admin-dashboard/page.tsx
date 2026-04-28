@@ -107,12 +107,12 @@ const AdminDashboardPage: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen bg-neutral-900 flex">
+        <div className="min-h-screen bg-neutral-900 flex flex-col md:flex-row">
             {/* Sidebar */}
             <Sidebar />
 
             {/* Main Content */}
-            <main className="flex-1 ml-[280px] p-8">
+            <main className="flex-1 md:ml-[280px] p-4 pt-20 sm:p-6 sm:pt-20 md:p-8 md:pt-8 w-full max-w-[100vw] md:max-w-none overflow-x-hidden">
                 <div className="max-w-7xl mx-auto space-y-8">
                     {/* Header */}
                     <motion.div

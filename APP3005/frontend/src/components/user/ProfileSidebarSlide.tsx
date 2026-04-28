@@ -1,9 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { X, User, ShoppingBag, Package, LogOut, Sparkles } from 'lucide-react';
 import { useProfileSidebar } from '@/context/ProfileSidebarContext';
-
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+import { getAuraStatus } from '@/lib/api';
+import { useAuth } from '@/context/AuthContext';
+import {
+    getPreferredAuraImageUrl,
+    getUserDisplayName,
+    getUserProfileImageUrl,
+    PROFILE_IMAGE_OBJECT_POSITION,
+} from '@/lib/profile-image';
 
 interface MenuItem {
     id: string;
@@ -17,34 +23,32 @@ export const ProfileSidebarSlide: React.FC = () => {
     const { isOpen, closeSidebar } = useProfileSidebar();
     const navigate = useNavigate();
     const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-    const [auraImageUrl, setAuraImageUrl] = useState<string | null>(null);
+    const [aura, setAura] = useState<any>(null);
     const [imgError, setImgError] = useState(false);
+    const { user, logout } = useAuth();
 
-    const userEmail = localStorage.getItem('user_email') || 'user@example.com';
-    const userName = localStorage.getItem('user_name') || userEmail.split('@')[0];
+    const userEmail = user?.email || 'user@example.com';
+    const userName = getUserDisplayName(user);
+    const auraImageUrl = getPreferredAuraImageUrl(aura);
+    const profileImageUrl = getUserProfileImageUrl(user, aura);
+    const hasAuraPhoto = Boolean(auraImageUrl) && !imgError;
+    const hasProfilePhoto = Boolean(profileImageUrl) && !imgError;
 
     // Fetch aura photo when sidebar opens
     useEffect(() => {
         if (!isOpen) return;
         const fetchAura = async () => {
             try {
-                const token = localStorage.getItem('access_token');
-                if (!token) return;
-                const res = await fetch(`${API_BASE}/aura`, {
-                    headers: { Authorization: `Bearer ${token}` },
-                });
-                if (res.ok) {
-                    const data = await res.json();
-                    if (data?.status === 'READY' && (data?.model_url || data?.image_url)) {
-                        setAuraImageUrl(data.model_url || data.image_url);
-                    }
-                }
+                const status = await getAuraStatus();
+                setAura(status?.aura || null);
             } catch { /* silent fallback */ }
         };
         fetchAura();
     }, [isOpen]);
 
-    const hasAuraPhoto = auraImageUrl && !imgError;
+    useEffect(() => {
+        setImgError(false);
+    }, [profileImageUrl]);
 
     const menuItems: MenuItem[] = [
         {
@@ -71,9 +75,8 @@ export const ProfileSidebarSlide: React.FC = () => {
     ];
 
     const handleLogout = () => {
-        localStorage.removeItem('access_token');
         closeSidebar();
-        navigate('/');
+        logout();
     };
 
     const handleMenuClick = (href: string) => {
@@ -121,16 +124,17 @@ export const ProfileSidebarSlide: React.FC = () => {
                 <div className="pt-14 pb-6 px-6 border-b border-[#E8E5E0] text-center">
                     <div className="relative w-16 h-16 mx-auto mb-3">
                         <div className={`w-16 h-16 rounded-full overflow-hidden flex items-center justify-center
-                            ${hasAuraPhoto
+                            ${hasProfilePhoto
                                 ? 'ring-4 ring-[#C9A55C] ring-offset-2 ring-offset-[#F8F5F0] shadow-md'
                                 : 'bg-gradient-to-br from-[#C9A55C] to-[#B8944F]'
                             }`}
                         >
-                            {hasAuraPhoto ? (
+                            {hasProfilePhoto ? (
                                 <img
-                                    src={auraImageUrl!}
-                                    alt="Aura"
+                                    src={profileImageUrl!}
+                                    alt="Profile"
                                     className="w-full h-full object-cover"
+                                    style={{ objectPosition: PROFILE_IMAGE_OBJECT_POSITION }}
                                     onError={() => setImgError(true)}
                                 />
                             ) : (
@@ -146,7 +150,7 @@ export const ProfileSidebarSlide: React.FC = () => {
                     <p className="text-sm font-bold text-[#1F1F1F]">{userName}</p>
                     <p className="text-xs text-[#999999] truncate">{userEmail}</p>
                     {hasAuraPhoto && (
-                        <p className="text-[9px] font-semibold text-[#C9A55C] mt-1 tracking-widest uppercase">✦ Aura Active</p>
+                        <p className="text-[9px] font-semibold text-[#C9A55C] mt-1 tracking-widest uppercase">Aura Active</p>
                     )}
                 </div>
 

@@ -21,36 +21,102 @@ const BASE_STEPS: ProcessingStep[] = [
     { id: "finalizing", label: "Finalizing", status: "pending" },
 ];
 
+const getSoftProgressCap = (serverProgress: number): number => {
+    if (serverProgress >= 100) return 100;
+    if (serverProgress >= 90) return 97;
+    if (serverProgress >= 70) return 94;
+    if (serverProgress >= 50) return 88;
+    if (serverProgress >= 20) return 82;
+    if (serverProgress >= 10) return 30;
+    if (serverProgress > 0) return 18;
+    return 12;
+};
+
 export const ProcessingModal = ({ isOpen, progress, estimatedTime }: ProcessingModalProps) => {
     const [steps, setSteps] = useState<ProcessingStep[]>(BASE_STEPS);
+    const [displayProgress, setDisplayProgress] = useState(0);
+
+    useEffect(() => {
+        if (!isOpen) {
+            setDisplayProgress(0);
+            return;
+        }
+
+        if (progress >= 100) {
+            setDisplayProgress(100);
+            return;
+        }
+
+        const minimumVisibleProgress = progress > 0 ? Math.max(progress, 8) : 8;
+        setDisplayProgress((prev) => Math.max(prev, minimumVisibleProgress));
+    }, [isOpen, progress]);
+
+    useEffect(() => {
+        if (!isOpen) return;
+
+        const interval = window.setInterval(() => {
+            setDisplayProgress((prev) => {
+                if (progress >= 100) {
+                    return 100;
+                }
+
+                const minimumVisibleProgress = progress > 0 ? Math.max(progress, 8) : 8;
+                const current = Math.max(prev, minimumVisibleProgress);
+                const softCap = getSoftProgressCap(progress);
+
+                if (current >= softCap) {
+                    return current;
+                }
+
+                const increment =
+                    current < 20
+                        ? 1.1
+                        : current < 40
+                            ? 0.8
+                            : current < 60
+                                ? 0.55
+                                : current < 78
+                                    ? 0.3
+                                    : 0.15;
+
+                return Math.min(softCap, Number((current + increment).toFixed(1)));
+            });
+        }, 350);
+
+        return () => window.clearInterval(interval);
+    }, [isOpen, progress]);
+
+    const visibleProgress = Math.min(Math.round(displayProgress), 100);
+    const visibleEstimatedTime =
+        progress >= 100 ? 0 : Math.max(0, Math.ceil((100 - visibleProgress) / 4));
 
     useEffect(() => {
         // Update steps based on progress
         const newSteps = BASE_STEPS.map((step) => ({ ...step }));
 
-        if (progress >= 25) {
+        if (visibleProgress >= 15) {
             newSteps[0].status = "completed";
         }
-        if (progress >= 50) {
+        if (visibleProgress >= 35) {
             newSteps[1].status = "completed";
         }
-        if (progress >= 75) {
+        if (visibleProgress >= 85) {
             newSteps[2].status = "completed";
             newSteps[3].status = "processing";
-        } else if (progress >= 50) {
+        } else if (visibleProgress >= 35) {
             newSteps[2].status = "processing";
-        } else if (progress >= 25) {
+        } else if (visibleProgress >= 15) {
             newSteps[1].status = "processing";
         } else {
             newSteps[0].status = "processing";
         }
 
-        if (progress >= 100) {
+        if (visibleProgress >= 100) {
             newSteps[3].status = "completed";
         }
 
         setSteps(newSteps);
-    }, [progress]);
+    }, [visibleProgress]);
 
     return (
         <AnimatePresence>
@@ -86,7 +152,7 @@ export const ProcessingModal = ({ isOpen, progress, estimatedTime }: ProcessingM
                                 <div className="h-2 bg-grey-muted rounded-full overflow-hidden">
                                     <motion.div
                                         initial={{ width: 0 }}
-                                        animate={{ width: `${progress}%` }}
+                                        animate={{ width: `${visibleProgress}%` }}
                                         transition={{ duration: 0.5, ease: "easeOut" }}
                                         className="h-full rounded-full relative overflow-hidden"
                                         style={{
@@ -108,7 +174,7 @@ export const ProcessingModal = ({ isOpen, progress, estimatedTime }: ProcessingM
                                     </motion.div>
                                 </div>
                                 <p className="mt-2 text-center text-sm font-medium text-charcoal">
-                                    {progress}% Complete
+                                    {visibleProgress}% Complete
                                 </p>
                             </div>
 
@@ -150,7 +216,7 @@ export const ProcessingModal = ({ isOpen, progress, estimatedTime }: ProcessingM
 
                             {/* Estimated Time */}
                             <p className="text-center text-sm text-grey-soft">
-                                Estimated time: <span className="font-medium text-charcoal">{estimatedTime} seconds</span>
+                                Estimated time: <span className="font-medium text-charcoal">{Math.min(estimatedTime, visibleEstimatedTime)} seconds</span>
                             </p>
 
                             <p className="mt-3 text-center text-xs text-grey-soft/80">

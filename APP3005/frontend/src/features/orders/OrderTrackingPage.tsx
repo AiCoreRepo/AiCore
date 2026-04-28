@@ -3,6 +3,7 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Truck, CheckCircle, Package, MapPin, Phone, Mail, RefreshCw, Clock } from 'lucide-react';
 import { ordersApi } from './api/orders.api';
 import { Order } from './types/order.types';
+import { formatRefundStatus } from './utils/order.utils';
 
 // ── Status pipeline — labels match admin page STATUS_META exactly ─────────────
 const STEPS = [
@@ -91,7 +92,7 @@ function getStatusMessage(status: string) {
 // Backend getOrderTracking() returns camelCase (currentStatus, orderNumber…)
 // but the Order type & all UI code reads snake_case (current_status, order_number…)
 function normalizeOrder(raw: any): Order {
-    return {
+    const normalized: any = {
         // IDs
         order_id: raw.order_id ?? raw.orderId,
         order_number: raw.order_number ?? raw.orderNumber,
@@ -118,13 +119,30 @@ function normalizeOrder(raw: any): Order {
         // Cancellation
         cancellation_reason: raw.cancellation_reason ?? raw.cancellationReason ?? null,
 
+        // Post-Delivery Status
+        return_status: raw.return_status ?? raw.returnStatus ?? null,
+        replace_status: raw.replace_status ?? raw.replaceStatus ?? null,
+        refund_status: raw.refund_status ?? raw.refundStatus ?? null,
+
         // Address — both casing patterns
         shipping_address: raw.shipping_address ?? raw.shippingAddress ?? null,
 
         // Items — keep as-is (already included)
         items: raw.items ?? [],
-    } as Order;
+    };
+    
+    // Mask logic
+    if (normalized.refund_status === 'COMPLETED') {
+        if (normalized.return_status && normalized.return_status !== 'COMPLETED') normalized.return_status = 'COMPLETED';
+        if (normalized.replace_status && normalized.replace_status !== 'COMPLETED') normalized.replace_status = 'COMPLETED';
+    } else if (normalized.refund_status === 'FAILED') {
+        normalized.refund_status = 'PROCESSING';
+    }
+
+    return normalized as Order;
 }
+
+import { useRefundSSE, RefundSseEvent } from './hooks/useRefundSSE';
 
 export const OrderTrackingPage = () => {
     const { orderId } = useParams<{ orderId: string }>();
@@ -135,6 +153,33 @@ export const OrderTrackingPage = () => {
     const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
 
     const fromCart = searchParams.get('from') === 'cart';
+
+    // ── SSE Real-time Refund Updates ──────────────────────────────────────────
+    useRefundSSE({
+        watchOrderIds: orderId ? [orderId] : undefined,
+        onUpdate: (event: RefundSseEvent) => {
+            console.log('[OrderTracking] SSE Update received:', event);
+            setOrder((prev) => {
+                if (!prev) return prev;
+                let targetStatus = event.status;
+                if (targetStatus === 'FAILED') targetStatus = 'PROCESSING';
+
+                const updated = {
+                    ...prev,
+                    refund_status: targetStatus,
+                };
+
+                if (targetStatus === 'COMPLETED') {
+                    if (updated.return_status && updated.return_status !== 'COMPLETED') updated.return_status = 'COMPLETED';
+                    if (updated.replace_status && updated.replace_status !== 'COMPLETED') updated.replace_status = 'COMPLETED';
+                }
+
+                return updated;
+            });
+            // Update last refresh timestamp to trigger UI cues if any
+            setLastRefresh(new Date());
+        },
+    });
 
     // Always fetch FRESH data via the existing ordersApi (Axios with auth interceptor)
     const fetchOrder = useCallback(async (id: string) => {
@@ -258,6 +303,13 @@ export const OrderTrackingPage = () => {
                                     <div className="mt-4 p-3 bg-red-50 rounded-lg mx-auto max-w-sm">
                                         <p className="text-xs text-red-800">
                                             <span className="font-semibold">Reason:</span> {order.cancellation_reason}
+                                        </p>
+                                    </div>
+                                )}
+                                {order.refund_status && (
+                                    <div className="mt-4 p-3 bg-emerald-50 border border-emerald-200 rounded-lg mx-auto max-w-sm">
+                                        <p className="text-xs text-emerald-800">
+                                            <span className="font-semibold">Refund:</span> {formatRefundStatus(order.refund_status)}
                                         </p>
                                     </div>
                                 )}

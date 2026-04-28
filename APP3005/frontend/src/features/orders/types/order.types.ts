@@ -25,12 +25,13 @@ export interface CreateOrderItem {
 export interface CreateOrderPayload {
     items: CreateOrderItem[];
     shippingAddressId: string;
-    paymentMethod: 'COD' | 'PREPAID' | 'RAZORPAY';
+    paymentMethod: 'COD' | 'PREPAID' | 'PAYU' | 'WALLET';
+    couponCode?: string;
 }
 
-export type PaymentMethod = 'PREPAID' | 'COD' | 'RAZORPAY';
+export type PaymentMethod = 'PREPAID' | 'COD' | 'PAYU' | 'WALLET';
 
-export type RefundStatus = 'INITIATED' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'REJECTED';
+export type RefundStatus = 'INITIATED' | 'PENDING_REVIEW' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'REJECTED' | 'ARCHIVED';
 
 export type ReturnStatus =
     | 'REQUESTED'

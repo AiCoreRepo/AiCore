@@ -1,9 +1,12 @@
 import { useNavigate } from 'react-router-dom';
-import { X, ChevronDown, ChevronUp, Tag, Gift, Percent, Heart, ChevronLeft } from 'lucide-react';
+import { X, ChevronDown, ChevronUp, Tag, Gift, Percent, Heart, ChevronLeft, ChevronRight } from 'lucide-react';
+import { QuantityStepper } from '@/components/cart/QuantityStepper';
 import { useCart } from '@/context/CartContext';
 import { useAuth } from '@/context/AuthContext';
 import { EmptyCart } from '@/components/cart/EmptyCart';
 import { AddressSelector } from '@/components/cart/AddressSelector';
+import { CouponDrawer } from '@/components/cart/CouponDrawer';
+import { BirthdayBanner } from '@/components/cart/BirthdayBanner';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -11,9 +14,8 @@ import { useState, useEffect, useMemo } from 'react';
 import { Address } from '@/constants/address.constants';
 import {
     STATIC_OFFERS,
-    AVAILABLE_COUPONS,
-    COUPON_MESSAGES,
 } from '@/constants/cart.constants';
+import { useCoupon } from '@/hooks/useCoupon';
 import { getDefaultAddress } from '@/lib/api';
 import {
     AlertDialog,
@@ -35,11 +37,21 @@ const CartPage = () => {
     const navigate = useNavigate();
     const { user } = useAuth();
     const { cart, updateQuantity, removeFromCart } = useCart();
-    const [promoCode, setPromoCode] = useState('');
-    const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; discount: number } | null>(null);
-    const [couponError, setCouponError] = useState('');
+    const {
+        appliedCoupon,
+        isApplying,
+        error: couponError,
+        applyCoupon,
+        removeCoupon,
+        discountCents,
+        freeShipping,
+        availableCoupons,
+        isLoadingCoupons,
+        fetchAvailableCoupons,
+    } = useCoupon();
     const [showOffers, setShowOffers] = useState(false);
     const [showAddressSelector, setShowAddressSelector] = useState(false);
+    const [showCouponDrawer, setShowCouponDrawer] = useState(false);
     const [selectedAddress, setSelectedAddress] = useState<Address | null>(null);
     const [isLoadingAddress, setIsLoadingAddress] = useState(true);
     const [showLoginConfirm, setShowLoginConfirm] = useState(false);
@@ -97,34 +109,8 @@ const CartPage = () => {
         return { items, subtotal, itemCount };
     }, [cart.items, selectedItems]);
 
-    // Static coupon validation using constants
-    const handleApplyCoupon = () => {
-        setCouponError('');
-        const code = promoCode.toUpperCase().trim();
-
-        const coupon = AVAILABLE_COUPONS[code];
-        if (coupon) {
-            if (coupon.min_order_cents && selectedItemsData.subtotal < coupon.min_order_cents) {
-                setCouponError(COUPON_MESSAGES.MIN_ORDER_NOT_MET);
-                return;
-            }
-
-            let discount = coupon.discount_cents;
-            // Handle dynamic discount for SAVE10
-            if (code === 'SAVE10') {
-                discount = Math.min(Math.round(selectedItemsData.subtotal * 0.1), 50000); // 10% up to ₹500
-            }
-
-            setAppliedCoupon({ code, discount });
-            setPromoCode('');
-        } else {
-            setCouponError(COUPON_MESSAGES.INVALID_CODE);
-        }
-    };
-
     const handleRemoveCoupon = () => {
-        setAppliedCoupon(null);
-        setCouponError('');
+        removeCoupon();
     };
 
     // Remove selected items
@@ -141,7 +127,6 @@ const CartPage = () => {
     };
 
     // Calculate final total - ONLY product prices (no extra fees for now)
-    const discountCents = appliedCoupon?.discount || 0;
     const finalTotal = selectedItemsData.subtotal - discountCents;
 
     const allSelected = cart.items.length > 0 && selectedItems.size === cart.items.length;
@@ -153,6 +138,7 @@ const CartPage = () => {
             discount: discountCents,
             total: finalTotal,
             itemCount: selectedItemsData.itemCount,
+            couponCode: appliedCoupon?.code || undefined,
         };
 
         if (user) {
@@ -169,6 +155,7 @@ const CartPage = () => {
             discount: discountCents,
             total: finalTotal,
             itemCount: selectedItemsData.itemCount,
+            couponCode: appliedCoupon?.code || undefined,
         };
 
         navigate('/user-login', {
@@ -179,6 +166,7 @@ const CartPage = () => {
         });
         setShowLoginConfirm(false);
     };
+//cache invalidation after order place
 
     return (
         <div className="min-h-screen flex flex-col bg-gray-50">
@@ -223,6 +211,12 @@ const CartPage = () => {
                     </div>
                 ) : (
                     <div className="w-full px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto py-4 sm:py-6">
+                        {user && (
+                            <BirthdayBanner
+                                onApplyCode={applyCoupon}
+                                appliedCode={appliedCoupon?.code}
+                            />
+                        )}
                         <div className="flex flex-col lg:flex-row gap-4 sm:gap-6">
                             {/* Left Column - Address & Items */}
                             <div className="flex-1 space-y-3 sm:space-y-4 min-w-0">
@@ -265,8 +259,8 @@ const CartPage = () => {
                                     </div>
                                 </div>
 
-                                {/* Available Offers Section - Mobile Responsive */}
-                                <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+                                {/* Available Offers Section - Hidden for now, will be used in future */}
+                                {/* <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
                                     <button
                                         onClick={() => setShowOffers(!showOffers)}
                                         className="w-full p-3 sm:p-4 flex items-center justify-between text-left"
@@ -310,7 +304,7 @@ const CartPage = () => {
                                             </motion.div>
                                         )}
                                     </AnimatePresence>
-                                </div>
+                                </div> */}
 
                                 {/* Cart Items - Mobile Responsive */}
                                 <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
@@ -411,18 +405,12 @@ const CartPage = () => {
                                                                 <span className="font-medium">{item.size}</span>
                                                             </div>
                                                         )}
-                                                        <div className="flex items-center gap-1 px-2 py-1 bg-gray-100 rounded text-xs">
-                                                            <span className="text-gray-600">Qty:</span>
-                                                            <select
-                                                                value={item.quantity}
-                                                                onChange={(e) => updateQuantity(item.id, parseInt(e.target.value))}
-                                                                className="font-medium bg-transparent outline-none cursor-pointer"
-                                                            >
-                                                                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => (
-                                                                    <option key={n} value={n}>{n}</option>
-                                                                ))}
-                                                            </select>
-                                                        </div>
+                                                        <QuantityStepper
+                                                            quantity={item.quantity}
+                                                            maxQuantity={item.max_quantity || 10}
+                                                            onIncrement={() => updateQuantity(item.id, item.quantity + 1)}
+                                                            onDecrement={() => updateQuantity(item.id, item.quantity - 1)}
+                                                        />
                                                     </div>
 
                                                     {/* Price - More prominent on mobile */}
@@ -455,68 +443,71 @@ const CartPage = () => {
 
                             {/* Right Column - Price Details & Coupons - Mobile at bottom */}
                             <div className="w-full lg:w-[380px] space-y-3 sm:space-y-4 flex-shrink-0">
-                                {/* Coupons Section - Mobile Responsive */}
-                                <div className="bg-white border border-gray-200 rounded-lg p-3 sm:p-4">
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-2">
-                                            <Tag className="w-4 h-4 sm:w-5 sm:h-5 text-gray-500 flex-shrink-0" />
-                                            <span className="font-semibold text-xs sm:text-sm uppercase tracking-wide">Coupons</span>
-                                        </div>
-                                    </div>
-
+                                {/* Coupons Section — Click to open Drawer */}
+                                <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
                                     {appliedCoupon ? (
-                                        <div className="mt-3 p-2 sm:p-3 bg-green-50 border border-green-200 rounded flex items-center justify-between">
-                                            <div>
-                                                <p className="text-xs sm:text-sm font-medium text-green-700">{appliedCoupon.code} applied</p>
-                                                <p className="text-xs text-green-600">
-                                                    You save ₹{(appliedCoupon.discount / 100).toLocaleString('en-IN')}
-                                                </p>
+                                        /* Applied coupon badge */
+                                        <div className="p-3 sm:p-4">
+                                            <div className="flex items-center justify-between mb-2">
+                                                <div className="flex items-center gap-2">
+                                                    <Tag className="w-4 h-4 sm:w-5 sm:h-5 text-gray-500 flex-shrink-0" />
+                                                    <span className="font-semibold text-xs sm:text-sm uppercase tracking-wide">Coupons</span>
+                                                </div>
+                                            </div>
+                                            <div className="relative overflow-hidden rounded-xl border border-green-200/60 bg-gradient-to-br from-green-50/50 to-emerald-50/30">
+                                                <div className="absolute left-0 top-0 bottom-0 w-1 bg-green-500" />
+                                                <div className="p-3 sm:p-4 flex items-start sm:items-center justify-between gap-4">
+                                                    <div className="flex items-start gap-3">
+                                                        <div className="mt-0.5 sm:mt-0 p-1.5 sm:p-2 bg-green-100/50 text-green-600 rounded-lg">
+                                                            <Tag className="w-4 h-4 sm:w-5 sm:h-5" />
+                                                        </div>
+                                                        <div>
+                                                            <div className="flex items-center gap-1.5">
+                                                                <p className="text-sm font-bold text-gray-900 tracking-wide uppercase">
+                                                                    {appliedCoupon.code}
+                                                                </p>
+                                                                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded text-green-700 bg-green-100">
+                                                                    APPLIED
+                                                                </span>
+                                                            </div>
+                                                            <p className="text-xs text-green-600 font-medium mt-0.5">
+                                                                You saved <span className="font-bold">₹{(discountCents / 100).toLocaleString('en-IN')}</span> on this order
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                    <button
+                                                        onClick={handleRemoveCoupon}
+                                                        className="text-xs font-semibold text-gray-400 hover:text-red-500 hover:underline uppercase tracking-wide transition-colors"
+                                                    >
+                                                        Remove
+                                                    </button>
+                                                </div>
                                             </div>
                                             <button
-                                                onClick={handleRemoveCoupon}
-                                                className="text-red-500 text-xs font-medium hover:underline"
+                                                onClick={() => setShowCouponDrawer(true)}
+                                                className="w-full mt-2 text-xs font-medium hover:underline transition-colors text-center py-1"
+                                                style={{ color: GOLD }}
                                             >
-                                                Remove
+                                                View all coupons
                                             </button>
                                         </div>
                                     ) : (
-                                        <div className="mt-3">
-                                            <div className="flex items-center gap-2">
-                                                <Tag className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                                                <span className="text-xs sm:text-sm text-gray-700">Apply Coupons</span>
+                                        /* Clickable bar to open drawer */
+                                        <button
+                                            onClick={() => setShowCouponDrawer(true)}
+                                            className="w-full p-3 sm:p-4 flex items-center justify-between hover:bg-gray-50/50 transition-colors group"
+                                        >
+                                            <div className="flex items-center gap-2 sm:gap-3">
+                                                <div className="p-1.5 rounded-lg" style={{ backgroundColor: `${GOLD}15` }}>
+                                                    <Tag className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: GOLD }} />
+                                                </div>
+                                                <div className="text-left">
+                                                    <span className="font-semibold text-xs sm:text-sm block">Apply Coupons</span>
+                                                    <span className="text-[11px] text-gray-400">Save more on your order</span>
+                                                </div>
                                             </div>
-                                            <div className="flex gap-2 mt-2">
-                                                <input
-                                                    type="text"
-                                                    value={promoCode}
-                                                    onChange={(e) => {
-                                                        setPromoCode(e.target.value.toUpperCase());
-                                                        setCouponError('');
-                                                    }}
-                                                    placeholder="Enter coupon code"
-                                                    className="flex-1 px-3 py-2 border border-gray-300 text-xs sm:text-sm focus:outline-none min-w-0"
-                                                    style={{
-                                                        borderColor: promoCode ? GOLD : undefined,
-                                                    }}
-                                                />
-                                                <button
-                                                    onClick={handleApplyCoupon}
-                                                    disabled={!promoCode.trim()}
-                                                    className="px-3 sm:px-4 py-2 text-white text-xs font-semibold uppercase tracking-wide transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed flex-shrink-0"
-                                                    style={{
-                                                        backgroundColor: promoCode.trim() ? GOLD : undefined,
-                                                    }}
-                                                >
-                                                    Apply
-                                                </button>
-                                            </div>
-                                            {couponError && (
-                                                <p className="text-red-500 text-xs mt-1">{couponError}</p>
-                                            )}
-                                            <p className="text-xs text-gray-400 mt-2">
-                                                {COUPON_MESSAGES.HINT}
-                                            </p>
-                                        </div>
+                                            <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 group-hover:text-gray-600 transition-colors" />
+                                        </button>
                                     )}
                                 </div>
 
@@ -541,7 +532,7 @@ const CartPage = () => {
 
                                 {/* Price Details - Mobile Responsive */}
                                 <div className="bg-white border border-gray-200 rounded-lg p-3 sm:p-4">
-                                    <h3 className="font-semibold text-xs sm:text-sm uppercase tracking-wide text-gray-600 mb-3 sm:mb-4">
+                                    <h3 className="font-sans font-semibold text-xs sm:text-sm uppercase tracking-wide text-gray-600 mb-3 sm:mb-4">
                                         Price Details ({selectedItemsData.itemCount} {selectedItemsData.itemCount === 1 ? 'Item' : 'Items'})
                                     </h3>
 
@@ -550,22 +541,22 @@ const CartPage = () => {
                                     ) : (
                                         <>
                                             <div className="space-y-2 sm:space-y-3">
-                                                <div className="flex justify-between text-xs sm:text-sm">
+                                                <div className="flex justify-between text-xs sm:text-sm font-sans">
                                                     <span>Total Product Price</span>
-                                                    <span>₹{(selectedItemsData.subtotal / 100).toLocaleString('en-IN')}</span>
+                                                    <span className="font-medium">₹{(selectedItemsData.subtotal / 100).toLocaleString('en-IN')}</span>
                                                 </div>
                                                 {appliedCoupon && (
-                                                    <div className="flex justify-between text-xs sm:text-sm">
+                                                    <div className="flex justify-between text-xs sm:text-sm font-sans">
                                                         <span>Coupon Discount</span>
-                                                        <span className="text-green-600">
-                                                            -₹{(appliedCoupon.discount / 100).toLocaleString('en-IN')}
+                                                        <span className="text-green-600 font-medium">
+                                                            -₹{(discountCents / 100).toLocaleString('en-IN')}
                                                         </span>
                                                     </div>
                                                 )}
                                             </div>
 
                                             <div className="border-t border-dashed border-gray-300 mt-3 sm:mt-4 pt-3 sm:pt-4">
-                                                <div className="flex justify-between font-semibold text-sm sm:text-base">
+                                                <div className="flex justify-between font-sans font-semibold text-sm sm:text-base">
                                                     <span>Total Amount</span>
                                                     <span>₹{(finalTotal / 100).toLocaleString('en-IN')}</span>
                                                 </div>
@@ -626,6 +617,20 @@ const CartPage = () => {
                 onClose={() => setShowAddressSelector(false)}
                 onSelectAddress={setSelectedAddress}
                 selectedAddressId={selectedAddress?.address_id}
+            />
+
+            {/* Coupon Drawer */}
+            <CouponDrawer
+                isOpen={showCouponDrawer}
+                onClose={() => setShowCouponDrawer(false)}
+                availableCoupons={availableCoupons}
+                isLoadingCoupons={isLoadingCoupons}
+                appliedCoupon={appliedCoupon}
+                isApplying={isApplying}
+                couponError={couponError}
+                onApplyCoupon={applyCoupon}
+                onRemoveCoupon={removeCoupon}
+                onFetchCoupons={fetchAvailableCoupons}
             />
 
             {/* Login Confirmation Dialog */}

@@ -8,9 +8,10 @@ import { useToast } from '@/hooks/use-toast';
 import { signup as signupApi, userSignup as userSignupApi, login as loginApi } from '@/lib/api';
 import { getErrorMessage } from '@/lib/error-utils';
 import { CheckCircle2, ArrowLeft } from 'lucide-react';
-import heroImage from '@/assets/auth-hero-signup.jpg';
+import { cloudinaryImages } from "@/constants/cloudinaryImages";
 
 export const OTPVerification = () => {
+    const heroImage = cloudinaryImages.auth.signup;
     const [otp, setOtp] = useState('');
     const [isVerified, setIsVerified] = useState(false);
     const [isVerifying, setIsVerifying] = useState(false);
@@ -77,8 +78,8 @@ export const OTPVerification = () => {
                     // Wait for animation then navigate based on role
                     setTimeout(() => {
                         if (userRole === 'CREATOR') {
-                            // Redirect creators to creator dashboard
-                            navigate('/creator-dashboard');
+                            // Redirect creators to the onboarding flow
+                            navigate('/creator-onboarding');
                         } else {
                             // Redirect buyers to collection page with Aura modal
                             navigate('/collection', {
@@ -91,7 +92,7 @@ export const OTPVerification = () => {
                     // If auto-login fails, redirect based on signup type
                     setTimeout(() => {
                         if (signupType === 'creator') {
-                            navigate('/creator-dashboard');
+                            navigate('/creator-onboarding');
                         } else {
                             navigate('/collection', {
                                 state: { fromSignup: true, showAuraModal: true }
@@ -181,8 +182,8 @@ export const OTPVerification = () => {
                         // Wait for animation then navigate based on role
                         setTimeout(() => {
                             if (userRole === 'CREATOR') {
-                                // Redirect creators to creator dashboard
-                                navigate('/creator-dashboard');
+                                // Redirect creators to the onboarding flow
+                                navigate('/creator-onboarding');
                             } else {
                                 // Redirect buyers to collection page with Aura modal
                                 navigate('/collection', {
@@ -195,7 +196,7 @@ export const OTPVerification = () => {
                         // If auto-login fails, redirect based on signup type
                         setTimeout(() => {
                             if (signupType === 'creator') {
-                                navigate('/creator-dashboard');
+                                navigate('/creator-onboarding');
                             } else {
                                 navigate('/collection', {
                                     state: { fromSignup: true, showAuraModal: true }
