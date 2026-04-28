@@ -20,6 +20,7 @@ const UserForgotPassword = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [isSuccess, setIsSuccess] = useState(false);
     const [submittedEmail, setSubmittedEmail] = useState("");
+    const [emailError, setEmailError] = useState<string | null>(null);
 
     const {
         register,
@@ -31,22 +32,33 @@ const UserForgotPassword = () => {
 
     const onSubmit = async (data: ForgotPasswordFormData) => {
         setIsLoading(true);
+        setEmailError(null);
         try {
             const response = await fetch(`${API_URL}/auth/forgot-password`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email: data.email }),
+                body: JSON.stringify({ email: data.email, role: "BUYER" }),
             });
 
+            const result = await response.json().catch(() => ({}));
+
             if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                throw new Error(errorData.message || "Something went wrong");
+                const status = response.status;
+                const message = result.message || "Something went wrong";
+
+                // 404 = email not registered, 400 = Google account, 429 = rate limit
+                if (status === 404 || status === 400 || status === 429) {
+                    setEmailError(message);
+                } else {
+                    toast.error(message);
+                }
+                return;
             }
 
             setSubmittedEmail(data.email);
             setIsSuccess(true);
         } catch (error: any) {
-            toast.error(error.message || "Failed to send reset link. Please try again.");
+            toast.error("Network error. Please check your connection and try again.");
         } finally {
             setIsLoading(false);
         }
@@ -84,11 +96,21 @@ const UserForgotPassword = () => {
                                     id="email"
                                     type="email"
                                     placeholder="user@example.com"
-                                    {...register("email")}
-                                    className="bg-luxury-cream border-neutral-200 text-luxury-black placeholder:text-neutral-500 h-12 rounded-xl shadow-sm focus:border-luxury-gold/50 focus:ring-4 focus:ring-luxury-gold/5 transition-all duration-300"
+                                    {...register("email", {
+                                        onChange: () => emailError && setEmailError(null),
+                                    })}
+                                    className={`bg-luxury-cream border-neutral-200 text-luxury-black placeholder:text-neutral-500 h-12 rounded-xl shadow-sm focus:border-luxury-gold/50 focus:ring-4 focus:ring-luxury-gold/5 transition-all duration-300 ${
+                                        emailError ? "border-red-400 focus:border-red-400" : ""
+                                    }`}
                                 />
                                 {errors.email && (
                                     <p className="text-xs text-red-500 mt-1 ml-1">{errors.email.message}</p>
+                                )}
+                                {emailError && (
+                                    <p className="text-xs text-red-500 mt-1 ml-1 flex items-start gap-1">
+                                        <span>⚠</span>
+                                        <span>{emailError}</span>
+                                    </p>
                                 )}
                             </div>
 

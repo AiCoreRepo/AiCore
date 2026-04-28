@@ -12,6 +12,9 @@ model User {
   user_id                   String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   email                     String                @unique
   password_hash             String?
+  // Auth provider tracking — null means legacy row, treated as EMAIL
+  auth_provider             AuthProvider?         // EMAIL | GOOGLE (null = legacy EMAIL account)
+  google_id                 String?               @unique // Google's "sub" claim; null for EMAIL users
   date_of_birth             DateTime?
   phone                     String?
   phone_verified            Boolean               @default(false)
@@ -540,6 +543,11 @@ enum AuraStatus {
   PENDING
   READY
   ERROR
+}
+
+enum AuthProvider {
+  EMAIL
+  GOOGLE
 }
 
 enum UserRole {

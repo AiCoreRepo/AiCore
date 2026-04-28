@@ -15,7 +15,7 @@ import {
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { PrismaService } from '../prisma/prisma.service';
-import { UserRole, TryOnPermissionStatus } from '@prisma/client';
+import { UserRole, TryOnPermissionStatus, AuthProvider } from '@prisma/client';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { GoogleAuthDto } from './dto/google-auth.dto';
@@ -46,7 +46,7 @@ export class AuthService {
     private prisma: PrismaService,
     private jwtService: JwtService,
     private otpService: OtpService,
-  ) {}
+  ) { }
 
   private isAtLeastAge(dateOfBirth: Date, minimumAge: number): boolean {
     const today = new Date();
@@ -84,14 +84,14 @@ export class AuthService {
   private resolveAuraAvatarUrl(
     aura:
       | {
-          image_url: string | null;
-          model_url: string | null;
-          tryon_model_url: string | null;
-          generated_avatar_urls?: string[] | null;
-          attributes?: unknown;
-          created_at?: Date | null;
-          updated_at?: Date | null;
-        }
+        image_url: string | null;
+        model_url: string | null;
+        tryon_model_url: string | null;
+        generated_avatar_urls?: string[] | null;
+        attributes?: unknown;
+        created_at?: Date | null;
+        updated_at?: Date | null;
+      }
       | null
       | undefined,
   ): string | null {
@@ -159,6 +159,7 @@ export class AuthService {
       data: {
         email: dto.email,
         password_hash,
+        auth_provider: AuthProvider.EMAIL,
         date_of_birth: dateOfBirth,
         phone: dto.phoneNumber,
         // Keep verified only when a phone number is explicitly supplied.
@@ -206,25 +207,45 @@ export class AuthService {
     return { available: !exists };
   }
 
-  async validateUser(email: string, password: string) {
+  async validateUser(
+    email: string,
+    password: string,
+  ): Promise<{ user: NonNullable<Awaited<ReturnType<typeof this.prisma.user.findUnique>>> } | { googleOnly: true } | null> {
     const user = await this.prisma.user.findUnique({ where: { email } });
-    if (!user || !user.password_hash) return null;
+    if (!user) return null;
+
+    // Account was created via Google — no password exists.
+    // Return a typed signal so login() can surface a helpful message.
+    const isGoogleOnly =
+      user.auth_provider === AuthProvider.GOOGLE ||
+      (!user.auth_provider && !user.password_hash && !!user.google_id);
+    if (isGoogleOnly) return { googleOnly: true };
+
+    if (!user.password_hash) return null;
+
     const bcryptMod2 = await getBcrypt();
     if (!isBcryptModule(bcryptMod2)) {
       throw new Error('Failed to load bcrypt module');
     }
-    const valid: boolean = await bcryptMod2.compare(
-      password,
-      user.password_hash,
-    );
-    return valid ? user : null;
+    const valid: boolean = await bcryptMod2.compare(password, user.password_hash);
+    return valid ? { user } : null;
   }
 
   async login(dto: LoginDto, res: Response) {
-    const user = await this.validateUser(dto.email, dto.password);
-    if (!user) {
+    const result = await this.validateUser(dto.email, dto.password);
+
+    if (!result) {
       throw new UnauthorizedException('Invalid credentials');
     }
+
+    // Account exists but was registered via Google — guide user to the right flow
+    if ('googleOnly' in result) {
+      throw new UnauthorizedException(
+        'This account was created with Google. Please use "Sign in with Google" to access it.',
+      );
+    }
+
+    const user = result.user;
     const tokens = await this.issueTokens(user.user_id, user.role);
     // Hash and store refresh token
     const bcryptMod3 = await getBcrypt();
@@ -319,6 +340,7 @@ export class AuthService {
         email: true,
         role: true,
         password_hash: true,
+        auth_provider: true,
         date_of_birth: true,
         try_on_permission: true,
         try_ons_used: true,
@@ -359,6 +381,13 @@ export class AuthService {
     );
     const auraAvatar = this.resolveAuraAvatarUrl(user.aura);
 
+    // Determine if this is a Google-auth account.
+    // Uses auth_provider if set; falls back to !password_hash for legacy rows.
+    const isGoogleAccount =
+      user.auth_provider === AuthProvider.GOOGLE ||
+      (!user.auth_provider && !user.password_hash);
+    const needs_dob_collection = !user.date_of_birth && isGoogleAccount;
+
     // If the user is a creator, return their creator profile details
     if (user.role === UserRole.CREATOR && user.creatorProfile) {
       const verificationData = (user.creatorProfile.verification_data as any) || {};
@@ -367,8 +396,9 @@ export class AuthService {
         user_id: user.user_id,
         email: user.email,
         role: user.role,
+        auth_provider: user.auth_provider ?? 'EMAIL',
         dob: user.date_of_birth?.toISOString().split('T')[0],
-        needs_dob_collection: !user.date_of_birth && !user.password_hash,
+        needs_dob_collection,
         try_on_permission: user.try_on_permission,
         store_name: user.creatorProfile.store_name,
         subtitle: verificationData.subtitle || null,
@@ -378,7 +408,6 @@ export class AuthService {
         max_try_ons: effectiveTryOnLimit,
         avatar_regenerations_used: user.avatar_regenerations_used,
         max_avatar_regenerations: effectiveAvatarRecreationLimit,
-        // Add other creator-specific fields you might need
       };
     }
 
@@ -387,8 +416,9 @@ export class AuthService {
       user_id: user.user_id,
       email: user.email,
       role: user.role,
+      auth_provider: user.auth_provider ?? 'EMAIL',
       dob: user.date_of_birth?.toISOString().split('T')[0],
-      needs_dob_collection: !user.date_of_birth && !user.password_hash,
+      needs_dob_collection,
       try_on_permission: user.try_on_permission,
       avatar: auraAvatar,
       try_ons_used: user.try_ons_used,
@@ -532,19 +562,47 @@ export class AuthService {
       );
     }
 
-    // Check if user exists
-    let user = await this.prisma.user.findUnique({ where: { email } });
+    // Lookup by email OR google_id — handles edge case where user changed Google email
+    let user = await this.prisma.user.findFirst({
+      where: { OR: [{ email }, { google_id: payload.sub }] },
+    });
 
     if (user) {
-      // User exists - check if role matches
+      // ── Existing user found ──────────────────────────────────────────────
+
+      // 1. Role guard — must match the role they originally registered with
       if (user.role !== dto.role) {
-        throw new UnauthorizedException('Invalid credentials - role mismatch');
+        throw new UnauthorizedException(
+          'This Google account is registered under a different role. Please use the correct login page.',
+        );
+      }
+
+      // 2. Provider guard — block if this email belongs to an email/password account
+      //    Covers: explicit auth_provider=EMAIL, OR legacy row with password but no google_id
+      const isEmailPasswordAccount =
+        user.auth_provider === AuthProvider.EMAIL ||
+        (!user.auth_provider && !!user.password_hash && !user.google_id);
+
+      if (isEmailPasswordAccount) {
+        throw new UnauthorizedException(
+          'This email is already registered with a password. Please sign in with your email and password instead.',
+        );
+      }
+
+      // 3. Backfill google_id / auth_provider for legacy Google rows that predate this field
+      if (!user.google_id && payload.sub) {
+        await this.prisma.user.update({
+          where: { user_id: user.user_id },
+          data: { google_id: payload.sub, auth_provider: AuthProvider.GOOGLE },
+        });
       }
     } else {
-      // Create new user with the specified role
+      // ── New user — create with full Google metadata ──────────────────────
       user = await this.prisma.user.create({
         data: {
           email,
+          auth_provider: AuthProvider.GOOGLE,
+          google_id: payload.sub,
           role: dto.role as UserRole,
           phone: dto.phoneNumber,
           status: 'active',

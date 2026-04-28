@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Link, useSearchParams, useNavigate } from "react-router-dom";
@@ -23,6 +23,7 @@ const ResetPassword = () => {
 
   const [pageState, setPageState] = useState<PageState>(token ? "form" : "error");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const submittedRef = useRef(false); // hard guard against double-submit
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [errorMessage, setErrorMessage] = useState(
@@ -49,7 +50,9 @@ const ResetPassword = () => {
 
   const onSubmit = async (data: ResetPasswordFormData) => {
     if (!token) return;
-
+    // Hard guard: prevent double-submission even on rapid re-clicks
+    if (submittedRef.current || isSubmitting) return;
+    submittedRef.current = true;
     setIsSubmitting(true);
     try {
       const response = await fetch(`${API_URL}/auth/reset-password`, {
@@ -75,6 +78,8 @@ const ResetPassword = () => {
         navigate("/user-login");
       }, 4000);
     } catch (error: any) {
+      // Allow retry on error — reset the guard
+      submittedRef.current = false;
       setErrorMessage(
         error.message || "Something went wrong. Please try again."
       );

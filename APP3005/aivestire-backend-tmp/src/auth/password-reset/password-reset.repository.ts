@@ -3,7 +3,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
 export class PasswordResetRepository {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   /**
    * Find a user by email (case-insensitive).
@@ -16,6 +16,9 @@ export class PasswordResetRepository {
         email: true,
         status: true,
         role: true,
+        auth_provider: true,
+        password_hash: true,
+        google_id: true,
       },
     });
   }
@@ -67,11 +70,15 @@ export class PasswordResetRepository {
   }
 
   /**
-   * Find a token record by its SHA-256 hash.
+   * Find a valid (unused, non-expired) token record by its SHA-256 hash.
    */
   async findByTokenHash(tokenHash: string) {
     return this.prisma.passwordResetToken.findFirst({
-      where: { token_hash: tokenHash },
+      where: {
+        token_hash: tokenHash,
+        used: false,
+        expires_at: { gt: new Date() },
+      },
     });
   }
 

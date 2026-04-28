@@ -1,6 +1,9 @@
 import {
   Injectable,
   BadRequestException,
+  NotFoundException,
+  HttpException,
+  HttpStatus,
   Logger,
 } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
@@ -8,6 +11,7 @@ import { PasswordResetRepository } from './password-reset.repository';
 import { EmailService } from '../../email/services/email.service';
 import { EmailTemplate } from '../../email/enums/email.enums';
 import * as crypto from 'crypto';
+import { AuthProvider } from '@prisma/client';
 import {
   RESET_TOKEN_BYTES,
   RESET_TOKEN_EXPIRY_MINUTES,
@@ -37,32 +41,55 @@ export class PasswordResetService {
   constructor(
     private readonly repository: PasswordResetRepository,
     private readonly emailService: EmailService,
-  ) {}
+  ) { }
 
   /**
    * Request a password reset — generates token, stores hash, sends email.
-   * ALWAYS returns the same response regardless of whether the email exists
-   * to prevent user enumeration attacks.
+   * Validates that the email is registered, belongs to the correct role,
+   * and is an email/password account (not Google OAuth).
    */
   async requestPasswordReset(
     email: string,
     ip?: string,
     userAgent?: string,
+    role?: 'BUYER' | 'CREATOR',
   ): Promise<{ message: string }> {
     const normalizedEmail = email.toLowerCase().trim();
-    const genericResponse = {
-      message:
-        'If an account exists with this email, reset instructions have been sent.',
-    };
 
-    // 1. Find user (silently return if not found — no enumeration)
+    // 1. Verify the email is registered with us
     const user = await this.repository.findUserByEmail(normalizedEmail);
 
     if (!user) {
       this.logger.log(
         `Password reset requested for non-existent email: ${normalizedEmail}`,
       );
-      return genericResponse;
+      throw new NotFoundException(
+        'No account found with this email address. Please check the email or create a new account.',
+      );
+    }
+
+    // 2. Role validation — ensure the email belongs to the account type from the login page
+    if (role && user.role !== role) {
+      const roleLabel = role === 'BUYER' ? 'customer' : 'creator';
+      this.logger.log(
+        `Role mismatch on password reset: ${normalizedEmail} is ${user.role}, expected ${role}`,
+      );
+      throw new NotFoundException(
+        `No ${roleLabel} account found with this email. Please use the correct login page.`,
+      );
+    }
+
+    // 3. Google-only accounts have no password — guide them to the right flow
+    const isGoogleAccount =
+      user.auth_provider === AuthProvider.GOOGLE ||
+      (!user.auth_provider && !user.password_hash && !!user.google_id);
+    if (isGoogleAccount) {
+      this.logger.log(
+        `Password reset skipped for Google-auth account: ${normalizedEmail}`,
+      );
+      throw new BadRequestException(
+        'This account was created with Google. Please use "Sign in with Google" — no password is needed.',
+      );
     }
 
     // 2. Rate limit: max N requests per window per user
@@ -79,8 +106,10 @@ export class PasswordResetService {
       this.logger.warn(
         `Rate limit hit for password reset: ${normalizedEmail}`,
       );
-      // Still return generic response to prevent enumeration
-      return genericResponse;
+      throw new HttpException(
+        'Too many reset requests. Please wait a few minutes before trying again.',
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
     }
 
     // 3. Invalidate all previous unused tokens for this user
@@ -126,7 +155,9 @@ export class PasswordResetService {
     });
 
     this.logger.log(`Password reset email queued for: ${normalizedEmail}`);
-    return genericResponse;
+    return {
+      message: 'Reset instructions have been sent to your email address.',
+    };
   }
 
   /**
@@ -143,38 +174,25 @@ export class PasswordResetService {
       .update(rawToken)
       .digest('hex');
 
-    // 2. Find the token record via repository
+    // 2. Find a valid (unused, non-expired) token record
+    //    Repository already filters: used=false AND expires_at > now
     const tokenRecord = await this.repository.findByTokenHash(tokenHash);
 
     if (!tokenRecord) {
+      // Could be: invalid token, already used, or expired
       throw new BadRequestException(
-        'Invalid or expired reset link. Please request a new one.',
+        'This reset link is invalid or has expired. Please request a new one.',
       );
     }
 
-    // 3. Check if already used
-    if (tokenRecord.used) {
-      throw new BadRequestException(
-        'This reset link has already been used. Please request a new one.',
-      );
-    }
-
-    // 4. Check expiry
-    if (new Date() > tokenRecord.expires_at) {
-      await this.repository.markTokenUsed(tokenRecord.token_id);
-      throw new BadRequestException(
-        'This reset link has expired. Please request a new one.',
-      );
-    }
-
-    // 5. Hash new password with bcrypt
+    // 3. Hash new password with bcrypt
     const bcryptMod = await getBcrypt();
     if (!isBcryptModule(bcryptMod)) {
       throw new Error('Failed to load bcrypt module');
     }
     const newPasswordHash: string = await bcryptMod.hash(newPassword, 10);
 
-    // 6. Atomic: update password + invalidate tokens + clear sessions
+    // 4. Atomic: update password + invalidate tokens + clear sessions
     await this.repository.resetPasswordAndInvalidate(
       tokenRecord.user_id,
       newPasswordHash,

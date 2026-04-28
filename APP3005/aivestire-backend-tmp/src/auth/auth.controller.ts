@@ -209,6 +209,7 @@ export class AuthController {
       dto.email,
       ip,
       userAgent,
+      dto.role,
     );
   }
 
