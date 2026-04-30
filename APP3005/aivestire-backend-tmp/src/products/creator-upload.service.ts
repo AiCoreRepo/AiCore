@@ -149,6 +149,7 @@ export class CreatorUploadService {
     });
 
     // Ensure all images are synced correctly to the backwards-compatible flat table
+    // This also recomputes and persists inventory_count from variant stocks.
     await this._syncFlatArrays(product.product_id);
 
     this.logger.log(`✅ Product hierarchy created: ${product.product_id}`);
@@ -530,6 +531,12 @@ export class CreatorUploadService {
       p.color_variants.flatMap((cv) => cv.images.map((img) => img.url)),
     );
 
+    // Compute total inventory from all color variant stocks
+    const totalInventory = patterns.reduce(
+      (sum, p) => sum + p.color_variants.reduce((s, cv) => s + cv.stock, 0),
+      0,
+    );
+
     // Run updates in a single efficient transaction
     const txOps = [
       this.prisma.product.update({
@@ -538,6 +545,9 @@ export class CreatorUploadService {
           body_shapes: allBodyShapes,
           skin_tones: allSkinTones,
           metadata: { colors: allColors },
+          // Keep the flat inventory_count in sync with the sum of variant stocks
+          // so the admin dashboard always reflects the correct total.
+          inventory_count: totalInventory,
         },
       }),
       this.prisma.productImage.deleteMany({
