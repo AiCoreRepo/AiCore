@@ -13,6 +13,7 @@ import {
   CreateColorVariantDto,
 } from './dto/create-product-hierarchy.dto';
 import { ProductStatus } from '@prisma/client';
+import { SmsQueueService } from '../queues/sms-queue.service';
 
 @Injectable()
 export class CreatorUploadService {
@@ -21,6 +22,7 @@ export class CreatorUploadService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly cloudinaryService: CloudinaryService,
+    private readonly smsQueueService: SmsQueueService,
   ) {}
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -150,6 +152,47 @@ export class CreatorUploadService {
     await this._syncFlatArrays(product.product_id);
 
     this.logger.log(`✅ Product hierarchy created: ${product.product_id}`);
+
+    // ─── SMS: Notify creator about their upload ────────────────────────────
+    // Enqueued after all DB work is done. Failure never blocks the response.
+    try {
+      const creatorUser = await this.prisma.user.findUnique({
+        where: { user_id: userId },
+        select: { email: true, phone: true },
+      });
+
+      if (!creatorUser?.phone) {
+        this.logger.warn(
+          `Creator (user ${userId}) has no phone number — skipping upload SMS`,
+        );
+      } else {
+        // Derive a friendly display name from the email (e.g. priya.sharma@... → Priya)
+        const displayName = creatorUser.email.split('@')[0]?.split('.')[0] ?? 'Creator';
+        const creatorName = displayName.charAt(0).toUpperCase() + displayName.slice(1);
+
+        const hierarchy = await this.getProductHierarchy(product.product_id);
+        await this.smsQueueService.enqueueCreatorUploadSms({
+          to: creatorUser.phone,
+          creatorName,
+          productTitle: product.title,
+          productId: product.product_id,
+          priceInRupees: dto.price_cents / 100,
+          patternCount: hierarchy.pattern_count,
+          totalColorVariants: hierarchy.total_color_variants,
+          totalStock: hierarchy.total_stock,
+          category: hierarchy.category_name ?? undefined,
+          uploadedAt: new Date(),
+          status: (product.status as 'DRAFT' | 'APPROVED' | 'PENDING') ?? 'DRAFT',
+        });
+      }
+    } catch (error) {
+      // SMS failure must never affect the product creation response
+      this.logger.error(
+        `Failed to enqueue creator upload SMS for product ${product.product_id}:`,
+        error instanceof Error ? error.message : error,
+      );
+    }
+
     return this.getProductHierarchy(product.product_id);
   }
 

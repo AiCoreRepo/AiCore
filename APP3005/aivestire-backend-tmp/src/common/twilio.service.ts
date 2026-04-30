@@ -127,4 +127,48 @@ export class TwilioService {
       throw new Error('Failed to send message. Please try again.');
     }
   }
+
+  /**
+   * Send a notification SMS and return the Twilio message SID.
+   *
+   * Unlike `sendCustomMessage`, this method re-throws the **raw** Twilio error
+   * so callers (e.g. SmsProcessor) can inspect `error.code` and decide whether
+   * the failure is retriable or should be discarded immediately.
+   *
+   * Returns `null` when Twilio is not configured (dev/test no-op mode).
+   */
+  async sendNotificationSms(
+    phoneNumber: string,
+    body: string,
+  ): Promise<{ sid: string } | null> {
+    const skipSms =
+      this.configService.get<string>('SKIP_SMS_IN_DEV') === 'true';
+
+    if (skipSms) {
+      this.logger.warn(
+        `[DEV MODE - SMS BYPASSED] Would send to ${phoneNumber}:\n${body}`,
+      );
+      return null;
+    }
+
+    if (!this.twilioClient) {
+      this.logger.warn(
+        `Twilio not configured. Would send notification SMS to ${phoneNumber}`,
+      );
+      return null;
+    }
+
+    // Re-throws the raw Twilio error — no wrapping
+    const message = await this.twilioClient.messages.create({
+      body,
+      from: this.twilioPhoneNumber,
+      to: phoneNumber,
+    });
+
+    this.logger.log(
+      `Notification SMS sent to ${phoneNumber}. Message SID: ${message.sid}`,
+    );
+
+    return { sid: message.sid };
+  }
 }
