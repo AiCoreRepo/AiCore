@@ -80,4 +80,25 @@ To add a new type of SMS notification:
 2. Add a new `JOB_NAME` in `src/common/constants/queue.constants.ts`.
 3. Add a new enqueue method in `SmsQueueService` (`sms-queue.service.ts`).
 4. Add a new `@Process(JOB_NAMES.YOUR_NEW_JOB)` handler in `SmsProcessor` (`sms.processor.ts`).
-5. Call the `SmsQueueService` from your feature module/service!
+8. Call the `SmsQueueService` from your feature module/service!
+
+## 🚀 Production Deployment Checklist
+
+When deploying to production (or if your production domains ever change), you must review and update the following hardcoded values in the SMS flow:
+
+1. **Order Alert SMS Link:** 
+   - **File:** `src/common/sms-templates/order.sms-template.ts`
+   - **Current Value:** `https://admin.aivestire.com/orders`
+   - **Action:** Update this link if your admin dashboard URL changes so admins can instantly click to process new orders.
+
+2. **Creator Upload Alert SMS Link:**
+   - **File:** `src/common/sms-templates/creator.sms-template.ts`
+   - **Current Value:** `https://admin.aivestire.com/creators`
+   - **Action:** Update this link if your admin dashboard URL changes so admins can instantly click to review uploaded products.
+
+3. **Admin Alert Phone Numbers:**
+   - **File:** `src/common/twilio.service.ts` (inside `sendNotificationSms`)
+   - **Current Value:** `['+919772240322', '+919622387285']`
+   - **Action:** Ensure these are the actual verified phone numbers of the store managers/admins who should receive the alerts.
+
+*(Note: Currently, these links are hardcoded for performance and simplicity since they only go to internal admins. If desired, they can be refactored to pull from `process.env.FRONTEND_URL` in the future).*

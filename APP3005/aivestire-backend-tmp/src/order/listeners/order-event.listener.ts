@@ -48,14 +48,16 @@ export class OrderEventListener {
             },
           },
           shipping_address: {
-            select: { city: true, state: true },
+            select: { city: true, state: true, phone: true },
           },
         },
       });
 
+      const phone = fullOrder?.user?.phone || fullOrder?.shipping_address?.phone;
+
       if (!fullOrder) {
         this.logger.warn(`Order ${event.order.order_id} not found for SMS dispatch`);
-      } else if (!fullOrder.user?.phone) {
+      } else if (!phone) {
         this.logger.warn(
           `Order ${event.order.order_number}: buyer has no phone number — skipping SMS`,
         );
@@ -65,7 +67,7 @@ export class OrderEventListener {
         const buyerName = displayName.charAt(0).toUpperCase() + displayName.slice(1);
 
         await this.smsQueueService.enqueueOrderConfirmationSms({
-          to: fullOrder.user.phone,
+          to: phone,
           buyerName,
           orderId: fullOrder.order_id,
           orderNumber: fullOrder.order_number,

@@ -108,16 +108,30 @@ export class SmsProcessor {
     body: string,
     job: Job<SmsJobData>,
   ): Promise<void> {
+    if (!to) {
+      this.logger.warn(`Skipping SMS for job ${job.id} — missing phone`);
+      return;
+    }
+
+    let normalizedTo = to.trim();
+    if (!normalizedTo.startsWith('+')) {
+      if (/^\d{10}$/.test(normalizedTo)) {
+        normalizedTo = '+91' + normalizedTo;
+      } else {
+        normalizedTo = '+' + normalizedTo;
+      }
+    }
+
     // Guard: phone number must be present and in E.164 format
-    if (!to || !E164_PHONE_REGEX.test(to.trim())) {
+    if (!E164_PHONE_REGEX.test(normalizedTo)) {
       this.logger.warn(
-        `Skipping SMS for job ${job.id} — invalid/missing phone: "${to}"`,
+        `Skipping SMS for job ${job.id} — invalid phone format: "${to}" (normalized: "${normalizedTo}")`,
       );
       return; // Not retriable — the number won't magically become valid
     }
 
     try {
-      await this.twilioService.sendNotificationSms(to, body);
+      await this.twilioService.sendNotificationSms(normalizedTo, body);
     } catch (error: any) {
       const twilioCode: number | undefined = error?.code;
 

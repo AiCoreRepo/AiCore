@@ -54,12 +54,12 @@ export function buildOrderConfirmationSms(payload: OrderSmsPayload): string {
       if (item.size) variants.push(`Size: ${item.size}`);
       if (item.color) variants.push(`Color: ${item.color}`);
       const variantStr = variants.length > 0 ? ` (${variants.join(', ')})` : '';
-      return `• ${item.productName} x${item.quantity}${variantStr}`;
+      return `- ${item.productName} x${item.quantity}${variantStr}`;
     })
     .join('\n');
 
   const formattedAmount = new Intl.NumberFormat('en-IN').format(totalAmount);
-  const formattedDate = estimatedDelivery.toLocaleDateString('en-IN', {
+  const formattedDate = new Date(estimatedDelivery).toLocaleDateString('en-IN', {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
@@ -68,18 +68,18 @@ export function buildOrderConfirmationSms(payload: OrderSmsPayload): string {
   const paymentLabel = formatPaymentMethod(paymentMethod);
 
   return [
-    `✅ Order Confirmed! Hi ${firstName},`,
-    `Order #${orderNumber} placed successfully.`,
+    `Orders Alert`,
+    `Order: #${orderNumber}`,
+    `Buyer: ${firstName}`,
     ``,
-    `📦 Items:`,
+    `Items:`,
     itemLines,
     ``,
-    `💰 Total: ₹${formattedAmount} | Payment: ${paymentLabel}`,
-    `🚚 Est. Delivery: ${formattedDate}`,
-    `📍 Delivering to: ${shippingCity}, ${shippingState}`,
+    `Amount: Rs.${formattedAmount} (${paymentLabel})`,
+    `City: ${shippingCity}, ${shippingState}`,
+    `Delivery: ${formattedDate}`,
     ``,
-    `Track your order in the Aivestire app.`,
-    `- Team Aivestire`,
+    `Admin Dashboard -> https://admin.aivestire.com/orders`
   ].join('\n');
 }
 

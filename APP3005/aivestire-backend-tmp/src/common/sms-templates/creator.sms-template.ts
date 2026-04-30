@@ -54,7 +54,7 @@ export function buildCreatorUploadSms(payload: CreatorUploadSmsPayload): string 
 
   const firstName = creatorName.split(' ')[0] || creatorName;
   const formattedPrice = new Intl.NumberFormat('en-IN').format(priceInRupees);
-  const formattedDate = uploadedAt.toLocaleString('en-IN', {
+  const formattedDate = new Date(uploadedAt).toLocaleString('en-IN', {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
@@ -63,22 +63,22 @@ export function buildCreatorUploadSms(payload: CreatorUploadSmsPayload): string 
   });
 
   const statusLine = resolveStatusLine(status);
-  const categoryLine = category ? `📂 Category: ${category}` : null;
+  const categoryLine = category ? `Category: ${category}` : null;
 
   const lines = [
-    `🎉 Upload Successful! Hi ${firstName},`,
+    `Creator Cloth Upload Alert`,
+    `Creator: ${firstName}`,
     ``,
-    `Your product is submitted for review:`,
-    `👗 ${productTitle}`,
-    `💰 Price: ₹${formattedPrice}`,
-    `🎨 ${patternCount} Pattern(s) | ${totalColorVariants} Color Variant(s) | Stock: ${totalStock}`,
+    `Product: ${productTitle}`,
+    `Price: Rs.${formattedPrice}`,
+    `Variants: ${patternCount} Patterns | ${totalColorVariants} Colors`,
+    `Stock: ${totalStock}`,
     categoryLine,
     ``,
     statusLine,
-    `📅 Uploaded: ${formattedDate}`,
+    `Time: ${formattedDate}`,
     ``,
-    `Your item will go live once approved.`,
-    `- Team Aivestire`,
+    `Admin Dashboard -> https://admin.aivestire.com/creators`
   ].filter((line): line is string => line !== null);
 
   return lines.join('\n');
@@ -87,10 +87,10 @@ export function buildCreatorUploadSms(payload: CreatorUploadSmsPayload): string 
 function resolveStatusLine(status: CreatorUploadSmsPayload['status']): string {
   switch (status) {
     case 'APPROVED':
-      return `✅ Status: Approved & Live`;
+      return `Status: Approved & Live`;
     case 'PENDING':
     case 'DRAFT':
     default:
-      return `⏳ Status: Pending admin approval`;
+      return `Status: Pending admin approval`;
   }
 }
