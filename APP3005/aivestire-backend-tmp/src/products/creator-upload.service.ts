@@ -64,12 +64,18 @@ export class CreatorUploadService {
       ),
     ];
 
+    // Compute total inventory BEFORE the transaction so we set it atomically
+    const totalInventoryCount = uploadedPatterns.reduce(
+      (sum, p) => sum + p.color_variants.reduce((s, cv) => s + cv.stock, 0),
+      0,
+    );
+
     // 4. Generate unique slug
     const slug = await this._generateUniqueSlug(dto.title);
 
     // 5. DB transaction
     const product = await this.prisma.$transaction(async (tx) => {
-      // 5a. Create the Product
+      // 5a. Create the Product — inventory_count is set atomically from variant stocks
       const newProduct = await tx.product.create({
         data: {
           title: dto.title,
@@ -78,6 +84,8 @@ export class CreatorUploadService {
           price_cents: dto.price_cents,
           currency: dto.currency ?? 'INR',
           status: ProductStatus.DRAFT,
+          // ✅ Single source of truth: sum of all color variant stocks
+          inventory_count: totalInventoryCount,
           creator: { connect: { creator_id: creatorId } },
           category_rel: dto.category_id
             ? { connect: { category_id: dto.category_id } }
@@ -495,7 +503,16 @@ export class CreatorUploadService {
     return slug;
   }
 
-  /** Re-compute and persist flat body_shapes / skin_tones and images on the parent Product */
+  /**
+   * Re-compute and persist flat arrays + inventory_count on the parent Product.
+   *
+   * SINGLE SOURCE OF TRUTH: Product.inventory_count always equals the sum of
+   * all ProductColorVariant.stock values for that product. This method enforces
+   * that invariant whenever patterns or variants are created/removed.
+   *
+   * Uses sequential awaits (not the fragile array-form $transaction) so that
+   * a failure in image sync does not silently skip the inventory_count update.
+   */
   private async _syncFlatArrays(productId: string) {
     const patterns = await this.prisma.productPattern.findMany({
       where: { product_id: productId },
@@ -526,49 +543,61 @@ export class CreatorUploadService {
       ),
     ];
 
-    // Extract all image URLs in exact order
+    // Extract all image URLs in exact display order
     const allImageUrls = patterns.flatMap((p) =>
       p.color_variants.flatMap((cv) => cv.images.map((img) => img.url)),
     );
 
-    // Compute total inventory from all color variant stocks
+    // ✅ Compute the single-source-of-truth inventory count
     const totalInventory = patterns.reduce(
       (sum, p) => sum + p.color_variants.reduce((s, cv) => s + cv.stock, 0),
       0,
     );
 
-    // Run updates in a single efficient transaction
-    const txOps = [
-      this.prisma.product.update({
-        where: { product_id: productId },
-        data: {
-          body_shapes: allBodyShapes,
-          skin_tones: allSkinTones,
-          metadata: { colors: allColors },
-          // Keep the flat inventory_count in sync with the sum of variant stocks
-          // so the admin dashboard always reflects the correct total.
-          inventory_count: totalInventory,
-        },
-      }),
-      this.prisma.productImage.deleteMany({
-        where: { product_id: productId },
-      }),
-    ];
+    // Step 1: Update the product's flat columns + inventory_count atomically
+    // This MUST succeed — it is the most critical operation.
+    await this.prisma.product.update({
+      where: { product_id: productId },
+      data: {
+        body_shapes: allBodyShapes,
+        skin_tones: allSkinTones,
+        metadata: { colors: allColors },
+        // ✅ Keep flat inventory_count in sync with sum of variant stocks
+        inventory_count: totalInventory,
+        updated_at: new Date(),
+      },
+    });
 
-    if (allImageUrls.length > 0) {
-      txOps.push(
-        this.prisma.productImage.createMany({
+    // Step 2: Rebuild the flat ProductImage table (best-effort, separate from inventory)
+    try {
+      await this.prisma.productImage.deleteMany({
+        where: { product_id: productId },
+      });
+
+      if (allImageUrls.length > 0) {
+        await this.prisma.productImage.createMany({
           data: allImageUrls.map((url, i) => ({
             product_id: productId,
             url,
             order_index: i,
             is_primary: i === 0,
           })),
-        }) as any,
+        });
+      }
+    } catch (imgErr) {
+      // Image sync failure must NOT roll back the inventory_count update.
+      // The canonical images live in ProductColorVariantImage; the flat
+      // ProductImage table is only a convenience cache.
+      this.logger.warn(
+        `[_syncFlatArrays] Image cache rebuild failed for product ${productId} (inventory already updated): ${
+          imgErr instanceof Error ? imgErr.message : String(imgErr)
+        }`,
       );
     }
 
-    await this.prisma.$transaction(txOps);
+    this.logger.debug(
+      `[_syncFlatArrays] product=${productId} inventory_count=${totalInventory} colours=${allColors.length}`,
+    );
   }
 
   /** Guard: ensure the requesting creator owns the product */
