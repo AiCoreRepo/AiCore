@@ -1002,21 +1002,19 @@ export function TryOnResultModal({
               }}
             >
               <div
-                className="w-8 h-8 rounded-full overflow-hidden ring-2 ring-white/60"
-                style={{ background: "#ffffff" }}
+                className="w-8 h-8 rounded-full overflow-hidden ring-2 ring-white/60 flex items-center justify-center"
+                style={{ background: "#e8c98b" }}
               >
                 {userPhoto ? (
                   <img
                     src={userPhoto}
-                    alt="You"
+                    alt={displayUserName}
                     className="w-full h-full object-cover"
                   />
                 ) : (
-                  <img
-                    src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop&crop=faces"
-                    alt="User"
-                    className="w-full h-full object-cover"
-                  />
+                  <span className="text-sm font-bold text-[#6b4f26]">
+                    {userInitial}
+                  </span>
                 )}
               </div>
 
@@ -1033,11 +1031,7 @@ export function TryOnResultModal({
                     className="w-full h-full object-contain p-0.5"
                   />
                 ) : (
-                  <img
-                    src="https://images.unsplash.com/photo-1434389677669-e08b4cac3105?w=100&h=100&fit=crop"
-                    alt="Garment"
-                    className="w-full h-full object-contain p-0.5"
-                  />
+                  <ShoppingBag className="w-4 h-4 text-[#c9a55c]" />
                 )}
               </div>
 

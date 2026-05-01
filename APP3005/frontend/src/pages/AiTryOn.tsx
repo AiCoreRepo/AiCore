@@ -122,6 +122,7 @@ const AiTryOn = () => {
   const [showAuraPopup, setShowAuraPopup] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<string | null>(null);
   const [currentProductId, setCurrentProductId] = useState<string | null>(null);
+  const [currentGarmentImage, setCurrentGarmentImage] = useState<string | null>(null);
   const [tryOnLoading, setTryOnLoading] = useState(false);
   const [showResultModal, setShowResultModal] = useState(false);
   const [resultImage, setResultImage] = useState<string | null>(null);
@@ -263,6 +264,7 @@ const AiTryOn = () => {
       const fallbackProductLabel = sourceProduct?.title || resolveProductLabel(productId);
       setSelectedProduct(productId);
       setCurrentProductId(productId); // Store productId for angle generation
+      setCurrentGarmentImage(null); // Reset while loading
       setTryOnLoading(true);
       setTryOnError(null);
       setShowFeedbackSheet(false);
@@ -288,6 +290,7 @@ const AiTryOn = () => {
           throw new Error("Try-on requires both avatar and clothing images");
         }
 
+        setCurrentGarmentImage(clothingImage); // Set garment image for modal header
         result = await tryOnWithGemini({
           avatarImage,
           clothingImage,
@@ -313,6 +316,7 @@ const AiTryOn = () => {
           throw new Error("Try-on requires both avatar and clothing images");
         }
 
+        setCurrentGarmentImage(clothingImage); // Set garment image for modal header
         result = await tryOnWithVertex({
           avatarImage,
           clothingImage,
@@ -776,7 +780,8 @@ const AiTryOn = () => {
         comparisonImage={originalTryOnImage}
         onGenerateMoreAngles={handleGenerateMoreAngles}
         generatingAngles={generatingAngles}
-        userPhoto={aura?.image_url}
+        userPhoto={getAvatarImageUrl(aura)}
+        garmentImage={currentGarmentImage || undefined}
         garmentId={currentProductId || undefined}
         garmentTitle={
           currentProductId ? resolveProductLabel(currentProductId) : undefined
