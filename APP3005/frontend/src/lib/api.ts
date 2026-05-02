@@ -533,6 +533,61 @@ export async function verifyCreatorPayoutUpi(
   return res.json();
 }
 
+// ─── Creator Address ──────────────────────────────────────────────────────────
+
+export interface CreatorAddressData {
+  address_id?: string;
+  full_name: string;
+  phone: string;
+  address_line1: string;
+  address_line2?: string;
+  city: string;
+  state: string;
+  pincode: string;
+  country?: string;
+}
+
+export async function saveCreatorAddress(
+  data: CreatorAddressData,
+): Promise<CreatorAddressData> {
+  const token = localStorage.getItem("access_token");
+  if (!token) throw new Error("No access token found");
+
+  const res = await fetch(`${BASE_URL}/creators/address`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!res.ok) {
+    handleApiError(res, await res.text(), "Failed to save creator address");
+  }
+
+  return res.json();
+}
+
+export async function getCreatorAddress(): Promise<CreatorAddressData | null> {
+  const token = localStorage.getItem("access_token");
+  if (!token) throw new Error("No access token found");
+
+  const res = await fetch(`${BASE_URL}/creators/address`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!res.ok) {
+    handleApiError(res, await res.text(), "Failed to fetch creator address");
+  }
+
+  const data = await res.json();
+  return data ?? null;
+}
+
 export async function createProduct(data: {
   title: string;
   description?: string;

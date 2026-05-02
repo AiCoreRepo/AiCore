@@ -1,4 +1,5 @@
-import { getCreatorTermsStatus, getProfile } from "./api";
+import { getCreatorTermsStatus, getProfile, getCreatorAddress } from "./api";
+import type { CreatorAddressData } from "./api";
 
 export interface CreatorPaymentDetails {
   gateway?: string;
@@ -15,6 +16,7 @@ export interface CreatorProfileResponse {
   avatar?: string;
   subtitle?: string;
   role?: string;
+  phone?: string;
   paymentDetails?: CreatorPaymentDetails | null;
 }
 
@@ -23,6 +25,8 @@ export interface CreatorOnboardingState {
   termsAccepted: boolean;
   paymentDetails: CreatorPaymentDetails | null;
   hasPaymentDetails: boolean;
+  addressDetails: CreatorAddressData | null;
+  hasAddress: boolean;
   isComplete: boolean;
 }
 
@@ -33,9 +37,10 @@ export async function fetchCreatorOnboardingState(): Promise<CreatorOnboardingSt
     throw new Error("No access token found");
   }
 
-  const [profileResponse, termsStatus] = await Promise.all([
+  const [profileResponse, termsStatus, addressDetails] = await Promise.all([
     getProfile(),
     getCreatorTermsStatus(token),
+    getCreatorAddress().catch(() => null), // graceful fallback
   ]);
 
   const profile = profileResponse as CreatorProfileResponse;
@@ -44,12 +49,19 @@ export async function fetchCreatorOnboardingState(): Promise<CreatorOnboardingSt
     paymentDetails?.beneficiaryName?.trim() && paymentDetails?.upiId?.trim(),
   );
   const termsAccepted = Boolean(termsStatus.accepted);
+  const hasAddress = Boolean(
+    addressDetails?.city?.trim() && addressDetails?.pincode?.trim(),
+  );
 
   return {
     profile,
     termsAccepted,
     paymentDetails,
     hasPaymentDetails,
-    isComplete: termsAccepted && hasPaymentDetails,
+    addressDetails,
+    hasAddress,
+    isComplete: hasAddress && hasPaymentDetails && termsAccepted,
   };
 }
+
+export type { CreatorAddressData };
