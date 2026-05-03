@@ -6,9 +6,10 @@ import { OrderStateMachineService } from './services/order-state-machine.service
 import { OrderEventListener } from './listeners/order-event.listener';
 import { PrismaModule } from '../prisma/prisma.module';
 import { TrackingModule } from '../tracking/tracking.module';
+import { SmsQueueModule } from '../queues/sms-queue.module';
 
 @Module({
-  imports: [PrismaModule, TrackingModule, EventEmitterModule.forRoot()],
+  imports: [PrismaModule, TrackingModule, EventEmitterModule.forRoot(), SmsQueueModule],
   controllers: [OrderController],
   providers: [OrderService, OrderStateMachineService, OrderEventListener],
   exports: [OrderService, OrderStateMachineService],

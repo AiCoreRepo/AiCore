@@ -19,6 +19,7 @@ import {
 } from './dto/creator-management.dto';
 import { UpdateAdminProductDto } from './dto/update-admin-product.dto';
 import { parse } from 'csv-parse/sync';
+import { DEFAULT_LOW_STOCK_THRESHOLD } from './inventory-management/inventory.constants';
 
 @Injectable()
 export class AdminService {
@@ -172,12 +173,12 @@ export class AdminService {
           is_featured: true,
         },
       }),
-      // Count low stock products
+      // Count low stock products (uses same threshold as InventoryManagementService)
       this.prisma.product.count({
         where: {
           status: ProductStatus.APPROVED,
           is_deleted: false,
-          inventory_count: { lt: 5 },
+          inventory_count: { gt: 0, lte: DEFAULT_LOW_STOCK_THRESHOLD },
         },
       }),
     ]);

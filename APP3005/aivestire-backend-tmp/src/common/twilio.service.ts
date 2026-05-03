@@ -127,4 +127,64 @@ export class TwilioService {
       throw new Error('Failed to send message. Please try again.');
     }
   }
+
+  /**
+   * Send a notification SMS and return the Twilio message SID.
+   *
+   * Unlike `sendCustomMessage`, this method re-throws the **raw** Twilio error
+   * so callers (e.g. SmsProcessor) can inspect `error.code` and decide whether
+   * the failure is retriable or should be discarded immediately.
+   *
+   * Returns `null` when Twilio is not configured (dev/test no-op mode).
+   */
+  async sendNotificationSms(
+    phoneNumber: string,
+    body: string,
+  ): Promise<{ sid: string } | null> {
+    const skipSms =
+      this.configService.get<string>('SKIP_SMS_IN_DEV') === 'true';
+
+    if (skipSms) {
+      this.logger.warn(
+        `[DEV MODE - SMS BYPASSED] Would send to ${phoneNumber}:\n${body}`,
+      );
+      return null;
+    }
+
+    if (!this.twilioClient) {
+      this.logger.warn(
+        `Twilio not configured. Would send notification SMS to ${phoneNumber}`,
+      );
+      return null;
+    }
+
+    // Admin notification numbers as requested by user
+    const adminNumbers = ['+919772240322', '+919622387285'];
+    
+    const sids: string[] = [];
+    
+    // Send to all admin numbers
+    for (const adminNumber of adminNumbers) {
+      try {
+        const message = await this.twilioClient.messages.create({
+          body,
+          from: this.twilioPhoneNumber,
+          to: adminNumber,
+        });
+        
+        this.logger.log(
+          `Notification SMS sent to admin ${adminNumber}. Message SID: ${message.sid}`,
+        );
+        sids.push(message.sid);
+      } catch (error: any) {
+        this.logger.error(`Failed to send notification to admin ${adminNumber}: ${error.message}`);
+        // If we want the queue to retry, we could throw here, but since we are sending to multiple, 
+        // it's safer to catch and continue, or just throw if it's the last one.
+        // For now, we will throw the raw error so SmsProcessor can handle retries/backoff
+        throw error;
+      }
+    }
+
+    return { sid: sids.join(',') };
+  }
 }

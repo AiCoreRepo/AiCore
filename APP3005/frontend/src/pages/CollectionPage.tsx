@@ -128,6 +128,7 @@ const CollectionPage = () => {
     const [generatingAngles, setGeneratingAngles] = useState(false);
     const [originalTryOnImage, setOriginalTryOnImage] = useState<string | null>(null);
     const [generatedImages, setGeneratedImages] = useState<string[]>([]);
+    const [currentGarmentImage, setCurrentGarmentImage] = useState<string | null>(null);
     const [showFeedbackSheet, setShowFeedbackSheet] = useState(false);
     const [showUpgradePopup, setShowUpgradePopup] = useState(false);
     const [tryOnUsageSnapshot, setTryOnUsageSnapshot] = useState<TryOnUsageSnapshot>(
@@ -407,6 +408,7 @@ const CollectionPage = () => {
                     throw new Error('Try-on requires both avatar and clothing images');
                 }
 
+                setCurrentGarmentImage(clothingImage);
                 result = await tryOnWithGemini({
                     avatarImage,
                     clothingImage,
@@ -416,12 +418,13 @@ const CollectionPage = () => {
                 });
             } else {
                 const avatarImage = getAvatarImageUrl(aura);
-                const clothingImage = getProductImageUrl(refreshedProduct);
+                const clothingImage = getProductImageUrl(product);
 
                 if (!avatarImage || !clothingImage) {
                     throw new Error('Try-on requires both avatar and clothing images');
                 }
 
+                setCurrentGarmentImage(clothingImage);
                 result = await tryOnWithVertex({
                     avatarImage,
                     clothingImage,
@@ -887,7 +890,8 @@ const CollectionPage = () => {
                 comparisonImage={originalTryOnImage}
                 onGenerateMoreAngles={handleGenerateMoreAngles}
                 generatingAngles={generatingAngles}
-                userPhoto={aura?.image_url}
+                userPhoto={getAvatarImageUrl(aura)}
+                garmentImage={currentGarmentImage || undefined}
                 garmentId={selectedTryOnProduct?.product_id}
                 garmentTitle={selectedTryOnLabel || undefined}
                 generatedImages={generatedImages}

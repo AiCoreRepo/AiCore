@@ -19,6 +19,7 @@ export const QUEUE_NAMES = {
   AURA_GENERATION: 'aura-generation',
   TRY_ON_PROCESSING: 'try-on-processing',
   ANGLES_GENERATION: 'angles-generation',
+  SMS_NOTIFICATIONS: 'sms-notifications',
 } as const;
 
 /**
@@ -28,4 +29,6 @@ export const JOB_NAMES = {
   GENERATE_AVATARS: 'generate-avatars',
   PROCESS_DIRECT_TRY_ON: 'process-direct-try-on',
   PROCESS_ANGLE_GENERATION: 'process-angle-generation',
+  ORDER_CONFIRMATION_SMS: 'order-confirmation-sms',
+  CREATOR_UPLOAD_SMS: 'creator-upload-sms',
 } as const;

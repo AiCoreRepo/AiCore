@@ -11,6 +11,9 @@ import { UsersModule } from '../users/users.module';
 import { AuraProcessor } from './aura.processor';
 import { TryOnProcessor } from './tryon.processor';
 import { AnglesGenerationProcessor } from './angles-generation.processor';
+import { SmsProcessor } from './sms.processor';
+import { SmsQueueModule } from '../queues/sms-queue.module';
+import { TwilioService } from '../common/twilio.service';
 
 /**
  * WorkerModule
@@ -26,6 +29,7 @@ import { AnglesGenerationProcessor } from './angles-generation.processor';
     ConfigModule.forRoot({ isGlobal: true }),
     ScheduleModule.forRoot(),
     QueueModule,
+    SmsQueueModule,
     PrismaModule,
     ProductsModule,
     UsersModule,
@@ -38,6 +42,8 @@ import { AnglesGenerationProcessor } from './angles-generation.processor';
     TryOnProcessor,
     AuraProcessor,
     AnglesGenerationProcessor,
+    SmsProcessor,
+    TwilioService,
   ],
 })
 export class WorkerModule { }

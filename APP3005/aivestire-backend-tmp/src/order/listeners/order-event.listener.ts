@@ -12,10 +12,17 @@ import { OrderReturnApprovedEvent } from '../../return/events/order-return-appro
 import { OrderReturnCompletedEvent } from '../../return/events/order-return-completed.event';
 import { OrderReplaceRequestedEvent } from '../../replace/events/order-replace-requested.event';
 import { OrderReplaceDispatchedEvent } from '../../replace/events/order-replace-dispatched.event';
+import { PrismaService } from '../../prisma/prisma.service';
+import { SmsQueueService } from '../../queues/sms-queue.service';
 
 @Injectable()
 export class OrderEventListener {
   private readonly logger = new Logger(OrderEventListener.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly smsQueueService: SmsQueueService,
+  ) {}
 
   // ============================================
   // ORDER LIFECYCLE EVENTS
@@ -25,9 +32,65 @@ export class OrderEventListener {
   async handleOrderBooked(event: OrderBookedEvent) {
     this.logger.log(`Order ${event.order.order_number} has been booked`);
 
-    // TODO: Send confirmation email
-    // TODO: Send push notification
-    // TODO: Notify warehouse system
+    // ─── SMS: Order Confirmation ─────────────────────────────────────────
+    try {
+      // Fetch full order details including user phone, items, and shipping address
+      const fullOrder = await this.prisma.order.findUnique({
+        where: { order_id: event.order.order_id },
+        include: {
+          user: { select: { user_id: true, email: true, phone: true } },
+          items: {
+            select: {
+              product_name: true,
+              quantity: true,
+              size: true,
+              color: true,
+            },
+          },
+          shipping_address: {
+            select: { city: true, state: true, phone: true },
+          },
+        },
+      });
+
+      const phone = fullOrder?.user?.phone || fullOrder?.shipping_address?.phone;
+
+      if (!fullOrder) {
+        this.logger.warn(`Order ${event.order.order_id} not found for SMS dispatch`);
+      } else if (!phone) {
+        this.logger.warn(
+          `Order ${event.order.order_number}: buyer has no phone number — skipping SMS`,
+        );
+      } else {
+        // Derive a friendly display name from the email (e.g. john.doe@... → John)
+        const displayName = fullOrder.user.email.split('@')[0]?.split('.')[0] ?? 'Customer';
+        const buyerName = displayName.charAt(0).toUpperCase() + displayName.slice(1);
+
+        await this.smsQueueService.enqueueOrderConfirmationSms({
+          to: phone,
+          buyerName,
+          orderId: fullOrder.order_id,
+          orderNumber: fullOrder.order_number,
+          items: fullOrder.items.map((item) => ({
+            productName: item.product_name,
+            quantity: item.quantity,
+            size: item.size ?? undefined,
+            color: item.color ?? undefined,
+          })),
+          totalAmount: Number(fullOrder.total_amount),
+          paymentMethod: fullOrder.payment_method,
+          estimatedDelivery: fullOrder.estimated_delivery_date ?? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+          shippingCity: fullOrder.shipping_address?.city ?? '',
+          shippingState: fullOrder.shipping_address?.state ?? '',
+        });
+      }
+    } catch (error) {
+      // SMS failure must never affect the order flow
+      this.logger.error(
+        `Failed to enqueue order confirmation SMS for ${event.order.order_number}:`,
+        error instanceof Error ? error.message : error,
+      );
+    }
 
     this.logger.log('Order booked notifications sent');
   }
