@@ -63,6 +63,8 @@ const fmtDate = (d?: string | null): string => {
 const fmtINR = (n?: number | Number | null): string =>
     n != null ? `₹${Number(n).toLocaleString('en-IN')}` : '—';
 
+const formatStatusText = (value?: string | null): string => value?.replace(/_/g, ' ') || '—';
+
 // ── Status icon map (matches STATUS_CFG from user request) ────────────────────
 const STATUS_ICON: Record<string, React.ReactNode> = {
     DELIVERED: <CheckCircle className="w-5 h-5" />,
@@ -290,14 +292,9 @@ export const OrderDetailPage: React.FC = () => {
                     </span>
                     <div className="ml-auto flex-shrink-0">
                         <span
-                            className="px-2.5 py-1 rounded-full text-[10px] font-bold text-white"
-                            style={{ background: `linear-gradient(135deg, var(--s1), var(--s2))` }}
+                            className={`inline-flex items-center rounded-full bg-gradient-to-r ${gradient} px-3 py-1 text-[10px] sm:text-xs font-bold text-white shadow-sm`}
                         >
-                            <span
-                                className={`inline-block px-2.5 py-1 rounded-full text-[10px] sm:text-xs font-bold bg-gradient-to-r ${gradient} text-white`}
-                            >
-                                {statusCfg.label}
-                            </span>
+                            {statusCfg.label}
                         </span>
                     </div>
                 </div>
@@ -435,22 +432,13 @@ export const OrderDetailPage: React.FC = () => {
                                     <h3 className="font-semibold text-[#2C2416] text-sm leading-snug mb-1.5 line-clamp-2">
                                         {item.product_name}
                                     </h3>
-                                    {/* Attribute chips */}
-                                    <div className="flex flex-wrap gap-1.5 mb-2">
-                                        <span className="px-2 py-0.5 bg-[#F5F3EE] text-[#6B6B6B] text-[10px] font-semibold rounded-md border border-[#E0E0D8]">
-                                            Qty: {item.quantity}
-                                        </span>
-                                        {item.size && (
-                                            <span className="px-2 py-0.5 bg-[#F5F3EE] text-[#6B6B6B] text-[10px] font-semibold rounded-md border border-[#E0E0D8]">
-                                                Size: {item.size}
-                                            </span>
-                                        )}
-                                        {item.color && (
-                                            <span className="px-2 py-0.5 bg-[#F5F3EE] text-[#6B6B6B] text-[10px] font-semibold rounded-md border border-[#E0E0D8]">
-                                                Color: {item.color}
-                                            </span>
-                                        )}
-                                    </div>
+                                    <p className="mb-2 text-xs text-[#6B6B6B]">
+                                        {[
+                                            `Qty ${item.quantity}`,
+                                            item.size ? `Size ${item.size}` : null,
+                                            item.color ? `Color ${item.color}` : null,
+                                        ].filter(Boolean).join(' · ')}
+                                    </p>
                                     {/* Price */}
                                     <div className="flex items-center justify-between mt-auto">
                                         <span className="text-[#999] text-[10px]">
@@ -658,15 +646,15 @@ export const OrderDetailPage: React.FC = () => {
                         <div>
                             {/* Status + date */}
                             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
-                                <span
-                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold self-start"
-                                    style={{
-                                        background: `${RETURN_STATUS_CONFIG[order.return_status]?.color}18`,
-                                        color: RETURN_STATUS_CONFIG[order.return_status]?.color ?? '#6B6B6B',
-                                    }}
-                                >
-                                    {RETURN_STATUS_CONFIG[order.return_status]?.label ?? order.return_status.replace(/_/g, ' ')}
-                                </span>
+                                <div>
+                                    <p className="text-[10px] text-[#999] font-medium">Status</p>
+                                    <p
+                                        className="text-sm font-semibold"
+                                        style={{ color: RETURN_STATUS_CONFIG[order.return_status]?.color ?? '#6B6B6B' }}
+                                    >
+                                        {RETURN_STATUS_CONFIG[order.return_status]?.label ?? formatStatusText(order.return_status)}
+                                    </p>
+                                </div>
                                 {order.return_requested_at && (
                                     <p className="text-[10px] text-[#999] flex items-center gap-1">
                                         <Calendar className="w-3 h-3" />
@@ -713,15 +701,15 @@ export const OrderDetailPage: React.FC = () => {
                     <Section icon={<RefreshCw className="w-4 h-4" />} title="Replacement Request">
                         <div>
                             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
-                                <span
-                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold self-start"
-                                    style={{
-                                        background: `${REPLACEMENT_STATUS_CONFIG[order.replace_status]?.color}18`,
-                                        color: REPLACEMENT_STATUS_CONFIG[order.replace_status]?.color ?? '#6B6B6B',
-                                    }}
-                                >
-                                    {REPLACEMENT_STATUS_CONFIG[order.replace_status]?.label ?? order.replace_status.replace(/_/g, ' ')}
-                                </span>
+                                <div>
+                                    <p className="text-[10px] text-[#999] font-medium">Status</p>
+                                    <p
+                                        className="text-sm font-semibold"
+                                        style={{ color: REPLACEMENT_STATUS_CONFIG[order.replace_status]?.color ?? '#6B6B6B' }}
+                                    >
+                                        {REPLACEMENT_STATUS_CONFIG[order.replace_status]?.label ?? formatStatusText(order.replace_status)}
+                                    </p>
+                                </div>
                                 {order.replace_requested_at && (
                                     <p className="text-[10px] text-[#999] flex items-center gap-1">
                                         <Calendar className="w-3 h-3" />

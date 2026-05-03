@@ -8,12 +8,18 @@ import { Order } from './types/order.types';
 import { OrderCancellationModal } from '@/components/orders/OrderCancellationModal';
 import { toast } from 'sonner';
 import { usePayU } from '@/hooks/usePayU';
-import { formatRefundStatus } from './utils/order.utils';
+import {
+    formatRefundStatus,
+    RETURN_STATUS_CONFIG,
+    REPLACEMENT_STATUS_CONFIG,
+} from './utils/order.utils';
 import { useRefundSSE } from './hooks/useRefundSSE';
 
 type FilterType = 'all' | 'processing' | 'shipped' | 'delivered' | 'returned' | 'replaced';
 
 const ITEMS_PER_PAGE = 3;
+
+const formatStatusText = (status?: string | null) => status?.replace(/_/g, ' ') || '';
 
 export const MyOrdersPage = () => {
     const navigate = useNavigate();
@@ -147,25 +153,59 @@ export const MyOrdersPage = () => {
         setFilteredOrders(filtered);
     };
 
+    const getOrderInfoRows = (order: Order) => {
+        const rows: Array<{ label: string; value: string }> = [];
+
+        if (order.delivery_partner || order.tracking_number) {
+            rows.push({
+                label: 'Shipping',
+                value: [order.delivery_partner, order.tracking_number].filter(Boolean).join(' · '),
+            });
+        }
+
+        if (order.return_status) {
+            rows.push({
+                label: 'Return',
+                value: RETURN_STATUS_CONFIG[order.return_status]?.label || formatStatusText(order.return_status),
+            });
+        }
+
+        if (order.replace_status) {
+            rows.push({
+                label: 'Replacement',
+                value: REPLACEMENT_STATUS_CONFIG[order.replace_status]?.label || formatStatusText(order.replace_status),
+            });
+        }
+
+        if (order.refund_status) {
+            rows.push({
+                label: 'Refund',
+                value: formatRefundStatus(order.refund_status),
+            });
+        }
+
+        return rows;
+    };
+
     const getStatusDisplay = (status: string) => {
         const normalizedStatus = status?.toUpperCase() || '';
 
         switch (normalizedStatus) {
             case 'DELIVERED':
-                return { label: '✓ Delivered', className: 'bg-green-100 text-green-700 border border-green-200' };
+                return { label: 'Delivered', className: 'bg-green-100 text-green-700 border border-green-200' };
             case 'OUT_FOR_DELIVERY':
-                return { label: '🚚 Out for Delivery', className: 'bg-pink-100 text-pink-700 border border-pink-200' };
+                return { label: 'Out for Delivery', className: 'bg-pink-100 text-pink-700 border border-pink-200' };
             case 'SHIPPED':
-                return { label: '📦 Shipped', className: 'bg-blue-100 text-blue-700 border border-blue-200' };
+                return { label: 'Shipped', className: 'bg-blue-100 text-blue-700 border border-blue-200' };
             case 'DISPATCHED':
-                return { label: '🚀 Dispatched', className: 'bg-purple-100 text-purple-700 border border-purple-200' };
+                return { label: 'Dispatched', className: 'bg-purple-100 text-purple-700 border border-purple-200' };
             case 'BOOKED':
-                return { label: '✓ Confirmed', className: 'bg-[#F5E8C9] text-[#8B6A2C] border border-[#E2C788]' };
+                return { label: 'Confirmed', className: 'bg-[#F5E8C9] text-[#8B6A2C] border border-[#E2C788]' };
             case 'CANCELLED':
-                return { label: '✕ Cancelled', className: 'bg-red-100 text-red-600 border border-red-200' };
+                return { label: 'Cancelled', className: 'bg-red-100 text-red-600 border border-red-200' };
             case 'ORDER_PLACED':
             case 'PENDING':
-                return { label: '⏳ Pending', className: 'bg-[#E3D5B9] text-[#8C7A5B] border-none' };
+                return { label: 'Pending', className: 'bg-[#E3D5B9] text-[#8C7A5B] border-none' };
             default:
                 return {
                     label: normalizedStatus.replace(/_/g, ' ') || 'Processing',
@@ -343,6 +383,13 @@ export const MyOrdersPage = () => {
                             {currentOrders.map((order) => {
                                 const statusDisplay = getStatusDisplay(order.current_status);
                                 const firstItem = order.items?.[0];
+                                const orderInfoRows = getOrderInfoRows(order);
+                                const primaryDetails = [
+                                    `Quantity: ${firstItem?.quantity || 1}`,
+                                    firstItem?.size ? `Size: ${firstItem.size}` : null,
+                                    firstItem?.color ? `Color: ${firstItem.color}` : null,
+                                    order.items.length > 1 ? `+ ${order.items.length - 1} more item${order.items.length > 2 ? 's' : ''}` : null,
+                                ].filter(Boolean).join(' · ');
 
                                 return (
                                     <div
@@ -395,56 +442,21 @@ export const MyOrdersPage = () => {
                                                         {firstItem?.product_name || 'Product'}
                                                     </h4>
                                                     <p className="text-xs text-[#6B6B6B] mb-2">
-                                                        Quantity: {firstItem?.quantity || 1}
-                                                        {order.items.length > 1 && ` + ${order.items.length - 1} more item(s)`}
+                                                        {primaryDetails}
                                                     </p>
                                                     <p className="text-base sm:text-lg font-bold text-[#2C2416] mb-3">
                                                         ₹{Number(order.total_amount).toLocaleString('en-IN')}
                                                     </p>
 
-                                                    {/* Tracking Info (if available) */}
-                                                    {(order.delivery_partner || order.tracking_number) && (
-                                                        <div className="flex items-center gap-2 mb-3 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg">
-                                                            <svg className="w-4 h-4 text-amber-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM15 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" />
-                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 00-1 1v10a1 1 0 001 1h1.05a2.5 2.5 0 014.9 0H10a1 1 0 001-1V5a1 1 0 00-1-1H3zM14 7a1 1 0 00-1 1v6.05A2.5 2.5 0 0115.95 16H17a1 1 0 001-1v-5a1 1 0 00-.293-.707l-2-2A1 1 0 0015 7h-1z" />
-                                                            </svg>
-                                                            <div className="text-xs">
-                                                                {order.delivery_partner && (
-                                                                    <span className="font-semibold text-amber-800">{order.delivery_partner}</span>
-                                                                )}
-                                                                {order.tracking_number && (
-                                                                    <span className="text-amber-700 ml-1">· {order.tracking_number}</span>
-                                                                )}
-                                                            </div>
-                                                        </div>
-                                                    )}
-
-                                                    {/* Return / Replace / Refund Status Badges */}
-                                                    {(order.return_status || order.replace_status || order.refund_status) && (
-                                                        <div className="flex flex-col gap-2 mb-3">
-                                                            <div className="flex flex-wrap gap-2">
-                                                                {order.return_status && (
-                                                                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 text-blue-700 text-xs font-semibold shadow-sm">
-                                                                        🔄 Return: {order.return_status.replace(/_/g, ' ')}
-                                                                    </span>
-                                                                )}
-                                                                {order.replace_status && (
-                                                                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-purple-50 to-fuchsia-50 border border-purple-200 text-purple-700 text-xs font-semibold shadow-sm">
-                                                                        🔁 Replace: {order.replace_status.replace(/_/g, ' ')}
-                                                                    </span>
-                                                                )}
-                                                                {order.refund_status && (
-                                                                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-emerald-50 to-emerald-100 border border-emerald-200 text-emerald-700 text-xs font-semibold shadow-sm">
-                                                                        💰 Refund: {formatRefundStatus(order.refund_status)}
-                                                                    </span>
-                                                                )}
-                                                            </div>
-                                                            <div className="text-[11px] sm:text-xs text-[#6B6B6B] font-medium flex items-center gap-1.5 mt-0.5">
-                                                                <svg className="w-3.5 h-3.5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                                                </svg>
-                                                                {order.return_status && order.replace_status ? 'Return & Replacement' : order.return_status ? 'Return' : 'Replacement'} timeline: Subject to policy review and verification
+                                                    {orderInfoRows.length > 0 && (
+                                                        <div className="mb-3 rounded-lg border border-[#E7E0D3] bg-[#FBF9F4] px-3 py-2.5">
+                                                            <div className="space-y-2">
+                                                                {orderInfoRows.map((row) => (
+                                                                    <div key={`${order.order_id}-${row.label}`} className="flex flex-col gap-0.5 text-xs sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+                                                                        <span className="font-medium text-[#8C7A5B]">{row.label}</span>
+                                                                        <span className="text-[#2C2416] sm:text-right">{row.value}</span>
+                                                                    </div>
+                                                                ))}
                                                             </div>
                                                         </div>
                                                     )}
@@ -537,7 +549,6 @@ export const MyOrdersPage = () => {
                                                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
                                                                                     </svg>
                                                                                     Return Requested
-                                                                                    <span className="ml-auto text-[10px] bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded-full font-semibold">Active</span>
                                                                                 </button>
                                                                             ) : (
                                                                                 // Not yet requested — allow return
@@ -576,7 +587,6 @@ export const MyOrdersPage = () => {
                                                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                                                                                     </svg>
                                                                                     Replace Requested
-                                                                                    <span className="ml-auto text-[10px] bg-purple-100 text-purple-600 px-1.5 py-0.5 rounded-full font-semibold">Active</span>
                                                                                 </button>
                                                                             ) : (
                                                                                 // Not yet requested — allow replace
