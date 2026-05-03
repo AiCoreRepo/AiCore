@@ -34,10 +34,10 @@ export class OrderEventListener {
     const frontendBaseUrl = (
       process.env.FRONTEND_URL || 'http://localhost:3005'
     ).replace(/\/+$/, '');
+    const adminLoginUrl = `${frontendBaseUrl}/admin-login`;
 
-    // ─── SMS: Order Confirmation ─────────────────────────────────────────
+    // ─── SMS: Admin Order Alert ──────────────────────────────────────────
     try {
-      // Fetch full order details including user phone, items, and shipping address
       const fullOrder = await this.prisma.order.findUnique({
         where: { order_id: event.order.order_id },
         include: {
@@ -51,47 +51,71 @@ export class OrderEventListener {
             },
           },
           shipping_address: {
-            select: { city: true, state: true, phone: true },
+            select: { city: true, state: true, phone: true, full_name: true },
           },
         },
       });
 
-      const phone = fullOrder?.user?.phone || fullOrder?.shipping_address?.phone;
+      const adminRecipients = await this.prisma.user.findMany({
+        where: {
+          role: 'ADMIN',
+          status: 'active',
+          phone: { not: null },
+        },
+        select: {
+          user_id: true,
+          email: true,
+          phone: true,
+        },
+      });
 
       if (!fullOrder) {
-        this.logger.warn(`Order ${event.order.order_id} not found for SMS dispatch`);
-      } else if (!phone) {
+        this.logger.warn(`Order ${event.order.order_id} not found for admin SMS dispatch`);
+      } else if (adminRecipients.length === 0) {
         this.logger.warn(
-          `Order ${event.order.order_number}: buyer has no phone number — skipping SMS`,
+          `Order ${event.order.order_number}: no admin users with phone numbers found — skipping SMS`,
         );
       } else {
-        // Derive a friendly display name from the email (e.g. john.doe@... → John)
-        const displayName = fullOrder.user.email.split('@')[0]?.split('.')[0] ?? 'Customer';
-        const buyerName = displayName.charAt(0).toUpperCase() + displayName.slice(1);
+        const uniqueAdminRecipients = Array.from(
+          new Map(
+            adminRecipients
+              .filter((admin) => admin.phone)
+              .map((admin) => [admin.phone as string, admin]),
+          ).values(),
+        );
 
-        await this.smsQueueService.enqueueOrderConfirmationSms({
-          to: phone,
-          buyerName,
-          orderId: fullOrder.order_id,
-          orderNumber: fullOrder.order_number,
-          orderUrl: `${frontendBaseUrl}/my-orders`,
-          items: fullOrder.items.map((item) => ({
-            productName: item.product_name,
-            quantity: item.quantity,
-            size: item.size ?? undefined,
-            color: item.color ?? undefined,
-          })),
-          totalAmount: Number(fullOrder.total_amount),
-          paymentMethod: fullOrder.payment_method,
-          estimatedDelivery: fullOrder.estimated_delivery_date ?? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-          shippingCity: fullOrder.shipping_address?.city ?? '',
-          shippingState: fullOrder.shipping_address?.state ?? '',
-        });
+        const fallbackName = fullOrder.user.email.split('@')[0]?.split('.')[0] ?? 'Customer';
+        const buyerName =
+          fullOrder.shipping_address?.full_name?.trim() ||
+          (fallbackName.charAt(0).toUpperCase() + fallbackName.slice(1));
+        const buyerPhone = fullOrder.user?.phone || fullOrder.shipping_address?.phone || undefined;
+
+        await Promise.all(
+          uniqueAdminRecipients.map((admin) =>
+            this.smsQueueService.enqueueAdminOrderAlertSms({
+              to: admin.phone as string,
+              buyerName,
+              buyerPhone,
+              orderId: fullOrder.order_id,
+              orderNumber: fullOrder.order_number,
+              adminUrl: adminLoginUrl,
+              items: fullOrder.items.map((item) => ({
+                productName: item.product_name,
+                quantity: item.quantity,
+                size: item.size ?? undefined,
+                color: item.color ?? undefined,
+              })),
+              totalAmount: Number(fullOrder.total_amount),
+              paymentMethod: fullOrder.payment_method,
+              shippingCity: fullOrder.shipping_address?.city ?? '',
+              shippingState: fullOrder.shipping_address?.state ?? '',
+            }),
+          ),
+        );
       }
     } catch (error) {
-      // SMS failure must never affect the order flow
       this.logger.error(
-        `Failed to enqueue order confirmation SMS for ${event.order.order_number}:`,
+        `Failed to enqueue admin order alert SMS for ${event.order.order_number}:`,
         error instanceof Error ? error.message : error,
       );
     }

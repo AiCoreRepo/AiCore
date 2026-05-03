@@ -9,7 +9,7 @@ import type { Job } from 'bull';
 import { QUEUE_NAMES, JOB_NAMES } from '../common/constants/queue.constants';
 import { TwilioService } from '../common/twilio.service';
 import type { SmsJobData } from '../queues/sms-queue.service';
-import { buildOrderConfirmationSms } from '../common/sms-templates/order.sms-template';
+import { buildAdminOrderAlertSms } from '../common/sms-templates/order.sms-template';
 import { buildCreatorUploadSms } from '../common/sms-templates/creator.sms-template';
 import {
   NON_RETRIABLE_TWILIO_CODES,
@@ -22,9 +22,10 @@ import {
  * Lives in src/worker/ and is registered only by WorkerModule.
  * Delegates all Twilio API calls to the shared TwilioService.
  *
- * Handles two job types:
- *  1. order-confirmation-sms  → buyer receives order confirmation
- *  2. creator-upload-sms      → creator receives upload acknowledgement
+ * Handles three job types:
+ *  1. order-confirmation-sms  → legacy order SMS job
+ *  2. admin-order-alert-sms   → admin receives new-order alert
+ *  3. creator-upload-sms      → creator receives upload acknowledgement
  *
  * Retry strategy (configured in SmsQueueService):
  *  - 3 attempts with exponential back-off: 5 s → 10 s → 20 s
@@ -51,11 +52,29 @@ export class SmsProcessor {
       `📲 Processing order confirmation SMS — Order ${payload.orderNumber} → ${payload.to}`,
     );
 
-    const body = buildOrderConfirmationSms(payload);
+    const body = buildAdminOrderAlertSms(payload);
     await this.sendSms(payload.to, body, job);
 
     this.logger.log(
       `✅ Order confirmation SMS dispatched — Order ${payload.orderNumber}`,
+    );
+  }
+
+  @Process(JOB_NAMES.ADMIN_ORDER_ALERT_SMS)
+  async handleAdminOrderAlertSms(job: Job<SmsJobData>): Promise<void> {
+    if (job.data.type !== JOB_NAMES.ADMIN_ORDER_ALERT_SMS) return;
+
+    const { payload } = job.data;
+
+    this.logger.log(
+      `📲 Processing admin order alert SMS — Order ${payload.orderNumber} → ${payload.to}`,
+    );
+
+    const body = buildAdminOrderAlertSms(payload);
+    await this.sendSms(payload.to, body, job);
+
+    this.logger.log(
+      `✅ Admin order alert SMS dispatched — Order ${payload.orderNumber}`,
     );
   }
 

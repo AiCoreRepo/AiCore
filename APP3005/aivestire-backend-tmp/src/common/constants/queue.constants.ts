@@ -30,5 +30,6 @@ export const JOB_NAMES = {
   PROCESS_DIRECT_TRY_ON: 'process-direct-try-on',
   PROCESS_ANGLE_GENERATION: 'process-angle-generation',
   ORDER_CONFIRMATION_SMS: 'order-confirmation-sms',
+  ADMIN_ORDER_ALERT_SMS: 'admin-order-alert-sms',
   CREATOR_UPLOAD_SMS: 'creator-upload-sms',
 } as const;
