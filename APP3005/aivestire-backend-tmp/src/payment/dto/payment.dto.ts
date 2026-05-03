@@ -68,6 +68,14 @@ export class VerifyPaymentDto {
   @IsString()
   @IsOptional()
   error_Message?: string;
+
+  @IsString()
+  @IsOptional()
+  additional_charges?: string;
+
+  @IsString()
+  @IsOptional()
+  splitInfo?: string;
   
   // PayU sends UDFs which are optional
   @IsString()

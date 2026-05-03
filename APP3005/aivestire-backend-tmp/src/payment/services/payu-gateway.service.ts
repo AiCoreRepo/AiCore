@@ -26,6 +26,8 @@ export interface PayUHashParams {
 
 export interface PayUResponseHashParams extends PayUHashParams {
   status: string;
+  additional_charges?: string;
+  splitInfo?: string;
 }
 
 export interface PayUCheckoutPayload {
@@ -175,6 +177,8 @@ export class PayUGatewayService {
         firstname,
         email,
         status,
+        additional_charges = '',
+        splitInfo = '',
         udf1 = '',
         udf2 = '',
         udf3 = '',
@@ -182,14 +186,20 @@ export class PayUGatewayService {
         udf5 = '',
       } = params;
 
-      const reverseHashString = [
-        this.salt,
+      const reverseHashParts = [
         status,
+        ...(splitInfo ? [splitInfo] : []),
         '',
         '',
         '',
         '',
         '',
+      ];
+
+      const reverseHashString = [
+        ...(additional_charges ? [additional_charges] : []),
+        this.salt,
+        ...reverseHashParts,
         udf5,
         udf4,
         udf3,
@@ -219,7 +229,7 @@ export class PayUGatewayService {
 
       const isValid = crypto.timingSafeEqual(expectedBuf, receivedBuf);
       this.logger.log(
-        `PayU response hash for txnid ${txnid}: ${isValid ? 'VALID' : 'INVALID'}`,
+        `PayU response hash for txnid ${txnid}: ${isValid ? 'VALID' : 'INVALID'}${additional_charges ? ' (with additional_charges)' : ''}${splitInfo ? ' (with splitInfo)' : ''}`,
       );
       return isValid;
     } catch (err: unknown) {
