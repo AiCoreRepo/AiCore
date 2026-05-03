@@ -1,5 +1,9 @@
 node_modules
 .env
+.env.payu-local
+.env.payu-dev
+.env.payu-prod
+.env.payu-test.local
 dist
 build
 .DS_Store
@@ -12,4 +16,3 @@ yarn-error.log*
 .idea
 *.tsbuildinfo
 APP3005/service_account.json
-
