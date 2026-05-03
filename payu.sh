@@ -12,6 +12,7 @@ Usage:
   bash payu.sh prod up
 
   bash payu.sh <local|dev|prod> down
+  bash payu.sh <local|dev|prod> build
   bash payu.sh <local|dev|prod> logs [tail]
   bash payu.sh <local|dev|prod> ps
   bash payu.sh <local|dev|prod> env
@@ -59,10 +60,20 @@ command="${2:-up}"
 
 case "$command" in
   up)
+    if [[ "$selected_env" == "dev" ]]; then
+      compose build --no-cache backend backend-worker frontend
+    fi
     compose up -d --force-recreate backend backend-worker frontend
     ;;
   down)
     compose down
+    ;;
+  build)
+    if [[ "$selected_env" == "dev" ]]; then
+      compose build --no-cache backend backend-worker frontend
+    else
+      compose build backend backend-worker frontend
+    fi
     ;;
   logs)
     tail_lines="${3:-50}"
