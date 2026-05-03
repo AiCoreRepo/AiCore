@@ -58,11 +58,15 @@ compose() {
     "$@"
 }
 
+should_no_cache_build() {
+  [[ "$selected_env" == "dev" || "$selected_env" == "prod" ]]
+}
+
 command="${2:-up}"
 
 case "$command" in
   up)
-    if [[ "$selected_env" == "dev" ]]; then
+    if should_no_cache_build; then
       compose build --no-cache backend backend-worker frontend
     fi
     compose up -d --force-recreate backend backend-worker frontend
@@ -71,7 +75,7 @@ case "$command" in
     compose down
     ;;
   build)
-    if [[ "$selected_env" == "dev" ]]; then
+    if should_no_cache_build; then
       compose build --no-cache backend backend-worker frontend
     else
       compose build backend backend-worker frontend
