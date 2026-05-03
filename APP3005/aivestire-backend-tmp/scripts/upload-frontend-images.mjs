@@ -67,6 +67,31 @@ const assets = [
     file: path.join(frontendRoot, "src/assets/tryonnew .jpeg"),
   },
   {
+    key: "upcomingFeaturePreview",
+    publicId: "upcoming-feature-preview",
+    file: path.join(frontendRoot, "src/assets/allimage/upcoming_image.jpeg"),
+  },
+  {
+    key: "workflowPreview0",
+    publicId: "workflow-preview-0",
+    file: path.join(frontendRoot, "src/assets/allimage/0.jpeg"),
+  },
+  {
+    key: "workflowPreview1",
+    publicId: "workflow-preview-1",
+    file: path.join(frontendRoot, "src/assets/allimage/1.jpeg"),
+  },
+  {
+    key: "workflowPreview2",
+    publicId: "workflow-preview-2",
+    file: path.join(frontendRoot, "src/assets/allimage/2_.jpeg"),
+  },
+  {
+    key: "workflowPreview3",
+    publicId: "workflow-preview-3",
+    file: path.join(frontendRoot, "src/assets/allimage/3.jpeg"),
+  },
+  {
     key: "jaipurArtisansThread",
     publicId: "jaipur-artisans-thread",
     file: path.join(frontendRoot, "public/images/jaipur-artisans-thread.jpg"),

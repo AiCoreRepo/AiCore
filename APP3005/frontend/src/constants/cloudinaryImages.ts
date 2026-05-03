@@ -77,4 +77,16 @@ export const cloudinaryImages = {
     bodyShapes:
       "https://res.cloudinary.com/dxfxicebq/image/upload/v1777049703/aivestire/frontend/body-shapes-guide.jpg",
   },
+  featureDiscovery: {
+    upcomingPreview:
+      "https://res.cloudinary.com/dxfxicebq/image/upload/v1777585728/aivestire/frontend/upcoming-feature-preview.jpg",
+    workflowPreview0:
+      "https://res.cloudinary.com/dxfxicebq/image/upload/v1777585733/aivestire/frontend/workflow-preview-0.jpg",
+    workflowPreview1:
+      "https://res.cloudinary.com/dxfxicebq/image/upload/v1777585735/aivestire/frontend/workflow-preview-1.jpg",
+    workflowPreview2:
+      "https://res.cloudinary.com/dxfxicebq/image/upload/v1777585737/aivestire/frontend/workflow-preview-2.jpg",
+    workflowPreview3:
+      "https://res.cloudinary.com/dxfxicebq/image/upload/v1777585738/aivestire/frontend/workflow-preview-3.jpg",
+  },
 } as const;

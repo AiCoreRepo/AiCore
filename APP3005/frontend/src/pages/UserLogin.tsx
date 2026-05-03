@@ -14,6 +14,7 @@ import { login, getAuraStatus, googleAuth } from "@/lib/api";
 import { useGoogleLogin } from "@react-oauth/google";
 import { getErrorMessage } from "@/lib/error-utils";
 import { cloudinaryImages } from "@/constants/cloudinaryImages";
+import { markWorkflowDiscoveryPending } from "@/constants/featureDiscovery";
 
 const UserLogin = () => {
     const heroImage = cloudinaryImages.auth.userModel;
@@ -77,6 +78,7 @@ const UserLogin = () => {
 
             // Check if user already has an Aura
             const auraStatus = await getAuraStatus();
+            markWorkflowDiscoveryPending();
 
             if (auraStatus.hasAura) {
                 // User already has Aura
@@ -135,6 +137,7 @@ const UserLogin = () => {
 
                 // Check if user already has an Aura
                 const auraStatus = await getAuraStatus();
+                markWorkflowDiscoveryPending();
 
                 if (auraStatus.hasAura) {
                     if (returnUrl && returnUrl !== "/") {

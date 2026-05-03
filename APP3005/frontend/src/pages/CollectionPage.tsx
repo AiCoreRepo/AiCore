@@ -43,6 +43,13 @@ import { FilterMultiSelect } from '@/components/collection/FilterMultiSelect';
 import { CLOTHING_COLORS, BODY_SHAPES, SKIN_TONES } from '@/constants/product-hierarchy.enums';
 import { Pagination } from "@/components/common/Pagination";
 import { useCategories } from '@/hooks/useCategories';
+import { WorkflowDiscoveryModal } from '@/components/WorkflowDiscoveryModal';
+import {
+    clearWorkflowDiscoveryPending,
+    hasPendingWorkflowDiscovery,
+    loginOnboardingSlides,
+    workflowDiscoveryGalleryImages,
+} from '@/constants/featureDiscovery';
 
 const getProductImageUrl = (product: PublicProduct): string | null => {
     const primaryImage = _.find(product.images, (image) => image.is_primary);
@@ -90,6 +97,8 @@ const CollectionPage = () => {
 
     // Aura Welcome Modal State
     const [showAuraWelcomeModal, setShowAuraWelcomeModal] = useState(false);
+    const [showWorkflowDiscovery, setShowWorkflowDiscovery] = useState(false);
+    const [isAuraResolved, setIsAuraResolved] = useState(false);
 
     // Filter States
     const [searchQuery, setSearchQuery] = useState("");
@@ -159,16 +168,40 @@ const CollectionPage = () => {
         window.location.href = TRY_ON_PREMIUM_UPGRADE_URL;
     };
 
-    // Fetch Aura for user photo in modal
+    const closeWorkflowDiscovery = () => {
+        clearWorkflowDiscoveryPending();
+        setShowWorkflowDiscovery(false);
+    };
+
+    // Fetch Aura for try-on and for gating the post-login onboarding popup
     useEffect(() => {
         if (user) {
-            getAura().then(setAura).catch(() => { });
+            setIsAuraResolved(false);
+            getAura()
+                .then(setAura)
+                .catch(() => {
+                    setAura(null);
+                })
+                .finally(() => {
+                    setIsAuraResolved(true);
+                });
+        } else {
+            setAura(null);
+            setIsAuraResolved(true);
         }
     }, [user]);
 
     useEffect(() => {
         setTryOnUsageSnapshot(getTryOnUsageSnapshot(user));
     }, [user]);
+
+    useEffect(() => {
+        if (!user || !isAuraResolved || !hasPendingWorkflowDiscovery()) {
+            return;
+        }
+
+        setShowWorkflowDiscovery(true);
+    }, [isAuraResolved, user]);
 
     useEffect(() => {
         return () => {
@@ -814,6 +847,13 @@ const CollectionPage = () => {
             </main>
 
             <Footer />
+
+            <WorkflowDiscoveryModal
+                isOpen={showWorkflowDiscovery}
+                slides={loginOnboardingSlides}
+                galleryImages={workflowDiscoveryGalleryImages}
+                onClose={closeWorkflowDiscovery}
+            />
 
             <AuraPromptDialog
                 isOpen={showAuraWelcomeModal}

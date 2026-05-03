@@ -113,7 +113,6 @@ services:
 
       # ── App ──────────────────────────────────
       NODE_ENV: production
-      FRONTEND_URL: https://aivestire.com
       CORS_ORIGIN: ${CORS_ORIGIN:-}
 
       # ── Internal service URLs ─────────────────

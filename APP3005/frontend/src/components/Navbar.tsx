@@ -14,7 +14,7 @@ const navLinks = [
     { name: "Collection", href: "/collection", isRoute: true },
     { name: "AI Try-On", href: "/ai-try-on", isRoute: true },
     { name: "Let AI Decide", href: "/let-ai-decide", isRoute: true },
-    { name: "Lookbook", href: "/#lookbook", isRoute: true },
+    { name: "Upcoming", href: "/upcoming", isRoute: true },
     { name: "About", href: "/#about", isRoute: true },
 ];
 

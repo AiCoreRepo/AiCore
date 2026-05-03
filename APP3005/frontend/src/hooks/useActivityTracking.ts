@@ -11,8 +11,8 @@ interface TrackingData {
     timestamp: string;
 }
 
-// Use same-origin proxy to avoid CORS. Override via VITE_TRACKING_URL if needed.
-const TRACKING_ENDPOINT = import.meta.env.VITE_TRACKING_URL ?? '/n8n/track-visit';
+// Tracking is disabled unless an explicit endpoint is provided.
+const TRACKING_ENDPOINT = import.meta.env.VITE_TRACKING_URL?.trim();
 const TRACKING_DELAY = 5000; // 5 seconds
 const DEDUPLICATION_WINDOW = 3000; // 3 seconds to prevent duplicate tracking
 
@@ -53,6 +53,10 @@ export const useActivityTracking = () => {
 
         // ✅ Fix #8: Check consent before tracking
         if (!hasTrackingConsent()) {
+            return;
+        }
+
+        if (!TRACKING_ENDPOINT) {
             return;
         }
 

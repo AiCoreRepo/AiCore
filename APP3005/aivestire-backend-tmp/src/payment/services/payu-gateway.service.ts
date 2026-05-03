@@ -63,25 +63,30 @@ export class PayUGatewayService {
   private readonly logger = new Logger(PayUGatewayService.name);
   private readonly key: string;
   private readonly salt: string;
+  private readonly isProduction: boolean;
   private readonly payuBaseUrl: string;
 
   constructor(private readonly configService: ConfigService) {
     this.key = this.configService.getOrThrow<string>('PAYU_KEY');
     this.salt = this.configService.getOrThrow<string>('PAYU_SALT');
 
-    const configuredEnvironment = this.configService
-      .get<string>('PAYU_ENV')
-      ?.trim()
-      .toLowerCase();
-    const isProduction = configuredEnvironment
-      ? ['production', 'prod', 'live'].includes(configuredEnvironment)
-      : this.configService.get<string>('NODE_ENV') === 'production';
-    this.payuBaseUrl = isProduction
+    const configuredEnvironment =
+      this.configService.get<string>('PAYU_ENV')?.trim().toLowerCase() ?? '';
+
+    // Never infer live payments from NODE_ENV. PayU mode must be explicit.
+    this.isProduction = ['production', 'prod', 'live'].includes(
+      configuredEnvironment,
+    );
+    this.payuBaseUrl = this.isProduction
       ? PAYU_CONSTANTS.PROD_URL
       : PAYU_CONSTANTS.TEST_URL;
 
+    if (!configuredEnvironment) {
+      this.logger.warn('PAYU_ENV is not set. Defaulting PayU gateway to TEST mode');
+    }
+
     this.logger.log(
-      `PayU gateway initialised in ${isProduction ? 'PRODUCTION' : 'TEST'} mode`,
+      `PayU gateway initialised in ${this.isProduction ? 'PRODUCTION' : 'TEST'} mode`,
     );
   }
 
@@ -287,10 +292,7 @@ export class PayUGatewayService {
     const hashString = [this.key, command, mihpayid, this.salt].join('|');
     const hash = crypto.createHash('sha512').update(hashString).digest('hex');
 
-    const isProduction = ['production', 'prod', 'live'].includes(
-      (this.configService.get<string>('PAYU_ENV') ?? '').trim().toLowerCase(),
-    );
-    const refundUrl = isProduction
+    const refundUrl = this.isProduction
       ? PAYU_CONSTANTS.REFUND_PROD_URL
       : PAYU_CONSTANTS.REFUND_TEST_URL;
 

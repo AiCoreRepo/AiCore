@@ -80,6 +80,7 @@ import { ReplaceOrderPage } from "./features/orders/ReplaceOrderPage";
 import UserDashboard from "./pages/UserDashboard";
 import PaymentSuccessPage from "./pages/PaymentSuccessPage";
 import PaymentFailurePage from "./pages/PaymentFailurePage";
+import UpcomingPage from "./pages/UpcomingPage";
 
 
 const queryClient = new QueryClient();
@@ -107,6 +108,7 @@ const App = () => (
                     <InactivityRegisterModal />
                     <Routes>
                       <Route path="/" element={<Index />} />
+                      <Route path="/upcoming" element={<UpcomingPage />} />
                       <Route path="/collection" element={<CollectionPage />} />
                       <Route path="/product/:id" element={<ProductDetailsPage />} />
                       <Route path="/cart" element={
