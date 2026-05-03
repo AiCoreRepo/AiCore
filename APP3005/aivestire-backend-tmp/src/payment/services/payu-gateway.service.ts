@@ -194,7 +194,6 @@ export class PayUGatewayService {
         '',
         '',
         '',
-        '',
       ];
 
       const reverseHashString = [

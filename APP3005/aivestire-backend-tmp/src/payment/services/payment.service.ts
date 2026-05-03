@@ -154,7 +154,7 @@ export class PaymentService {
         firstname: dto.firstname,
         email: dto.email,
         status: dto.status,
-        additional_charges: dto.additional_charges,
+        additional_charges: dto.additional_charges ?? dto.additionalCharges,
         splitInfo: dto.splitInfo,
         udf1: dto.udf1,
         udf2: dto.udf2,
@@ -166,6 +166,9 @@ export class PaymentService {
     );
 
     if (!isHashValid) {
+      this.logger.warn(
+        `PayU callback hash context — txnid: ${dto.txnid}, additional_charges: ${dto.additional_charges ?? dto.additionalCharges ?? 'n/a'}, splitInfo: ${dto.splitInfo ? 'present' : 'absent'}`,
+      );
       this.logger.warn(`Invalid PayU hash for txnid: ${dto.txnid}`);
       throw new BadRequestException(PAYMENT_MESSAGES.INVALID_SIGNATURE);
     }
@@ -249,7 +252,7 @@ export class PaymentService {
         firstname: dto.firstname,
         email: dto.email,
         status: dto.status,
-        additional_charges: dto.additional_charges,
+        additional_charges: dto.additional_charges ?? dto.additionalCharges,
         splitInfo: dto.splitInfo,
         udf1: dto.udf1,
         udf2: dto.udf2,
