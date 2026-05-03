@@ -81,7 +81,7 @@ export interface CartContextType {
     addToCart: (params: AddToCartParams) => Promise<void>;
     removeFromCart: (itemId: string) => Promise<void>;
     updateQuantity: (itemId: string, quantity: number) => Promise<void>;
-    clearCart: (options?: { silent?: boolean }) => Promise<void>;
+    clearCart: (options?: { silent?: boolean; localOnly?: boolean }) => Promise<void>;
     refreshCart: () => Promise<void>;
     itemCount: number;
     isEmpty: boolean;
@@ -499,16 +499,18 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     /**
      * Clear entire cart
      */
-    const clearCart = useCallback(async (options?: { silent?: boolean }) => {
+    const clearCart = useCallback(async (options?: { silent?: boolean; localOnly?: boolean }) => {
         try {
             setCart(prev => ({ ...prev, isLoading: true, error: null }));
 
             const isAuthenticated = !!user?.user_id && hasAccessToken();
 
-            if (isAuthenticated) {
-                await clearUserCart();
-            } else {
-                await clearGuestCart();
+            if (!options?.localOnly) {
+                if (isAuthenticated) {
+                    await clearUserCart();
+                } else {
+                    await clearGuestCart();
+                }
             }
 
             setCart({

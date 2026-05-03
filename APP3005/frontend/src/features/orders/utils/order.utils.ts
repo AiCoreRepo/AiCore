@@ -25,9 +25,9 @@ export const ORDER_STATUS_CONFIG: Record<
         icon: '📦',
     },
     BOOKED: {
-        label: 'Booked',
-        color: '#3B82F6',
-        bgColor: '#EFF6FF',
+        label: 'Confirmed',
+        color: '#8B6A2C',
+        bgColor: '#F5E8C9',
         icon: '✓',
     },
     DISPATCHED: {

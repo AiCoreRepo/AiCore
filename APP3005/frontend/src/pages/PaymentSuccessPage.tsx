@@ -9,23 +9,22 @@ const GOLD = '#D4AF37';
 const PaymentSuccessPage = () => {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
-    const { clearCart, refreshCart } = useCart();
-    const orderNumber = searchParams.get('order') || '';
+    const { clearCart } = useCart();
+    const orderNumber =
+        searchParams.get('orderNumber') ||
+        searchParams.get('order') ||
+        sessionStorage.getItem('pending_order_number') ||
+        '';
     const [countdown, setCountdown] = useState(5);
 
-    // Clear cart and pending session on successful return from PayU
+    // Order creation already removes purchased items from the backend cart.
+    // Keep this local-only so a stale / expired auth token cannot log the user out here.
     useEffect(() => {
-        (async () => {
-            try {
-                await clearCart({ silent: true });
-            } catch {
-                // If backend already cleared cart, a refresh will sync UI
-                await refreshCart().catch(() => { });
-            }
-        })();
+        clearCart({ silent: true, localOnly: true }).catch(() => { });
         sessionStorage.removeItem('pending_order_id');
+        sessionStorage.removeItem('pending_order_number');
         sessionStorage.removeItem('aivestire_applied_coupon');
-    }, [clearCart, refreshCart]);
+    }, [clearCart]);
 
     useEffect(() => {
         const timer = setInterval(() => {

@@ -16,12 +16,14 @@ Usage:
   bash payu.sh <local|dev|prod> logs [tail]
   bash payu.sh <local|dev|prod> ps
   bash payu.sh <local|dev|prod> env
+  bash payu.sh <local|dev|prod> seed-test-product
   bash payu.sh help
 
 Examples:
   bash payu.sh local up
   bash payu.sh dev logs 200
   bash payu.sh prod env
+  bash payu.sh dev seed-test-product
 EOF
 }
 
@@ -84,6 +86,9 @@ case "$command" in
     ;;
   env)
     docker exec nest-server printenv | grep -E '^(PAYU_ENV|PAYU_KEY|PAYU_SALT|PAYU_SUCCESS_URL|PAYU_FAILURE_URL|FRONTEND_URL)='
+    ;;
+  seed-test-product)
+    compose exec backend node scripts/seed-one-rupee-product.js
     ;;
   help|-h|--help)
     usage

@@ -86,7 +86,19 @@ export class PaymentController {
   ): Promise<void> {
     const frontendUrl = this.configService.get<string>('FRONTEND_URL', 'http://localhost:8080');
     try {
-      await this.paymentService.handlePaymentFailure(dto);
+      const result = await this.paymentService.handlePaymentFailure(dto);
+
+      if (result.success) {
+        res.redirect(
+          `${frontendUrl}/payment-success?orderId=${result.orderId}&orderNumber=${encodeURIComponent(result.orderNumber)}&txnid=${encodeURIComponent(dto.txnid)}`,
+        );
+        return;
+      }
+
+      res.redirect(
+        `${frontendUrl}/payment-failure?orderId=${result.orderId}&orderNumber=${encodeURIComponent(result.orderNumber)}&txnid=${encodeURIComponent(dto.txnid)}&reason=${encodeURIComponent(dto.error_Message ?? 'Payment failed')}`,
+      );
+      return;
     } catch { /* still redirect */ }
     res.redirect(`${frontendUrl}/payment-failure?txnid=${encodeURIComponent(dto.txnid)}&reason=${encodeURIComponent(dto.error_Message ?? 'Payment failed')}`);
   }

@@ -11,6 +11,7 @@ import {
     ShieldAlert, FileQuestion, RotateCcw, MoreHorizontal,
     ArrowRight, Loader2
 } from 'lucide-react';
+import { UserDashboardLayout } from '@/components/layout/UserDashboardLayout';
 import { ordersApi } from './api/orders.api';
 import { RETURN_REASONS } from './utils/order.utils';
 import type { ReturnOrderPayload, Order } from './types/order.types';
@@ -35,6 +36,7 @@ const STEPS = [
     { n: '2', title: 'Schedule Pickup', desc: 'We will coordinate a convenient doorstep pickup time.' },
     { n: '3', title: 'Get Wallet Refund', desc: 'Once verified, the approved refund is credited to your wallet.' },
 ];
+const SUBHEADER_OFFSET_CLASS = 'top-[61px] lg:top-0';
 
 // ── Component ─────────────────────────────────────────────────────────────────
 export const ReturnOrderPage: React.FC = () => {
@@ -81,18 +83,21 @@ export const ReturnOrderPage: React.FC = () => {
     };
 
     if (isLoading) return (
-        <div className="min-h-screen bg-white flex items-center justify-center">
-            <Loader2 className="w-10 h-10 animate-spin text-[#2C2416]" />
-        </div>
+        <UserDashboardLayout>
+            <div className="min-h-[calc(100vh-61px)] bg-white flex items-center justify-center px-4 lg:min-h-screen">
+                <Loader2 className="w-10 h-10 animate-spin text-[#2C2416]" />
+            </div>
+        </UserDashboardLayout>
     );
 
     const firstItem = order?.items?.[0];
 
     return (
-        <div className="min-h-screen bg-[#F9F9F9]" style={{ fontFamily: "'Inter', sans-serif" }}>
+        <UserDashboardLayout>
+            <div className="min-h-screen bg-[#F9F9F9]" style={{ fontFamily: "'Inter', sans-serif" }}>
 
-            {/* ── TOP NAV (Myntra style clean) ────────────────────────── */}
-            <div className="sticky top-0 z-30 bg-white border-b border-[#EEE] shadow-sm">
+                {/* ── TOP NAV (Myntra style clean) ────────────────────────── */}
+                <div className={`sticky ${SUBHEADER_OFFSET_CLASS} z-30 bg-white border-b border-[#EEE] shadow-sm`}>
                 <div className="max-w-4xl mx-auto px-4 h-16 flex items-center justify-between">
                     <button
                         onClick={() => navigate(-1)}
@@ -104,9 +109,9 @@ export const ReturnOrderPage: React.FC = () => {
                     <h1 className="text-sm font-bold text-[#2C2416] uppercase tracking-widest">Return Item</h1>
                     <div className="w-10" /> {/* Spacer */}
                 </div>
-            </div>
+                </div>
 
-            <div className="max-w-4xl mx-auto px-4 py-6 sm:py-8 space-y-6">
+                <div className="max-w-4xl mx-auto px-4 py-6 sm:py-8 space-y-6">
 
                 {/* ── PRODUCT CARD (Small & Clickable) ──────────────────── */}
                 {firstItem && (
@@ -238,7 +243,8 @@ export const ReturnOrderPage: React.FC = () => {
                     </div>
                 </div>
             </div>
-        </div>
+            </div>
+        </UserDashboardLayout>
     );
 };
 

@@ -7,6 +7,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
+import { UserDashboardLayout } from '@/components/layout/UserDashboardLayout';
 import { formatRefundStatus } from './utils/order.utils';
 import { useRefundSSE } from './hooks/useRefundSSE';
 import { usePayU } from '@/hooks/usePayU';
@@ -82,7 +83,7 @@ const STATUS_GRADIENT: Record<string, string> = {
     SHIPPED: 'from-blue-500 to-indigo-600',
     DISPATCHED: 'from-purple-500 to-violet-600',
     OUT_FOR_DELIVERY: 'from-pink-500 to-rose-500',
-    BOOKED: 'from-indigo-500 to-blue-600',
+    BOOKED: 'from-[#C9A55C] to-[#A9833D]',
     PENDING: 'from-amber-400 to-yellow-500',
     ORDER_PLACED: 'from-amber-400 to-yellow-500',
     PENDING_APPROVAL: 'from-amber-400 to-yellow-500',
@@ -122,6 +123,7 @@ const TIMELINE_LABELS: Partial<Record<OrderStatus, string>> = {
 // ── Return pipeline steps ──────────────────────────────────────────────────
 const RETURN_PIPELINE: ReturnStatus[] = ['REQUESTED', 'APPROVED', 'PICKUP_SCHEDULED', 'PICKED_UP', 'QC_PASSED', 'COMPLETED'];
 const REPLACE_PIPELINE: ReplacementStatus[] = ['REQUESTED', 'APPROVED', 'PICKUP_SCHEDULED', 'PICKED_UP', 'DISPATCHED', 'DELIVERED', 'COMPLETED'];
+const SUBHEADER_OFFSET_CLASS = 'top-[61px] lg:top-0';
 
 // ── Main Component ────────────────────────────────────────────────────────────
 export const OrderDetailPage: React.FC = () => {
@@ -214,31 +216,35 @@ export const OrderDetailPage: React.FC = () => {
 
     // ── Loading ────────────────────────────────────────────────────────────
     if (isLoading) return (
-        <div className="min-h-screen bg-[#FAFAF8] flex items-center justify-center">
-            <div className="flex flex-col items-center gap-3">
-                <Loader2 className="w-10 h-10 animate-spin text-[#C9A55C]" />
-                <p className="text-sm text-[#6B6B6B]">Loading order details…</p>
+        <UserDashboardLayout>
+            <div className="min-h-[calc(100vh-61px)] bg-[#FAFAF8] flex items-center justify-center px-4 lg:min-h-screen">
+                <div className="flex flex-col items-center gap-3">
+                    <Loader2 className="w-10 h-10 animate-spin text-[#C9A55C]" />
+                    <p className="text-sm text-[#6B6B6B]">Loading order details…</p>
+                </div>
             </div>
-        </div>
+        </UserDashboardLayout>
     );
 
     // ── Error ──────────────────────────────────────────────────────────────
     if (error || !order) return (
-        <div className="min-h-screen bg-[#FAFAF8] flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl p-8 max-w-sm w-full text-center shadow-lg border border-[#EBEBEB]">
-                <div className="w-14 h-14 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <AlertCircle className="w-7 h-7 text-red-500" />
+        <UserDashboardLayout>
+            <div className="min-h-[calc(100vh-61px)] bg-[#FAFAF8] flex items-center justify-center p-4 lg:min-h-screen">
+                <div className="bg-white rounded-2xl p-8 max-w-sm w-full text-center shadow-lg border border-[#EBEBEB]">
+                    <div className="w-14 h-14 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <AlertCircle className="w-7 h-7 text-red-500" />
+                    </div>
+                    <h2 className="font-bold text-[#2C2416] text-lg mb-2">Order Not Found</h2>
+                    <p className="text-[#999] text-sm mb-6">{error || 'We could not load this order.'}</p>
+                    <button
+                        onClick={() => navigate('/my-orders')}
+                        className="w-full py-3 bg-[#2C2416] text-[#C9A55C] font-bold rounded-xl text-sm hover:bg-[#1A150D] transition-colors"
+                    >
+                        Back to My Orders
+                    </button>
                 </div>
-                <h2 className="font-bold text-[#2C2416] text-lg mb-2">Order Not Found</h2>
-                <p className="text-[#999] text-sm mb-6">{error || 'We could not load this order.'}</p>
-                <button
-                    onClick={() => navigate('/my-orders')}
-                    className="w-full py-3 bg-[#2C2416] text-[#C9A55C] font-bold rounded-xl text-sm hover:bg-[#1A150D] transition-colors"
-                >
-                    Back to My Orders
-                </button>
             </div>
-        </div>
+        </UserDashboardLayout>
     );
 
     // ── Derived values ─────────────────────────────────────────────────────
@@ -265,10 +271,11 @@ export const OrderDetailPage: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen bg-[#F5F3EE]" style={{ fontFamily: "'Inter','Segoe UI',sans-serif" }}>
+        <UserDashboardLayout>
+            <div className="min-h-screen bg-[#F5F3EE]" style={{ fontFamily: "'Inter','Segoe UI',sans-serif" }}>
 
-            {/* ── STICKY TOP NAV ──────────────────────────────────────────── */}
-            <div className="sticky top-0 z-30 bg-white border-b border-[#E0E0D8] shadow-sm">
+                {/* ── STICKY TOP NAV ──────────────────────────────────────────── */}
+                <div className={`sticky ${SUBHEADER_OFFSET_CLASS} z-30 bg-white border-b border-[#E0E0D8] shadow-sm`}>
                 <div className="max-w-4xl mx-auto px-4 sm:px-6 h-14 flex items-center gap-2">
                     <button
                         onClick={() => navigate('/my-orders')}
@@ -294,10 +301,10 @@ export const OrderDetailPage: React.FC = () => {
                         </span>
                     </div>
                 </div>
-            </div>
+                </div>
 
-            {/* ── HERO STATUS BANNER ───────────────────────────────────────── */}
-            <div className={`bg-gradient-to-r ${gradient} text-white`}>
+                {/* ── HERO STATUS BANNER ───────────────────────────────────────── */}
+                <div className={`bg-gradient-to-r ${gradient} text-white`}>
                 <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div className="flex items-center gap-4">
                         <div className="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center flex-shrink-0">
@@ -351,11 +358,11 @@ export const OrderDetailPage: React.FC = () => {
                         )}
                     </div>
                 </div>
-            </div>
+                </div>
 
-            {/* ── ORDER TIMELINE ───────────────────────────────────────────── */}
-            {!isCancelled && (
-                <div className="bg-white border-b border-[#EBEBEB] shadow-sm">
+                {/* ── ORDER TIMELINE ───────────────────────────────────────────── */}
+                {!isCancelled && (
+                    <div className="bg-white border-b border-[#EBEBEB] shadow-sm">
                     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-5 overflow-x-auto">
                         <div className="flex items-start min-w-[440px]">
                             {ORDER_TIMELINE_STEPS.map((step, idx) => {
@@ -397,11 +404,11 @@ export const OrderDetailPage: React.FC = () => {
                             })}
                         </div>
                     </div>
-                </div>
-            )}
+                    </div>
+                )}
 
-            {/* ── PAGE BODY ────────────────────────────────────────────────── */}
-            <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 space-y-4">
+                {/* ── PAGE BODY ────────────────────────────────────────────────── */}
+                <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 space-y-4">
 
                 {/* ── ITEMS ──────────────────────────────────────────────── */}
                 <Section icon={<ShoppingBag className="w-4 h-4" />} title={`Items in this Order (${order.items.length})`}>
@@ -799,7 +806,8 @@ export const OrderDetailPage: React.FC = () => {
                 </div>
 
             </div>
-        </div>
+            </div>
+        </UserDashboardLayout>
     );
 };
 

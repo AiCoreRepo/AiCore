@@ -40,6 +40,30 @@ npm run script:check-db
 
 ---
 
+### 3. Seed 1-Rupee Test Product
+Creates or updates a public approved product priced at exactly `₹1.00` for payment testing.
+
+```bash
+npm run script:seed-one-rupee-product
+```
+
+**What it does:**
+- Creates or reuses a dedicated creator account for testing
+- Upserts one approved product with:
+  - `price_cents=100`
+  - `commission_percentage=0`
+  - inventory in stock
+- Replaces the product image with `/images/product-1.png`
+
+**Useful overrides:**
+- `TEST_PRODUCT_TITLE`
+- `TEST_PRODUCT_SLUG`
+- `TEST_PRODUCT_PRICE_CENTS`
+- `TEST_PRODUCT_IMAGE_URL`
+- `TEST_PRODUCT_CREATOR_EMAIL`
+
+---
+
 ## How to Run Scripts
 
 ### Method 1: Using npm scripts (Recommended)
@@ -49,6 +73,9 @@ npm run script:create-admin
 
 # Check database status
 npm run script:check-db
+
+# Seed the 1-rupee payment test product
+npm run script:seed-one-rupee-product
 ```
 
 ### Method 2: Using ts-node directly

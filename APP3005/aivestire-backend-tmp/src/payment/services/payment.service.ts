@@ -274,11 +274,11 @@ export class PaymentService {
         `Failure postback for already-captured txnid ${dto.txnid}. Ignoring.`,
       );
       return {
-        success: false,
+        success: true,
         orderId: transaction.order_id,
         orderNumber: transaction.order.order_number,
-        paymentId: dto.mihpayid,
-        message: PAYMENT_MESSAGES.PAYMENT_FAILED,
+        paymentId: transaction.gateway_payment_id ?? dto.mihpayid,
+        message: PAYMENT_MESSAGES.PAYMENT_VERIFIED,
       };
     }
 

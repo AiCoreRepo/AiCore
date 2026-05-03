@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Truck, CheckCircle, Package, MapPin, Phone, Mail, RefreshCw, Clock } from 'lucide-react';
+import { UserDashboardLayout } from '@/components/layout/UserDashboardLayout';
 import { ordersApi } from './api/orders.api';
 import { Order } from './types/order.types';
 import { formatRefundStatus } from './utils/order.utils';
@@ -68,7 +69,7 @@ function getStatusMessage(status: string) {
             return {
                 title: 'Confirmed',
                 subtitle: 'Your order has been confirmed by the team',
-                color: 'text-blue-500',     // matches admin #3B82F6
+                color: 'text-[#8B6A2C]',
             };
         case 'CANCELLED':
             return {
@@ -143,6 +144,7 @@ function normalizeOrder(raw: any): Order {
 }
 
 import { useRefundSSE, RefundSseEvent } from './hooks/useRefundSSE';
+const SUBHEADER_OFFSET_CLASS = 'top-[61px] lg:top-0';
 
 export const OrderTrackingPage = () => {
     const { orderId } = useParams<{ orderId: string }>();
@@ -209,34 +211,38 @@ export const OrderTrackingPage = () => {
     // ── Loading ───────────────────────────────────────────────────────────────
     if (loading) {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-[#FDFBF7] via-[#FAF8F3] to-[#F5F3EE] flex items-center justify-center">
-                <div className="relative">
-                    <div className="animate-spin rounded-full h-16 w-16 border-4 border-[#C9A55C] border-t-transparent" />
-                    <div className="absolute inset-0 flex items-center justify-center">
-                        <Truck className="w-6 h-6 text-[#C9A55C]" />
+            <UserDashboardLayout>
+                <div className="min-h-[calc(100vh-61px)] bg-gradient-to-br from-[#FDFBF7] via-[#FAF8F3] to-[#F5F3EE] flex items-center justify-center px-4 lg:min-h-screen">
+                    <div className="relative">
+                        <div className="animate-spin rounded-full h-16 w-16 border-4 border-[#C9A55C] border-t-transparent" />
+                        <div className="absolute inset-0 flex items-center justify-center">
+                            <Truck className="w-6 h-6 text-[#C9A55C]" />
+                        </div>
                     </div>
                 </div>
-            </div>
+            </UserDashboardLayout>
         );
     }
 
     if (!order) {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-[#FDFBF7] via-[#FAF8F3] to-[#F5F3EE] flex flex-col items-center justify-center p-4">
-                <div className="bg-white p-8 rounded-2xl shadow-xl text-center max-w-md">
-                    <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <Package className="w-10 h-10 text-red-500" />
+            <UserDashboardLayout>
+                <div className="min-h-[calc(100vh-61px)] bg-gradient-to-br from-[#FDFBF7] via-[#FAF8F3] to-[#F5F3EE] flex flex-col items-center justify-center p-4 lg:min-h-screen">
+                    <div className="bg-white p-8 rounded-2xl shadow-xl text-center max-w-md">
+                        <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <Package className="w-10 h-10 text-red-500" />
+                        </div>
+                        <h2 className="text-2xl font-serif font-bold text-[#2C2416] mb-2">Order Not Found</h2>
+                        <p className="text-[#6B6B6B] mb-6">We couldn't find the order you're looking for.</p>
+                        <button
+                            onClick={() => navigate('/my-orders')}
+                            className="px-6 py-3 bg-[#2C2416] text-white rounded-lg hover:bg-[#4A3F2C] transition-colors font-medium"
+                        >
+                            Back to Orders
+                        </button>
                     </div>
-                    <h2 className="text-2xl font-serif font-bold text-[#2C2416] mb-2">Order Not Found</h2>
-                    <p className="text-[#6B6B6B] mb-6">We couldn't find the order you're looking for.</p>
-                    <button
-                        onClick={() => navigate('/my-orders')}
-                        className="px-6 py-3 bg-[#2C2416] text-white rounded-lg hover:bg-[#4A3F2C] transition-colors font-medium"
-                    >
-                        Back to Orders
-                    </button>
                 </div>
-            </div>
+            </UserDashboardLayout>
         );
     }
 
@@ -248,10 +254,11 @@ export const OrderTrackingPage = () => {
     const addr = order.shipping_address;
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-[#FDFBF7] via-[#FAF8F3] to-[#F5F3EE]">
+        <UserDashboardLayout>
+            <div className="min-h-screen bg-gradient-to-br from-[#FDFBF7] via-[#FAF8F3] to-[#F5F3EE]">
 
-            {/* Header */}
-            <div className="bg-white border-b border-[#E0E0D8] sticky top-0 z-10 shadow-sm">
+                {/* Header */}
+                <div className={`bg-white border-b border-[#E0E0D8] sticky ${SUBHEADER_OFFSET_CLASS} z-10 shadow-sm`}>
                 <div className="max-w-5xl mx-auto px-4 sm:px-6 py-4">
                     <div className="flex items-center justify-between gap-4">
                         <button
@@ -278,10 +285,10 @@ export const OrderTrackingPage = () => {
                         </div>
                     </div>
                 </div>
-            </div>
+                </div>
 
-            {/* Main Content */}
-            <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
+                {/* Main Content */}
+                <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
                 <div className="grid lg:grid-cols-3 gap-6">
 
                     {/* ── Left Column ─────────────────────────────────────── */}
@@ -497,6 +504,7 @@ export const OrderTrackingPage = () => {
                     </div>
                 </div>
             </div>
-        </div>
+            </div>
+        </UserDashboardLayout>
     );
 };

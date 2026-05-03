@@ -235,16 +235,18 @@ const PaymentPage = () => {
 
     // ── Place Order ───────────────────────────────────────────────────────────
     const handlePlaceOrder = useCallback(async () => {
-        if (!selectedAddress) { toast({ title: 'Address Required', variant: 'destructive' }); return; }
-        if (!cart.items.length) { toast({ title: 'Cart is Empty', variant: 'destructive' }); return; }
+        const pendingOrderId = sessionStorage.getItem('pending_order_id');
+        const hasPendingPayURetry = isOnlinePayU && !!pendingOrderId;
+
+        if (!hasPendingPayURetry && !selectedAddress) { toast({ title: 'Address Required', variant: 'destructive' }); return; }
+        if (!hasPendingPayURetry && !cart.items.length) { toast({ title: 'Cart is Empty', variant: 'destructive' }); return; }
 
         setIsPlacingOrder(true);
         try {
             let orderId: string;
             let orderNumber: string;
 
-            const pendingOrderId = sessionStorage.getItem('pending_order_id');
-            if (isOnlinePayU && pendingOrderId) {
+            if (hasPendingPayURetry && pendingOrderId) {
                 orderId = pendingOrderId;
                 orderNumber = sessionStorage.getItem('pending_order_number') || '';
             } else {

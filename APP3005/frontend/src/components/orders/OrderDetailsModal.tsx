@@ -32,7 +32,7 @@ const STATUS_CFG: Record<string, { label: string; icon: React.ReactNode; gradien
     SHIPPED: { label: 'Shipped', icon: <Truck className="w-5 h-5" />, gradient: 'from-blue-500 to-indigo-600', text: 'text-blue-700', dot: 'bg-blue-500' },
     DISPATCHED: { label: 'Dispatched', icon: <Truck className="w-5 h-5" />, gradient: 'from-purple-500 to-violet-600', text: 'text-purple-700', dot: 'bg-purple-500' },
     OUT_FOR_DELIVERY: { label: 'Out for Delivery', icon: <Truck className="w-5 h-5" />, gradient: 'from-pink-500 to-rose-500', text: 'text-pink-700', dot: 'bg-pink-500' },
-    BOOKED: { label: 'Confirmed', icon: <CheckCircle className="w-5 h-5" />, gradient: 'from-indigo-500 to-blue-600', text: 'text-indigo-700', dot: 'bg-indigo-500' },
+    BOOKED: { label: 'Confirmed', icon: <CheckCircle className="w-5 h-5" />, gradient: 'from-[#C9A55C] to-[#A9833D]', text: 'text-[#8B6A2C]', dot: 'bg-[#C9A55C]' },
     PENDING: { label: 'Pending', icon: <Clock className="w-5 h-5" />, gradient: 'from-amber-400 to-yellow-500', text: 'text-amber-700', dot: 'bg-amber-400' },
     ORDER_PLACED: { label: 'Order Placed', icon: <Clock className="w-5 h-5" />, gradient: 'from-amber-400 to-yellow-500', text: 'text-amber-700', dot: 'bg-amber-400' },
 };

@@ -71,7 +71,7 @@ export interface CartContextType {
     addToCart: (params: AddToCartParams) => Promise<void>;
     removeFromCart: (itemId: string) => Promise<void>;
     updateQuantity: (itemId: string, quantity: number) => Promise<void>;
-    clearCart: (options?: { silent?: boolean }) => Promise<void>;
+    clearCart: (options?: { silent?: boolean; localOnly?: boolean }) => Promise<void>;
     refreshCart: () => Promise<void>;
 
     // Computed values
@@ -100,5 +100,4 @@ export type {
     Coupon,
     Offer,
 } from '@/constants/cart.constants';
-
 

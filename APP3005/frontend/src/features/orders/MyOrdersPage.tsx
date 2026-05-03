@@ -160,7 +160,7 @@ export const MyOrdersPage = () => {
             case 'DISPATCHED':
                 return { label: '🚀 Dispatched', className: 'bg-purple-100 text-purple-700 border border-purple-200' };
             case 'BOOKED':
-                return { label: '✅ Confirmed', className: 'bg-indigo-100 text-indigo-700 border border-indigo-200' };
+                return { label: '✓ Confirmed', className: 'bg-[#F5E8C9] text-[#8B6A2C] border border-[#E2C788]' };
             case 'CANCELLED':
                 return { label: '✕ Cancelled', className: 'bg-red-100 text-red-600 border border-red-200' };
             case 'ORDER_PLACED':

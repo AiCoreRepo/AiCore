@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { XCircle, RotateCcw, ShoppingBag } from 'lucide-react';
@@ -8,7 +7,11 @@ const GOLD = '#D4AF37';
 const PaymentFailurePage = () => {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
-    const orderNumber = searchParams.get('order') || '';
+    const orderNumber =
+        searchParams.get('orderNumber') ||
+        searchParams.get('order') ||
+        sessionStorage.getItem('pending_order_number') ||
+        '';
     const reason = searchParams.get('reason') || 'Payment was not completed.';
 
     // Kept pending order in sessionStorage to allow retrying
