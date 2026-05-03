@@ -71,6 +71,8 @@ async function bootstrap() {
       'https://uat.aivestire.com',
       'https://dev.aivestire.com',
       'https://prod.aivestire.com',
+      'https://test.payu.in',
+      'https://secure.payu.in',
     ].map((origin) => normalizeOrigin(origin)),
   );
 

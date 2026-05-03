@@ -16,7 +16,7 @@ const UpcomingPage = () => {
     >
       <Navbar />
 
-      <main className="relative pt-24 sm:pt-28">
+      <main className="relative pt-20 sm:pt-28">
         <UpcomingFeaturesSection />
       </main>
 
