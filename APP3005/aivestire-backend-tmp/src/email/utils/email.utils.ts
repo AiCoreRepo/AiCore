@@ -5,7 +5,7 @@ function getEmailWrapper(title: string, content: string, context: any) {
   const frontendUrl =
     process.env.FRONTEND_URL ||
     (isProd ? 'https://aivestire.com' : 'http://localhost:8080');
-  const orderUrl = `${frontendUrl}/user/orders`; // Frontend URL route
+  const orderUrl = `${frontendUrl}/my-orders`;
 
   let itemsHtml = '';
   if (context.items && context.items.length > 0) {

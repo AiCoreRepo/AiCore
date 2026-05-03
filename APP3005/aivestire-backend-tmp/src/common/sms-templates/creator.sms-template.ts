@@ -11,6 +11,7 @@ export interface CreatorUploadSmsPayload {
   creatorName: string;
   productTitle: string;
   productId: string;
+  dashboardUrl?: string;
   priceInRupees: number;
   patternCount: number;
   totalColorVariants: number;
@@ -43,6 +44,7 @@ export function buildCreatorUploadSms(payload: CreatorUploadSmsPayload): string 
   const {
     creatorName,
     productTitle,
+    dashboardUrl,
     priceInRupees,
     patternCount,
     totalColorVariants,
@@ -78,7 +80,9 @@ export function buildCreatorUploadSms(payload: CreatorUploadSmsPayload): string 
     statusLine,
     `Time: ${formattedDate}`,
     ``,
-    `Admin Dashboard -> https://admin.aivestire.com/creators`
+    dashboardUrl
+      ? `Creator Dashboard -> ${dashboardUrl}`
+      : `Open your Creator Dashboard in AiVestire`
   ].filter((line): line is string => line !== null);
 
   return lines.join('\n');

@@ -11,6 +11,7 @@ export interface OrderSmsPayload {
   buyerName: string;
   orderId: string;
   orderNumber: string;
+  orderUrl?: string;
   items: Array<{
     productName: string;
     quantity: number;
@@ -44,7 +45,17 @@ export interface OrderSmsPayload {
  * - Team Aivestire
  */
 export function buildOrderConfirmationSms(payload: OrderSmsPayload): string {
-  const { buyerName, orderNumber, items, totalAmount, paymentMethod, estimatedDelivery, shippingCity, shippingState } = payload;
+  const {
+    buyerName,
+    orderNumber,
+    orderUrl,
+    items,
+    totalAmount,
+    paymentMethod,
+    estimatedDelivery,
+    shippingCity,
+    shippingState,
+  } = payload;
 
   const firstName = buyerName.split(' ')[0] || buyerName;
 
@@ -79,7 +90,7 @@ export function buildOrderConfirmationSms(payload: OrderSmsPayload): string {
     `City: ${shippingCity}, ${shippingState}`,
     `Delivery: ${formattedDate}`,
     ``,
-    `Admin Dashboard -> https://admin.aivestire.com/orders`
+    orderUrl ? `Track Order -> ${orderUrl}` : `Track your order in AiVestire`
   ].join('\n');
 }
 

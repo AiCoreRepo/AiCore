@@ -178,6 +178,9 @@ export class CreatorUploadService {
         // Derive a friendly display name from the email (e.g. priya.sharma@... → Priya)
         const displayName = creatorUser.email.split('@')[0]?.split('.')[0] ?? 'Creator';
         const creatorName = displayName.charAt(0).toUpperCase() + displayName.slice(1);
+        const frontendBaseUrl = (
+          process.env.FRONTEND_URL || 'http://localhost:3005'
+        ).replace(/\/+$/, '');
 
         const hierarchy = await this.getProductHierarchy(product.product_id);
         await this.smsQueueService.enqueueCreatorUploadSms({
@@ -185,6 +188,7 @@ export class CreatorUploadService {
           creatorName,
           productTitle: product.title,
           productId: product.product_id,
+          dashboardUrl: `${frontendBaseUrl}/creator-dashboard`,
           priceInRupees: dto.price_cents / 100,
           patternCount: hierarchy.pattern_count,
           totalColorVariants: hierarchy.total_color_variants,

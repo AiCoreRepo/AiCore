@@ -61,9 +61,14 @@ export class PayUVpaService {
     )
       .trim()
       .toUpperCase();
+    const frontendUrl = this.configService.get<string>('FRONTEND_URL')?.trim() ?? '';
+    const normalizedFrontendHost = frontendUrl
+      ? this.normalizeHost(frontendUrl)
+      : '';
     const isProductionEnvironment = configuredEnvironment
       ? ['PRODUCTION', 'PROD', 'LIVE'].includes(configuredEnvironment)
-      : this.configService.get<string>('NODE_ENV') === 'production';
+      : normalizedFrontendHost === 'aivestire.com' ||
+        normalizedFrontendHost === 'www.aivestire.com';
 
     this.validationUrl =
       configuredUrl ||
@@ -152,6 +157,14 @@ export class PayUVpaService {
       throw new ServiceUnavailableException(
         'Unable to verify the UPI ID with PayU right now. Please try again.',
       );
+    }
+  }
+
+  private normalizeHost(url: string): string {
+    try {
+      return new URL(url).hostname.trim().toLowerCase();
+    } catch {
+      return url.trim().toLowerCase().replace(/^https?:\/\//, '').split('/')[0];
     }
   }
 

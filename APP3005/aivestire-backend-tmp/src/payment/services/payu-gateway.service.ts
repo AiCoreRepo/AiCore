@@ -72,17 +72,23 @@ export class PayUGatewayService {
 
     const configuredEnvironment =
       this.configService.get<string>('PAYU_ENV')?.trim().toLowerCase() ?? '';
+    const frontendUrl = this.configService.get<string>('FRONTEND_URL')?.trim() ?? '';
+    const normalizedFrontendHost = frontendUrl
+      ? this.normalizeHost(frontendUrl)
+      : '';
 
-    // Never infer live payments from NODE_ENV. PayU mode must be explicit.
-    this.isProduction = ['production', 'prod', 'live'].includes(
-      configuredEnvironment,
-    );
+    this.isProduction = configuredEnvironment
+      ? ['production', 'prod', 'live'].includes(configuredEnvironment)
+      : normalizedFrontendHost === 'aivestire.com' ||
+        normalizedFrontendHost === 'www.aivestire.com';
     this.payuBaseUrl = this.isProduction
       ? PAYU_CONSTANTS.PROD_URL
       : PAYU_CONSTANTS.TEST_URL;
 
     if (!configuredEnvironment) {
-      this.logger.warn('PAYU_ENV is not set. Defaulting PayU gateway to TEST mode');
+      this.logger.warn(
+        `PAYU_ENV is not set. Inferred PayU gateway mode from FRONTEND_URL (${frontendUrl || 'not set'}) as ${this.isProduction ? 'PRODUCTION' : 'TEST'}`,
+      );
     }
 
     this.logger.log(
@@ -94,6 +100,14 @@ export class PayUGatewayService {
 
   getKey(): string {
     return this.key;
+  }
+
+  private normalizeHost(url: string): string {
+    try {
+      return new URL(url).hostname.trim().toLowerCase();
+    } catch {
+      return url.trim().toLowerCase().replace(/^https?:\/\//, '').split('/')[0];
+    }
   }
 
   getPayUUrl(): string {

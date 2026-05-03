@@ -31,6 +31,9 @@ export class OrderEventListener {
   @OnEvent('order.booked')
   async handleOrderBooked(event: OrderBookedEvent) {
     this.logger.log(`Order ${event.order.order_number} has been booked`);
+    const frontendBaseUrl = (
+      process.env.FRONTEND_URL || 'http://localhost:3005'
+    ).replace(/\/+$/, '');
 
     // ─── SMS: Order Confirmation ─────────────────────────────────────────
     try {
@@ -71,6 +74,7 @@ export class OrderEventListener {
           buyerName,
           orderId: fullOrder.order_id,
           orderNumber: fullOrder.order_number,
+          orderUrl: `${frontendBaseUrl}/my-orders`,
           items: fullOrder.items.map((item) => ({
             productName: item.product_name,
             quantity: item.quantity,
