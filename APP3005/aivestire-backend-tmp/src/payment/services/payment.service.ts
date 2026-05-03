@@ -268,16 +268,30 @@ export class PaymentService {
       throw new NotFoundException(PAYMENT_ERROR_CODES.PAYMENT_NOT_FOUND);
     }
 
-    // 2. Idempotency: never downgrade a captured payment
-    if (transaction.status === PaymentTransactionStatus.CAPTURED) {
+    const capturedTransaction =
+      transaction.status === PaymentTransactionStatus.CAPTURED
+        ? transaction
+        : await this.paymentRepository.findCapturedTransactionForOrder(
+            transaction.order_id,
+            PaymentGateway.PAYU,
+          );
+
+    // 2. Idempotency: never downgrade an order that is already paid
+    if (
+      capturedTransaction ||
+      transaction.order.payment_status === 'COMPLETED'
+    ) {
       this.logger.warn(
-        `Failure postback for already-captured txnid ${dto.txnid}. Ignoring.`,
+        `Failure postback for already-paid order ${transaction.order.order_number}. Ignoring txnid ${dto.txnid}.`,
       );
       return {
         success: true,
         orderId: transaction.order_id,
         orderNumber: transaction.order.order_number,
-        paymentId: transaction.gateway_payment_id ?? dto.mihpayid,
+        paymentId:
+          capturedTransaction?.gateway_payment_id ??
+          transaction.gateway_payment_id ??
+          dto.mihpayid,
         message: PAYMENT_MESSAGES.PAYMENT_VERIFIED,
       };
     }

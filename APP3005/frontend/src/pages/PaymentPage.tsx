@@ -224,6 +224,7 @@ const PaymentPage = () => {
     const isCOD = selectedMethod === 'cod';
     const isAivestireWallet = selectedMethod === 'aivestire-wallet';
     const isOnlinePayU = ONLINE_METHODS.has(selectedMethod);
+    const hasPendingPayURetry = isOnlinePayU && !!sessionStorage.getItem('pending_order_id');
 
     const codFee = isCOD ? COD_FEE_CENTS : 0;
     const finalTotal = orderDetails.total + codFee;
@@ -231,22 +232,22 @@ const PaymentPage = () => {
     const hasSufficientWalletBalance = walletBalance >= finalTotal / 100;
     const isWalletDisabled = isAivestireWallet && !hasSufficientWalletBalance;
 
-    const isButtonDisabled = !selectedAddress || isPlacingOrder || isWalletDisabled;
+    const isButtonDisabled = (!selectedAddress && !hasPendingPayURetry) || isPlacingOrder || isWalletDisabled;
 
     // ── Place Order ───────────────────────────────────────────────────────────
     const handlePlaceOrder = useCallback(async () => {
         const pendingOrderId = sessionStorage.getItem('pending_order_id');
-        const hasPendingPayURetry = isOnlinePayU && !!pendingOrderId;
+        const canRetryPendingPayUOrder = isOnlinePayU && !!pendingOrderId;
 
-        if (!hasPendingPayURetry && !selectedAddress) { toast({ title: 'Address Required', variant: 'destructive' }); return; }
-        if (!hasPendingPayURetry && !cart.items.length) { toast({ title: 'Cart is Empty', variant: 'destructive' }); return; }
+        if (!canRetryPendingPayUOrder && !selectedAddress) { toast({ title: 'Address Required', variant: 'destructive' }); return; }
+        if (!canRetryPendingPayUOrder && !cart.items.length) { toast({ title: 'Cart is Empty', variant: 'destructive' }); return; }
 
         setIsPlacingOrder(true);
         try {
             let orderId: string;
             let orderNumber: string;
 
-            if (hasPendingPayURetry && pendingOrderId) {
+            if (canRetryPendingPayUOrder && pendingOrderId) {
                 orderId = pendingOrderId;
                 orderNumber = sessionStorage.getItem('pending_order_number') || '';
             } else {
