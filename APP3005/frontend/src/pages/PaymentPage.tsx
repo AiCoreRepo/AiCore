@@ -1,4 +1,4 @@
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { ordersApi } from '@/features/orders/api/orders.api';
@@ -184,6 +184,7 @@ const PayUBadge = ({ label }: { label: string }) => (
 const PaymentPage = () => {
     const navigate = useNavigate();
     const location = useLocation();
+    const [searchParams] = useSearchParams();
     const { toast } = useToast();
     const { cart, clearCart, refreshCart } = useCart();
     const { wallet } = useWallet();
@@ -224,7 +225,8 @@ const PaymentPage = () => {
     const isCOD = selectedMethod === 'cod';
     const isAivestireWallet = selectedMethod === 'aivestire-wallet';
     const isOnlinePayU = ONLINE_METHODS.has(selectedMethod);
-    const hasPendingPayURetry = isOnlinePayU && !!sessionStorage.getItem('pending_order_id');
+    const retryPendingOrder = searchParams.get('retry') === '1';
+    const hasPendingPayURetry = isOnlinePayU && retryPendingOrder && !!sessionStorage.getItem('pending_order_id');
 
     const codFee = isCOD ? COD_FEE_CENTS : 0;
     const finalTotal = orderDetails.total + codFee;
@@ -237,7 +239,7 @@ const PaymentPage = () => {
     // ── Place Order ───────────────────────────────────────────────────────────
     const handlePlaceOrder = useCallback(async () => {
         const pendingOrderId = sessionStorage.getItem('pending_order_id');
-        const canRetryPendingPayUOrder = isOnlinePayU && !!pendingOrderId;
+        const canRetryPendingPayUOrder = isOnlinePayU && retryPendingOrder && !!pendingOrderId;
 
         if (!canRetryPendingPayUOrder && !selectedAddress) { toast({ title: 'Address Required', variant: 'destructive' }); return; }
         if (!canRetryPendingPayUOrder && !cart.items.length) { toast({ title: 'Cart is Empty', variant: 'destructive' }); return; }
@@ -295,9 +297,10 @@ const PaymentPage = () => {
     // ── Button label ──────────────────────────────────────────────────────────
     const buttonLabel = () => {
         if (isPlacingOrder) return <div className="flex items-center justify-center gap-2"><div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /><span>{isOnlinePayU ? 'Redirecting to PayU…' : 'Processing…'}</span></div>;
-        if (!selectedAddress) return 'Select Address to Continue';
+        if (!selectedAddress && !hasPendingPayURetry) return 'Select Address to Continue';
         if (isCOD) return 'Place Order';
         if (isAivestireWallet) return `Pay ₹${(finalTotal / 100).toLocaleString('en-IN')} using Wallet`;
+        if (hasPendingPayURetry) return 'Retry Pending Payment →';
         return `Continue to Pay ₹${(finalTotal / 100).toLocaleString('en-IN')} →`;
     };
 

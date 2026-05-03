@@ -53,7 +53,7 @@ const PaymentFailurePage = () => {
 
                     <div className="space-y-3">
                         <button
-                            onClick={() => navigate('/payment')}
+                            onClick={() => navigate('/payment?retry=1')}
                             className="w-full py-3.5 rounded-xl font-semibold text-white flex items-center justify-center gap-2"
                             style={{ backgroundColor: GOLD }}
                         >
