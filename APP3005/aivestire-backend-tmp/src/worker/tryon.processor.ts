@@ -10,6 +10,8 @@ import { TryOnJobData } from '../queues/tryon-queue.service';
 import { JOB_NAMES, QUEUE_NAMES } from '../common/constants/queue.constants';
 import type { TryOnResponseDto } from '../ai-tryon/dto/tryon-response.dto';
 import { TRYON_WORKER_CONCURRENCY } from '../ai-tryon/constants/tryon.constants';
+import { TryOnErrorCode } from '../ai-tryon/enums/ai-provider.enum';
+import { TryOnException } from '../ai-tryon/exceptions/tryon.exceptions';
 
 /**
  * TryOnProcessor — Bull queue consumer for virtual try-on jobs.
@@ -56,17 +58,8 @@ export class TryOnProcessor {
       `Starting queued direct try-on for user ${data.requestUserId} with ${data.provider}`,
     );
 
-    const service =
-      data.provider === AIProvider.GEMINI_AI
-        ? this.directGeminiService
-        : this.directVertexService;
-
     try {
-      const result = (await service.processTryOn(
-        data.avatarImage,
-        data.clothingImage,
-        data.additionalParams,
-      )) as TryOnResponseDto;
+      const result = await this.processTryOnWithFallback(data);
 
       // Persist for gallery/history (best-effort). We keep returning the original
       // base64/data-uri resultImage so the UI can render immediately.
@@ -75,7 +68,7 @@ export class TryOnProcessor {
           userId: data.requestUserId,
           productId: data.productId,
           auraId: data.auraId,
-          provider: data.provider,
+          provider: result.provider,
           resultImage: result.resultImage,
           processingTimeMs: result.processingTimeMs,
         });
@@ -87,7 +80,7 @@ export class TryOnProcessor {
 
       await job.progress(100);
       this.logTiming(
-        `jobId=${job.id} type=direct provider=${data.provider} total=${this.formatDuration(Date.now() - totalStartTime)} status=success`,
+        `jobId=${job.id} type=direct requested_provider=${data.provider} actual_provider=${result.provider} total=${this.formatDuration(Date.now() - totalStartTime)} status=success`,
       );
       return result;
     } catch (error) {
@@ -96,6 +89,82 @@ export class TryOnProcessor {
       );
       throw error;
     }
+  }
+
+  private async processTryOnWithFallback(
+    data: TryOnJobData,
+  ): Promise<TryOnResponseDto> {
+    const primaryService =
+      data.provider === AIProvider.GEMINI_AI
+        ? this.directGeminiService
+        : this.directVertexService;
+
+    try {
+      return (await primaryService.processTryOn(
+        data.avatarImage,
+        data.clothingImage,
+        data.additionalParams,
+      )) as TryOnResponseDto;
+    } catch (error) {
+      if (!(await this.shouldFallbackToVertex(data.provider, error))) {
+        throw error;
+      }
+
+      const reason =
+        error instanceof Error ? error.message : 'Unknown Gemini provider error';
+      this.logger.warn(
+        `Gemini try-on failed (${reason}). Falling back to Vertex AI for user ${data.requestUserId}.`,
+      );
+
+      const fallbackResult = (await this.directVertexService.processTryOn(
+        data.avatarImage,
+        data.clothingImage,
+        data.additionalParams,
+      )) as TryOnResponseDto;
+
+      fallbackResult.metadata = {
+        ...(fallbackResult.metadata || {}),
+        requestedProvider: data.provider,
+        fallbackFrom: AIProvider.GEMINI_AI,
+        fallbackReason: reason,
+      };
+
+      return fallbackResult;
+    }
+  }
+
+  private async shouldFallbackToVertex(
+    provider: AIProvider,
+    error: unknown,
+  ): Promise<boolean> {
+    if (provider !== AIProvider.GEMINI_AI) {
+      return false;
+    }
+
+    if (!(error instanceof TryOnException)) {
+      return false;
+    }
+
+    const fallbackEligibleErrors = new Set<TryOnErrorCode>([
+      TryOnErrorCode.TIMEOUT_ERROR,
+      TryOnErrorCode.AI_SERVICE_ERROR,
+      TryOnErrorCode.SERVICE_UNAVAILABLE,
+      TryOnErrorCode.PROCESSING_FAILED,
+    ]);
+
+    if (!fallbackEligibleErrors.has(error.errorCode)) {
+      return false;
+    }
+
+    const vertexAvailable = await this.directVertexService.isAvailable();
+    if (!vertexAvailable) {
+      this.logger.warn(
+        `Gemini try-on failed with ${error.errorCode}, but Vertex fallback is unavailable.`,
+      );
+      return false;
+    }
+
+    return true;
   }
 
   private async persistTryOnResult(input: {

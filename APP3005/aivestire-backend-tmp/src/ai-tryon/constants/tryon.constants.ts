@@ -44,6 +44,19 @@ const getEnvPositiveInt = (key: string, fallback: number): number => {
 const getEnvTimeout = (key: string, fallback: number): number =>
   getEnvPositiveInt(key, fallback);
 
+const getEnvImageFormat = (
+  key: string,
+  fallback: 'jpeg' | 'png' | 'webp',
+): 'jpeg' | 'png' | 'webp' => {
+  const rawValue = (process.env[key] || '').trim().toLowerCase();
+
+  if (rawValue === 'jpeg' || rawValue === 'png' || rawValue === 'webp') {
+    return rawValue;
+  }
+
+  return fallback;
+};
+
 // API Timeout Settings (in milliseconds)
 export const DEFAULT_TIMEOUT = getEnvTimeout('DEFAULT_TIMEOUT', 60000); // 60 seconds
 export const VERTEX_AI_TIMEOUT = getEnvTimeout('VERTEX_AI_TIMEOUT', 120000); // 120 seconds
@@ -56,6 +69,18 @@ export const GEMINI_AI_TOTAL_BUDGET = getEnvTimeout(
   'GEMINI_AI_TOTAL_BUDGET',
   170000,
 ); // 170 seconds total across validation/retry loop
+export const GEMINI_TRYON_INPUT_MAX_DIMENSION = getEnvPositiveInt(
+  'GEMINI_TRYON_INPUT_MAX_DIMENSION',
+  768,
+);
+export const GEMINI_TRYON_INPUT_QUALITY = getEnvPositiveInt(
+  'GEMINI_TRYON_INPUT_QUALITY',
+  72,
+);
+export const GEMINI_TRYON_INPUT_FORMAT = getEnvImageFormat(
+  'GEMINI_TRYON_INPUT_FORMAT',
+  'webp',
+);
 export const AURA_GEMINI_TIMEOUT = getEnvTimeout(
   'AURA_GEMINI_TIMEOUT',
   90000,
@@ -81,7 +106,7 @@ export const AURA_WORKER_CONCURRENCY = getEnvPositiveInt(
 );
 export const TRYON_WORKER_CONCURRENCY = getEnvPositiveInt(
   'TRYON_WORKER_CONCURRENCY',
-  3,
+  2,
 );
 
 // Cache Settings

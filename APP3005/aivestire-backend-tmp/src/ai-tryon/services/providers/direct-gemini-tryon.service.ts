@@ -16,6 +16,9 @@ import {
   ERROR_MESSAGES,
   GEMINI_AI_TIMEOUT,
   GEMINI_AI_TOTAL_BUDGET,
+  GEMINI_TRYON_INPUT_FORMAT,
+  GEMINI_TRYON_INPUT_MAX_DIMENSION,
+  GEMINI_TRYON_INPUT_QUALITY,
   GEMINI_AI_TRYON_PROMPT_STRICT_SUFFIX,
   GEMINI_TRYON_CONFIG,
   GEMINI_CLOTHING_MODEL_MASK,
@@ -73,6 +76,9 @@ export class DirectGeminiTryOnService {
   private readonly timingLogsEnabled: boolean;
   private readonly geminiTimeoutMs: number;
   private readonly geminiTotalBudgetMs: number;
+  private readonly inputMaxDimension: number;
+  private readonly inputQuality: number;
+  private readonly inputFormat: 'jpeg' | 'png' | 'webp';
 
   constructor(
     private readonly configService: ConfigService,
@@ -88,6 +94,9 @@ export class DirectGeminiTryOnService {
       'true';
     this.geminiTimeoutMs = GEMINI_AI_TIMEOUT;
     this.geminiTotalBudgetMs = GEMINI_AI_TOTAL_BUDGET;
+    this.inputMaxDimension = GEMINI_TRYON_INPUT_MAX_DIMENSION;
+    this.inputQuality = GEMINI_TRYON_INPUT_QUALITY;
+    this.inputFormat = GEMINI_TRYON_INPUT_FORMAT;
 
     this.genAI = this.apiKey ? new GoogleGenerativeAI(this.apiKey) : null;
 
@@ -96,6 +105,9 @@ export class DirectGeminiTryOnService {
       this.logger.log(`   Model: ${this.modelId}`);
       this.logger.log(
         `   Timeout: ${this.geminiTimeoutMs}ms per attempt, ${this.geminiTotalBudgetMs}ms total budget`,
+      );
+      this.logger.log(
+        `   Input optimization: ${this.inputFormat} ${this.inputMaxDimension}px q${this.inputQuality}`,
       );
     } else {
       this.logger.warn('⚠️ Direct Gemini AI service not fully configured');
@@ -128,22 +140,21 @@ export class DirectGeminiTryOnService {
         const avatarDataUri = buildDataUri(avatarRaw.data, avatarRaw.mimeType);
         const clothingDataUri = buildDataUri(clothingRaw.data, clothingRaw.mimeType);
 
-        // 2. Compress images to a maximum dimension of 1024px before sending them to Gemini.
-        // Extremely high-resolution or complex clothing masks are the strict root cause of 
-        // Gemini generation timeouts. Normalizing resolution guarantees fast first-time success.
-        // We use PNG format to preserve native transparency (avoiding iOS transparent images turning into black boxes)
+        // 2. Compress images aggressively before sending them to Gemini.
+        // Gemini image generation latency scales up sharply with large photographic PNG payloads.
+        // WebP preserves transparency while cutting request size much more aggressively for prod.
         const optimizedAvatar = await this.imageOptimizer.compressImage(avatarDataUri, {
-          maxWidth: 1024,
-          maxHeight: 1024,
-          quality: 85,
-          format: 'png',
+          maxWidth: this.inputMaxDimension,
+          maxHeight: this.inputMaxDimension,
+          quality: this.inputQuality,
+          format: this.inputFormat,
         });
 
         const optimizedClothing = await this.imageOptimizer.compressImage(clothingDataUri, {
-          maxWidth: 1024,
-          maxHeight: 1024,
-          quality: 85,
-          format: 'png',
+          maxWidth: this.inputMaxDimension,
+          maxHeight: this.inputMaxDimension,
+          quality: this.inputQuality,
+          format: this.inputFormat,
         });
 
         return {

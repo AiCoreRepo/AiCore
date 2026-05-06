@@ -118,7 +118,12 @@ export class ImageOptimizerService {
       );
 
       // Convert back to base64 with data URI prefix
-      const mimeType = format === 'png' ? 'image/png' : 'image/jpeg';
+      const mimeType =
+        format === 'png'
+          ? 'image/png'
+          : format === 'webp'
+            ? 'image/webp'
+            : 'image/jpeg';
       return `data:${mimeType};base64,${compressedBuffer.toString('base64')}`;
     } catch (error) {
       this.logger.error(`Failed to compress image: ${error.message}`);
