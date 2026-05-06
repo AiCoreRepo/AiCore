@@ -9,6 +9,7 @@ import { CloudinaryService } from '../common/cloudinary.service';
 import { TryOnJobData } from '../queues/tryon-queue.service';
 import { JOB_NAMES, QUEUE_NAMES } from '../common/constants/queue.constants';
 import type { TryOnResponseDto } from '../ai-tryon/dto/tryon-response.dto';
+import { TRYON_WORKER_CONCURRENCY } from '../ai-tryon/constants/tryon.constants';
 
 /**
  * TryOnProcessor — Bull queue consumer for virtual try-on jobs.
@@ -31,13 +32,16 @@ export class TryOnProcessor {
     private readonly directVertexService: DirectVertexTryOnService,
     private readonly prisma: PrismaService,
     private readonly cloudinary: CloudinaryService,
-  ) {}
+  ) {
+    this.logger.log(
+      `✅ [TryOnProcessor] Try-on concurrency configured: ${TRYON_WORKER_CONCURRENCY}`,
+    );
+  }
 
   @Process({
-    // [OPTIMIZATION Task 4] Increased concurrency from 1 (default) to 6 for direct try-on.
-    // Allows up to 6 simultaneous Gemini/Vertex calls per worker process, reducing queue wait.
+    // Keep try-on concurrency conservative in prod so Gemini image generations do not pile up and self-timeout.
     name: JOB_NAMES.PROCESS_DIRECT_TRY_ON,
-    concurrency: 6,
+    concurrency: TRYON_WORKER_CONCURRENCY,
   })
   async handleDirectTryOn(job: bull.Job<TryOnJobData>) {
     const data = job.data;

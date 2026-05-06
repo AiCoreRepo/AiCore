@@ -72,6 +72,7 @@ import RefundPolicy from "./pages/RefundPolicy";
 import ReturnPolicy from "./pages/ReturnPolicy";
 import ShippingPolicy from "./pages/ShippingPolicy";
 import ContactUs from "./pages/ContactUs";
+import AboutPage from "./pages/AboutPage";
 import { MyOrdersPage } from "./features/orders";
 import { OrderTrackingPage } from "./features/orders/OrderTrackingPage";
 import { OrderDetailPage } from "./features/orders/OrderDetailPage";
@@ -109,6 +110,7 @@ const App = () => (
                     <Routes>
                       <Route path="/" element={<Index />} />
                       <Route path="/upcoming" element={<UpcomingPage />} />
+                      <Route path="/about" element={<AboutPage />} />
                       <Route path="/collection" element={<CollectionPage />} />
                       <Route path="/product/:id" element={<ProductDetailsPage />} />
                       <Route path="/cart" element={

@@ -15,10 +15,15 @@ import {
   CONFIG_KEYS,
   ERROR_MESSAGES,
   GEMINI_AI_TIMEOUT,
+  GEMINI_AI_TOTAL_BUDGET,
   GEMINI_AI_TRYON_PROMPT_STRICT_SUFFIX,
   GEMINI_TRYON_CONFIG,
   GEMINI_CLOTHING_MODEL_MASK,
+  GEMINI_TRYON_OUTPUT_VALIDATION,
   GEMINI_TRYON_ERROR_MESSAGES,
+  MAX_RETRIES,
+  RETRY_BACKOFF_MULTIPLIER,
+  RETRY_DELAY_MS,
 } from '../../constants/tryon.constants';
 import {
   buildDataUri,
@@ -66,6 +71,8 @@ export class DirectGeminiTryOnService {
   private readonly modelId: string;
   private readonly genAI: GoogleGenerativeAI | null;
   private readonly timingLogsEnabled: boolean;
+  private readonly geminiTimeoutMs: number;
+  private readonly geminiTotalBudgetMs: number;
 
   constructor(
     private readonly configService: ConfigService,
@@ -73,21 +80,23 @@ export class DirectGeminiTryOnService {
   ) {
     this.apiKey =
       this.configService.get<string>(CONFIG_KEYS.GEMINI_API_KEY) || '';
-    // Always use gemini-3.1-flash-image-preview for try-on.
-    // Reads GEMINI_MODEL env var as override; falls back to DEFAULT_MODEL (gemini-3.1-flash-image-preview).
-    // NOTE: gemini-2.5-flash does NOT support image output — do not use it here.
-    this.modelId =
-      this.configService.get<string>(CONFIG_KEYS.GEMINI_MODEL) ||
-      GEMINI_TRYON_CONFIG.DEFAULT_MODEL;
+    this.modelId = this.resolveConfiguredModelId(
+      this.configService.get<string>(CONFIG_KEYS.GEMINI_MODEL),
+    );
     this.timingLogsEnabled =
       String(this.configService.get<string>('AI_TIMING_LOGS') || '').toLowerCase() ===
       'true';
+    this.geminiTimeoutMs = GEMINI_AI_TIMEOUT;
+    this.geminiTotalBudgetMs = GEMINI_AI_TOTAL_BUDGET;
 
     this.genAI = this.apiKey ? new GoogleGenerativeAI(this.apiKey) : null;
 
     if (this.isConfigured()) {
       this.logger.log('✅ Direct Gemini AI service configured');
       this.logger.log(`   Model: ${this.modelId}`);
+      this.logger.log(
+        `   Timeout: ${this.geminiTimeoutMs}ms per attempt, ${this.geminiTotalBudgetMs}ms total budget`,
+      );
     } else {
       this.logger.warn('⚠️ Direct Gemini AI service not fully configured');
     }
@@ -191,7 +200,7 @@ export class DirectGeminiTryOnService {
       promptMs = Date.now() - promptStart;
 
       const generationStart = Date.now();
-      const primaryImage = await this.generateTryOnWithModel(
+      const primaryImage = await this.generateValidatedTryOnImage(
         this.modelId,
         prompt,
         avatarData,
@@ -227,7 +236,10 @@ export class DirectGeminiTryOnService {
           TryOnErrorCode.TIMEOUT_ERROR,
           GEMINI_TRYON_ERROR_MESSAGES.REQUEST_TIMEOUT,
           504,
-          { timeout: GEMINI_AI_TIMEOUT },
+          {
+            timeout: this.geminiTimeoutMs,
+            totalBudget: this.geminiTotalBudgetMs,
+          },
         );
       }
 
@@ -276,6 +288,23 @@ export class DirectGeminiTryOnService {
 
   private isConfigured(): boolean {
     return !!this.apiKey;
+  }
+
+  private resolveConfiguredModelId(configuredModel?: string): string {
+    const trimmedModel = configuredModel?.trim();
+    if (!trimmedModel) {
+      return GEMINI_TRYON_CONFIG.DEFAULT_MODEL;
+    }
+
+    const normalizedModel = trimmedModel.toLowerCase();
+    if (!normalizedModel.includes('image-preview')) {
+      this.logger.warn(
+        `⚠️ Unsupported Gemini try-on model override "${trimmedModel}". Falling back to ${GEMINI_TRYON_CONFIG.DEFAULT_MODEL}`,
+      );
+      return GEMINI_TRYON_CONFIG.DEFAULT_MODEL;
+    }
+
+    return trimmedModel;
   }
 
   private async postprocessResult(resultImage: string): Promise<string> {
@@ -334,6 +363,52 @@ export class DirectGeminiTryOnService {
     return GEMINI_TRYON_CONFIG.DEFAULT_MIME_TYPE;
   }
 
+  private buildRetryPrompt(prompt: string, attempt: number): string {
+    if (attempt <= 1) {
+      return prompt;
+    }
+
+    return [
+      prompt,
+      '',
+      `RETRY ${attempt} INSTRUCTION:`,
+      '- The previous attempt was invalid because it matched an input image.',
+      '- Generate a brand-new try-on image.',
+      '- Replace the original outfit from image 1 with the garment from image 2.',
+      '- Do not return either input image, even with tiny edits.',
+    ].join('\n');
+  }
+
+  private async identifyMatchedInput(
+    outputImage: string,
+    avatarImage: string,
+    clothingImage: string,
+  ): Promise<'avatar' | 'clothing' | null> {
+    const threshold = GEMINI_TRYON_OUTPUT_VALIDATION.MAX_AVATAR_SIMILARITY;
+
+    if (
+      await this.imageOptimizer.areImagesVisuallySimilar(
+        outputImage,
+        avatarImage,
+        threshold,
+      )
+    ) {
+      return 'avatar';
+    }
+
+    if (
+      await this.imageOptimizer.areImagesVisuallySimilar(
+        outputImage,
+        clothingImage,
+        threshold,
+      )
+    ) {
+      return 'clothing';
+    }
+
+    return null;
+  }
+
   private extractTryOnImage(response: GeminiResponse): string {
     if (!response || !response.candidates) {
       throw new AIServiceException(
@@ -371,11 +446,80 @@ export class DirectGeminiTryOnService {
     return bestImage || imageDataList[0];
   }
 
+  private async generateValidatedTryOnImage(
+    modelId: string,
+    prompt: string,
+    avatarData: GeminiInlineData,
+    clothingData: GeminiInlineData,
+  ): Promise<string> {
+    const avatarDataUri = buildDataUri(avatarData.data, avatarData.mimeType);
+    const clothingDataUri = buildDataUri(clothingData.data, clothingData.mimeType);
+    let delayMs = RETRY_DELAY_MS;
+    let lastMatchedInput: 'avatar' | 'clothing' | null = null;
+    const generationDeadline = Date.now() + this.geminiTotalBudgetMs;
+
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt += 1) {
+      const remainingBudgetMs = generationDeadline - Date.now();
+      if (remainingBudgetMs <= 0) {
+        throw new TimeoutException(
+          `Gemini try-on total processing exceeded ${this.geminiTotalBudgetMs}ms`,
+          { totalBudgetMs: this.geminiTotalBudgetMs, attempt },
+        );
+      }
+
+      const attemptPrompt = this.buildRetryPrompt(prompt, attempt);
+      const attemptTimeoutMs = Math.min(this.geminiTimeoutMs, remainingBudgetMs);
+      const outputBase64 = await this.generateTryOnWithModel(
+        modelId,
+        attemptPrompt,
+        avatarData,
+        clothingData,
+        attemptTimeoutMs,
+      );
+      const outputDataUri = buildDataUri(
+        outputBase64,
+        GEMINI_TRYON_CONFIG.DEFAULT_MIME_TYPE,
+      );
+
+      const matchedInput = await this.identifyMatchedInput(
+        outputDataUri,
+        avatarDataUri,
+        clothingDataUri,
+      );
+
+      if (!matchedInput) {
+        return outputBase64;
+      }
+
+      lastMatchedInput = matchedInput;
+      this.logger.warn(
+        `Gemini try-on attempt ${attempt} matched the ${matchedInput} input image. Retrying...`,
+      );
+
+      if (attempt < MAX_RETRIES) {
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+        delayMs *= RETRY_BACKOFF_MULTIPLIER;
+      }
+    }
+
+    throw new AIServiceException(
+      TryOnErrorCode.PROCESSING_FAILED,
+      GEMINI_TRYON_ERROR_MESSAGES.OUTPUT_NOT_GENERATED,
+      500,
+      {
+        attempts: MAX_RETRIES,
+        reason: GEMINI_TRYON_ERROR_MESSAGES.OUTPUT_MATCH_RETRY_FAILED,
+        matchedInput: lastMatchedInput,
+      },
+    );
+  }
+
   private async generateTryOnWithModel(
     modelId: string,
     prompt: string,
     avatarData: GeminiInlineData,
     clothingData: GeminiInlineData,
+    timeoutMs: number,
   ): Promise<string> {
     if (!this.genAI) {
       throw new AIServiceException(
@@ -389,6 +533,7 @@ export class DirectGeminiTryOnService {
       model: modelId,
       generationConfig: {
         temperature: 0.2,
+        responseModalities: ['IMAGE'],
       } as any,
     });
 
@@ -408,7 +553,7 @@ export class DirectGeminiTryOnService {
       { text: prompt },
     ]);
 
-    const result = await this.withTimeout(generationPromise, GEMINI_AI_TIMEOUT);
+    const result = await this.withTimeout(generationPromise, timeoutMs);
     const response = (result as GeminiGenerateResult).response;
 
     const imageBase64 = this.extractTryOnImage(response);

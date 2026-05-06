@@ -99,10 +99,6 @@ export class AuthService {
       return null;
     }
 
-    if (this.isUsableAuraImageUrl(aura.image_url)) {
-      return aura.image_url.trim();
-    }
-
     const { selectedAvatar } = normalizeAuraAvatarHistory({
       attributesJson: aura.attributes,
       modelUrl: aura.model_url,
@@ -117,6 +113,7 @@ export class AuthService {
       selectedAvatar?.model_url ||
       aura.tryon_model_url ||
       aura.model_url ||
+      (this.isUsableAuraImageUrl(aura.image_url) ? aura.image_url.trim() : null) ||
       null
     );
   }

@@ -32,16 +32,16 @@ export function isUsableProfileImageUrl(
 export function getPreferredAuraImageUrl(
   aura?: AuraImageSource | null,
 ): string | null {
-  if (isUsableProfileImageUrl(aura?.image_url)) {
-    return aura.image_url.trim();
-  }
-
   if (isUsableProfileImageUrl(aura?.tryon_model_url)) {
     return aura.tryon_model_url.trim();
   }
 
   if (isUsableProfileImageUrl(aura?.model_url)) {
     return aura.model_url.trim();
+  }
+
+  if (isUsableProfileImageUrl(aura?.image_url)) {
+    return aura.image_url.trim();
   }
 
   return null;

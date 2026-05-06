@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { AURA_GEMINI_TIMEOUT } from '../ai-tryon/constants/tryon.constants';
 
 const GEMINI_REFERENCE_TRYON_IMAGE_URL =
   'https://res.cloudinary.com/dgbmqarp0/image/upload/v1773814263/Pasted_image_28_d0kt0b.png';
@@ -41,12 +42,14 @@ export class GeminiAIService {
   private genAI: GoogleGenerativeAI;
   private imageModel: any;
   private readonly timingLogsEnabled: boolean;
+  private readonly auraGeminiTimeoutMs: number;
 
   constructor(private configService: ConfigService) {
     const apiKey = this.configService.get<string>('GEMINI_API_KEY');
     this.timingLogsEnabled =
       String(this.configService.get<string>('AI_TIMING_LOGS') || '').toLowerCase() ===
       'true';
+    this.auraGeminiTimeoutMs = AURA_GEMINI_TIMEOUT;
     if (!apiKey) {
       console.warn(' GEMINI_API_KEY not configured');
     } else {
@@ -63,6 +66,9 @@ export class GeminiAIService {
       console.log(
         '✅ Using gemini-3.1-flash-image-preview for avatar (Aura) generation',
       );
+      console.log(
+        `✅ [GeminiAI] Aura Gemini timeout configured: ${this.auraGeminiTimeoutMs}ms`,
+      );
     }
   }
 
@@ -74,9 +80,13 @@ export class GeminiAIService {
   ): Promise<AvatarImageResponse> {
     if (!this.imageModel) {
       console.log(
-        '⚠️ [GeminiAI] Image model not initialized, using original image',
+        '⚠️ [GeminiAI] Image model not initialized',
       );
-      return { success: true, imageBase64: null };
+      return {
+        success: false,
+        imageBase64: null,
+        error: 'Gemini image model is not initialized',
+      };
     }
 
     const totalStartTime = Date.now();
@@ -136,11 +146,16 @@ export class GeminiAIService {
       console.log(' [GeminiAI] Calling Gemini API...');
       const startTime = Date.now();
 
-      // Timeout for Aura/avatar Gemini call: 35s to stay under the 40s budget
+      // Keep Aura under the Bull job timeout while allowing slower prod Gemini responses.
       const timeoutPromise = new Promise((_, reject) => {
         setTimeout(
-          () => reject(new Error('Gemini API timeout after 35 seconds')),
-          35000,
+          () =>
+            reject(
+              new Error(
+                `Gemini API timeout after ${Math.round(this.auraGeminiTimeoutMs / 1000)} seconds`,
+              ),
+            ),
+          this.auraGeminiTimeoutMs,
         );
       });
 
@@ -195,13 +210,17 @@ export class GeminiAIService {
       console.log(
         'ℹ️ [GeminiAI] Gemini analyzed image but did not generate a new image',
       );
-      console.log('💡 [GeminiAI] Returning original photo as avatar');
+      this.logResponseDiagnostics(response);
       const totalMs = Date.now() - totalStartTime;
       this.logTiming(
-        `fallback-original total=${this.formatDuration(totalMs)} source_fetch=${this.formatDuration(sourceFetchMs)} reference_fetch=${this.formatDuration(referenceFetchMs)} prompt=${this.formatDuration(promptBuildMs)} api=${this.formatDuration(apiMs)} response_parse=${this.formatDuration(responseParseMs)}`,
+        `no-image total=${this.formatDuration(totalMs)} source_fetch=${this.formatDuration(sourceFetchMs)} reference_fetch=${this.formatDuration(referenceFetchMs)} prompt=${this.formatDuration(promptBuildMs)} api=${this.formatDuration(apiMs)} response_parse=${this.formatDuration(responseParseMs)}`,
       );
 
-      return { success: true, imageBase64: null };
+      return {
+        success: false,
+        imageBase64: null,
+        error: 'Gemini did not generate an avatar image',
+      };
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown avatar generation error';
@@ -213,8 +232,7 @@ export class GeminiAIService {
       this.logTiming(
         `failed total=${this.formatDuration(Date.now() - totalStartTime)} source_fetch=${this.formatDuration(sourceFetchMs)} reference_fetch=${this.formatDuration(referenceFetchMs)} prompt=${this.formatDuration(promptBuildMs)} api=${this.formatDuration(apiMs)} response_parse=${this.formatDuration(responseParseMs)} error=${errorMessage}`,
       );
-      // Return success with null to use original image as fallback
-      return { success: true, imageBase64: null, error: errorMessage };
+      return { success: false, imageBase64: null, error: errorMessage };
     }
   }
 
@@ -306,6 +324,59 @@ export class GeminiAIService {
       mimeType: 'image/jpeg',
       data: base64Data,
     };
+  }
+
+  private logResponseDiagnostics(response: any): void {
+    try {
+      const candidates = Array.isArray(response?.candidates)
+        ? response.candidates
+        : [];
+
+      console.log(
+        `🔎 [GeminiAI] Response diagnostics: candidates=${candidates.length}`,
+      );
+
+      candidates.forEach((candidate: any, candidateIndex: number) => {
+        const parts = Array.isArray(candidate?.content?.parts)
+          ? candidate.content.parts
+          : [];
+        const finishReason = candidate?.finishReason || 'unknown';
+        const safetyRatingsCount = Array.isArray(candidate?.safetyRatings)
+          ? candidate.safetyRatings.length
+          : 0;
+        const tokenCount =
+          candidate?.tokenCount ??
+          candidate?.usageMetadata?.candidatesTokenCount ??
+          'unknown';
+
+        console.log(
+          `🔎 [GeminiAI] Candidate ${candidateIndex}: finishReason=${finishReason} parts=${parts.length} safetyRatings=${safetyRatingsCount} tokenCount=${tokenCount}`,
+        );
+
+        parts.forEach((part: any, partIndex: number) => {
+          const hasInlineImage = Boolean(part?.inlineData?.data);
+          const inlineMimeType = part?.inlineData?.mimeType || 'n/a';
+          const textPreview =
+            typeof part?.text === 'string' && part.text.trim().length > 0
+              ? part.text.trim().replace(/\s+/g, ' ').slice(0, 180)
+              : '';
+
+          console.log(
+            `🔎 [GeminiAI] Candidate ${candidateIndex} part ${partIndex}: hasImage=${hasInlineImage} mimeType=${inlineMimeType} textPreview=${textPreview || '<none>'}`,
+          );
+        });
+      });
+
+      if (response?.promptFeedback) {
+        console.log(
+          `🔎 [GeminiAI] Prompt feedback: ${JSON.stringify(response.promptFeedback)}`,
+        );
+      }
+    } catch (diagnosticError: any) {
+      console.warn(
+        `[GeminiAI] Failed to log response diagnostics: ${diagnosticError?.message || 'unknown error'}`,
+      );
+    }
   }
 
   private buildAvatarPrompt(

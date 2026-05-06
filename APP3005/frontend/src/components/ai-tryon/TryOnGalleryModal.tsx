@@ -1,5 +1,5 @@
 import { X, Download, ZoomIn, Loader2 } from 'lucide-react';
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 
 interface TryOn {
     tryOnId: string;
@@ -95,6 +95,7 @@ function LazyImage({
 export function TryOnGalleryModal({ isOpen, onClose, tryOns }: TryOnGalleryModalProps) {
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
     const [visibleCount, setVisibleCount] = useState(IMAGES_PER_PAGE);
+    const imageHistoryActiveRef = useRef(false);
 
     // Memoize visible try-ons to prevent unnecessary re-renders
     const visibleTryOns = useMemo(() => tryOns.slice(0, visibleCount), [tryOns, visibleCount]);
@@ -111,6 +112,42 @@ export function TryOnGalleryModal({ isOpen, onClose, tryOns }: TryOnGalleryModal
     const handleLoadMore = useCallback(() => {
         setVisibleCount(prev => Math.min(prev + IMAGES_PER_PAGE, tryOns.length));
     }, [tryOns.length]);
+
+    const openSelectedImage = useCallback((image: string) => {
+        setSelectedImage(image);
+    }, []);
+
+    const closeSelectedImage = useCallback(() => {
+        setSelectedImage(null);
+    }, []);
+
+    useEffect(() => {
+        if (!selectedImage) {
+            return;
+        }
+
+        imageHistoryActiveRef.current = true;
+        window.history.pushState(
+            { ...(window.history.state ?? {}), __aivestireTryOnGalleryImage: true },
+            "",
+        );
+
+        const handlePopState = () => {
+            imageHistoryActiveRef.current = false;
+            setSelectedImage(null);
+        };
+
+        window.addEventListener("popstate", handlePopState);
+
+        return () => {
+            window.removeEventListener("popstate", handlePopState);
+
+            if (imageHistoryActiveRef.current) {
+                imageHistoryActiveRef.current = false;
+                window.history.back();
+            }
+        };
+    }, [selectedImage]);
 
     if (!isOpen) return null;
 
@@ -192,7 +229,7 @@ export function TryOnGalleryModal({ isOpen, onClose, tryOns }: TryOnGalleryModal
                                                     src={tryOn.resultImage}
                                                     alt={`Try-On ${tryOns.length - index}`}
                                                     className="w-full h-full object-contain p-3"
-                                                    onClick={() => setSelectedImage(tryOn.resultImage)}
+                                                    onClick={() => openSelectedImage(tryOn.resultImage)}
                                                 />
                                                 {/* Hover Overlay */}
                                                 <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center pointer-events-none">
@@ -267,22 +304,22 @@ export function TryOnGalleryModal({ isOpen, onClose, tryOns }: TryOnGalleryModal
             {/* Full-Size Image Modal */}
             {selectedImage && (
                 <div
-                    className="fixed inset-0 z-[60] flex items-center justify-center p-4"
+                    className="fixed inset-0 z-[60] flex items-center justify-center"
                     style={{
                         background: 'rgba(0, 0, 0, 0.9)',
                     }}
-                    onClick={() => setSelectedImage(null)}
+                    onClick={closeSelectedImage}
                 >
-                    <div className="relative max-w-4xl max-h-[90vh]">
+                    <div className="relative h-full w-full">
                         <img
                             src={selectedImage}
                             alt="Full size"
-                            className="max-w-full max-h-[90vh] object-contain rounded-lg"
+                            className="h-full w-full object-contain"
                             onClick={(e) => e.stopPropagation()}
                         />
                         <button
-                            onClick={() => setSelectedImage(null)}
-                            className="absolute top-4 right-4 p-2 rounded-full bg-white/20 backdrop-blur-sm hover:bg-white/30 transition-all"
+                            onClick={closeSelectedImage}
+                            className="absolute top-4 right-4 p-2 rounded-full bg-white/20 backdrop-blur-sm hover:bg-white/30 transition-all sm:top-6 sm:right-6"
                         >
                             <X className="w-6 h-6 text-white" />
                         </button>

@@ -887,7 +887,19 @@ export default function AuraProfile() {
 
   const activeAvatarImageUrl =
     aura.selected_avatar?.model_url || aura.model_url || aura.image_url;
-  const avatarHistory = aura.avatar_history ?? [];
+  const selectedAvatarId = aura.selected_avatar_id ?? null;
+  const avatarHistory = [...(aura.avatar_history ?? [])].sort((left, right) => {
+    const leftIsSelected = left.avatar_id === selectedAvatarId ? 1 : 0;
+    const rightIsSelected = right.avatar_id === selectedAvatarId ? 1 : 0;
+
+    if (leftIsSelected !== rightIsSelected) {
+      return rightIsSelected - leftIsSelected;
+    }
+
+    const leftTime = new Date(left.created_at).getTime();
+    const rightTime = new Date(right.created_at).getTime();
+    return rightTime - leftTime;
+  });
 
   return (
     <div className="aura-profile-page">
@@ -1095,8 +1107,10 @@ export default function AuraProfile() {
             imageUrl={activeAvatarImageUrl}
             userName={avatarUserName}
           />
+        </div>
 
-          {!hideAuraLibrary && (
+        {!hideAuraLibrary && (
+          <div className="avatar-library-section">
             <div className="avatar-library-shell">
               <div className="avatar-library-header">
                 <div className="avatar-library-copy">
@@ -1115,8 +1129,15 @@ export default function AuraProfile() {
               {avatarHistory.length > 0 ? (
                 <div className="avatar-library-list">
                   {avatarHistory.map((avatarItem) => {
-                    const isSelected =
-                      aura.selected_avatar_id === avatarItem.avatar_id;
+                    const isSelected = selectedAvatarId === avatarItem.avatar_id;
+                    const avatarCardTitle =
+                      avatarItem.source === "recreation"
+                        ? "Recreated Aura"
+                        : "Original Aura";
+                    const avatarCardCaption =
+                      avatarItem.generation_type === "generated"
+                        ? "AI generated portrait"
+                        : "Source-matched portrait";
                     const summaryAttributes = [
                       {
                         label: "Body Shape",
@@ -1190,7 +1211,15 @@ export default function AuraProfile() {
                         </div>
 
                         <div className="avatar-library-content">
-                          <div className="avatar-library-card-head">
+                          <div className="avatar-library-card-topline">
+                            <div className="avatar-library-card-copy">
+                              <p className="avatar-library-card-kicker">
+                                {avatarCardCaption}
+                              </p>
+                              <h4 className="avatar-library-card-title">
+                                {avatarCardTitle}
+                              </h4>
+                            </div>
                             <div className="avatar-library-date-block">
                               <p className="avatar-library-date-label">
                                 Saved On
@@ -1199,23 +1228,6 @@ export default function AuraProfile() {
                                 {formatAvatarDate(avatarItem.created_at)}
                               </p>
                             </div>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                handleSelectAvatar(avatarItem.avatar_id)
-                              }
-                              disabled={
-                                isSelected ||
-                                selectingAvatarId === avatarItem.avatar_id
-                              }
-                              className={`avatar-library-action ${isSelected ? "active" : ""} ${selectingAvatarId === avatarItem.avatar_id ? "busy" : ""}`}
-                            >
-                              {isSelected
-                                ? "Current Avatar"
-                                : selectingAvatarId === avatarItem.avatar_id
-                                  ? "Switching..."
-                                  : "Use This Avatar"}
-                            </button>
                           </div>
 
                           {summaryAttributes.length > 0 && (
@@ -1233,6 +1245,33 @@ export default function AuraProfile() {
                               ))}
                             </div>
                           )}
+
+                          <div className="avatar-library-card-footer">
+                            <p
+                              className={`avatar-library-selection-note ${isSelected ? "active" : ""}`}
+                            >
+                              {isSelected
+                                ? "Active across your Aura profile and try-ons."
+                                : "Switch this saved avatar into your active try-on profile."}
+                            </p>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleSelectAvatar(avatarItem.avatar_id)
+                              }
+                              disabled={
+                                isSelected ||
+                                selectingAvatarId === avatarItem.avatar_id
+                              }
+                              className={`avatar-library-action ${isSelected ? "active" : ""} ${selectingAvatarId === avatarItem.avatar_id ? "busy" : ""}`}
+                            >
+                              {isSelected
+                                ? "Current Avatar"
+                                : selectingAvatarId === avatarItem.avatar_id
+                                  ? "Switching..."
+                                  : "Use for Try-Ons"}
+                            </button>
+                          </div>
                         </div>
                       </article>
                     );
@@ -1245,8 +1284,8 @@ export default function AuraProfile() {
                 </div>
               )}
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       {showRecreateModal && (

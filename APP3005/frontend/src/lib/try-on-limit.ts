@@ -1,7 +1,7 @@
 import type { ApiError } from '@/lib/api';
 import { isUatOrLocalTryOnHost } from '@/lib/try-on-environment';
 
-export const DEFAULT_TRY_ON_LIMIT = 3;
+export const DEFAULT_TRY_ON_LIMIT = 10;
 export const UAT_TRY_ON_LIMIT = 200;
 export const TRY_ON_LIMIT_REACHED_CODE = 'TRY_ON_LIMIT_REACHED';
 export const TRY_ON_PREMIUM_UPGRADE_URL =
@@ -32,7 +32,7 @@ export function getEffectiveTryOnLimit(maxTryOns?: number): number {
     return Math.max(storedLimit, UAT_TRY_ON_LIMIT);
   }
 
-  return Math.min(storedLimit, DEFAULT_TRY_ON_LIMIT);
+  return Math.max(storedLimit, DEFAULT_TRY_ON_LIMIT);
 }
 
 export function getTryOnUsageSnapshot(

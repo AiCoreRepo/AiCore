@@ -94,6 +94,7 @@ export function TryOnResultModal({
   const feedbackRevealTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
+  const lightboxHistoryActiveRef = useRef(false);
 
   // Progress State
   const [loadingProgress, setLoadingProgress] = useState(0);
@@ -363,6 +364,34 @@ export function TryOnResultModal({
     };
   }, [isOpen, isLightboxOpen]);
 
+  useEffect(() => {
+    if (!isLightboxOpen) {
+      return;
+    }
+
+    lightboxHistoryActiveRef.current = true;
+    window.history.pushState(
+      { ...(window.history.state ?? {}), __aivestireTryOnLightbox: true },
+      "",
+    );
+
+    const handlePopState = () => {
+      lightboxHistoryActiveRef.current = false;
+      setIsLightboxOpen(false);
+    };
+
+    window.addEventListener("popstate", handlePopState);
+
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+
+      if (lightboxHistoryActiveRef.current) {
+        lightboxHistoryActiveRef.current = false;
+        window.history.back();
+      }
+    };
+  }, [isLightboxOpen]);
+
   if (!isOpen) return null;
 
   const handleDownload = () => {
@@ -385,6 +414,18 @@ export function TryOnResultModal({
         })
         .catch(() => {});
     }
+  };
+
+  const openLightbox = () => {
+    if (!activeDisplayImage) {
+      return;
+    }
+
+    setIsLightboxOpen(true);
+  };
+
+  const closeLightbox = () => {
+    setIsLightboxOpen(false);
   };
 
   const handleShopOutfit = () => {
@@ -1140,15 +1181,16 @@ export function TryOnResultModal({
           <div className="relative flex min-h-0 flex-col gap-4 md:flex-1 md:overflow-hidden">
             {/* Image Display */}
             <div
-              className={`relative flex items-center justify-center overflow-hidden rounded-[26px] shrink-0 md:shrink md:flex-1 md:rounded-3xl ${
+              className={`relative mx-auto flex w-full shrink-0 items-center justify-center overflow-hidden rounded-[26px] md:mx-0 md:shrink md:flex-1 md:rounded-3xl ${
                 isProcessingState
-                  ? "aspect-[3/4] w-full max-w-[420px] mx-auto md:max-w-none md:aspect-auto md:min-h-0"
-                  : "aspect-[3/4] w-full max-w-[420px] mx-auto md:max-w-none md:aspect-auto md:min-h-0"
+                  ? "aspect-[4/5] md:aspect-auto md:min-h-0"
+                  : "aspect-[4/5] md:aspect-auto md:min-h-0"
               }`}
               style={{
                 background:
-                  "linear-gradient(135deg, #f0ebe4 0%, #e8e3dc 50%, #f0ebe4 100%)",
-                boxShadow: "inset 0 2px 16px rgba(0, 0, 0, 0.06)",
+                  "linear-gradient(145deg, #fbf7ef 0%, #f3e6cf 52%, #fcfaf6 100%)",
+                boxShadow:
+                  "inset 0 1px 0 rgba(255,255,255,0.7), inset 0 -10px 24px rgba(138,105,54,0.08)",
               }}
             >
               {/* Loading State - Game-Like Queue Animation (Compact Version) */}
@@ -1316,72 +1358,82 @@ export function TryOnResultModal({
 
               {/* Result Image */}
               {resultImage && !loading && !error && (
-                <>
-                  {hasMultipleGeneratedImages && (
-                    <div className="absolute left-2.5 right-2.5 top-2.5 z-10 flex items-center justify-between gap-2 sm:left-3 sm:right-3 sm:top-3 md:left-5 md:right-5 md:top-5">
-                      <span className="rounded-full bg-[rgba(44,36,22,0.68)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-white backdrop-blur">
-                        Swipe to view generated angles
-                      </span>
-                      <span className="rounded-full border border-white/60 bg-white/90 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#6f5a42] shadow-[0_10px_22px_rgba(28,21,14,0.12)] backdrop-blur">
-                        {currentImageIndex + 1} / {carouselImages.length}
-                      </span>
-                    </div>
-                  )}
+                <div className="absolute inset-0 p-2.5 sm:p-3 md:p-4">
+                  <div
+                    className="relative h-full w-full overflow-hidden rounded-[20px] md:rounded-[26px]"
+                    style={{
+                      background:
+                        "radial-gradient(circle at top, rgba(255,255,255,0.72) 0%, rgba(255,255,255,0.2) 24%, rgba(244,233,208,0.92) 100%)",
+                      boxShadow:
+                        "inset 0 0 0 1px rgba(255,255,255,0.68), 0 16px 34px rgba(118,87,37,0.12)",
+                    }}
+                  >
+                    {hasMultipleGeneratedImages && (
+                      <div className="absolute left-2.5 right-2.5 top-2.5 z-10 flex items-center justify-between gap-2 sm:left-3 sm:right-3 sm:top-3 md:left-4 md:right-4 md:top-4">
+                        <span className="rounded-full bg-[rgba(44,36,22,0.68)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-white backdrop-blur">
+                          Swipe to view generated angles
+                        </span>
+                        <span className="rounded-full border border-white/60 bg-white/90 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#6f5a42] shadow-[0_10px_22px_rgba(28,21,14,0.12)] backdrop-blur">
+                          {currentImageIndex + 1} / {carouselImages.length}
+                        </span>
+                      </div>
+                    )}
 
-                  {hasMultipleGeneratedImages ? (
-                    <div className="absolute inset-0 w-full h-full p-2 sm:p-3 md:p-4">
-                      <Carousel
-                        setApi={setCarouselApi}
-                        opts={{ loop: true, align: "start" }}
-                        className="h-full w-full"
-                      >
-                        <CarouselContent className="h-full -ml-0">
-                          {carouselImages.map((image, index) => (
-                            <CarouselItem
-                              key={`${image}-${index}`}
-                              className="h-full basis-full pl-0"
-                            >
-                              <button
-                                type="button"
-                                className="group flex h-full w-full items-center justify-center rounded-[20px] p-0 md:rounded-[26px]"
-                                onClick={() => setIsLightboxOpen(true)}
-                                title="Tap to view full size"
+                    {hasMultipleGeneratedImages ? (
+                      <div className="absolute inset-0 h-full w-full">
+                        <Carousel
+                          setApi={setCarouselApi}
+                          opts={{ loop: true, align: "start" }}
+                          className="h-full w-full"
+                        >
+                          <CarouselContent className="h-full -ml-0">
+                            {carouselImages.map((image, index) => (
+                              <CarouselItem
+                                key={`${image}-${index}`}
+                                className="h-full basis-full pl-0"
                               >
-                                <img
-                                  src={image}
-                                  alt={`Generated angle ${index + 1}`}
-                                  className={`h-full w-full rounded-[20px] transition-all duration-500 md:rounded-[26px] ${imageRevealed ? "modal-appear" : "opacity-0"}`}
-                                  style={{
-                                    objectFit: "contain",
-                                    objectPosition: "center center",
-                                  }}
-                                />
-                              </button>
-                            </CarouselItem>
-                          ))}
-                        </CarouselContent>
-                        <CarouselPrevious className="left-2 top-1/2 h-9 w-9 -translate-y-1/2 border-white/60 bg-white/92 text-[#2f2416] shadow-[0_12px_28px_rgba(28,21,14,0.12)] hover:bg-white md:left-3" />
-                        <CarouselNext className="right-2 top-1/2 h-9 w-9 -translate-y-1/2 border-white/60 bg-white/92 text-[#2f2416] shadow-[0_12px_28px_rgba(28,21,14,0.12)] hover:bg-white md:right-3" />
-                      </Carousel>
-                    </div>
-                  ) : (
-                    <div
-                      className="group absolute inset-0 flex h-full w-full cursor-pointer items-center justify-center p-2 sm:p-3 md:p-4"
-                      onClick={() => setIsLightboxOpen(true)}
-                      title="Click to view full size"
-                    >
-                      <img
-                        src={resultImage}
-                        alt="Try-On Result"
-                        className={`h-full w-full rounded-[20px] transition-all duration-500 md:rounded-[26px] ${imageRevealed ? "modal-appear" : "opacity-0"}`}
-                        style={{
-                          objectFit: "contain",
-                          objectPosition: "center center",
-                        }}
-                      />
-                    </div>
-                  )}
-                </>
+                                <button
+                                  type="button"
+                                  className="group flex h-full w-full items-center justify-center p-0"
+                                  onClick={openLightbox}
+                                  title="Tap to view full size"
+                                >
+                                  <img
+                                    src={image}
+                                    alt={`Generated angle ${index + 1}`}
+                                    className={`block h-full w-full transition-all duration-500 ${imageRevealed ? "modal-appear" : "opacity-0"}`}
+                                    style={{
+                                      objectFit: "contain",
+                                      objectPosition: "center center",
+                                    }}
+                                  />
+                                </button>
+                              </CarouselItem>
+                            ))}
+                          </CarouselContent>
+                          <CarouselPrevious className="left-2 top-1/2 h-9 w-9 -translate-y-1/2 border-white/60 bg-white/92 text-[#2f2416] shadow-[0_12px_28px_rgba(28,21,14,0.12)] hover:bg-white md:left-3" />
+                          <CarouselNext className="right-2 top-1/2 h-9 w-9 -translate-y-1/2 border-white/60 bg-white/92 text-[#2f2416] shadow-[0_12px_28px_rgba(28,21,14,0.12)] hover:bg-white md:right-3" />
+                        </Carousel>
+                      </div>
+                    ) : (
+                      <div
+                        className="group absolute inset-0 flex h-full w-full cursor-pointer items-center justify-center"
+                        onClick={openLightbox}
+                        title="Click to view full size"
+                      >
+                        <img
+                          src={resultImage}
+                          alt="Try-On Result"
+                          className={`block h-full w-full transition-all duration-500 ${imageRevealed ? "modal-appear" : "opacity-0"}`}
+                          style={{
+                            objectFit: "contain",
+                            objectPosition: "center center",
+                          }}
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
               )}
             </div>
 
@@ -1522,16 +1574,16 @@ export function TryOnResultModal({
         {/* Lightbox */}
         {isLightboxOpen && activeDisplayImage && (
           <div
-            className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+            className="fixed inset-0 z-[100] flex items-center justify-center"
             style={{
               background: "rgba(0, 0, 0, 0.96)",
               backdropFilter: "blur(24px)",
             }}
-            onClick={() => setIsLightboxOpen(false)}
+            onClick={closeLightbox}
           >
             <button
-              onClick={() => setIsLightboxOpen(false)}
-              className="absolute top-8 right-8 p-4 rounded-full transition-all duration-300 hover:scale-110 hover:rotate-90 z-10"
+              onClick={closeLightbox}
+              className="absolute right-4 top-4 z-10 rounded-full p-3 transition-all duration-300 hover:scale-110 hover:rotate-90 sm:right-6 sm:top-6 sm:p-4"
               style={{
                 background: "rgba(255, 255, 255, 0.15)",
                 backdropFilter: "blur(12px)",
@@ -1542,13 +1594,13 @@ export function TryOnResultModal({
             </button>
 
             <div
-              className="relative w-full h-full flex items-center justify-center p-4"
+              className="relative flex h-full w-full items-center justify-center"
               onClick={(e) => e.stopPropagation()}
             >
               <img
                 src={activeDisplayImage}
                 alt="Try-On Result - Full Size"
-                className="max-w-[92vw] max-h-[92vh] w-auto h-auto object-contain rounded-3xl modal-appear"
+                className="h-full w-full object-contain modal-appear"
                 style={{
                   boxShadow: "0 40px 120px rgba(0, 0, 0, 0.7)",
                 }}

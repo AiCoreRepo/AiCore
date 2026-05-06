@@ -29,7 +29,7 @@ export const SUPPORTED_MIME_TYPES = [
 // Supported File Extensions
 export const SUPPORTED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp'] as const;
 
-const getEnvTimeout = (key: string, fallback: number): number => {
+const getEnvPositiveInt = (key: string, fallback: number): number => {
   const rawValue = process.env[key];
   if (!rawValue) {
     return fallback;
@@ -41,13 +41,25 @@ const getEnvTimeout = (key: string, fallback: number): number => {
     : fallback;
 };
 
+const getEnvTimeout = (key: string, fallback: number): number =>
+  getEnvPositiveInt(key, fallback);
+
 // API Timeout Settings (in milliseconds)
 export const DEFAULT_TIMEOUT = getEnvTimeout('DEFAULT_TIMEOUT', 60000); // 60 seconds
 export const VERTEX_AI_TIMEOUT = getEnvTimeout('VERTEX_AI_TIMEOUT', 120000); // 120 seconds
 
 // Gemini Try-On Timeout
-// Increased to 120s because complex outfits (textures, complex geometry) require more processing time from the Gemini model.
-export const GEMINI_AI_TIMEOUT = getEnvTimeout('GEMINI_AI_TIMEOUT', 120000); // 120 seconds
+// Production Gemini image generations can exceed 120s under load, especially with complex garments.
+// Keep a slightly longer per-attempt timeout, but still below the overall Bull job timeout.
+export const GEMINI_AI_TIMEOUT = getEnvTimeout('GEMINI_AI_TIMEOUT', 150000); // 150 seconds
+export const GEMINI_AI_TOTAL_BUDGET = getEnvTimeout(
+  'GEMINI_AI_TOTAL_BUDGET',
+  170000,
+); // 170 seconds total across validation/retry loop
+export const AURA_GEMINI_TIMEOUT = getEnvTimeout(
+  'AURA_GEMINI_TIMEOUT',
+  90000,
+); // 90 seconds
 
 // Hard fail-safe timeouts for Bull job processing.
 // These are used as the `timeout` option in queue.add() to hard-kill stalled jobs.
@@ -63,6 +75,14 @@ export const RETRY_BACKOFF_MULTIPLIER = 2; // Exponential backoff
 export const MAX_CONCURRENT_REQUESTS = 5;
 export const RATE_LIMIT_WINDOW_MS = 60000; // 1 minute
 export const MAX_REQUESTS_PER_WINDOW = 20;
+export const AURA_WORKER_CONCURRENCY = getEnvPositiveInt(
+  'AURA_WORKER_CONCURRENCY',
+  2,
+);
+export const TRYON_WORKER_CONCURRENCY = getEnvPositiveInt(
+  'TRYON_WORKER_CONCURRENCY',
+  3,
+);
 
 // Cache Settings
 export const CACHE_TTL_SECONDS = 3600; // 1 hour

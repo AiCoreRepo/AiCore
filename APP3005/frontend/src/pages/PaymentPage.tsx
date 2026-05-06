@@ -7,7 +7,7 @@ import { usePayU, type PayUExtraFields } from '@/hooks/usePayU';
 import type { CreateOrderPayload } from '@/features/orders/types/order.types';
 import {
     Banknote, Smartphone, CreditCard, Building2, Wallet, Calculator,
-    ChevronDown, MapPin, Edit2, Gift, ShieldCheck, Lock, Check,
+    ChevronDown, MapPin, Edit2, Gift, ShieldCheck, Lock, Check, Sparkles,
 } from 'lucide-react';
 import { useCart } from '@/context/CartContext';
 import { Navbar } from '@/components/Navbar';
@@ -22,6 +22,13 @@ import { getAddresses } from '@/lib/api';
 const GOLD = '#D4AF37';
 const GOLD_HOVER = '#C5A028';
 const GOLD_LIGHT = '#F5EDD6';
+
+const CHECKOUT_CONFIDENCE_COPY = {
+    eyebrow: 'Styled for you',
+    title: 'Hey gorgeous ✨',
+    body: 'You didn’t choose this just for the fabric — you chose the feeling, the look, and the confidence that AiVestire delivers.',
+    closing: 'Now hit “Buy” and let us deliver this beautiful piece to someone equally beautiful: you. 💛',
+};
 
 // All PayU online method IDs
 const ONLINE_METHODS = new Set(['payu']);
@@ -537,6 +544,44 @@ const PaymentPage = () => {
                                     <div className="flex justify-between font-bold text-gray-900 text-base pt-2 border-t border-gray-100"><span>Total Amount</span><span>₹{(finalTotal / 100).toLocaleString('en-IN')}</span></div>
                                 </div>
                                 {orderDetails.discount > 0 && <p className="text-xs text-emerald-600 font-medium">🎉 You save ₹{(orderDetails.discount / 100).toLocaleString('en-IN')}</p>}
+                            </div>
+
+                            <div
+                                className="overflow-hidden rounded border border-[#D4AF37]/25 p-5"
+                                style={{
+                                    background: 'linear-gradient(150deg, #fffdf8 0%, #f8f1e3 52%, #f4e6bf 100%)',
+                                    boxShadow: '0 10px 28px rgba(212,175,55,0.12)',
+                                }}
+                            >
+                                <div className="flex items-start gap-3">
+                                    <div
+                                        className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full"
+                                        style={{
+                                            background: 'rgba(212,175,55,0.16)',
+                                            color: GOLD,
+                                        }}
+                                    >
+                                        <Sparkles className="w-5 h-5" />
+                                    </div>
+
+                                    <div className="min-w-0">
+                                        <p
+                                            className="text-[10px] font-semibold uppercase tracking-[0.22em]"
+                                            style={{ color: GOLD }}
+                                        >
+                                            {CHECKOUT_CONFIDENCE_COPY.eyebrow}
+                                        </p>
+                                        <h3 className="mt-1 font-serif text-xl leading-tight text-gray-900">
+                                            {CHECKOUT_CONFIDENCE_COPY.title}
+                                        </h3>
+                                        <p className="mt-3 text-sm leading-7 text-gray-700">
+                                            {CHECKOUT_CONFIDENCE_COPY.body}
+                                        </p>
+                                        <p className="mt-3 text-sm leading-7 font-medium text-gray-900">
+                                            {CHECKOUT_CONFIDENCE_COPY.closing}
+                                        </p>
+                                    </div>
+                                </div>
                             </div>
 
                             <div className="bg-white border border-gray-200 rounded p-4 flex items-start gap-3">

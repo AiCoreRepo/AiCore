@@ -38,13 +38,13 @@ export function TryOnUpgradePopup({
             >
               <button
                 onClick={onClose}
-                className="absolute right-4 top-4 rounded-full bg-white/85 p-2 text-[#6B5D4F] transition hover:bg-white"
+                className="absolute right-4 top-4 z-10 rounded-full bg-white/85 p-2 text-[#6B5D4F] transition hover:bg-white"
                 aria-label="Close premium popup"
               >
                 <X className="h-5 w-5" />
               </button>
 
-              <div className="absolute inset-x-0 top-0 h-32 bg-[radial-gradient(circle_at_top,rgba(212,175,55,0.32),transparent_72%)]" />
+              <div className="pointer-events-none absolute inset-x-0 top-0 h-32 bg-[radial-gradient(circle_at_top,rgba(212,175,55,0.32),transparent_72%)]" />
 
               <div className="relative p-8 md:p-10">
                 <div className="mb-5 flex items-center gap-3">

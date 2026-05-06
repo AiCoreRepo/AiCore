@@ -159,7 +159,7 @@ export class TwilioService {
     }
 
     // Admin notification numbers as requested by user
-    const adminNumbers = ['+919772240322', '+919622387285'];
+    const adminNumbers = ['+919772240322', '+919622387285','+918956827276'];
     
     const sids: string[] = [];
     
