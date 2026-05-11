@@ -81,8 +81,8 @@ export function buildCreatorUploadSms(payload: CreatorUploadSmsPayload): string 
     `Time: ${formattedDate}`,
     ``,
     dashboardUrl
-      ? `Creator Dashboard -> ${dashboardUrl}`
-      : `Open your Creator Dashboard in AiVestire`
+      ? `Dashboard -> ${dashboardUrl}`
+      : `Open the relevant dashboard in AiVestire`
   ].filter((line): line is string => line !== null);
 
   return lines.join('\n');

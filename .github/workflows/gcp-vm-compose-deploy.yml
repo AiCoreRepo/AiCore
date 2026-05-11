@@ -343,7 +343,7 @@ jobs:
           echo "  User: ${GCP_INSTANCE_USER}"
           echo "  Deploy Path: ${GCP_DEPLOY_PATH}"
           echo "  Compose File: ${GCP_COMPOSE_FILE:-docker-compose.yml}"
-          echo "  Compose Services: ${GCP_COMPOSE_SERVICES:-backend frontend body-analyzer recommendation-api}"
+          echo "  Compose Services: ${GCP_COMPOSE_SERVICES:-backend backend-worker frontend body-analyzer recommendation-api}"
           echo "  Use Local Infra (db+redis): ${GCP_USE_LOCAL_INFRA}"
           if [ -n "$GCP_BACKEND_ENV_B64" ]; then
             echo "  Backend env payload: provided (base64 length ${#GCP_BACKEND_ENV_B64})"
@@ -377,7 +377,7 @@ jobs:
 
           COMPOSE_SERVICES="$GCP_COMPOSE_SERVICES"
           if [ -z "$COMPOSE_SERVICES" ]; then
-            COMPOSE_SERVICES="backend frontend body-analyzer recommendation-api"
+            COMPOSE_SERVICES="backend backend-worker frontend body-analyzer recommendation-api"
           fi
           COMPOSE_SERVICES="$(printf '%s' "$COMPOSE_SERVICES" | tr -s '[:space:]' ' ' | sed 's/^ //;s/ $//')"
           SSH_DEPLOY_PATH="$GCP_DEPLOY_PATH"

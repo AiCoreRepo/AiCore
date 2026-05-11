@@ -13,15 +13,16 @@ Usage:
 
   bash payu.sh <local|dev|prod> down
   bash payu.sh <local|dev|prod> build
-  bash payu.sh <local|dev|prod> logs [tail]
+  bash payu.sh <local|dev|prod> logs [tail] [services...]
   bash payu.sh <local|dev|prod> ps
-  bash payu.sh <local|dev|prod> env
+  bash payu.sh <local|dev|prod> env [services...]
   bash payu.sh <local|dev|prod> seed-test-product
   bash payu.sh help
 
 Examples:
   bash payu.sh local up
   bash payu.sh dev logs 200
+  bash payu.sh dev logs 200 backend-worker
   bash payu.sh prod env
   bash payu.sh dev seed-test-product
 EOF
@@ -62,6 +63,15 @@ should_no_cache_build() {
   [[ "$selected_env" == "dev" || "$selected_env" == "prod" ]]
 }
 
+default_debug_services=(backend backend-worker)
+
+print_service_env() {
+  local service="$1"
+  echo "=== $service ==="
+  compose exec -T "$service" /bin/sh -lc \
+    "printenv | grep -E '^(PAYU_ENV|PAYU_KEY|PAYU_SALT|PAYU_SUCCESS_URL|PAYU_FAILURE_URL|FRONTEND_URL|TWILIO_ACCOUNT_SID|TWILIO_PHONE_NUMBER|SKIP_TWILIO|SKIP_SMS_IN_DEV|REDIS_HOST|REDIS_PORT|REDIS_URL)=' | sort || true"
+}
+
 command="${2:-up}"
 
 case "$command" in
@@ -82,14 +92,33 @@ case "$command" in
     fi
     ;;
   logs)
-    tail_lines="${3:-50}"
-    compose logs -f --tail="$tail_lines" backend
+    if [[ "${3:-}" =~ ^[0-9]+$ ]]; then
+      tail_lines="$3"
+      services=("${@:4}")
+    else
+      tail_lines="50"
+      services=("${@:3}")
+    fi
+
+    if [[ "${#services[@]}" -eq 0 ]]; then
+      services=("${default_debug_services[@]}")
+    fi
+
+    compose logs -f --tail="$tail_lines" "${services[@]}"
     ;;
   ps)
     compose ps
     ;;
   env)
-    docker exec nest-server printenv | grep -E '^(PAYU_ENV|PAYU_KEY|PAYU_SALT|PAYU_SUCCESS_URL|PAYU_FAILURE_URL|FRONTEND_URL)='
+    services=("${@:3}")
+
+    if [[ "${#services[@]}" -eq 0 ]]; then
+      services=("${default_debug_services[@]}")
+    fi
+
+    for service in "${services[@]}"; do
+      print_service_env "$service"
+    done
     ;;
   seed-test-product)
     compose exec backend node scripts/seed-one-rupee-product.js

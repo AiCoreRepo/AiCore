@@ -162,41 +162,90 @@ export class CreatorUploadService {
 
     this.logger.log(`✅ Product hierarchy created: ${product.product_id}`);
 
-    // ─── SMS: Notify creator about their upload ────────────────────────────
+    // ─── SMS: Notify creator and admins about the new upload ───────────────
     // Enqueued after all DB work is done. Failure never blocks the response.
     try {
       const creatorUser = await this.prisma.user.findUnique({
         where: { user_id: userId },
         select: { email: true, phone: true },
       });
+      const adminRecipients = await this.prisma.user.findMany({
+        where: {
+          role: 'ADMIN',
+          status: 'active',
+          phone: { not: null },
+        },
+        select: {
+          phone: true,
+        },
+      });
+      const uniqueAdminPhones = Array.from(
+        new Set(
+          adminRecipients
+            .map((admin) => admin.phone?.trim())
+            .filter((phone): phone is string => Boolean(phone)),
+        ),
+      );
+      const hierarchy = await this.getProductHierarchy(product.product_id);
 
-      if (!creatorUser?.phone) {
+      if (!creatorUser?.phone && uniqueAdminPhones.length === 0) {
         this.logger.warn(
-          `Creator (user ${userId}) has no phone number — skipping upload SMS`,
+          `Product ${product.product_id}: no creator/admin phone numbers found — skipping upload SMS`,
         );
       } else {
         // Derive a friendly display name from the email (e.g. priya.sharma@... → Priya)
-        const displayName = creatorUser.email.split('@')[0]?.split('.')[0] ?? 'Creator';
+        const displayName =
+          creatorUser?.email.split('@')[0]?.split('.')[0] ?? 'Creator';
         const creatorName = displayName.charAt(0).toUpperCase() + displayName.slice(1);
         const frontendBaseUrl = (
           process.env.FRONTEND_URL || 'http://localhost:3005'
         ).replace(/\/+$/, '');
+        const recipients = Array.from(
+          new Map(
+            [
+              ...(creatorUser?.phone
+                ? [
+                    [
+                      creatorUser.phone,
+                      {
+                        to: creatorUser.phone,
+                        dashboardUrl: `${frontendBaseUrl}/creator-dashboard`,
+                      },
+                    ] as const,
+                  ]
+                : []),
+              ...uniqueAdminPhones.map(
+                (phone) =>
+                  [
+                    phone,
+                    {
+                      to: phone,
+                      dashboardUrl: `${frontendBaseUrl}/admin-collection`,
+                    },
+                  ] as const,
+              ),
+            ],
+          ).values(),
+        );
 
-        const hierarchy = await this.getProductHierarchy(product.product_id);
-        await this.smsQueueService.enqueueCreatorUploadSms({
-          to: creatorUser.phone,
-          creatorName,
-          productTitle: product.title,
-          productId: product.product_id,
-          dashboardUrl: `${frontendBaseUrl}/creator-dashboard`,
-          priceInRupees: dto.price_cents / 100,
-          patternCount: hierarchy.pattern_count,
-          totalColorVariants: hierarchy.total_color_variants,
-          totalStock: hierarchy.total_stock,
-          category: hierarchy.category_name ?? undefined,
-          uploadedAt: new Date(),
-          status: (product.status as 'DRAFT' | 'APPROVED' | 'PENDING') ?? 'DRAFT',
-        });
+        await Promise.all(
+          recipients.map(({ to, dashboardUrl }) =>
+            this.smsQueueService.enqueueCreatorUploadSms({
+              to,
+              creatorName,
+              productTitle: product.title,
+              productId: product.product_id,
+              dashboardUrl,
+              priceInRupees: dto.price_cents / 100,
+              patternCount: hierarchy.pattern_count,
+              totalColorVariants: hierarchy.total_color_variants,
+              totalStock: hierarchy.total_stock,
+              category: hierarchy.category_name ?? undefined,
+              uploadedAt: new Date(),
+              status: (product.status as 'DRAFT' | 'APPROVED' | 'PENDING') ?? 'DRAFT',
+            }),
+          ),
+        );
       }
     } catch (error) {
       // SMS failure must never affect the product creation response

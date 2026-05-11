@@ -64,6 +64,9 @@ export function getDefaultTryOnProvider(): TryOnProvider {
     return ENV_DEFAULT_TRY_ON_PROVIDER;
   }
 
-  // Gemini is the primary production provider.
+  if (isProductionTryOnHost()) {
+    return TRYON_PROVIDER.VERTEX;
+  }
+
   return TRYON_PROVIDER.GEMINI;
 }

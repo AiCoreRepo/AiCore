@@ -20,8 +20,8 @@ This repo now uses:
 - `GCP_UAT_SERVER_BASE_URL` (variable): Public URL for post-deploy API checks for UAT (for example `https://uat.aivestire.com`).
 - `GCP_COMPOSE_FILE` (optional variable): Compose filename under deploy path. Defaults to `docker-compose.yml` if omitted.
 - `GCP_UAT_COMPOSE_FILE` (optional variable): Compose filename for UAT VM.
-- `GCP_COMPOSE_SERVICES` (optional variable): Space-separated services to deploy on dev.
-- `GCP_UAT_COMPOSE_SERVICES` (optional variable): Space-separated services to deploy on UAT.
+- `GCP_COMPOSE_SERVICES` (optional variable): Space-separated services to deploy on dev. Include `backend-worker` for Bull/Twilio jobs.
+- `GCP_UAT_COMPOSE_SERVICES` (optional variable): Space-separated services to deploy on UAT. Include `backend-worker` for Bull/Twilio jobs.
 - `GCP_BACKEND_ENV_B64` (secret): Base64 `.env` content for backend on dev.
 - `GCP_UAT_BACKEND_ENV_B64` (secret): Base64 `.env` content for backend on UAT.
 - `GCP_SERVICE_ACCOUNT_JSON_B64` (optional secret): Base64-encoded Google service account JSON for dev.
@@ -48,7 +48,7 @@ This repo now uses:
 2. `git fetch` + `git reset --hard origin/<branch>` in `GCP_DEPLOY_PATH`.
 3. Rewrite backend `.env` and inject `GOOGLE_SERVICE_ACCOUNT_JSON_B64` when the optional secret is configured.
 4. `docker compose -f <compose file> pull`.
-5. `docker compose -f <compose file> up -d --build <services>` (default includes `backend frontend body-analyzer recommendation-api`).
+5. `docker compose -f <compose file> up -d --build <services>` (default includes `backend backend-worker frontend body-analyzer recommendation-api`).
 6. Post-deploy health checks against `GCP_SERVER_BASE_URL`.
 
 ## Notes

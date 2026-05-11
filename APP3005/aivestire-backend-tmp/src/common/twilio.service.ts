@@ -158,33 +158,16 @@ export class TwilioService {
       return null;
     }
 
-    // Admin notification numbers as requested by user
-    const adminNumbers = ['+919772240322', '+919622387285','+918956827276'];
-    
-    const sids: string[] = [];
-    
-    // Send to all admin numbers
-    for (const adminNumber of adminNumbers) {
-      try {
-        const message = await this.twilioClient.messages.create({
-          body,
-          from: this.twilioPhoneNumber,
-          to: adminNumber,
-        });
-        
-        this.logger.log(
-          `Notification SMS sent to admin ${adminNumber}. Message SID: ${message.sid}`,
-        );
-        sids.push(message.sid);
-      } catch (error: any) {
-        this.logger.error(`Failed to send notification to admin ${adminNumber}: ${error.message}`);
-        // If we want the queue to retry, we could throw here, but since we are sending to multiple, 
-        // it's safer to catch and continue, or just throw if it's the last one.
-        // For now, we will throw the raw error so SmsProcessor can handle retries/backoff
-        throw error;
-      }
-    }
+    const message = await this.twilioClient.messages.create({
+      body,
+      from: this.twilioPhoneNumber,
+      to: phoneNumber,
+    });
 
-    return { sid: sids.join(',') };
+    this.logger.log(
+      `Notification SMS sent to ${phoneNumber}. Message SID: ${message.sid}`,
+    );
+
+    return { sid: message.sid };
   }
 }
