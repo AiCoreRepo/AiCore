@@ -200,33 +200,28 @@ export class CreatorUploadService {
         const frontendBaseUrl = (
           process.env.FRONTEND_URL || 'http://localhost:3005'
         ).replace(/\/+$/, '');
-        const recipients = Array.from(
-          new Map(
-            [
-              ...(creatorUser?.phone
-                ? [
-                    [
-                      creatorUser.phone,
-                      {
-                        to: creatorUser.phone,
-                        dashboardUrl: `${frontendBaseUrl}/creator-dashboard`,
-                      },
-                    ] as const,
-                  ]
-                : []),
-              ...uniqueAdminPhones.map(
-                (phone) =>
-                  [
-                    phone,
-                    {
-                      to: phone,
-                      dashboardUrl: `${frontendBaseUrl}/admin-collection`,
-                    },
-                  ] as const,
-              ),
-            ],
-          ).values(),
-        );
+        const recipientsByPhone = new Map<
+          string,
+          { to: string; dashboardUrl: string }
+        >();
+
+        if (creatorUser?.phone) {
+          recipientsByPhone.set(creatorUser.phone, {
+            to: creatorUser.phone,
+            dashboardUrl: `${frontendBaseUrl}/creator-dashboard`,
+          });
+        }
+
+        for (const phone of uniqueAdminPhones) {
+          if (!recipientsByPhone.has(phone)) {
+            recipientsByPhone.set(phone, {
+              to: phone,
+              dashboardUrl: `${frontendBaseUrl}/admin-collection`,
+            });
+          }
+        }
+
+        const recipients = Array.from(recipientsByPhone.values());
 
         await Promise.all(
           recipients.map(({ to, dashboardUrl }) =>
