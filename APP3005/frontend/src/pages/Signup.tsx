@@ -4,7 +4,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Link, useNavigate } from "react-router-dom";
 import { Eye, EyeOff } from "lucide-react";
 import { AuthLayout } from "@/components/auth/AuthLayout";
-import TermsModal from "@/components/TermsModal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,9 +20,6 @@ const Signup = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [isTermsModalOpen, setIsTermsModalOpen] = useState(false);
-  const [pendingSignupData, setPendingSignupData] = useState<SignupFormData | null>(null);
-  const [pendingSignupMethod, setPendingSignupMethod] = useState<"form" | "google" | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
   // OTP BYPASSED: commented out - not needed currently
@@ -40,24 +36,6 @@ const Signup = () => {
       phoneNumber: "+91",
     },
   });
-
-  const resetPendingTermsAction = () => {
-    setPendingSignupData(null);
-    setPendingSignupMethod(null);
-  };
-
-  const persistCreatorTermsAcceptance = async (accessToken: string) => {
-    try {
-      await acceptCreatorTerms(accessToken);
-    } catch (error) {
-      console.error("Failed to persist creator terms acceptance:", error);
-      toast({
-        title: "Terms Acceptance Pending",
-        description: "Your account was created, but we could not save the terms acceptance yet. You may be asked again before your first upload.",
-        variant: "destructive",
-      });
-    }
-  };
 
   const normalizePhoneNumber = (value: string) => {
     const cleaned = value.replace(/[^\d+]/g, "");
@@ -139,7 +117,6 @@ const Signup = () => {
 
       if (loginResult.access_token) {
         localStorage.setItem("access_token", loginResult.access_token);
-        await persistCreatorTermsAcceptance(loginResult.access_token);
       }
 
       if (data.email && data.dateOfBirth) {
@@ -175,45 +152,7 @@ const Signup = () => {
       });
     } finally {
       setIsLoading(false);
-      resetPendingTermsAction();
     }
-  };
-
-  const handleValidatedSubmit = (data: SignupFormData) => {
-    if (isLoading) {
-      return;
-    }
-
-    setPendingSignupData(data);
-    setPendingSignupMethod("form");
-    setIsTermsModalOpen(true);
-  };
-
-  const handleTermsAccept = async () => {
-    if (pendingSignupMethod === "form" && pendingSignupData) {
-      setIsTermsModalOpen(false);
-      await completeSignup(pendingSignupData);
-      return;
-    }
-
-    if (pendingSignupMethod === "google") {
-      setIsTermsModalOpen(false);
-      resetPendingTermsAction();
-      handleGoogleSignUp();
-      return;
-    }
-
-    setIsTermsModalOpen(false);
-    resetPendingTermsAction();
-  };
-
-  const handleTermsDecline = () => {
-    if (isLoading) {
-      return;
-    }
-
-    setIsTermsModalOpen(false);
-    resetPendingTermsAction();
   };
 
   const handleGoogleSignUp = useGoogleLogin({
@@ -236,7 +175,6 @@ const Signup = () => {
 
         if (result.access_token) {
           localStorage.setItem("access_token", result.access_token);
-          await persistCreatorTermsAcceptance(result.access_token);
         }
 
         toast({
@@ -254,7 +192,6 @@ const Signup = () => {
         });
       } finally {
         setIsLoading(false);
-        resetPendingTermsAction();
       }
     },
     onError: () => {
@@ -267,23 +204,7 @@ const Signup = () => {
     flow: 'implicit',
   });
 
-  const handleGoogleSignUpClick = () => {
-    if (isLoading) {
-      return;
-    }
-
-    setPendingSignupData(null);
-    setPendingSignupMethod("google");
-    setIsTermsModalOpen(true);
-  };
-
   return (
-    <>
-    <TermsModal
-      isOpen={isTermsModalOpen}
-      onAccept={handleTermsAccept}
-      onDecline={handleTermsDecline}
-    />
     <AuthLayout
       heroImage={heroImage}
       quote="Create. Design. Inspire."
@@ -296,7 +217,7 @@ const Signup = () => {
           <p className="text-sm sm:text-base text-muted-foreground">Create your designer account</p>
         </div>
 
-        <form onSubmit={handleSubmit(handleValidatedSubmit)} className="space-y-4 sm:space-y-5">
+        <form onSubmit={handleSubmit(completeSignup)} className="space-y-4 sm:space-y-5">
           <div className="space-y-2">
             <Label htmlFor="brandName" className="text-luxury-cream">
               Brand Name / Full Name
@@ -445,7 +366,7 @@ const Signup = () => {
             type="button"
             variant="outline"
             className="w-full bg-white hover:bg-gray-50 text-gray-700 font-medium h-11 rounded-lg border border-gray-300 hover:border-gray-400 transition-all duration-200 shadow-sm hover:shadow"
-            onClick={handleGoogleSignUpClick}
+            onClick={() => handleGoogleSignUp()}
           >
             <svg className="h-5 w-5 mr-3" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
               <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
@@ -465,7 +386,6 @@ const Signup = () => {
         </div>
       </div>
     </AuthLayout>
-    </>
   );
 };
 

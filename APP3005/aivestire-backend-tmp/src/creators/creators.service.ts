@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import type { Prisma } from '@prisma/client';
+import { SaveCreatorAddressDto } from './dto/creator-address.dto';
 
 @Injectable()
 export class CreatorsService {
@@ -32,9 +33,7 @@ export class CreatorsService {
       where: { user_id: userId },
     });
 
-    // If creator profile doesn't exist, create one
     if (!creator) {
-      // Get user info to create store name
       const user = await this.prisma.user.findUnique({
         where: { user_id: userId },
         select: { email: true },
@@ -44,8 +43,6 @@ export class CreatorsService {
         throw new NotFoundException('User not found');
       }
 
-      // Create creator profile with default values
-      // Use email username as store name (before @)
       const storeName = user.email.split('@')[0] || 'My Store';
 
       creator = await this.prisma.creator.create({
@@ -95,5 +92,48 @@ export class CreatorsService {
       acceptedAt: creator?.terms_accepted_at,
       version: creator?.terms_version,
     };
+  }
+
+  // ─── Creator Address ────────────────────────────────────────────────────────
+
+  /**
+   * Upsert the creator's business address.
+   * Single write via unique creator_id constraint — no N+1.
+   */
+  async saveCreatorAddress(creatorId: string, dto: SaveCreatorAddressDto) {
+    return this.prisma.creatorAddress.upsert({
+      where: { creator_id: creatorId },
+      create: {
+        creator_id: creatorId,
+        full_name: dto.full_name,
+        phone: dto.phone,
+        address_line1: dto.address_line1,
+        address_line2: dto.address_line2,
+        city: dto.city,
+        state: dto.state,
+        pincode: dto.pincode,
+        country: dto.country ?? 'India',
+      },
+      update: {
+        full_name: dto.full_name,
+        phone: dto.phone,
+        address_line1: dto.address_line1,
+        address_line2: dto.address_line2,
+        city: dto.city,
+        state: dto.state,
+        pincode: dto.pincode,
+        country: dto.country ?? 'India',
+      },
+    });
+  }
+
+  /**
+   * Fetch the creator's business address.
+   * O(1) lookup via unique creator_id index — no N+1.
+   */
+  async getCreatorAddress(creatorId: string) {
+    return this.prisma.creatorAddress.findUnique({
+      where: { creator_id: creatorId },
+    });
   }
 }

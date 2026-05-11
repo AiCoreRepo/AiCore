@@ -3,9 +3,9 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { updateProfile } from "@/lib/api";
+import { updateProfile, saveCreatorAddress, getCreatorAddress, CreatorAddressData } from "@/lib/api";
 import { LuxeButton } from "@/components/common/Buttons/LuxeButton";
-import { User, LayoutDashboard, Palette, Building2, Smartphone, ShieldCheck } from "lucide-react";
+import { User, LayoutDashboard, Palette, Building2, Smartphone, ShieldCheck, MapPin } from "lucide-react";
 import EditProfileModal from "../dashboard/EditProfileModal";
 import { useAuth } from "@/context/AuthContext";
 
@@ -25,12 +25,26 @@ const SettingsContent: React.FC = () => {
         paymentBeneficiaryName: "",
         paymentUpiId: "",
     });
+    
+    // Address State
+    const [addressData, setAddressData] = useState<CreatorAddressData>({
+        full_name: "",
+        phone: "",
+        address_line1: "",
+        address_line2: "",
+        city: "",
+        state: "",
+        pincode: "",
+    });
+    const [addressError, setAddressError] = useState("");
+
     const [dashboardConfig, setDashboardConfig] = useState<DashboardConfig>({
         showStats: true,
         showUploads: true,
     });
     const [hasChanges, setHasChanges] = useState(false);
     const [paymentError, setPaymentError] = useState("");
+    const [isSaving, setIsSaving] = useState(false);
     const { toast } = useToast();
 
     useEffect(() => {
@@ -42,8 +56,30 @@ const SettingsContent: React.FC = () => {
                 paymentUpiId: user.paymentDetails?.upiId || "",
             });
             setPaymentError("");
+            loadAddress();
         }
     }, [user]);
+
+    async function loadAddress() {
+        try {
+            const addr = await getCreatorAddress();
+            if (addr) {
+                setAddressData({
+                    full_name: addr.full_name || "",
+                    phone: addr.phone || "",
+                    address_line1: addr.address_line1 || "",
+                    address_line2: addr.address_line2 || "",
+                    city: addr.city || "",
+                    state: addr.state || "",
+                    pincode: addr.pincode || "",
+                });
+            } else if ((user as any)?.phone) {
+                setAddressData(prev => ({ ...prev, phone: (user as any).phone || "" }));
+            }
+        } catch (e) {
+            console.error("Failed to load address", e);
+        }
+    }
 
     useEffect(() => {
         const saved = localStorage.getItem('dashboardConfig');
@@ -66,11 +102,18 @@ const SettingsContent: React.FC = () => {
         }
     };
 
+    const handleAddressChange = (field: keyof CreatorAddressData, value: string) => {
+        setAddressData(prev => ({ ...prev, [field]: value }));
+        setHasChanges(true);
+        setAddressError("");
+    };
+
     const handleProfileUpdate = async () => {
         await fetchUser();
     };
 
     const handleSave = async () => {
+        setIsSaving(true);
         try {
             const beneficiaryName = formData.paymentBeneficiaryName.trim();
             const paymentUpiId = formData.paymentUpiId.trim().toLowerCase();
@@ -79,13 +122,23 @@ const SettingsContent: React.FC = () => {
             if (hasAnyPaymentValue) {
                 if (!beneficiaryName || !paymentUpiId) {
                     setPaymentError("Add both beneficiary name and UPI ID to save payout details.");
+                    setIsSaving(false);
                     return;
                 }
 
                 if (!UPI_ID_REGEX.test(paymentUpiId)) {
                     setPaymentError("Enter a valid UPI ID like yourname@upi.");
+                    setIsSaving(false);
                     return;
                 }
+            }
+
+            // Address validation
+            if (!addressData.full_name.trim() || !addressData.phone.trim() || !addressData.address_line1.trim() || 
+                !addressData.city.trim() || !addressData.state.trim() || !addressData.pincode.trim()) {
+                setAddressError("Please fill all required business address fields correctly.");
+                setIsSaving(false);
+                return;
             }
 
             // Save dashboard config
@@ -99,9 +152,13 @@ const SettingsContent: React.FC = () => {
                 paymentUpiId,
             });
 
+            // Save address
+            await saveCreatorAddress(addressData);
+
             await fetchUser();
             setHasChanges(false);
             setPaymentError("");
+            setAddressError("");
             toast({
                 title: "Settings Saved",
                 description: "Your changes have been successfully saved.",
@@ -112,6 +169,8 @@ const SettingsContent: React.FC = () => {
                 description: "Failed to save settings. Please try again.",
                 variant: "destructive",
             });
+        } finally {
+            setIsSaving(false);
         }
     };
 
@@ -137,15 +196,15 @@ const SettingsContent: React.FC = () => {
             <div className="flex items-center justify-between">
                 <div className="space-y-2">
                     <h2 className="text-4xl font-serif text-luxury-black tracking-tight">Settings</h2>
-                    <p className="text-stone-500 text-lg font-light">Manage your account preferences and dashboard layout.</p>
+                    <p className="text-stone-500 text-lg font-light">Manage your account preferences, address, and payout details.</p>
                 </div>
                 <LuxeButton
                     variant="luxury"
                     onClick={handleSave}
-                    disabled={!hasChanges}
+                    disabled={!hasChanges || isSaving}
                     className={`px-8 py-6 text-base transition-all duration-300 ${hasChanges ? 'opacity-100 translate-y-0' : 'opacity-50 translate-y-2 pointer-events-none'}`}
                 >
-                    Save Changes
+                    {isSaving ? "Saving..." : "Save Changes"}
                 </LuxeButton>
             </div>
 
@@ -205,6 +264,48 @@ const SettingsContent: React.FC = () => {
                         </div>
                     </div>
                 </div>
+            </section>
+
+            {/* Business Address Section */}
+            <section className="bg-white rounded-3xl p-8 border border-stone-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-shadow duration-300">
+                <div className="flex items-center gap-4 mb-8">
+                    <div className="p-3 bg-[#F5F2EB] rounded-2xl text-luxury-gold">
+                        <MapPin size={28} strokeWidth={1.5} />
+                    </div>
+                    <h3 className="text-2xl font-serif text-luxury-black tracking-wide">Business Address</h3>
+                </div>
+
+                <div className="grid gap-x-6 gap-y-6 md:grid-cols-2">
+                    <div className="space-y-2">
+                        <Label className="text-base font-medium text-luxury-black">Full Name *</Label>
+                        <Input value={addressData.full_name} onChange={(e) => handleAddressChange("full_name", e.target.value)} className="h-12 bg-[#F5F2EB]/30 border-stone-200 focus:border-luxury-gold focus:ring-luxury-gold/20 text-lg" placeholder="Enter your full name" required minLength={2} />
+                    </div>
+                    <div className="space-y-2">
+                        <Label className="text-base font-medium text-luxury-black">Contact Phone *</Label>
+                        <Input type="tel" value={addressData.phone} onChange={(e) => handleAddressChange("phone", e.target.value)} className="h-12 bg-[#F5F2EB]/30 border-stone-200 focus:border-luxury-gold focus:ring-luxury-gold/20 text-lg" placeholder="+91 9876543210" required pattern="^\+?[0-9]{10,13}$" />
+                    </div>
+                    <div className="space-y-2 md:col-span-2">
+                        <Label className="text-base font-medium text-luxury-black">Address Line 1 *</Label>
+                        <Input value={addressData.address_line1} onChange={(e) => handleAddressChange("address_line1", e.target.value)} className="h-12 bg-[#F5F2EB]/30 border-stone-200 focus:border-luxury-gold focus:ring-luxury-gold/20 text-lg" placeholder="House No, Building, Street Area" required />
+                    </div>
+                    <div className="space-y-2 md:col-span-2">
+                        <Label className="text-base font-medium text-luxury-black">Address Line 2 (Optional)</Label>
+                        <Input value={addressData.address_line2} onChange={(e) => handleAddressChange("address_line2", e.target.value)} className="h-12 bg-[#F5F2EB]/30 border-stone-200 focus:border-luxury-gold focus:ring-luxury-gold/20 text-lg" placeholder="Locality, Landmark, etc." />
+                    </div>
+                    <div className="space-y-2">
+                        <Label className="text-base font-medium text-luxury-black">City *</Label>
+                        <Input value={addressData.city} onChange={(e) => handleAddressChange("city", e.target.value)} className="h-12 bg-[#F5F2EB]/30 border-stone-200 focus:border-luxury-gold focus:ring-luxury-gold/20 text-lg" placeholder="e.g. Mumbai" required />
+                    </div>
+                    <div className="space-y-2">
+                        <Label className="text-base font-medium text-luxury-black">State *</Label>
+                        <Input value={addressData.state} onChange={(e) => handleAddressChange("state", e.target.value)} className="h-12 bg-[#F5F2EB]/30 border-stone-200 focus:border-luxury-gold focus:ring-luxury-gold/20 text-lg" placeholder="e.g. Maharashtra" required />
+                    </div>
+                    <div className="space-y-2 md:col-span-2">
+                        <Label className="text-base font-medium text-luxury-black">Pincode *</Label>
+                        <Input type="text" inputMode="numeric" value={addressData.pincode} onChange={(e) => handleAddressChange("pincode", e.target.value)} className="h-12 bg-[#F5F2EB]/30 border-stone-200 focus:border-luxury-gold focus:ring-luxury-gold/20 text-lg" placeholder="6-digit postal code" maxLength={6} required pattern="^[0-9]{6}$" />
+                    </div>
+                </div>
+                {addressError && <p className="mt-4 text-sm font-medium text-red-600">{addressError}</p>}
             </section>
 
             <section className="bg-white rounded-3xl p-8 border border-stone-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-shadow duration-300">

@@ -60,6 +60,33 @@ model Creator {
   product_groups    ProductGroup[]
   order_items       OrderItem[]
   payouts           Payout[]
+  address           CreatorAddress?
+}
+
+// ============================================
+// CREATOR ADDRESS (business/payout contact)
+// Separate from UserAddress (buyer shipping)
+// ============================================
+
+model CreatorAddress {
+  address_id    String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  creator_id    String   @unique @db.Uuid
+  full_name     String
+  phone         String
+  address_line1 String
+  address_line2 String?
+  city          String
+  state         String
+  pincode       String
+  country       String   @default("India")
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+
+  creator Creator @relation(fields: [creator_id], references: [creator_id], onDelete: Cascade)
+
+  // @unique on creator_id already creates an implicit index in Postgres.
+  // No additional @@index needed — avoids redundant over-indexing.
+  @@map("creator_addresses")
 }
 
 model CreatorLimit {
