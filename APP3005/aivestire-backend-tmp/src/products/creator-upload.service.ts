@@ -25,6 +25,19 @@ export class CreatorUploadService {
     private readonly smsQueueService: SmsQueueService,
   ) {}
 
+  private getAdminAlertPhonesFromEnv(): string[] {
+    const raw = process.env.ADMIN_ORDER_ALERT_PHONES || '';
+
+    return Array.from(
+      new Set(
+        raw
+          .split(/[\s,;]+/)
+          .map((phone) => phone.trim())
+          .filter(Boolean),
+      ),
+    );
+  }
+
   // ──────────────────────────────────────────────────────────────────────────
   // PUBLIC: Create full Product → Pattern → ColorVariant hierarchy
   // ──────────────────────────────────────────────────────────────────────────
@@ -179,18 +192,20 @@ export class CreatorUploadService {
           phone: true,
         },
       });
+      const envAdminPhones = this.getAdminAlertPhonesFromEnv();
       const uniqueAdminPhones = Array.from(
-        new Set(
-          adminRecipients
+        new Set([
+          ...adminRecipients
             .map((admin) => admin.phone?.trim())
             .filter((phone): phone is string => Boolean(phone)),
-        ),
+          ...envAdminPhones,
+        ]),
       );
       const hierarchy = await this.getProductHierarchy(product.product_id);
 
       if (!creatorUser?.phone && uniqueAdminPhones.length === 0) {
         this.logger.warn(
-          `Product ${product.product_id}: no creator/admin phone numbers found — skipping upload SMS`,
+          `Product ${product.product_id}: no creator/admin phone numbers found in DB or ADMIN_ORDER_ALERT_PHONES — skipping upload SMS`,
         );
       } else {
         // Derive a friendly display name from the email (e.g. priya.sharma@... → Priya)
@@ -222,6 +237,12 @@ export class CreatorUploadService {
         }
 
         const recipients = Array.from(recipientsByPhone.values());
+
+        if (envAdminPhones.length > 0) {
+          this.logger.log(
+            `Product ${product.product_id}: using ${envAdminPhones.length} admin SMS recipient(s) from ADMIN_ORDER_ALERT_PHONES`,
+          );
+        }
 
         await Promise.all(
           recipients.map(({ to, dashboardUrl }) =>
