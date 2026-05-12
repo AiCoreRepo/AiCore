@@ -14,7 +14,12 @@ services:
       SERVICE_ACCOUNT_FALLBACK_PATH: /app/runtime-config/service_account.json
       AI_TIMING_LOGS: "true"
       RECOMMENDATION_DUMMY_ONLY: "true"
-    command: ["sh", "-c", "set -e; node scripts/bootstrap-service-account.mjs; node dist/src/main.js"]
+    command:
+      [
+        "sh",
+        "-c",
+        "set -e; node scripts/bootstrap-service-account.mjs; node scripts/wait-for-services.mjs; node scripts/run-migrations.mjs; node dist/src/main.js"
+      ]
     volumes:
       - ./aivestire-backend-tmp:/app/runtime-config:ro
     ports:
@@ -25,6 +30,16 @@ services:
       redis:
         condition: service_healthy
     restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "node -e \"require('http').get('http://localhost:3000/health', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))\""
+        ]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
     networks:
       - app-network
 
@@ -32,7 +47,12 @@ services:
     build:
       context: ./aivestire-backend-tmp
     container_name: nest-worker
-    command: ["sh", "-c", "set -e; node scripts/bootstrap-service-account.mjs; IS_WORKER_PROCESS=true node dist/src/worker/main.js"]
+    command:
+      [
+        "sh",
+        "-c",
+        "set -e; node scripts/bootstrap-service-account.mjs; node scripts/wait-for-services.mjs; IS_WORKER_PROCESS=true node dist/src/worker/main.js"
+      ]
     env_file:
       - ./aivestire-backend-tmp/.env
     environment:
@@ -50,6 +70,8 @@ services:
       db:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      backend:
         condition: service_healthy
     restart: unless-stopped
     networks:

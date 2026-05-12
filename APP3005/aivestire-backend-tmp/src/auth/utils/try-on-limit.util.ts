@@ -1,6 +1,6 @@
 import type { Request } from 'express';
 
-export const DEFAULT_TRY_ON_LIMIT = 10;
+export const DEFAULT_TRY_ON_LIMIT = 3;
 export const DEFAULT_AVATAR_RECREATION_LIMIT = 2;
 export const NON_PROD_TRY_ON_LIMIT = 200;
 export const NON_PROD_AVATAR_RECREATION_LIMIT = 200;
@@ -91,8 +91,8 @@ export function getEffectiveTryOnLimit(
     return Math.max(storedLimit, NON_PROD_TRY_ON_LIMIT);
   }
 
-  // Production standardizes all regular accounts to at least the default limit.
-  return Math.max(storedLimit, DEFAULT_TRY_ON_LIMIT);
+  // Production standardizes all regular accounts to the enforced default cap.
+  return DEFAULT_TRY_ON_LIMIT;
 }
 
 export function getEffectiveAvatarRecreationLimit(
