@@ -46,7 +46,7 @@ RUN sed -i 's/lazyConnect: true,\?//g' /app/dist/src/queues/queue.module.js \
 
 EXPOSE 3000
 
-CMD ["node", "dist/src/main"]
+CMD ["node", "dist/src/main.js"]
 
 # =========================
 # Frontend (Vite + Nginx)

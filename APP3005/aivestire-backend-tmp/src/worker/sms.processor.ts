@@ -9,7 +9,10 @@ import type { Job } from 'bull';
 import { QUEUE_NAMES, JOB_NAMES } from '../common/constants/queue.constants';
 import { TwilioService } from '../common/twilio.service';
 import type { SmsJobData } from '../queues/sms-queue.service';
-import { buildAdminOrderAlertSms } from '../common/sms-templates/order.sms-template';
+import {
+  buildAdminOrderAlertSms,
+  buildOrderConfirmationSms,
+} from '../common/sms-templates/order.sms-template';
 import { buildCreatorUploadSms } from '../common/sms-templates/creator.sms-template';
 import {
   NON_RETRIABLE_TWILIO_CODES,
@@ -52,7 +55,7 @@ export class SmsProcessor {
       `📲 Processing order confirmation SMS — Order ${payload.orderNumber} → ${payload.to}`,
     );
 
-    const body = buildAdminOrderAlertSms(payload);
+    const body = buildOrderConfirmationSms(payload);
     await this.sendSms(payload.to, body, job);
 
     this.logger.log(

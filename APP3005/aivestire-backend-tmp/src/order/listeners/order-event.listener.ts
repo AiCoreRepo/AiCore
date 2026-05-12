@@ -24,6 +24,19 @@ export class OrderEventListener {
     private readonly smsQueueService: SmsQueueService,
   ) {}
 
+  private getAdminAlertPhonesFromEnv(): string[] {
+    const raw = process.env.ADMIN_ORDER_ALERT_PHONES || '';
+
+    return Array.from(
+      new Set(
+        raw
+          .split(/[\s,;]+/)
+          .map((phone) => phone.trim())
+          .filter(Boolean),
+      ),
+    );
+  }
+
   // ============================================
   // ORDER LIFECYCLE EVENTS
   // ============================================
@@ -35,8 +48,9 @@ export class OrderEventListener {
       process.env.FRONTEND_URL || 'http://localhost:3005'
     ).replace(/\/+$/, '');
     const adminLoginUrl = `${frontendBaseUrl}/admin-login`;
+    const myOrdersUrl = `${frontendBaseUrl}/my-orders/${event.order.order_id}`;
 
-    // ─── SMS: Admin Order Alert ──────────────────────────────────────────
+    // ─── SMS: Customer confirmation + Admin order alert ─────────────────
     try {
       const fullOrder = await this.prisma.order.findUnique({
         where: { order_id: event.order.order_id },
@@ -70,52 +84,88 @@ export class OrderEventListener {
       });
 
       if (!fullOrder) {
-        this.logger.warn(`Order ${event.order.order_id} not found for admin SMS dispatch`);
-      } else if (adminRecipients.length === 0) {
         this.logger.warn(
-          `Order ${event.order.order_number}: no admin users with phone numbers found — skipping SMS`,
+          `Order ${event.order.order_id} not found for SMS dispatch`,
         );
       } else {
-        const uniqueAdminRecipients = Array.from(
-          new Map(
-            adminRecipients
-              .filter((admin) => admin.phone)
-              .map((admin) => [admin.phone as string, admin]),
-          ).values(),
-        );
-
-        const fallbackName = fullOrder.user.email.split('@')[0]?.split('.')[0] ?? 'Customer';
+        const fallbackName =
+          fullOrder.user.email.split('@')[0]?.split('.')[0] ?? 'Customer';
         const buyerName =
           fullOrder.shipping_address?.full_name?.trim() ||
           (fallbackName.charAt(0).toUpperCase() + fallbackName.slice(1));
-        const buyerPhone = fullOrder.user?.phone || fullOrder.shipping_address?.phone || undefined;
-
-        await Promise.all(
-          uniqueAdminRecipients.map((admin) =>
-            this.smsQueueService.enqueueAdminOrderAlertSms({
-              to: admin.phone as string,
-              buyerName,
-              buyerPhone,
-              orderId: fullOrder.order_id,
-              orderNumber: fullOrder.order_number,
-              adminUrl: adminLoginUrl,
-              items: fullOrder.items.map((item) => ({
-                productName: item.product_name,
-                quantity: item.quantity,
-                size: item.size ?? undefined,
-                color: item.color ?? undefined,
-              })),
-              totalAmount: Number(fullOrder.total_amount),
-              paymentMethod: fullOrder.payment_method,
-              shippingCity: fullOrder.shipping_address?.city ?? '',
-              shippingState: fullOrder.shipping_address?.state ?? '',
-            }),
-          ),
+        const buyerPhone =
+          fullOrder.user?.phone?.trim() ||
+          fullOrder.shipping_address?.phone?.trim() ||
+          undefined;
+        const orderItems = fullOrder.items.map((item) => ({
+          productName: item.product_name,
+          quantity: item.quantity,
+          size: item.size ?? undefined,
+          color: item.color ?? undefined,
+        }));
+        const envAdminPhones = this.getAdminAlertPhonesFromEnv();
+        const uniqueAdminPhones = Array.from(
+          new Set([
+            ...adminRecipients
+              .map((admin) => admin.phone?.trim())
+              .filter((phone): phone is string => Boolean(phone)),
+            ...envAdminPhones,
+          ]),
         );
+
+        if (buyerPhone) {
+          await this.smsQueueService.enqueueOrderConfirmationSms({
+            to: buyerPhone,
+            buyerName,
+            buyerPhone,
+            orderId: fullOrder.order_id,
+            orderNumber: fullOrder.order_number,
+            ordersUrl: myOrdersUrl,
+            items: orderItems,
+            totalAmount: Number(fullOrder.total_amount),
+            paymentMethod: fullOrder.payment_method,
+            shippingCity: fullOrder.shipping_address?.city ?? '',
+            shippingState: fullOrder.shipping_address?.state ?? '',
+          });
+        } else {
+          this.logger.warn(
+            `Order ${event.order.order_number}: buyer phone missing — skipping customer order SMS`,
+          );
+        }
+
+        if (uniqueAdminPhones.length === 0) {
+          this.logger.warn(
+            `Order ${event.order.order_number}: no admin SMS recipients found in DB or ADMIN_ORDER_ALERT_PHONES — skipping admin alert SMS`,
+          );
+        } else {
+          if (envAdminPhones.length > 0) {
+            this.logger.log(
+              `Order ${event.order.order_number}: using ${envAdminPhones.length} admin SMS recipient(s) from ADMIN_ORDER_ALERT_PHONES`,
+            );
+          }
+
+          await Promise.all(
+            uniqueAdminPhones.map((phone) =>
+              this.smsQueueService.enqueueAdminOrderAlertSms({
+                to: phone,
+                buyerName,
+                buyerPhone,
+                orderId: fullOrder.order_id,
+                orderNumber: fullOrder.order_number,
+                adminUrl: adminLoginUrl,
+                items: orderItems,
+                totalAmount: Number(fullOrder.total_amount),
+                paymentMethod: fullOrder.payment_method,
+                shippingCity: fullOrder.shipping_address?.city ?? '',
+                shippingState: fullOrder.shipping_address?.state ?? '',
+              }),
+            ),
+          );
+        }
       }
     } catch (error) {
       this.logger.error(
-        `Failed to enqueue admin order alert SMS for ${event.order.order_number}:`,
+        `Failed to enqueue order SMS jobs for ${event.order.order_number}:`,
         error instanceof Error ? error.message : error,
       );
     }

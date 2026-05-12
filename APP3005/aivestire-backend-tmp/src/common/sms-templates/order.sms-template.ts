@@ -5,25 +5,75 @@
  * Kept under 320 characters where possible (2 SMS segments on most carriers).
  */
 
-export interface AdminOrderSmsPayload {
-  /** Admin's phone number (E.164 format, e.g. +919876543210) */
+export interface OrderSmsItemPayload {
+  productName: string;
+  quantity: number;
+  size?: string;
+  color?: string;
+}
+
+export interface OrderBaseSmsPayload {
+  /** Recipient phone number (E.164 format, e.g. +919876543210) */
   to: string;
   buyerName: string;
   buyerPhone?: string;
   orderId: string;
   orderNumber: string;
-  adminUrl?: string;
-  items: Array<{
-    productName: string;
-    quantity: number;
-    size?: string;
-    color?: string;
-  }>;
+  items: OrderSmsItemPayload[];
   /** Total amount in INR (rupees, not paise) */
   totalAmount: number;
   paymentMethod: string;
   shippingCity: string;
   shippingState: string;
+}
+
+export interface OrderConfirmationSmsPayload extends OrderBaseSmsPayload {
+  ordersUrl?: string;
+}
+
+export interface AdminOrderSmsPayload extends OrderBaseSmsPayload {
+  adminUrl?: string;
+}
+
+/**
+ * Build the customer order-confirmation SMS body.
+ */
+export function buildOrderConfirmationSms(
+  payload: OrderConfirmationSmsPayload,
+): string {
+  const {
+    buyerName,
+    orderNumber,
+    ordersUrl,
+    items,
+    totalAmount,
+    paymentMethod,
+    shippingCity,
+    shippingState,
+  } = payload;
+
+  const firstName = buyerName.split(' ')[0] || buyerName;
+  const previewItems = items
+    .slice(0, 2)
+    .map((item) => `${item.productName} x${item.quantity}`)
+    .join(', ');
+  const extraItems =
+    items.length > 2 ? ` +${items.length - 2} more item(s)` : '';
+  const formattedAmount = new Intl.NumberFormat('en-IN').format(totalAmount);
+  const paymentLabel = formatPaymentMethod(paymentMethod);
+  const location =
+    [shippingCity, shippingState].filter(Boolean).join(', ') || 'your address';
+
+  const lines = [
+    `AiVestire Order Confirmed`,
+    `Hi ${firstName}, your order #${orderNumber} is booked.`,
+    previewItems ? `Items: ${previewItems}${extraItems}` : null,
+    `Amount: Rs.${formattedAmount} via ${paymentLabel}`,
+    `Ship to: ${location}`,
+    ordersUrl ? `Track: ${ordersUrl}` : `We will notify you when it ships.`,
+  ].filter((line): line is string => Boolean(line));
+
+  return lines.join('\n');
 }
 
 /**

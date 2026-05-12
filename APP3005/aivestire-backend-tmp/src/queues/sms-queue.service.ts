@@ -2,14 +2,17 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bull';
 import type { Job, Queue } from 'bull';
 import { JOB_NAMES, QUEUE_NAMES } from '../common/constants/queue.constants';
-import type { AdminOrderSmsPayload } from '../common/sms-templates/order.sms-template';
+import type {
+  AdminOrderSmsPayload,
+  OrderConfirmationSmsPayload,
+} from '../common/sms-templates/order.sms-template';
 import type { CreatorUploadSmsPayload } from '../common/sms-templates/creator.sms-template';
 
 // ─── Job data shapes stored in Redis ──────────────────────────────────────────
 
 export interface OrderConfirmationJobData {
   type: typeof JOB_NAMES.ORDER_CONFIRMATION_SMS;
-  payload: AdminOrderSmsPayload;
+  payload: OrderConfirmationSmsPayload;
 }
 
 export interface AdminOrderAlertJobData {
@@ -56,7 +59,7 @@ export class SmsQueueService {
    * Called from OrderEventListener when an order is booked.
    */
   async enqueueOrderConfirmationSms(
-    payload: AdminOrderSmsPayload,
+    payload: OrderConfirmationSmsPayload,
   ): Promise<Job<SmsJobData>> {
     this.logger.log(
       `📨 Enqueuing order confirmation SMS for order ${payload.orderNumber} → ${payload.to}`,
