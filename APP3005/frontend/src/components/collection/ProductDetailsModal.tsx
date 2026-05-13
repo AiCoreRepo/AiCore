@@ -29,6 +29,7 @@ interface ProductDetailsModalProps {
             verified?: boolean;
         };
     };
+    loading?: boolean;
     onTryOn?: () => void;
     onTryOnGemini?: () => void;
     primaryTryOnLabel?: string;
@@ -39,6 +40,7 @@ export const ProductDetailsModal = ({
     isOpen,
     onClose,
     product,
+    loading = false,
     onTryOn,
     onTryOnGemini,
     primaryTryOnLabel,
@@ -113,6 +115,7 @@ export const ProductDetailsModal = ({
     const resolvedPrimaryTryOnLabel =
         primaryTryOnLabel ?? (onTryOnGemini ? 'Vertex Try On' : 'Try On');
     const resolvedSecondaryTryOnLabel = secondaryTryOnLabel ?? 'Gemini Try On';
+    const processingButtonLabel = 'View Progress';
 
     if (!isOpen) return null;
 
@@ -295,52 +298,67 @@ export const ProductDetailsModal = ({
                             </div>
 
                             {/* Action Buttons */}
-                            <div className="flex gap-3">
-                                <div
-                                    className={`flex-1 grid gap-3 ${onTryOnGemini ? 'grid-cols-2' : 'grid-cols-1'}`}
-                                >
-                                    <button
-                                        onClick={() => {
-                                            if (onTryOn) onTryOn();
-                                            onClose();
-                                        }}
-                                        className="px-6 py-4 rounded-xl font-semibold text-sm uppercase tracking-wider transition-all duration-300 hover:scale-105 shadow-[0_4px_16px_rgba(212,175,55,0.4)]"
+                            <div className="space-y-3">
+                                {loading && (
+                                    <div
+                                        className="rounded-xl px-4 py-3 text-center text-[11px] font-semibold uppercase tracking-[0.18em]"
                                         style={{
-                                            background: 'linear-gradient(135deg, #D4AF37 0%, #C9A55C 100%)',
-                                            color: '#1a1a1a',
+                                            background: '#FFF9EE',
+                                            color: '#8A6936',
+                                            border: '1px solid rgba(212, 175, 55, 0.35)',
                                         }}
                                     >
-                                        {resolvedPrimaryTryOnLabel}
-                                    </button>
-                                    {onTryOnGemini && (
+                                        Try-on in progress. Tap below to reopen it.
+                                    </div>
+                                )}
+
+                                <div className="flex gap-3">
+                                    <div
+                                        className={`flex-1 grid gap-3 ${onTryOnGemini ? 'grid-cols-2' : 'grid-cols-1'}`}
+                                    >
                                         <button
                                             onClick={() => {
-                                                onTryOnGemini();
+                                                if (onTryOn) onTryOn();
                                                 onClose();
                                             }}
-                                            className="px-6 py-4 rounded-xl font-semibold text-sm uppercase tracking-wider transition-all duration-300 hover:scale-105 border border-[#D4AF37]/60"
+                                            className="px-6 py-4 rounded-xl font-semibold text-sm uppercase tracking-wider transition-all duration-300 hover:scale-105 shadow-[0_4px_16px_rgba(212,175,55,0.4)]"
                                             style={{
-                                                background: '#FFFFFF',
+                                                background: 'linear-gradient(135deg, #D4AF37 0%, #C9A55C 100%)',
                                                 color: '#1a1a1a',
                                             }}
                                         >
-                                            {resolvedSecondaryTryOnLabel}
+                                            {loading ? processingButtonLabel : resolvedPrimaryTryOnLabel}
                                         </button>
-                                    )}
+                                        {onTryOnGemini && (
+                                            <button
+                                                onClick={() => {
+                                                    onTryOnGemini();
+                                                    onClose();
+                                                }}
+                                                className="px-6 py-4 rounded-xl font-semibold text-sm uppercase tracking-wider transition-all duration-300 hover:scale-105 border border-[#D4AF37]/60"
+                                                style={{
+                                                    background: '#FFFFFF',
+                                                    color: '#1a1a1a',
+                                                }}
+                                            >
+                                                {loading ? processingButtonLabel : resolvedSecondaryTryOnLabel}
+                                            </button>
+                                        )}
+                                    </div>
+                                    <button
+                                        onClick={handleLike}
+                                        disabled={isLiking}
+                                        className="w-14 h-14 rounded-xl flex items-center justify-center transition-all duration-300 hover:scale-110 disabled:opacity-50"
+                                        style={{
+                                            background: isLiked ? 'linear-gradient(135deg, #D4AF37 0%, #C9A55C 100%)' : '#F8F4EC',
+                                        }}
+                                    >
+                                        <Heart
+                                            className={`w-6 h-6 ${isLiked ? 'text-white fill-white' : 'text-gray-600'}`}
+                                            strokeWidth={2}
+                                        />
+                                    </button>
                                 </div>
-                                <button
-                                    onClick={handleLike}
-                                    disabled={isLiking}
-                                    className="w-14 h-14 rounded-xl flex items-center justify-center transition-all duration-300 hover:scale-110 disabled:opacity-50"
-                                    style={{
-                                        background: isLiked ? 'linear-gradient(135deg, #D4AF37 0%, #C9A55C 100%)' : '#F8F4EC',
-                                    }}
-                                >
-                                    <Heart
-                                        className={`w-6 h-6 ${isLiked ? 'text-white fill-white' : 'text-gray-600'}`}
-                                        strokeWidth={2}
-                                    />
-                                </button>
                             </div>
                         </div>
                     </div>

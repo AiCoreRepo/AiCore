@@ -319,6 +319,11 @@ const CollectionPage = () => {
         product: PublicProduct,
         provider: TryOnProvider = defaultTryOnProvider,
     ) => {
+        if (tryOnLoading || generatingAngles) {
+            setShowResultModal(true);
+            return;
+        }
+
         const token = localStorage.getItem('access_token');
         if (!token) {
             navigate('/user-login');
@@ -801,6 +806,10 @@ const CollectionPage = () => {
                                     <ProductCard
                                         key={product.product_id}
                                         product={product}
+                                        loading={
+                                            selectedTryOnProduct?.product_id === product.product_id &&
+                                            (tryOnLoading || generatingAngles)
+                                        }
                                         onTryOn={() =>
                                             handleTryOn(
                                                 product,

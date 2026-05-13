@@ -44,6 +44,7 @@ export function ClothingItemCard({
     const resolvedPrimaryTryOnLabel =
         primaryTryOnLabel ?? (onTryOnGemini ? 'Vertex Try On' : 'Try On');
     const resolvedSecondaryTryOnLabel = secondaryTryOnLabel ?? 'Gemini Try On';
+    const processingButtonLabel = 'View Progress';
 
     return (
         <>
@@ -120,7 +121,7 @@ export function ClothingItemCard({
                                 }}
                             >
                                 <Zap className="w-3 h-3 fill-[#0f0f0f]" />
-                                {loading ? 'Processing...' : resolvedPrimaryTryOnLabel}
+                                {loading ? processingButtonLabel : resolvedPrimaryTryOnLabel}
                             </button>
                             {onTryOnGemini && (
                                 <button
@@ -138,7 +139,7 @@ export function ClothingItemCard({
                                     }}
                                 >
                                     <Sparkles className="w-3 h-3 text-luxury-gold" />
-                                    {loading ? 'Processing...' : resolvedSecondaryTryOnLabel}
+                                    {loading ? processingButtonLabel : resolvedSecondaryTryOnLabel}
                                 </button>
                             )}
                         </div>
@@ -147,7 +148,12 @@ export function ClothingItemCard({
 
                 {/* Loading Overlay */}
                 {loading && (
-                    <div
+                    <button
+                        type="button"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onTryOn();
+                        }}
                         className="absolute inset-0 flex items-center justify-center"
                         style={{
                             background: 'rgba(255, 255, 255, 0.95)',
@@ -161,8 +167,11 @@ export function ClothingItemCard({
                             <p className="text-sm font-medium text-charcoal">
                                 Creating your try-on...
                             </p>
+                            <p className="mt-1 text-xs font-medium uppercase tracking-[0.18em] text-neutral-500">
+                                Tap to reopen progress
+                            </p>
                         </div>
-                    </div>
+                    </button>
                 )}
             </div>
 
@@ -172,6 +181,7 @@ export function ClothingItemCard({
                 product={product}
                 onTryOn={onTryOn}
                 onTryOnGemini={onTryOnGemini}
+                loading={loading}
                 primaryTryOnLabel={resolvedPrimaryTryOnLabel}
                 secondaryTryOnLabel={resolvedSecondaryTryOnLabel}
             />

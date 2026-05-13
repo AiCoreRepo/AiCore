@@ -31,6 +31,7 @@ interface ProductCardProps {
             verified: boolean;
         };
     };
+    loading?: boolean;
     onTryOn?: () => void;
     onTryOnGemini?: () => void;
     primaryTryOnLabel?: string;
@@ -41,6 +42,7 @@ import { useNavigate } from "react-router-dom";
 
 export const ProductCard = ({
     product,
+    loading = false,
     onTryOn,
     onTryOnGemini,
     primaryTryOnLabel,
@@ -122,6 +124,7 @@ export const ProductCard = ({
     const resolvedPrimaryTryOnLabel =
         primaryTryOnLabel ?? (onTryOnGemini ? 'Vertex Try On' : 'Try On');
     const resolvedSecondaryTryOnLabel = secondaryTryOnLabel ?? 'Gemini Try On';
+    const processingButtonLabel = 'View Progress';
 
     return (
         <>
@@ -247,6 +250,19 @@ export const ProductCard = ({
                                 <div
                                     className={`grid gap-2 ${onTryOnGemini ? 'grid-cols-2' : 'grid-cols-1'}`}
                                 >
+                                    {loading && (
+                                        <div
+                                            className={`rounded-lg px-3 py-2 text-center text-[10px] font-semibold uppercase tracking-[0.16em] ${onTryOnGemini ? 'col-span-2' : ''}`}
+                                            style={{
+                                                background: 'rgba(255, 255, 255, 0.92)',
+                                                color: '#7C6120',
+                                                border: '1px solid rgba(212, 175, 55, 0.45)',
+                                                boxShadow: '0 4px 14px rgba(255, 255, 255, 0.22)',
+                                            }}
+                                        >
+                                            Try-on in progress. Tap to reopen.
+                                        </div>
+                                    )}
                                     <button
                                         onClick={(e) => {
                                             e.stopPropagation();
@@ -259,7 +275,7 @@ export const ProductCard = ({
                                             boxShadow: '0 4px 16px rgba(212, 175, 55, 0.5)',
                                         }}
                                     >
-                                        {resolvedPrimaryTryOnLabel}
+                                        {loading ? processingButtonLabel : resolvedPrimaryTryOnLabel}
                                     </button>
                                     {onTryOnGemini && (
                                         <button
@@ -275,7 +291,7 @@ export const ProductCard = ({
                                                 border: '1px solid rgba(212, 175, 55, 0.6)',
                                             }}
                                         >
-                                            {resolvedSecondaryTryOnLabel}
+                                            {loading ? processingButtonLabel : resolvedSecondaryTryOnLabel}
                                         </button>
                                     )}
                                 </div>

@@ -246,6 +246,11 @@ const AiTryOn = () => {
     provider: TryOnProvider = defaultTryOnProvider,
     sourceProduct?: TryOnProduct | null,
   ) => {
+    if (tryOnLoading || generatingAngles) {
+      setShowResultModal(true);
+      return;
+    }
+
     if (!hasFreeTryOnsRemaining) {
       openUpgradePopup();
       return;
@@ -724,8 +729,10 @@ const AiTryOn = () => {
                                         : undefined
                                     }
                                     loading={
-                                      selectedProduct === product.product_id &&
-                                      tryOnLoading
+                                      (selectedProduct === product.product_id &&
+                                        tryOnLoading) ||
+                                      (currentProductId === product.product_id &&
+                                        generatingAngles)
                                     }
                                   />
                                 ))}
