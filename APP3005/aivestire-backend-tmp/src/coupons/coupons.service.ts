@@ -66,8 +66,8 @@ export class CouponsService {
             isStackable: coupon.is_stackable,
             scope: coupon.scope ? {
                 scopeType: coupon.scope.scope_type,
-                minPrice: coupon.scope.min_price ? Number(coupon.scope.min_price) : null,
-                maxPrice: coupon.scope.max_price ? Number(coupon.scope.max_price) : null,
+                minPrice: coupon.scope.min_price !== null && coupon.scope.min_price !== undefined ? Number(coupon.scope.min_price) : null,
+                maxPrice: coupon.scope.max_price !== null && coupon.scope.max_price !== undefined ? Number(coupon.scope.max_price) : null,
                 festivalKey: coupon.scope.festival_key,
             } : null,
             createdAt: coupon.created_at.toISOString(),

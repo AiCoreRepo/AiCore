@@ -1,12 +1,12 @@
 import React, { useState, useCallback, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import LuxeSidebar from "../../components/common/LuxeSidebar";
+import { creatorNavLinks } from "@/components/creator/creatorNavLinks";
 import { useSidebar } from "@/context/SidebarContext";
 import { getProfile, getCategories, type Category } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import {
-  LayoutDashboard, Shirt, Upload, Ticket, BarChart3,
-  Settings, Menu, Plus, Trash2, ChevronDown, ChevronUp,
+  Menu, Plus, Trash2, ChevronDown, ChevronUp,
   Image as ImageIcon, Loader2, CheckCircle2, AlertCircle,
   Sparkles, Layers, Palette, Package2, Info, ArrowLeft, X,
   FolderTree, IndianRupee,
@@ -468,15 +468,6 @@ const CreatorUploadPage: React.FC = () => {
   const [patterns, setPatterns] = useState<PatternForm[]>([makePattern()]);
   const [patternToDelete, setPatternToDelete] = useState<number | null>(null);
 
-  const navLinks = [
-    { label: "Dashboard", icon: <LayoutDashboard size={20} />, href: "/creator-dashboard" },
-    { label: "My Wardrobe", icon: <Shirt size={20} />, href: "/wardrobe" },
-    { label: "Upload Product", icon: <Upload size={20} />, href: "/creator-upload" },
-    { label: "My Coupons", icon: <Ticket size={20} />, href: "/creator-coupons" },
-    { label: "Analytics", icon: <BarChart3 size={20} />, href: "/analytics" },
-    { label: "Settings", icon: <Settings size={20} />, href: "/settings" },
-  ];
-
   useEffect(() => {
     getProfile().then(p => setUser({ name: p.name || p.store_name || "Creator", avatar: p.avatar || user.avatar, role: p.role || "Creator", subtitle: p.subtitle || "" })).catch(() => {});
     getCategories().then(c => setCategories(c || [])).catch(() => {});
@@ -569,7 +560,7 @@ const CreatorUploadPage: React.FC = () => {
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(201,165,95,0.5); }
       `}</style>
       
-      <LuxeSidebar user={user} navLinks={navLinks} />
+      <LuxeSidebar user={user} navLinks={creatorNavLinks} />
 
       <div className="flex-1 flex flex-col min-h-screen transition-all duration-300" style={{ marginLeft: sidebarWidth }}>
         {isMobile && (

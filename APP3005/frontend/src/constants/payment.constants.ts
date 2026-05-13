@@ -2,8 +2,8 @@
 // OnlineMethods (UPI, Card, NetBanking, Wallets, EMI) all redirect to PayU
 // COD and Aivestire Wallet are handled internally
 export const PAYMENT_METHODS = [
-    { id: 'cod',             label: 'Cash On Delivery',   icon: 'Banknote',   offers: null },
     { id: 'payu',            label: 'Pay via Cards / UPI / NetBanking', icon: 'CreditCard', offers: 'Secured by PayU' },
+    { id: 'cod',             label: 'Cash On Delivery',   icon: 'Banknote',   offers: null },
     { id: 'aivestire-wallet', label: 'Aivestire Wallet',  icon: 'Sparkles',   offers: null },
 ] as const;
 
@@ -11,22 +11,6 @@ export type PaymentMethodId = typeof PAYMENT_METHODS[number]['id'];
 
 // COD Fee in cents (₹10)
 export const COD_FEE_CENTS = 1000;
-
-// Bank Offers (shown in the collapsible section)
-export const BANK_OFFERS = [
-    {
-        id: 'hdfc',
-        title: '10% Instant Discount on HDFC Bank Credit Cards',
-        description: 'Get 10% off up to ₹500 on HDFC Bank Credit Cards',
-        minSpend: 350000,
-    },
-    {
-        id: 'icici',
-        title: '5% Instant Discount on ICICI Bank Cards',
-        description: 'Get 5% off up to ₹300 on ICICI Bank Cards',
-        minSpend: 200000,
-    },
-] as const;
 
 // Payment Messages
 export const PAYMENT_MESSAGES = {

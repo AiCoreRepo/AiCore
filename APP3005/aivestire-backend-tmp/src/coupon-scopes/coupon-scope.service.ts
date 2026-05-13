@@ -113,16 +113,13 @@ export class CouponScopeService {
         if (minPrice === undefined || minPrice === null) {
             throw new BadRequestException('Min price is required for Price Level scope');
         }
-        if (maxPrice === undefined || maxPrice === null) {
-            throw new BadRequestException('Max price is required for Price Level scope');
-        }
         if (minPrice < 0) {
             throw new BadRequestException('Min price cannot be negative');
         }
-        if (maxPrice <= 0) {
+        if (maxPrice !== undefined && maxPrice !== null && maxPrice <= 0) {
             throw new BadRequestException('Max price must be greater than 0');
         }
-        if (minPrice >= maxPrice) {
+        if (maxPrice !== undefined && maxPrice !== null && minPrice >= maxPrice) {
             throw new BadRequestException('Min price must be less than max price');
         }
     }
@@ -145,8 +142,8 @@ export class CouponScopeService {
             scopeId: scope.scope_id,
             couponId: scope.coupon_id,
             scopeType: scope.scope_type,
-            minPrice: scope.min_price ? Number(scope.min_price) : null,
-            maxPrice: scope.max_price ? Number(scope.max_price) : null,
+            minPrice: scope.min_price !== null && scope.min_price !== undefined ? Number(scope.min_price) : null,
+            maxPrice: scope.max_price !== null && scope.max_price !== undefined ? Number(scope.max_price) : null,
             festivalKey: scope.festival_key,
             companyAnniversaryDate: scope.company_anniversary_date ? scope.company_anniversary_date.toISOString() : null,
             createdAt: scope.created_at?.toISOString(),

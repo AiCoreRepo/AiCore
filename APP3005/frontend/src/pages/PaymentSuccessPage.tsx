@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { CheckCircle2, Package, ArrowRight, ShoppingBag } from 'lucide-react';
+import { CheckCircle2, Package, ArrowRight, ShoppingBag, Truck } from 'lucide-react';
 import { useCart } from '@/context/CartContext';
+import { getEstimatedDeliveryWindow } from '@/features/orders/utils/order.utils';
 
 const GOLD = '#D4AF37';
 
@@ -16,6 +17,7 @@ const PaymentSuccessPage = () => {
         sessionStorage.getItem('pending_order_number') ||
         '';
     const [countdown, setCountdown] = useState(5);
+    const estimatedDelivery = getEstimatedDeliveryWindow(new Date());
 
     // Order creation already removes purchased items from the backend cart.
     // Keep this local-only so a stale / expired auth token cannot log the user out here.
@@ -68,6 +70,30 @@ const PaymentSuccessPage = () => {
                     <p className="text-sm text-gray-400 mb-8">
                         You'll receive a confirmation shortly.
                     </p>
+
+                    {estimatedDelivery && (
+                        <div className="mb-8 rounded-2xl border bg-white p-4 text-left shadow-sm" style={{ borderColor: `${GOLD}25` }}>
+                            <div className="flex items-start gap-3">
+                                <div
+                                    className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full"
+                                    style={{ backgroundColor: `${GOLD}12` }}
+                                >
+                                    <Truck className="w-5 h-5" style={{ color: GOLD }} />
+                                </div>
+                                <div>
+                                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em]" style={{ color: GOLD }}>
+                                        Estimated Delivery
+                                    </p>
+                                    <p className="mt-1 text-sm font-semibold text-gray-800">
+                                        {estimatedDelivery.rangeLabel}
+                                    </p>
+                                    <p className="mt-1 text-xs text-gray-500">
+                                        Within {estimatedDelivery.businessDaysLabel}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    )}
 
                     <div className="space-y-3">
                         <button

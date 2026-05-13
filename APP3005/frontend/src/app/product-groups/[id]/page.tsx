@@ -2,9 +2,10 @@
 
 import React, { useState, useEffect } from "react";
 import LuxeSidebar from "@/components/common/LuxeSidebar";
+import { creatorNavLinks } from "@/components/creator/creatorNavLinks";
 import CategoryProductsContent from "@/components/product-groups/CategoryProductsContent";
 import { useAuth } from "@/context/AuthContext";
-import { LayoutDashboard, Shirt, BarChart3, Settings, Ticket, Upload, FolderTree, Menu } from "lucide-react";
+import { Menu } from "lucide-react";
 import { useSidebar } from "@/context/SidebarContext";
 import { useParams } from "react-router-dom";
 
@@ -13,14 +14,6 @@ const CategoryProductsPage: React.FC = () => {
     const { sidebarWidth, toggleSidebar, isMobile } = useSidebar();
     const params = useParams();
     const groupId = params.id as string;
-
-    const navLinks = [
-        { label: "Dashboard", icon: <LayoutDashboard size={20} />, href: "/creator-dashboard" },
-        { label: "My Wardrobe", icon: <Shirt size={20} />, href: "/wardrobe" },
-        { label: "My Coupons", icon: <Ticket size={20} />, href: "/creator-coupons" },
-        { label: "Analytics", icon: <BarChart3 size={20} />, href: "/analytics" },
-        { label: "Settings", icon: <Settings size={20} />, href: "/settings" },
-    ];
 
     const sidebarUser = user ? {
         name: user.store_name || "Creator",
@@ -34,7 +27,7 @@ const CategoryProductsPage: React.FC = () => {
 
     return (
         <div className="min-h-screen flex" style={{ background: 'linear-gradient(135deg, #FFFDF5 0%, #FFFBEB 100%)' }}>
-            <LuxeSidebar user={sidebarUser} navLinks={navLinks} />
+            <LuxeSidebar user={sidebarUser} navLinks={creatorNavLinks} />
             <div className="flex-1 transition-all duration-300 ease-in-out" style={{ marginLeft: sidebarWidth }}>
                 <div className="min-h-screen p-4 md:p-10">
                     {isMobile && (

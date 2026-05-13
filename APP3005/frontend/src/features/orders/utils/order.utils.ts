@@ -210,6 +210,78 @@ export const getRelativeTime = (dateString: string): string => {
     return formatOrderDate(dateString);
 };
 
+export const ESTIMATED_DELIVERY_MIN_BUSINESS_DAYS = 7;
+export const ESTIMATED_DELIVERY_MAX_BUSINESS_DAYS = 10;
+
+const ESTIMATED_DELIVERY_STATUSES: OrderStatus[] = [
+    'PENDING',
+    'PENDING_APPROVAL',
+    'ORDER_PLACED',
+    'BOOKED',
+    'DISPATCHED',
+    'SHIPPED',
+    'OUT_FOR_DELIVERY',
+];
+
+export interface EstimatedDeliveryWindow {
+    startDate: Date;
+    endDate: Date;
+    rangeLabel: string;
+    businessDaysLabel: string;
+}
+
+const isBusinessDay = (date: Date): boolean => {
+    const day = date.getDay();
+    return day !== 0 && day !== 6;
+};
+
+const addBusinessDays = (input: string | Date, businessDays: number): Date | null => {
+    const baseDate = new Date(input);
+    if (Number.isNaN(baseDate.getTime())) return null;
+
+    const result = new Date(baseDate);
+    result.setHours(12, 0, 0, 0);
+
+    let remainingDays = businessDays;
+    while (remainingDays > 0) {
+        result.setDate(result.getDate() + 1);
+        if (isBusinessDay(result)) {
+            remainingDays -= 1;
+        }
+    }
+
+    return result;
+};
+
+const formatEstimatedDeliveryDate = (date: Date): string =>
+    date.toLocaleDateString('en-IN', {
+        day: 'numeric',
+        month: 'short',
+    });
+
+export const shouldShowEstimatedDelivery = (status?: OrderStatus | string | null): boolean => {
+    if (!status) return false;
+    return ESTIMATED_DELIVERY_STATUSES.includes(status as OrderStatus);
+};
+
+export const getEstimatedDeliveryWindow = (
+    input: string | Date,
+    minBusinessDays = ESTIMATED_DELIVERY_MIN_BUSINESS_DAYS,
+    maxBusinessDays = ESTIMATED_DELIVERY_MAX_BUSINESS_DAYS
+): EstimatedDeliveryWindow | null => {
+    const startDate = addBusinessDays(input, minBusinessDays);
+    const endDate = addBusinessDays(input, maxBusinessDays);
+
+    if (!startDate || !endDate) return null;
+
+    return {
+        startDate,
+        endDate,
+        rangeLabel: `${formatEstimatedDeliveryDate(startDate)} - ${formatEstimatedDeliveryDate(endDate)}`,
+        businessDaysLabel: `${minBusinessDays}-${maxBusinessDays} business days`,
+    };
+};
+
 // ============================================
 // FILTER HELPERS
 // ============================================

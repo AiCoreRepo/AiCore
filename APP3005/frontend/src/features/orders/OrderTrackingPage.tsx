@@ -4,7 +4,11 @@ import { ArrowLeft, Truck, CheckCircle, Package, MapPin, Phone, Mail, RefreshCw,
 import { UserDashboardLayout } from '@/components/layout/UserDashboardLayout';
 import { ordersApi } from './api/orders.api';
 import { Order } from './types/order.types';
-import { formatRefundStatus } from './utils/order.utils';
+import {
+    formatRefundStatus,
+    getEstimatedDeliveryWindow,
+    shouldShowEstimatedDelivery,
+} from './utils/order.utils';
 
 // ── Status pipeline — labels match admin page STATUS_META exactly ─────────────
 const STEPS = [
@@ -252,6 +256,9 @@ export const OrderTrackingPage = () => {
     const currentStepIndex = getStepIndex(currentStatus);
     const statusMessage = getStatusMessage(currentStatus);
     const addr = order.shipping_address;
+    const estimatedDelivery = shouldShowEstimatedDelivery(currentStatus)
+        ? getEstimatedDeliveryWindow(order.created_at)
+        : null;
 
     return (
         <UserDashboardLayout>
@@ -303,8 +310,10 @@ export const OrderTrackingPage = () => {
                                     {statusMessage.title}
                                 </h1>
                                 <p className="text-sm text-[#6B6B6B]">{statusMessage.subtitle}</p>
-                                {!isDelivered && !isCancelled && (
-                                    <p className="text-xs text-[#999999] mt-1">Estimated Delivery: 3–5 Days</p>
+                                {estimatedDelivery && (
+                                    <p className="text-xs text-[#999999] mt-1">
+                                        Estimated delivery: {estimatedDelivery.rangeLabel} ({estimatedDelivery.businessDaysLabel})
+                                    </p>
                                 )}
                                 {isCancelled && order.cancellation_reason && (
                                     <div className="mt-4 p-3 bg-red-50 rounded-lg mx-auto max-w-sm">

@@ -7,7 +7,7 @@ import { usePayU, type PayUExtraFields } from '@/hooks/usePayU';
 import type { CreateOrderPayload } from '@/features/orders/types/order.types';
 import {
     Banknote, Smartphone, CreditCard, Building2, Wallet, Calculator,
-    ChevronDown, MapPin, Edit2, Gift, ShieldCheck, Lock, Check, Sparkles,
+    MapPin, Edit2, ShieldCheck, Lock, Check, Sparkles,
 } from 'lucide-react';
 import { useCart } from '@/context/CartContext';
 import { Navbar } from '@/components/Navbar';
@@ -15,7 +15,7 @@ import { Footer } from '@/components/Footer';
 import { useWallet } from '@/hooks/useWallet';
 import { AddressSelector } from '@/components/cart/AddressSelector';
 import type { Address } from '@/constants/address.constants';
-import { PAYMENT_METHODS, COD_FEE_CENTS, BANK_OFFERS } from '@/constants/payment.constants';
+import { PAYMENT_METHODS, COD_FEE_CENTS } from '@/constants/payment.constants';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getAddresses } from '@/lib/api';
 
@@ -197,9 +197,7 @@ const PaymentPage = () => {
     const { wallet } = useWallet();
     const { redirectToPayU } = usePayU();
 
-    const [selectedMethod, setSelectedMethod] = useState('cod');
-    const [selectedSubMethod, setSelectedSubMethod] = useState<{ pg: string; bankcode: string; id: string } | null>(null);
-    const [showBankOffers, setShowBankOffers] = useState(false);
+    const [selectedMethod, setSelectedMethod] = useState('payu');
     const [showAddressSelector, setShowAddressSelector] = useState(false);
     const [selectedAddress, setSelectedAddress] = useState<Address | null>(null);
     const [isLoadingAddress, setIsLoadingAddress] = useState(true);
@@ -207,10 +205,9 @@ const PaymentPage = () => {
 
     const state = location.state as LocationState;
 
-    // Reset sub-method selection when switching top-level method
+    // Switch top-level payment method
     const setMethod = (m: string) => {
         setSelectedMethod(m);
-        setSelectedSubMethod(null);
     };
 
     useEffect(() => {
@@ -299,7 +296,7 @@ const PaymentPage = () => {
             setIsPlacingOrder(false);
             toast({ title: 'Order Failed', description: err?.response?.data?.message || err?.message || 'Please try again.', variant: 'destructive' });
         }
-    }, [selectedAddress, cart.items, isCOD, isAivestireWallet, isOnlinePayU, selectedMethod, selectedSubMethod, state, redirectToPayU, navigate, toast]);
+    }, [selectedAddress, cart.items, isCOD, isAivestireWallet, isOnlinePayU, selectedMethod, state, redirectToPayU, navigate, toast]);
 
     // ── Button label ──────────────────────────────────────────────────────────
     const buttonLabel = () => {
@@ -432,24 +429,6 @@ const PaymentPage = () => {
                                 </div>
                             </div>
 
-                            {/* Bank Offers */}
-                            <div className="bg-white border border-gray-200 rounded">
-                                <button onClick={() => setShowBankOffers(!showBankOffers)} className="w-full p-4 flex items-center justify-between">
-                                    <div className="flex items-center gap-3">
-                                        <span className="text-lg">🏦</span>
-                                        <div className="text-left"><p className="font-semibold text-sm">Bank Offer</p><p className="text-xs text-gray-500">{BANK_OFFERS[0].title}</p></div>
-                                    </div>
-                                    <ChevronDown className="w-5 h-5 text-gray-400 transition-transform" style={{ transform: showBankOffers ? 'rotate(180deg)' : 'rotate(0)' }} />
-                                </button>
-                                <AnimatePresence>
-                                    {showBankOffers && (
-                                        <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden border-t border-gray-100">
-                                            <div className="p-4 text-sm text-gray-600 space-y-2">{BANK_OFFERS.map(o => <p key={o.id}>• {o.description}</p>)}</div>
-                                        </motion.div>
-                                    )}
-                                </AnimatePresence>
-                            </div>
-
                             {/* Payment Panel */}
                             <div className="bg-white border border-gray-200 rounded overflow-hidden">
                                 <h2 className="font-semibold text-sm uppercase tracking-wide text-gray-600 p-4 border-b border-gray-200">Choose Payment Mode</h2>
@@ -514,10 +493,6 @@ const PaymentPage = () => {
                                 </div>
                             </div>
 
-                            <div className="bg-white border border-gray-200 rounded p-4 flex items-center justify-between">
-                                <div className="flex items-center gap-3"><Gift className="w-5 h-5 text-gray-500" /><span className="font-medium text-sm">Have a Gift Card?</span></div>
-                                <button className="text-sm font-medium uppercase" style={{ color: GOLD }}>Apply Gift Card</button>
-                            </div>
                         </div>
 
                         {/* ── RIGHT: Summary ────────────────────────────────── */}

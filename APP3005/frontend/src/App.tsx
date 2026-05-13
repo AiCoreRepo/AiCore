@@ -17,7 +17,6 @@ import CreatorLogin from "./pages/CreatorLogin";
 import AiTryOn from "./pages/AiTryOn";
 import DashboardPage from "./app/dashboard/page";
 import CreatorOnboardingPage from "./app/creator-onboarding/page";
-import CreatorCouponsPage from "./app/creator-coupons/page";
 import SettingsPage from "./app/settings/page";
 import WardrobePage from "./app/wardrobe/page";
 import AnalyticsPage from "./app/analytics/page";
@@ -167,13 +166,7 @@ const App = () => (
                           </CreatorOnboardingGuard>
                         </ProtectedRoute>
                       } />
-                      <Route path="/creator-coupons" element={
-                        <ProtectedRoute requiredRole="CREATOR" redirectTo="/login">
-                          <CreatorOnboardingGuard>
-                            <CreatorCouponsPage />
-                          </CreatorOnboardingGuard>
-                        </ProtectedRoute>
-                      } />
+                      <Route path="/creator-coupons" element={<Navigate to="/creator-dashboard" replace />} />
                       <Route path="/settings" element={
                         <ProtectedRoute requiredRole="CREATOR" redirectTo="/login">
                           <CreatorOnboardingGuard>

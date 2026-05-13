@@ -45,6 +45,8 @@ import {
     ORDER_TIMELINE_STEPS,
     isStepCompleted,
     isStepActive,
+    getEstimatedDeliveryWindow,
+    shouldShowEstimatedDelivery,
 } from './utils/order.utils';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -264,6 +266,9 @@ export const OrderDetailPage: React.FC = () => {
     const addr = order.shipping_address;
     const isCancelled = order.current_status === 'CANCELLED';
     const isDelivered = order.current_status === 'DELIVERED';
+    const estimatedDelivery = shouldShowEstimatedDelivery(order.current_status)
+        ? getEstimatedDeliveryWindow(order.created_at)
+        : null;
 
     // payment config
     const payCfg = PAYMENT_STATUS_CONFIG[order.payment_status] ?? {
@@ -312,6 +317,11 @@ export const OrderDetailPage: React.FC = () => {
                             <p className="text-white/70 text-xs mt-0.5">
                                 Ordered on {fmtDate(order.created_at)}
                             </p>
+                            {estimatedDelivery && (
+                                <p className="text-white/80 text-xs mt-1">
+                                    Estimated delivery: {estimatedDelivery.rangeLabel} · {estimatedDelivery.businessDaysLabel}
+                                </p>
+                            )}
                         </div>
                     </div>
                     {/* Action buttons in header */}

@@ -4,7 +4,8 @@ import { ProductGroupTree } from "@/components/product-groups/ProductGroupTree";
 import { ProductGroupFormModal } from "@/components/product-groups/ProductGroupFormModal";
 import { useToast } from "@/hooks/use-toast";
 import { LuxeAlertDialog } from "@/components/common/dialog/LuxeAlertDialog";
-import { Search, Plus, LayoutDashboard, Shirt, Upload, Ticket, BarChart3, Settings, Menu, FolderTree } from "lucide-react";
+import { creatorNavLinks } from "@/components/creator/creatorNavLinks";
+import { Search, Plus, Menu } from "lucide-react";
 import { getProfile, getCreatorGroups, deleteProductGroup, type ProductGroup } from "@/lib/api";
 import LuxeSidebar from "@/components/common/LuxeSidebar";
 import { useSidebar } from "@/context/SidebarContext";
@@ -107,14 +108,6 @@ const ProductGroupsPage: React.FC = () => {
         setFilteredGroups(filterTree(groups));
     }, [searchQuery, groups]);
 
-    const navLinks = [
-        { label: "Dashboard", icon: <LayoutDashboard size={20} />, href: "/creator-dashboard" },
-        { label: "My Wardrobe", icon: <Shirt size={20} />, href: "/wardrobe" },
-        { label: "My Coupons", icon: <Ticket size={20} />, href: "/creator-coupons" },
-        { label: "Analytics", icon: <BarChart3 size={20} />, href: "/analytics" },
-        { label: "Settings", icon: <Settings size={20} />, href: "/settings" },
-    ];
-
     const handleCreate = () => {
         setEditingGroup(null);
         setSelectedParentId("");
@@ -162,7 +155,7 @@ const ProductGroupsPage: React.FC = () => {
 
     return (
         <div className="min-h-screen flex" style={{ background: 'linear-gradient(135deg, #FFFDF5 0%, #FFFBEB 100%)' }}>
-            <LuxeSidebar user={user} navLinks={navLinks} />
+            <LuxeSidebar user={user} navLinks={creatorNavLinks} />
             <div className="flex-1 transition-all duration-300 ease-in-out" style={{ marginLeft: sidebarWidth }}>
                 <div className="min-h-screen p-4 md:p-10">
                     {isMobile && (

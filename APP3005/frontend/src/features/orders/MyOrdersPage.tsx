@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Search, ChevronRight, ChevronLeft, Package, Loader2, RotateCcw } from 'lucide-react';
+import { Search, ChevronRight, ChevronLeft, Package, Loader2, RotateCcw, Truck } from 'lucide-react';
 import { UserDashboardLayout } from '@/components/layout/UserDashboardLayout';
 import { ordersApi } from './api/orders.api';
 import { paymentApi } from './api/payment.api';
@@ -12,6 +12,8 @@ import {
     formatRefundStatus,
     RETURN_STATUS_CONFIG,
     REPLACEMENT_STATUS_CONFIG,
+    getEstimatedDeliveryWindow,
+    shouldShowEstimatedDelivery,
 } from './utils/order.utils';
 import { useRefundSSE } from './hooks/useRefundSSE';
 
@@ -384,6 +386,9 @@ export const MyOrdersPage = () => {
                                 const statusDisplay = getStatusDisplay(order.current_status);
                                 const firstItem = order.items?.[0];
                                 const orderInfoRows = getOrderInfoRows(order);
+                                const estimatedDelivery = shouldShowEstimatedDelivery(order.current_status)
+                                    ? getEstimatedDeliveryWindow(order.created_at)
+                                    : null;
                                 const primaryDetails = [
                                     `Quantity: ${firstItem?.quantity || 1}`,
                                     firstItem?.size ? `Size: ${firstItem.size}` : null,
@@ -457,6 +462,23 @@ export const MyOrdersPage = () => {
                                                                         <span className="text-[#2C2416] sm:text-right">{row.value}</span>
                                                                     </div>
                                                                 ))}
+                                                            </div>
+                                                        </div>
+                                                    )}
+
+                                                    {estimatedDelivery && (
+                                                        <div className="mb-3 flex items-start gap-2 rounded-lg border border-[#DCEBD9] bg-[#F7FCF7] px-3 py-2.5">
+                                                            <Truck className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#74B886]" />
+                                                            <div className="min-w-0">
+                                                                <p className="text-[11px] font-semibold uppercase tracking-wide text-[#5B8E66]">
+                                                                    Estimated Delivery
+                                                                </p>
+                                                                <p className="text-xs text-[#2C2416]">
+                                                                    {estimatedDelivery.rangeLabel}
+                                                                </p>
+                                                                <p className="text-[11px] text-[#6B6B6B]">
+                                                                    Within {estimatedDelivery.businessDaysLabel}
+                                                                </p>
                                                             </div>
                                                         </div>
                                                     )}
