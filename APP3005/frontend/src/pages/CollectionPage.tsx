@@ -26,6 +26,7 @@ import {
     getTryOnLimitSnapshot,
     getTryOnUsageSnapshot,
     isTryOnLimitError,
+    TRY_ON_PREMIUM_UPGRADE_URL,
     type TryOnUsageSnapshot,
 } from '@/lib/try-on-limit';
 import {
@@ -162,6 +163,10 @@ const CollectionPage = () => {
     const openUpgradePopup = (error?: { tryOnsUsed?: number; maxTryOns?: number }) => {
         setTryOnUsageSnapshot(getTryOnLimitSnapshot(error, user));
         setShowUpgradePopup(true);
+    };
+
+    const handleUpgradeToPremium = () => {
+        window.location.href = TRY_ON_PREMIUM_UPGRADE_URL;
     };
 
     const closeWorkflowDiscovery = () => {
@@ -880,6 +885,7 @@ const CollectionPage = () => {
             <TryOnUpgradePopup
                 isOpen={showUpgradePopup}
                 onClose={() => setShowUpgradePopup(false)}
+                onUpgrade={handleUpgradeToPremium}
                 tryOnsUsed={tryOnUsageSnapshot.tryOnsUsed}
                 maxTryOns={tryOnUsageSnapshot.maxTryOns}
             />
