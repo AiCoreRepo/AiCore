@@ -30,6 +30,7 @@
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "script:create-admin": "ts-node scripts/create-admin.ts",
     "script:check-db": "ts-node scripts/check-db-status.ts",
+    "script:reset-try-ons": "ts-node scripts/reset-try-on-limits.ts",
     "script:seed-one-rupee-product": "node scripts/seed-one-rupee-product.js",
     "script:migrate-draft": "ts-node scripts/migrate-products-to-draft.ts",
     "script:cleanup-users": "ts-node scripts/cleanup-users.ts",

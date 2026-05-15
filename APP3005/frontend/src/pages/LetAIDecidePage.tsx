@@ -18,7 +18,6 @@ import {
     getTryOnLimitSnapshot,
     getTryOnUsageSnapshot,
     isTryOnLimitError,
-    TRY_ON_PREMIUM_UPGRADE_URL,
     type TryOnUsageSnapshot,
 } from '@/lib/try-on-limit';
 import {
@@ -185,10 +184,6 @@ const LetAIDecidePage = () => {
     const openUpgradePopup = (error?: { tryOnsUsed?: number; maxTryOns?: number }) => {
         setTryOnUsageSnapshot(getTryOnLimitSnapshot(error, user));
         setShowUpgradePopup(true);
-    };
-
-    const handleUpgradeToPremium = () => {
-        window.location.href = TRY_ON_PREMIUM_UPGRADE_URL;
     };
 
     useEffect(() => {
@@ -536,6 +531,7 @@ const LetAIDecidePage = () => {
                                         aura={aura}
                                         tryOnCount={user?.try_ons_used || 0}
                                         maxTryOns={user?.max_try_ons}
+                                        onBuyTryOns={user?.role === 'ADMIN' ? undefined : () => openUpgradePopup()}
                                     />
                                 </div>
 
@@ -772,7 +768,6 @@ const LetAIDecidePage = () => {
             <TryOnUpgradePopup
                 isOpen={showUpgradePopup}
                 onClose={() => setShowUpgradePopup(false)}
-                onUpgrade={handleUpgradeToPremium}
                 tryOnsUsed={tryOnUsageSnapshot.tryOnsUsed}
                 maxTryOns={tryOnUsageSnapshot.maxTryOns}
             />

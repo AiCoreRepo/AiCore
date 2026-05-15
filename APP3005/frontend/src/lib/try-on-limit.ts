@@ -1,11 +1,45 @@
 import type { ApiError } from '@/lib/api';
 import { isUatOrLocalTryOnHost } from '@/lib/try-on-environment';
 
-export const DEFAULT_TRY_ON_LIMIT = 10;
+export const DEFAULT_TRY_ON_LIMIT = 3;
 export const UAT_TRY_ON_LIMIT = 200;
 export const TRY_ON_LIMIT_REACHED_CODE = 'TRY_ON_LIMIT_REACHED';
-export const TRY_ON_PREMIUM_UPGRADE_URL =
-  'mailto:support@aivestire.com?subject=Premium%20Try-On%20Upgrade';
+export const TRY_ON_PURCHASE_CONTACT_EMAIL = 'support@aivestire.com';
+
+export interface TryOnPurchasePlan {
+  id: 'starter' | 'style' | 'studio';
+  name: string;
+  tryOns: number;
+  priceInr: number;
+  description: string;
+  badge?: string;
+}
+
+export const TRY_ON_PURCHASE_PLANS: TryOnPurchasePlan[] = [
+  {
+    id: 'starter',
+    name: 'Starter Pack',
+    tryOns: 5,
+    priceInr: 49,
+    description: 'Quick top-up for a few fresh looks.',
+  },
+  {
+    id: 'style',
+    name: 'Style Pack',
+    tryOns: 12,
+    priceInr: 99,
+    description: 'Best pick for shortlisting multiple outfits.',
+    badge: 'Most Popular',
+  },
+  {
+    id: 'studio',
+    name: 'Studio Pack',
+    tryOns: 30,
+    priceInr: 199,
+    description: 'Built for serious try-ons across full collections.',
+    badge: 'Best Value',
+  },
+];
 
 interface TryOnUserUsage {
   try_ons_used?: number;
@@ -21,6 +55,24 @@ export interface TryOnUsageSnapshot {
   tryOnsUsed: number;
   maxTryOns: number;
   remainingTryOns: number;
+}
+
+export function buildTryOnPackPurchaseUrl(plan: TryOnPurchasePlan): string {
+  const subject = encodeURIComponent(
+    `Buy Virtual Try-On Pack - ${plan.name}`,
+  );
+  const body = encodeURIComponent(
+    [
+      'Hi AiVestire team,',
+      '',
+      `I want to buy the ${plan.name}.`,
+      `Pack details: ${plan.tryOns} virtual try-ons for INR ${plan.priceInr}.`,
+      '',
+      'Please share the payment steps to activate it on my account.',
+    ].join('\n'),
+  );
+
+  return `mailto:${TRY_ON_PURCHASE_CONTACT_EMAIL}?subject=${subject}&body=${body}`;
 }
 
 export function getEffectiveTryOnLimit(maxTryOns?: number): number {

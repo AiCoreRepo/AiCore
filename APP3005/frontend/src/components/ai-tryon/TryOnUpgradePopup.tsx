@@ -1,10 +1,13 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { ArrowRight, Crown, Sparkles, X } from 'lucide-react';
+import { ArrowRight, CheckCircle2, ShoppingBag, Sparkles, X } from 'lucide-react';
+import {
+  buildTryOnPackPurchaseUrl,
+  TRY_ON_PURCHASE_PLANS,
+} from '@/lib/try-on-limit';
 
 interface TryOnUpgradePopupProps {
   isOpen: boolean;
   onClose: () => void;
-  onUpgrade: () => void;
   tryOnsUsed: number;
   maxTryOns: number;
 }
@@ -12,10 +15,21 @@ interface TryOnUpgradePopupProps {
 export function TryOnUpgradePopup({
   isOpen,
   onClose,
-  onUpgrade,
   tryOnsUsed,
   maxTryOns,
 }: TryOnUpgradePopupProps) {
+  const remainingTryOns = Math.max(maxTryOns - tryOnsUsed, 0);
+
+  const handlePlanSelect = (planId: string) => {
+    const plan = TRY_ON_PURCHASE_PLANS.find((item) => item.id === planId);
+    if (!plan) {
+      return;
+    }
+
+    window.location.href = buildTryOnPackPurchaseUrl(plan);
+    onClose();
+  };
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -49,14 +63,14 @@ export function TryOnUpgradePopup({
               <div className="relative p-8 md:p-10">
                 <div className="mb-5 flex items-center gap-3">
                   <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#D4AF37] text-white shadow-[0_12px_28px_rgba(212,175,55,0.35)]">
-                    <Crown className="h-7 w-7" />
+                    <ShoppingBag className="h-7 w-7" />
                   </div>
                   <div>
                     <p className="text-[11px] uppercase tracking-[0.28em] text-[#9B7B1E]">
-                      Premium Unlock
+                      Try-On Packs
                     </p>
                     <h2 className="text-2xl font-serif text-[#2C2416] md:text-3xl">
-                      More Virtual Try-Ons
+                      Buy More Virtual Try-Ons
                     </h2>
                   </div>
                 </div>
@@ -64,42 +78,80 @@ export function TryOnUpgradePopup({
                 <div className="mb-6 rounded-[24px] border border-white/70 bg-white/70 p-5 shadow-[0_10px_30px_rgba(44,36,22,0.08)]">
                   <div className="mb-3 flex items-center justify-between gap-4">
                     <span className="text-xs uppercase tracking-[0.24em] text-[#8B7355]">
-                      Free Plan Usage
+                      Current Balance
                     </span>
                     <span className="rounded-full bg-[#F4E7C5] px-3 py-1 text-xs font-semibold text-[#7A5C13]">
-                      {tryOnsUsed} / {maxTryOns} used
+                      {remainingTryOns} / {maxTryOns} left
                     </span>
                   </div>
                   <p className="text-sm leading-7 text-[#4F4334] md:text-[15px]">
-                    You have used all {maxTryOns} included try-ons. Upgrade to Premium to unlock
-                    more virtual try-ons and extra angle generations.
+                    Your complimentary plan includes {maxTryOns} free try-ons. Choose a pack below
+                    whenever you want more looks and more angle generations.
                   </p>
                 </div>
 
-                <div className="mb-8 grid gap-3 text-sm text-[#3E3428]">
+                <div className="mb-6 grid gap-3 text-sm text-[#3E3428]">
                   <div className="flex items-center gap-3 rounded-2xl bg-white/65 px-4 py-3">
                     <Sparkles className="h-4 w-4 text-[#D4AF37]" />
-                    <span>Continue trying more outfits without the free cap</span>
+                    <span>Top up instantly once your complimentary balance is over</span>
                   </div>
                   <div className="flex items-center gap-3 rounded-2xl bg-white/65 px-4 py-3">
-                    <Sparkles className="h-4 w-4 text-[#D4AF37]" />
-                    <span>Unlock more angle generations from the same flow</span>
+                    <CheckCircle2 className="h-4 w-4 text-[#D4AF37]" />
+                    <span>Use the same packs for additional angle generations too</span>
                   </div>
+                </div>
+
+                <div className="mb-8 grid gap-4">
+                  {TRY_ON_PURCHASE_PLANS.map((plan) => (
+                    <div
+                      key={plan.id}
+                      className="rounded-[26px] border border-[#D4AF37]/20 bg-white/80 p-5 shadow-[0_12px_28px_rgba(44,36,22,0.08)]"
+                    >
+                      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                        <div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <h3 className="text-xl font-serif text-[#2C2416]">
+                              {plan.name}
+                            </h3>
+                            {plan.badge && (
+                              <span className="rounded-full bg-[#F4E7C5] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#8A6936]">
+                                {plan.badge}
+                              </span>
+                            )}
+                          </div>
+                          <p className="mt-2 text-sm leading-6 text-[#5C4C38]">
+                            {plan.description}
+                          </p>
+                        </div>
+
+                        <div className="flex flex-col gap-3 md:items-end">
+                          <div className="text-left md:text-right">
+                            <p className="text-3xl font-serif text-[#2C2416]">
+                              ₹{plan.priceInr}
+                            </p>
+                            <p className="text-[11px] uppercase tracking-[0.18em] text-[#8B7355]">
+                              {plan.tryOns} Virtual Try-Ons
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => handlePlanSelect(plan.id)}
+                            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#2C2416] px-5 py-3 text-sm font-semibold tracking-[0.08em] text-white transition hover:bg-[#1F1A11]"
+                          >
+                            Buy Pack
+                            <ArrowRight className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
 
                 <div className="flex flex-col gap-3 sm:flex-row">
                   <button
-                    onClick={onUpgrade}
-                    className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-[#2C2416] px-5 py-4 text-sm font-semibold tracking-[0.08em] text-white transition hover:bg-[#1F1A11]"
-                  >
-                    Upgrade to Premium
-                    <ArrowRight className="h-4 w-4" />
-                  </button>
-                  <button
                     onClick={onClose}
-                    className="rounded-2xl border border-[#D4C5A9] bg-white/80 px-5 py-4 text-sm font-medium text-[#5C4C38] transition hover:bg-white"
+                    className="w-full rounded-2xl border border-[#D4C5A9] bg-white/80 px-5 py-4 text-sm font-medium text-[#5C4C38] transition hover:bg-white"
                   >
-                    Maybe Later
+                    Close
                   </button>
                 </div>
               </div>

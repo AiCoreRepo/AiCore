@@ -12,7 +12,8 @@
         "script:cleanup-users": "npm run script:cleanup-users --prefix aivestire-backend-tmp",
         "script:create-admin": "npm run script:create-admin --prefix aivestire-backend-tmp",
         "script:check-db": "npm run script:check-db --prefix aivestire-backend-tmp",
-        "script:migrate-draft": "npm run script:migrate-draft --prefix aivestire-backend-tmp"
+        "script:migrate-draft": "npm run script:migrate-draft --prefix aivestire-backend-tmp",
+        "script:reset-try-ons": "npm run script:reset-try-ons --prefix aivestire-backend-tmp"
     },
     "devDependencies": {
         "concurrently": "^8.2.2",

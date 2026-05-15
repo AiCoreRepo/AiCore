@@ -26,7 +26,6 @@ import {
   getTryOnLimitSnapshot,
   getTryOnUsageSnapshot,
   isTryOnLimitError,
-  TRY_ON_PREMIUM_UPGRADE_URL,
   type TryOnUsageSnapshot,
 } from "@/lib/try-on-limit";
 import {
@@ -193,10 +192,6 @@ const AiTryOn = () => {
   }) => {
     setTryOnUsageSnapshot(getTryOnLimitSnapshot(error, user));
     setShowUpgradePopup(true);
-  };
-
-  const handleUpgradeToPremium = () => {
-    window.location.href = TRY_ON_PREMIUM_UPGRADE_URL;
   };
 
   // Check authentication and Aura status on mount
@@ -550,6 +545,7 @@ const AiTryOn = () => {
                     aura={aura}
                     tryOnCount={user?.try_ons_used || 0}
                     maxTryOns={user?.max_try_ons}
+                    onBuyTryOns={user?.role === "ADMIN" ? undefined : () => openUpgradePopup()}
                   />
                 </div>
 
@@ -772,7 +768,6 @@ const AiTryOn = () => {
       <TryOnUpgradePopup
         isOpen={showUpgradePopup}
         onClose={() => setShowUpgradePopup(false)}
-        onUpgrade={handleUpgradeToPremium}
         tryOnsUsed={tryOnUsageSnapshot.tryOnsUsed}
         maxTryOns={tryOnUsageSnapshot.maxTryOns}
       />
