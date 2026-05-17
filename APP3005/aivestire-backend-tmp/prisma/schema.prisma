@@ -39,6 +39,7 @@ model User {
   wishlist                  Wishlist?
   orders                    Order[]
   wallet                    Wallet?
+  try_on_pack_purchases     TryOnPackPurchase[]
 }
 
 model Creator {
@@ -1158,6 +1159,42 @@ enum PaymentTransactionStatus {
   REFUNDED
   PARTIALLY_REFUNDED
   CANCELLED
+}
+
+enum TryOnPackPurchaseStatus {
+  CREATED
+  CAPTURED
+  FAILED
+  CANCELLED
+}
+
+model TryOnPackPurchase {
+  purchase_id         String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id             String                   @db.Uuid
+  plan_id             String
+  pack_name           String
+  try_ons             Int
+  amount_paise        Int
+  currency            String                   @default("INR")
+  gateway             PaymentGateway           @default(PAYU)
+  gateway_order_id    String?                  @unique
+  gateway_payment_id  String?
+  status              TryOnPackPurchaseStatus  @default(CREATED)
+  payment_method      String?
+  return_path         String?
+  metadata            Json?
+  credited_at         DateTime?
+  created_at          DateTime                 @default(now())
+  updated_at          DateTime                 @updatedAt
+
+  user User @relation(fields: [user_id], references: [user_id], onDelete: Cascade)
+
+  @@index([user_id])
+  @@index([gateway_order_id])
+  @@index([gateway_payment_id])
+  @@index([status])
+  @@index([created_at(sort: Desc)])
+  @@map("try_on_pack_purchases")
 }
 
 // ============================================

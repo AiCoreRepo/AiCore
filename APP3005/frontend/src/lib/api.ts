@@ -14,6 +14,25 @@ export interface ApiError extends Error {
   details?: unknown;
 }
 
+export interface InitiateTryOnPackPurchaseResponse {
+  key: string;
+  txnid: string;
+  amount: string;
+  productinfo: string;
+  firstname: string;
+  email: string;
+  phone: string;
+  surl: string;
+  furl: string;
+  hash: string;
+  action: string;
+  udf1?: string;
+  udf2?: string;
+  udf3?: string;
+  udf4?: string;
+  udf5?: string;
+}
+
 export type FeedbackContextType =
   | "AVATAR_CREATION"
   | "AVATAR_RECREATION"
@@ -1577,6 +1596,35 @@ export async function requestTryOnAccess(): Promise<{
   }
 
   return { success: true };
+}
+
+export async function initiateTryOnPackPurchase(data: {
+  planId: string;
+  returnPath?: string;
+}): Promise<InitiateTryOnPackPurchaseResponse> {
+  const token = localStorage.getItem("access_token");
+  if (!token) {
+    throw new Error("Login required");
+  }
+
+  const res = await fetch(`${BASE_URL}/try-on-pack-purchases/initiate`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!res.ok) {
+    handleApiError(
+      res,
+      await res.text(),
+      "Failed to start virtual try-on pack payment",
+    );
+  }
+
+  return res.json();
 }
 
 /**

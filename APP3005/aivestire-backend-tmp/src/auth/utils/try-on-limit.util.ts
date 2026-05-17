@@ -2,9 +2,7 @@ import type { Request } from 'express';
 
 export const DEFAULT_TRY_ON_LIMIT = 3;
 export const DEFAULT_AVATAR_RECREATION_LIMIT = 2;
-export const NON_PROD_TRY_ON_LIMIT = 200;
 export const NON_PROD_AVATAR_RECREATION_LIMIT = 200;
-export const UAT_TRY_ON_LIMIT = NON_PROD_TRY_ON_LIMIT;
 
 const UAT_AIVESTIRE_HOST = 'uat.aivestire.com';
 const LOCAL_AIVESTIRE_HOSTS = new Set(['localhost', '127.0.0.1']);
@@ -87,12 +85,7 @@ export function getEffectiveTryOnLimit(
       ? maxTryOns
       : DEFAULT_TRY_ON_LIMIT;
 
-  if (isNonProdAivestireRequest(request)) {
-    return Math.max(storedLimit, NON_PROD_TRY_ON_LIMIT);
-  }
-
-  // Production standardizes all regular accounts to the enforced default cap.
-  return DEFAULT_TRY_ON_LIMIT;
+  return Math.max(storedLimit, DEFAULT_TRY_ON_LIMIT);
 }
 
 export function getEffectiveAvatarRecreationLimit(

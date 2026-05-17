@@ -1,11 +1,47 @@
 import type { ApiError } from '@/lib/api';
-import { isUatOrLocalTryOnHost } from '@/lib/try-on-environment';
 
 export const DEFAULT_TRY_ON_LIMIT = 3;
-export const UAT_TRY_ON_LIMIT = 200;
 export const TRY_ON_LIMIT_REACHED_CODE = 'TRY_ON_LIMIT_REACHED';
-export const TRY_ON_PREMIUM_UPGRADE_URL =
-  'mailto:support@aivestire.com?subject=Premium%20Try-On%20Upgrade';
+export const TRY_ON_PURCHASE_CONTACT_EMAIL = 'support@aivestire.com';
+export const TRY_ON_PURCHASE_RESULT_PARAM = 'tryOnPurchase';
+export const TRY_ON_PURCHASE_TRY_ONS_PARAM = 'tryOnPurchaseTryOns';
+export const TRY_ON_PURCHASE_PLAN_PARAM = 'tryOnPurchasePlan';
+export const TRY_ON_PURCHASE_REASON_PARAM = 'tryOnPurchaseReason';
+
+export interface TryOnPurchasePlan {
+  id: 'starter' | 'style' | 'studio';
+  name: string;
+  tryOns: number;
+  priceInr: number;
+  description: string;
+  badge?: string;
+}
+
+export const TRY_ON_PURCHASE_PLANS: TryOnPurchasePlan[] = [
+  {
+    id: 'starter',
+    name: 'Starter Pack',
+    tryOns: 3,
+    priceInr: 49,
+    description: 'Quick top-up for a couple of fresh looks.',
+  },
+  {
+    id: 'style',
+    name: 'Style Pack',
+    tryOns: 7,
+    priceInr: 99,
+    description: 'Balanced pack for comparing a few outfit options.',
+    badge: 'Most Popular',
+  },
+  {
+    id: 'studio',
+    name: 'Studio Pack',
+    tryOns: 12,
+    priceInr: 149,
+    description: 'Best value for longer try-on sessions.',
+    badge: 'Best Value',
+  },
+];
 
 interface TryOnUserUsage {
   try_ons_used?: number;
@@ -23,14 +59,74 @@ export interface TryOnUsageSnapshot {
   remainingTryOns: number;
 }
 
+export interface TryOnPurchaseRedirectState {
+  status: 'success' | 'failure' | null;
+  tryOns: number | null;
+  planId: TryOnPurchasePlan['id'] | null;
+  reason: string | null;
+}
+
+export function buildTryOnPackPurchaseUrl(plan: TryOnPurchasePlan): string {
+  const subject = encodeURIComponent(
+    `Buy Virtual Try-On Pack - ${plan.name}`,
+  );
+  const body = encodeURIComponent(
+    [
+      'Hi AiVestire team,',
+      '',
+      `I want to buy the ${plan.name}.`,
+      `Pack details: ${plan.tryOns} virtual try-ons for INR ${plan.priceInr}.`,
+      '',
+      'Please share the payment steps to activate it on my account.',
+    ].join('\n'),
+  );
+
+  return `mailto:${TRY_ON_PURCHASE_CONTACT_EMAIL}?subject=${subject}&body=${body}`;
+}
+
+export function parseTryOnPurchaseRedirect(
+  search: string,
+): TryOnPurchaseRedirectState {
+  const params = new URLSearchParams(search);
+  const rawStatus = params.get(TRY_ON_PURCHASE_RESULT_PARAM);
+  const status =
+    rawStatus === 'success' || rawStatus === 'failure' ? rawStatus : null;
+  const rawTryOns = params.get(TRY_ON_PURCHASE_TRY_ONS_PARAM);
+  const tryOns = rawTryOns ? Number(rawTryOns) : null;
+  const rawPlanId = params.get(TRY_ON_PURCHASE_PLAN_PARAM);
+  const planId = TRY_ON_PURCHASE_PLANS.some((plan) => plan.id === rawPlanId)
+    ? (rawPlanId as TryOnPurchasePlan['id'])
+    : null;
+
+  return {
+    status,
+    tryOns: Number.isFinite(tryOns) ? tryOns : null,
+    planId,
+    reason: params.get(TRY_ON_PURCHASE_REASON_PARAM),
+  };
+}
+
+export function stripTryOnPurchaseRedirectParams(search: string): string {
+  const params = new URLSearchParams(search);
+  params.delete(TRY_ON_PURCHASE_RESULT_PARAM);
+  params.delete(TRY_ON_PURCHASE_TRY_ONS_PARAM);
+  params.delete(TRY_ON_PURCHASE_PLAN_PARAM);
+  params.delete(TRY_ON_PURCHASE_REASON_PARAM);
+  return params.toString();
+}
+
+export function buildTryOnPurchaseReturnPath(
+  pathname: string,
+  search: string,
+): string {
+  const cleanedSearch = stripTryOnPurchaseRedirectParams(search);
+  return cleanedSearch ? `${pathname}?${cleanedSearch}` : pathname;
+}
+
 export function getEffectiveTryOnLimit(maxTryOns?: number): number {
   const storedLimit = typeof maxTryOns === 'number' && maxTryOns > 0
     ? maxTryOns
     : DEFAULT_TRY_ON_LIMIT;
-
-  if (isUatOrLocalTryOnHost()) {
-    return Math.max(storedLimit, UAT_TRY_ON_LIMIT);
-  }
 
   return Math.max(storedLimit, DEFAULT_TRY_ON_LIMIT);
 }

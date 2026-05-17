@@ -3,7 +3,6 @@ import {
   DEFAULT_AVATAR_RECREATION_LIMIT,
   DEFAULT_TRY_ON_LIMIT,
   NON_PROD_AVATAR_RECREATION_LIMIT,
-  UAT_TRY_ON_LIMIT,
   getEffectiveAvatarRecreationLimit,
   getEffectiveTryOnLimit,
   isNonProdAivestireRequest,
@@ -53,20 +52,20 @@ describe('try-on limit utility', () => {
     );
   });
 
-  it('clamps legacy production limits back to the enforced cap', () => {
+  it('preserves higher stored production limits for purchased credits', () => {
     const request = createRequest({
       origin: 'https://aivestire.com',
     });
 
-    expect(getEffectiveTryOnLimit(10, request)).toBe(DEFAULT_TRY_ON_LIMIT);
+    expect(getEffectiveTryOnLimit(10, request)).toBe(10);
   });
 
-  it('raises the effective try-on limit to 200 on UAT', () => {
+  it('keeps the default try-on limit on UAT', () => {
     const request = createRequest({
       origin: 'https://uat.aivestire.com',
     });
 
-    expect(getEffectiveTryOnLimit(3, request)).toBe(UAT_TRY_ON_LIMIT);
+    expect(getEffectiveTryOnLimit(3, request)).toBe(DEFAULT_TRY_ON_LIMIT);
   });
 
   it('preserves higher stored limits on UAT', () => {

@@ -7,6 +7,7 @@ import { usePublicProducts } from "@/hooks/useInfinitePublicProducts";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useAuth } from "@/context/AuthContext";
 import { useCart } from "@/context/CartContext";
+import { useTryOnPurchaseRedirect } from '@/hooks/useTryOnPurchaseRedirect';
 import { auraGate } from "@/utils/auraGate";
 import { ChevronDown, Heart, Search, X, SlidersHorizontal, ArrowUpDown } from "lucide-react";
 import { TryOnInterstitialModal } from "@/components/TryOnInterstitialModal";
@@ -26,7 +27,6 @@ import {
     getTryOnLimitSnapshot,
     getTryOnUsageSnapshot,
     isTryOnLimitError,
-    TRY_ON_PREMIUM_UPGRADE_URL,
     type TryOnUsageSnapshot,
 } from '@/lib/try-on-limit';
 import {
@@ -142,6 +142,8 @@ const CollectionPage = () => {
     const feedbackCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const [selectedTryOnLabel, setSelectedTryOnLabel] = useState<string>('');
 
+    useTryOnPurchaseRedirect(fetchUser);
+
     const resolveProductLabel = (productId: string) => {
         const product = _.find(filteredProducts, (item) => item.product_id === productId);
         return product?.title || product?.name || productId;
@@ -163,10 +165,6 @@ const CollectionPage = () => {
     const openUpgradePopup = (error?: { tryOnsUsed?: number; maxTryOns?: number }) => {
         setTryOnUsageSnapshot(getTryOnLimitSnapshot(error, user));
         setShowUpgradePopup(true);
-    };
-
-    const handleUpgradeToPremium = () => {
-        window.location.href = TRY_ON_PREMIUM_UPGRADE_URL;
     };
 
     const closeWorkflowDiscovery = () => {
@@ -885,7 +883,6 @@ const CollectionPage = () => {
             <TryOnUpgradePopup
                 isOpen={showUpgradePopup}
                 onClose={() => setShowUpgradePopup(false)}
-                onUpgrade={handleUpgradeToPremium}
                 tryOnsUsed={tryOnUsageSnapshot.tryOnsUsed}
                 maxTryOns={tryOnUsageSnapshot.maxTryOns}
             />

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
+import { useTryOnPurchaseRedirect } from '@/hooks/useTryOnPurchaseRedirect';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { AuraDisplayCard } from '@/components/ai-tryon/AuraDisplayCard';
@@ -18,7 +19,6 @@ import {
     getTryOnLimitSnapshot,
     getTryOnUsageSnapshot,
     isTryOnLimitError,
-    TRY_ON_PREMIUM_UPGRADE_URL,
     type TryOnUsageSnapshot,
 } from '@/lib/try-on-limit';
 import {
@@ -187,9 +187,7 @@ const LetAIDecidePage = () => {
         setShowUpgradePopup(true);
     };
 
-    const handleUpgradeToPremium = () => {
-        window.location.href = TRY_ON_PREMIUM_UPGRADE_URL;
-    };
+    useTryOnPurchaseRedirect(fetchUser);
 
     useEffect(() => {
         // Wait for auth to load
@@ -536,6 +534,7 @@ const LetAIDecidePage = () => {
                                         aura={aura}
                                         tryOnCount={user?.try_ons_used || 0}
                                         maxTryOns={user?.max_try_ons}
+                                        onBuyTryOns={user?.role === 'ADMIN' ? undefined : () => openUpgradePopup()}
                                     />
                                 </div>
 
@@ -772,7 +771,6 @@ const LetAIDecidePage = () => {
             <TryOnUpgradePopup
                 isOpen={showUpgradePopup}
                 onClose={() => setShowUpgradePopup(false)}
-                onUpgrade={handleUpgradeToPremium}
                 tryOnsUsed={tryOnUsageSnapshot.tryOnsUsed}
                 maxTryOns={tryOnUsageSnapshot.maxTryOns}
             />

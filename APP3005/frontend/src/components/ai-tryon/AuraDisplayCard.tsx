@@ -23,9 +23,10 @@ interface AuraDisplayCardProps {
     aura: AuraData;
     tryOnCount?: number;
     maxTryOns?: number;
+    onBuyTryOns?: () => void;
 }
 
-export function AuraDisplayCard({ aura, tryOnCount = 0, maxTryOns }: AuraDisplayCardProps) {
+export function AuraDisplayCard({ aura, tryOnCount = 0, maxTryOns, onBuyTryOns }: AuraDisplayCardProps) {
     const [isCollapsed, setIsCollapsed] = useState(false);
     const usage = getTryOnUsageSnapshot({
         try_ons_used: tryOnCount,
@@ -127,6 +128,15 @@ export function AuraDisplayCard({ aura, tryOnCount = 0, maxTryOns }: AuraDisplay
                         <p className="mt-1 text-xs text-neutral-500">
                             Complimentary try-ons remaining
                         </p>
+                        {onBuyTryOns && (
+                            <button
+                                type="button"
+                                onClick={onBuyTryOns}
+                                className="mt-3 inline-flex items-center rounded-full border border-[#D4AF37]/35 bg-white/85 px-3.5 py-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#7A5C13] transition hover:bg-white"
+                            >
+                                Buy Virtual Try-Ons
+                            </button>
+                        )}
                     </div>
 
                     {/* Attributes */}
