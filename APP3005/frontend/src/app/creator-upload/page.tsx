@@ -11,6 +11,7 @@ import {
   Sparkles, Layers, Palette, Package2, Info, ArrowLeft, X,
   FolderTree, IndianRupee,
 } from "lucide-react";
+import { BODY_SHAPE_ICONS } from "../../constants/body-shape-icons";
 import {
   BODY_SHAPES, SKIN_TONES, CLOTHING_COLORS,
   type BodyShapeValue, type SkinToneValue, type ClothingColorValue,
@@ -99,7 +100,7 @@ const ColorSelect = ({ value, onChange, error }: { value: string, onChange: (v: 
              <span className="font-bold text-gray-800 text-sm md:text-base">{selected.label}</span>
           </div>
         ) : (
-          <span className="text-gray-400 font-semibold text-sm md:text-base">Select a clothing colour...</span>
+          <span className="text-gray-400 font-semibold text-sm md:text-base">Select a garment colour...</span>
         )}
         <ChevronDown size={20} className={`text-[#C9A75F]/70 transition-transform duration-300 shrink-0 ${open ? 'rotate-180' : ''}`} />
       </div>
@@ -220,7 +221,7 @@ const ImageZone = ({ previews, onAdd, onRemove, error }: {
           <ImageIcon size={28} className="md:w-8 md:h-8" />
         </div>
         <p className="text-sm md:text-base text-[#2C2416]/60 font-semibold text-center">
-          {previews.length ? "Tap or drag to add more photos" : "Tap or drag images here to upload"}
+          {previews.length ? "Tap or drag to add more images" : "Tap or drag images here to upload"}
         </p>
         <input ref={ref} type="file" accept="image/*" multiple className="hidden"
           onChange={e => { const f = Array.from(e.target.files ?? []); if (f.length) onAdd(f); e.target.value = ""; }} />
@@ -260,7 +261,7 @@ const ColorCard = ({ variant, idx, onChange, onRemove, canRemove }: {
       <div className="flex flex-col lg:flex-row gap-6 lg:gap-8 lg:items-start mb-6 md:mb-8">
         {/* ── Color Swatch Dropdown ── */}
         <div className="flex-1">
-          <SLabel req hint="select actual colour">Clothing Colour</SLabel>
+          <SLabel req hint="select actual colour">Garment Colour</SLabel>
           <ColorSelect 
             value={variant.color} 
             onChange={v => onChange({ ...variant, color: v as ClothingColorValue, errors: { ...variant.errors, color: "" } })} 
@@ -287,7 +288,7 @@ const ColorCard = ({ variant, idx, onChange, onRemove, canRemove }: {
       {/* ── Skin Tone Swatches ── */}
       <div className="mb-6 md:mb-8 bg-[#C9A75F]/5 rounded-2xl p-4 md:p-6 border border-[#C9A75F]/10">
         <SLabel req hint="select tones this colour flatters">Flattering Skin Tones</SLabel>
-        <div className="flex flex-wrap gap-2 md:gap-3 mt-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 md:gap-3 mt-3">
           {SKIN_TONES.map(st => {
             const sel = variant.skin_tones.includes(st.value);
             return (
@@ -296,11 +297,11 @@ const ColorCard = ({ variant, idx, onChange, onRemove, canRemove }: {
                   const next = sel ? variant.skin_tones.filter(x => x !== st.value) : [...variant.skin_tones, st.value];
                   onChange({ ...variant, skin_tones: next, errors: { ...variant.errors, skin_tones: "" } });
                 }}
-                className={`flex items-center gap-2 md:gap-3 py-2 px-3 md:py-2.5 md:px-4 rounded-full cursor-pointer transition-all duration-200 border-2 ${sel ? 'border-[#C9A75F] bg-white shadow-md scale-105' : 'border-transparent bg-white/60 hover:bg-white hover:border-[#C9A75F]/30 hover:shadow-sm'}`}
+                className={`group flex items-center justify-start gap-2.5 py-2 px-3 sm:px-4 rounded-full cursor-pointer transition-all duration-200 border-2 w-full ${sel ? 'border-[#C9A75F] bg-white shadow-md scale-[1.02]' : 'border-transparent bg-white/60 hover:bg-white hover:border-[#C9A75F]/30 hover:shadow-sm'}`}
               >
-                <div className="w-5 h-5 md:w-6 md:h-6 rounded-full shadow-inner border border-black/10 shrink-0" style={{ backgroundColor: st.hex }} />
-                <span className={`text-xs md:text-sm transition-colors ${sel ? 'font-bold text-[#2C2416]' : 'font-semibold text-[#2C2416]/60'}`}>{st.label}</span>
-                {sel && <CheckCircle2 size={16} className="text-[#C9A75F] md:w-[18px] md:h-[18px]" />}
+                <div className="w-4 h-4 md:w-5 md:h-5 rounded-full shadow-inner border border-black/10 shrink-0" style={{ backgroundColor: st.hex }} />
+                <span className={`text-[10px] sm:text-xs md:text-sm truncate transition-colors ${sel ? 'font-bold text-[#2C2416]' : 'font-semibold text-[#2C2416]/60'}`}>{st.label}</span>
+                {sel && <CheckCircle2 size={12} className="text-[#C9A75F] shrink-0 ml-auto" />}
               </button>
             );
           })}
@@ -310,7 +311,7 @@ const ColorCard = ({ variant, idx, onChange, onRemove, canRemove }: {
 
       {/* ── Images ── */}
       <div>
-        <SLabel req>Photos for this Variant</SLabel>
+        <SLabel req>Product Images</SLabel>
         <ImageZone
           previews={variant.imagePreviews}
           error={variant.errors.images}
@@ -349,7 +350,7 @@ const PatternCard = ({ pattern, pi, onChange, onRemove, canRemove }: {
           </div>
           <div>
             <p className="font-serif font-bold text-lg md:text-xl text-[#2C2416]">
-              {pattern.name || `Pattern Type ${pi + 1}`}
+              {pattern.name || `Silhouette ${pi + 1}`}
             </p>
             <div className="flex items-center gap-2 md:gap-3 mt-1 md:mt-1.5 flex-wrap">
               <span className="text-xs md:text-sm text-[#2C2416]/60 font-semibold bg-[#C9A75F]/10 px-2.5 py-1 rounded-md">
@@ -378,7 +379,7 @@ const PatternCard = ({ pattern, pi, onChange, onRemove, canRemove }: {
         <div className="p-4 md:p-6 lg:p-8 flex flex-col gap-8 md:gap-10">
           {/* Name */}
           <div className="bg-white/50 p-4 md:p-6 rounded-2xl md:rounded-[20px] border border-[#C9A75F]/10">
-            <SLabel req hint='e.g. "Slim Fit", "Relaxed Fit", "Oversized"'>Pattern / Fit Name</SLabel>
+            <SLabel req hint='e.g. "Slim Fit", "Relaxed Fit", "Oversized"'>Silhouette Name / Fit</SLabel>
             <LuxeInput value={pattern.name} onChange={v => onChange({ ...pattern, name: v, errors: { ...pattern.errors, name: "" } })}
               placeholder='e.g. "Relaxed Fit"' icon={Layers} error={pattern.errors.name} />
             <FieldErr msg={pattern.errors.name} />
@@ -387,19 +388,24 @@ const PatternCard = ({ pattern, pi, onChange, onRemove, canRemove }: {
           {/* Body Shapes */}
           <div className="bg-white/50 p-4 md:p-6 rounded-2xl md:rounded-[20px] border border-[#C9A75F]/10">
             <SLabel req hint="choose shapes this fit compliments">Complimentary Body Shapes</SLabel>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-4 mt-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 md:gap-4 mt-3">
               {BODY_SHAPES.map(bs => {
                 const sel = pattern.body_shapes.includes(bs.value as BodyShapeValue);
+                const IconComponent = BODY_SHAPE_ICONS[bs.value];
                 return (
                   <button key={bs.value} type="button"
                     onClick={() => {
                       const next = sel ? pattern.body_shapes.filter(x => x !== bs.value) : [...pattern.body_shapes, bs.value as BodyShapeValue];
                       onChange({ ...pattern, body_shapes: next, errors: { ...pattern.errors, body_shapes: "" } });
                     }}
-                    className={`flex flex-col items-center justify-center gap-2 md:gap-3 p-3 md:p-4 rounded-xl md:rounded-2xl cursor-pointer transition-all duration-200 border-2 ${sel ? 'border-[#C9A75F] bg-gradient-to-b from-[#C9A75F]/10 to-[#C9A75F]/5 shadow-[0_4px_12px_rgba(201,165,95,0.15)] scale-[1.03]' : 'border-[#C9A75F]/20 bg-white hover:bg-[#C9A75F]/5 hover:border-[#C9A75F]/40'}`}
+                    className={`group flex flex-col items-center justify-center gap-2 p-2.5 sm:p-4 rounded-xl md:rounded-2xl cursor-pointer transition-all duration-200 border-2 ${sel ? 'border-[#C9A75F] bg-gradient-to-b from-[#C9A75F]/10 to-[#C9A75F]/5 shadow-[0_4px_12px_rgba(201,165,95,0.15)] scale-[1.03]' : 'border-[#C9A75F]/20 bg-white hover:bg-[#C9A75F]/5 hover:border-[#C9A75F]/40'}`}
                   >
-                    <span className="text-2xl md:text-3xl drop-shadow-sm">{bs.icon}</span>
-                    <span className={`text-xs md:text-sm text-center transition-colors ${sel ? 'font-bold text-[#2C2416]' : 'font-semibold text-[#2C2416]/60'}`}>{bs.label}</span>
+                    {IconComponent && (
+                      <IconComponent
+                        className={`w-6 h-6 sm:w-8 sm:h-8 md:w-10 md:h-10 transition-all duration-300 ${sel ? 'text-[#C9A75F]' : 'text-[#C9A75F]/45 group-hover:text-[#C9A75F]/75'}`}
+                      />
+                    )}
+                    <span className={`text-[10px] sm:text-xs md:text-sm text-center leading-tight transition-colors ${sel ? 'font-bold text-[#2C2416]' : 'font-semibold text-[#2C2416]/60'}`}>{bs.label}</span>
                   </button>
                 );
               })}
@@ -489,14 +495,14 @@ const CreatorUploadPage: React.FC = () => {
 
     const updated = patterns.map(p => {
       const pe: Record<string, string> = {};
-      if (!p.name.trim()) { pe.name = "Pattern name required"; valid = false; }
+      if (!p.name.trim()) { pe.name = "Silhouette name required"; valid = false; }
       if (!p.body_shapes.length) { pe.body_shapes = "Select at least one complimentary body shape"; valid = false; }
       const updatedV = p.color_variants.map(v => {
         const ve: Record<string, string> = {};
-        if (!v.color) { ve.color = "Select a clothing colour"; valid = false; }
+        if (!v.color) { ve.color = "Select a garment colour"; valid = false; }
         if (v.stock <= 0) { ve.stock = "Stock must be > 0"; valid = false; }
         if (!v.skin_tones.length) { ve.skin_tones = "Select at least one skin tone"; valid = false; }
-        if (!v.imageFiles.length) { ve.images = "Upload at least one photo for this variant"; valid = false; }
+        if (!v.imageFiles.length) { ve.images = "Upload at least one image for this variant"; valid = false; }
         return { ...v, errors: ve };
       });
       return { ...p, errors: pe, color_variants: updatedV, collapsed: p.collapsed && Object.keys(pe).length === 0 && updatedV.every(v => Object.keys(v.errors).length === 0) ? true : false };
@@ -595,14 +601,14 @@ const CreatorUploadPage: React.FC = () => {
                   Upload Product
                 </h1>
                 <p className="text-sm md:text-base text-[#2C2416]/60 font-medium max-w-2xl leading-relaxed">
-                  Showcase your creation to the world. Follow our guided flow: <span className="font-bold text-[#C9A75F]">Details → Fits/Patterns → Colour Variants.</span>
+                  Showcase your creation to the world. Follow our guided flow: <span className="font-bold text-[#C9A75F]">Details → Silhouettes/Fits → Colour Variants.</span>
                 </p>
               </div>
             </div>
 
             {/* Progress steps (Visible mainly on desktop or adapted for mobile) */}
             <div className="hidden sm:flex items-center gap-3 mt-8 ml-2">
-              {[{ icon: Package2, label: "1. Info" }, { icon: Layers, label: "2. Fits" }, { icon: Palette, label: "3. Photos" }].map(({ icon: Icon, label }, i) => (
+              {[{ icon: Package2, label: "1. Info" }, { icon: Layers, label: "2. Silhouettes" }, { icon: Palette, label: "3. Images" }].map(({ icon: Icon, label }, i) => (
                 <React.Fragment key={i}>
                   <div className="flex items-center gap-2.5 px-4 py-2 rounded-full bg-white/80 border-2 border-[#C9A75F]/30 shadow-sm">
                     <Icon size={16} className="text-[#C9A75F]" />
@@ -708,12 +714,12 @@ const CreatorUploadPage: React.FC = () => {
                     </div>
 
                     <div className="animate-in fade-in duration-300">
-                      <SLabel hint="Who is this suited for?">Age Ranges</SLabel>
+                      <SLabel hint="Who is this suited for?">Target Audience</SLabel>
                       <MultiSelectDropdown 
                         options={AGE_RANGE_OPTIONS} 
                         selected={selectedAgeRanges} 
                         onChange={setSelectedAgeRanges} 
-                        placeholder="Select age ranges..." 
+                        placeholder="Select target audience..." 
                       />
                     </div>
                   </div>
@@ -721,7 +727,7 @@ const CreatorUploadPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* ══ STEP 2 + 3: Patterns & Colours ══ */}
+              {/* ══ STEP 2 + 3: Silhouettes & Colours ══ */}
               <div className="flex flex-col gap-4 md:gap-6 mt-4 md:mt-6">
                 <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 py-2">
                   <div className="flex flex-col gap-2">
@@ -753,9 +759,8 @@ const CreatorUploadPage: React.FC = () => {
                   <div className="p-1.5 rounded-full bg-white/80 shadow-sm shrink-0 mt-0.5">
                     <Info size={18} className="text-[#C9A75F]" />
                   </div>
-                  <p className="text-sm md:text-base text-[#2C2416]/70 leading-relaxed font-medium">
-                    A <strong className="text-[#2C2416]">Fit/Pattern</strong> defines the cut (e.g. Slim Fit, A-Line) and targeted body shapes.<br className="hidden md:block"/>
-                    Inside each Fit, add <strong className="text-[#2C2416]">Colour Variants</strong> specifying skin tones, stock, and photos.
+                  <p className="text-sm md:text-base text-[#2C2416]/75 leading-relaxed font-medium">
+                    Define each <strong className="text-[#2C2416]">Silhouette & Fit</strong> (e.g., Slim Fit, A-Line) and select its complimentary body shapes. Under each silhouette, specify its <strong className="text-[#2C2416]">Colour Variants</strong> along with flattering skin tones, stock, and product images.
                   </p>
                 </div>
 
@@ -780,7 +785,7 @@ const CreatorUploadPage: React.FC = () => {
                   <div className="w-12 h-12 md:w-16 md:h-16 rounded-full bg-white shadow-[0_8px_24px_rgba(201,165,95,0.15)] flex items-center justify-center group-hover:scale-110 group-hover:shadow-[0_12px_32px_rgba(201,165,95,0.25)] transition-all">
                     <Plus size={28} className="text-[#C9A75F] md:w-8 md:h-8" />
                   </div>
-                  <span className="font-bold text-base md:text-lg text-[#C9A75F]">Add New Pattern / Fit</span>
+                  <span className="font-bold text-base md:text-lg text-[#C9A75F]">Add New Silhouette / Fit</span>
                 </button>
               </div>
 
@@ -793,9 +798,9 @@ const CreatorUploadPage: React.FC = () => {
                     <div className="w-16 h-16 rounded-full bg-red-50 flex items-center justify-center mb-6 mx-auto">
                       <Trash2 size={32} className="text-red-500" />
                     </div>
-                    <h3 className="text-xl md:text-2xl font-serif font-bold text-center text-[#2C2416] mb-3">Remove Pattern?</h3>
+                    <h3 className="text-xl md:text-2xl font-serif font-bold text-center text-[#2C2416] mb-3">Remove Silhouette?</h3>
                     <p className="text-center text-[#2C2416]/60 text-sm md:text-base font-medium mb-8">
-                      This will permanently remove this pattern and all its associated colour variants. Are you sure?
+                      This will permanently remove this silhouette and all its associated colour variants. Are you sure?
                     </p>
                     <div className="flex gap-3">
                       <button type="button" onClick={() => setPatternToDelete(null)}
@@ -805,7 +810,7 @@ const CreatorUploadPage: React.FC = () => {
                       <button type="button" onClick={() => {
                         setPatterns(prev => prev.filter((_, i) => i !== patternToDelete));
                         setPatternToDelete(null);
-                        toast({ title: "Pattern Removed", description: "The pattern was deleted successfully." });
+                        toast({ title: "Silhouette Removed", description: "The silhouette was deleted successfully." });
                       }}
                         className="flex-1 py-3 md:py-3.5 rounded-[14px] font-bold text-white bg-red-500 hover:bg-red-600 shadow-md hover:shadow-lg transition-all active:scale-95 outline-none focus:ring-4 focus:ring-red-500/20">
                         Yes, Delete
