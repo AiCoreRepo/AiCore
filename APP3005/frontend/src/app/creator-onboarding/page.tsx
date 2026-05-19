@@ -8,7 +8,10 @@ import {
   Smartphone,
   MapPin,
   ChevronRight,
-  ChevronLeft
+  ChevronDown,
+  User,
+  Building2,
+  Banknote
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,20 +25,17 @@ import {
 } from "@/lib/api";
 import { fetchCreatorOnboardingState } from "@/lib/creatorOnboarding";
 import { creatorTermsContent } from "@/content/creatorTerms";
-import "@/components/TermsModal.css";
 
 const UPI_ID_REGEX = /^[a-zA-Z0-9._-]{2,256}@[a-zA-Z]{2,64}$/;
 
 const CreatorOnboardingPage = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  
-  // Overall state
+
   const [isLoading, setIsLoading] = useState(true);
-  const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
   const [creatorName, setCreatorName] = useState("Creator");
-  
-  // Step 1: Address
+
+  // Address State
   const [hasAddress, setHasAddress] = useState(false);
   const [addressData, setAddressData] = useState({
     full_name: "",
@@ -49,7 +49,7 @@ const CreatorOnboardingPage = () => {
   const [isSavingAddress, setIsSavingAddress] = useState(false);
   const [addressError, setAddressError] = useState("");
 
-  // Step 2: Payment
+  // Payment State
   const [hasPaymentDetails, setHasPaymentDetails] = useState(false);
   const [paymentBeneficiaryName, setPaymentBeneficiaryName] = useState("");
   const [paymentUpiId, setPaymentUpiId] = useState("");
@@ -61,11 +61,20 @@ const CreatorOnboardingPage = () => {
   const [isSavingPayment, setIsSavingPayment] = useState(false);
   const [isVerifyingUpi, setIsVerifyingUpi] = useState(false);
 
-  // Step 3: Terms
+  // Terms State
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [isAcceptingTerms, setIsAcceptingTerms] = useState(false);
   const [termsCheckboxChecked, setTermsCheckboxChecked] = useState(false);
-  const [activeTermSection, setActiveTermSection] = useState(0);
+  const [expandedSections, setExpandedSections] = useState<number[]>([0]);
+
+  const toggleSection = (index: number) => {
+    setExpandedSections((prev) =>
+      prev.includes(index) ? prev.filter((i) => i !== index) : [...prev, index]
+    );
+  };
+
+  // UI State - 3 distinct sections
+  const [activeTab, setActiveTab] = useState<"address" | "payout" | "terms">("address");
 
   useEffect(() => {
     void loadOnboardingState();
@@ -74,34 +83,28 @@ const CreatorOnboardingPage = () => {
   const loadOnboardingState = async () => {
     setIsLoading(true);
     try {
-      const onboardingState = await fetchCreatorOnboardingState();
+      const state = await fetchCreatorOnboardingState();
       
-      setCreatorName(
-        onboardingState.profile.name ||
-          onboardingState.profile.store_name ||
-          "Creator",
-      );
+      setCreatorName(state.profile.name || state.profile.store_name || "Creator");
       
-      // Load address
-      setHasAddress(onboardingState.hasAddress);
-      if (onboardingState.addressDetails) {
+      setHasAddress(state.hasAddress);
+      if (state.addressDetails) {
         setAddressData({
-          full_name: onboardingState.addressDetails.full_name || "",
-          phone: onboardingState.addressDetails.phone || onboardingState.profile.phone || "",
-          address_line1: onboardingState.addressDetails.address_line1 || "",
-          address_line2: onboardingState.addressDetails.address_line2 || "",
-          city: onboardingState.addressDetails.city || "",
-          state: onboardingState.addressDetails.state || "",
-          pincode: onboardingState.addressDetails.pincode || ""
+          full_name: state.addressDetails.full_name || "",
+          phone: state.addressDetails.phone || state.profile.phone || "",
+          address_line1: state.addressDetails.address_line1 || "",
+          address_line2: state.addressDetails.address_line2 || "",
+          city: state.addressDetails.city || "",
+          state: state.addressDetails.state || "",
+          pincode: state.addressDetails.pincode || ""
         });
-      } else if (onboardingState.profile.phone) {
-         setAddressData(prev => ({ ...prev, phone: onboardingState.profile.phone || "" }));
+      } else if (state.profile.phone) {
+         setAddressData(prev => ({ ...prev, phone: state.profile.phone || "" }));
       }
 
-      // Load payment
-      const existingBeneficiaryName = onboardingState.paymentDetails?.beneficiaryName || "";
-      const existingUpiId = onboardingState.paymentDetails?.upiId || "";
-      setHasPaymentDetails(onboardingState.hasPaymentDetails);
+      const existingBeneficiaryName = state.paymentDetails?.beneficiaryName || "";
+      const existingUpiId = state.paymentDetails?.upiId || "";
+      setHasPaymentDetails(state.hasPaymentDetails);
       setPaymentBeneficiaryName(existingBeneficiaryName);
       setPaymentUpiId(existingUpiId);
       setVerifiedBeneficiaryName(existingBeneficiaryName);
@@ -111,24 +114,24 @@ const CreatorOnboardingPage = () => {
         setPaymentVerificationMessage("Existing payout UPI is already saved.");
       }
 
-      // Load terms
-      setTermsAccepted(onboardingState.termsAccepted);
-      if (onboardingState.termsAccepted) {
-        setTermsCheckboxChecked(true);
-      }
+      setTermsAccepted(state.termsAccepted);
+      if (state.termsAccepted) setTermsCheckboxChecked(true);
 
-      if (onboardingState.isComplete) {
+      if (state.isComplete) {
         navigate("/creator-dashboard", { replace: true });
         return;
       }
 
-      // Determine initial step
-      if (!onboardingState.hasAddress) setCurrentStep(1);
-      else if (!onboardingState.hasPaymentDetails) setCurrentStep(2);
-      else if (!onboardingState.termsAccepted) setCurrentStep(3);
+      // Auto-navigate to first incomplete step
+      if (!state.hasAddress) {
+        setActiveTab("address");
+      } else if (!state.hasPaymentDetails) {
+        setActiveTab("payout");
+      } else if (!state.termsAccepted) {
+        setActiveTab("terms");
+      }
 
     } catch (error) {
-      console.error("Failed to load creator onboarding state:", error);
       toast({
         title: "Onboarding Check Failed",
         description: "We could not verify your onboarding status. Please try again.",
@@ -155,8 +158,8 @@ const CreatorOnboardingPage = () => {
     try {
       await saveCreatorAddress(addressData);
       setHasAddress(true);
-      toast({ title: "Address Saved", description: "Proceed to payment details." });
-      setCurrentStep(2);
+      toast({ title: "Address Saved", description: "Your address details have been updated." });
+      setActiveTab("payout");
     } catch (error) {
       setAddressError(error instanceof Error ? error.message : "Failed to save address.");
     } finally {
@@ -209,8 +212,8 @@ const CreatorOnboardingPage = () => {
     try {
       await updateProfile({ paymentBeneficiaryName: beneficiaryName, paymentUpiId: upiId });
       setHasPaymentDetails(true);
-      toast({ title: "Payout Details Saved", description: "Proceed to accept terms." });
-      setCurrentStep(3);
+      toast({ title: "Payout Details Saved", description: "Your payout details have been securely saved." });
+      setActiveTab("terms");
     } catch (error) {
       setPaymentError(error instanceof Error ? error.message : "Failed to save payout details.");
     } finally {
@@ -238,218 +241,319 @@ const CreatorOnboardingPage = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-[#120f09] flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-2 border-[#D4AF37] border-t-transparent"></div>
-        </div>
+      <div className="min-h-screen bg-[#0C0A09] flex items-center justify-center">
+        <Loader2 className="h-10 w-10 text-[#D4AF37] animate-spin" />
       </div>
     );
   }
 
-  const steps = [
-    { id: 1, name: "Address", icon: MapPin },
-    { id: 2, name: "Payout", icon: Smartphone },
-    { id: 3, name: "Terms", icon: FileText }
-  ];
+  const inputClass = "custom-dark-input !bg-[#1A1614] !text-white border border-[#D4AF37]/20 placeholder:text-white/30 h-12 rounded-xl focus:!border-[#D4AF37] focus:!ring-1 focus:!ring-[#D4AF37] transition-all w-full text-[15px]";
+  const labelClass = "text-[#E6D3A6]/90 font-medium text-sm mb-2 block";
 
-  // OVERRIDING WITH !IMPORTANT TO GUARANTEE VISIBILITY NO MATTER WHAT SHADCN DOES
-  const inputClass = "bg-[#16120e] border border-[#D4AF37]/30 !text-white placeholder:!text-white/40 h-12 rounded-xl shadow-sm focus:border-[#D4AF37] focus:ring-1 focus:ring-[#D4AF37] transition-all duration-300 w-full";
-  const labelClass = "text-[#E6D3A6] font-medium text-sm block mb-2";
+  const allProfileDone = hasAddress && hasPaymentDetails;
+
+  // Calculate overall progress based on the 3 sections
+  let progressPoints = 0;
+  if (hasAddress) progressPoints += 33.3;
+  if (hasPaymentDetails) progressPoints += 33.3;
+  if (termsAccepted) progressPoints += 33.4;
 
   return (
-    <div className="min-h-screen bg-[#120f09] px-4 py-8 flex flex-col items-center overflow-x-hidden">
-      <div className="w-full max-w-5xl flex flex-col items-center">
+    <div className="min-h-screen bg-[#0C0A09] text-white selection:bg-[#D4AF37]/30 flex flex-col md:flex-row overflow-hidden">
+      
+      {/* Sidebar for Navigation & Context */}
+      <div className="md:w-[320px] lg:w-[400px] shrink-0 bg-[#120F0D] border-r border-[#D4AF37]/10 flex flex-col relative z-10">
+        <div className="p-8 md:p-10 flex-1 overflow-y-auto hide-scrollbar">
+          <div className="mb-12">
+            <h1 className="text-2xl md:text-3xl font-serif text-[#F6E7C0] mb-3 leading-tight">
+              Welcome to<br/>AIVESTIRE,<br/>{creatorName}
+            </h1>
+            <p className="text-[#E6D3A6]/60 text-sm leading-relaxed">
+              Complete your profile to unlock your creator dashboard and start selling your exclusive designs.
+            </p>
+          </div>
+
+          <nav className="space-y-4">
+            {/* 1. Address Tab */}
+            <button 
+              onClick={() => setActiveTab("address")}
+              className={`w-full flex items-start gap-4 p-4 rounded-2xl transition-all text-left ${activeTab === "address" ? 'bg-[#D4AF37]/10 border border-[#D4AF37]/20 shadow-[0_0_20px_rgba(212,175,55,0.05)]' : 'hover:bg-white/[0.02] border border-transparent'}`}
+            >
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${activeTab === "address" ? 'bg-[#D4AF37] text-black' : hasAddress ? 'bg-emerald-500/20 text-emerald-400' : 'bg-[#1A1614] text-[#E6D3A6]/40'}`}>
+                {hasAddress ? <CheckCircle2 size={20} /> : <MapPin size={20} />}
+              </div>
+              <div>
+                <h3 className={`font-medium mb-1 ${activeTab === "address" ? 'text-[#F6E7C0]' : 'text-[#E6D3A6]/70'}`}>Store Address</h3>
+                <p className="text-xs text-[#E6D3A6]/40 leading-snug">Your business location and contact info.</p>
+              </div>
+            </button>
+
+            {/* 2. Payout Tab */}
+            <button 
+              onClick={() => hasAddress && setActiveTab("payout")}
+              disabled={!hasAddress && !hasPaymentDetails}
+              className={`w-full flex items-start gap-4 p-4 rounded-2xl transition-all text-left ${!hasAddress && !hasPaymentDetails ? 'opacity-50 cursor-not-allowed' : ''} ${activeTab === "payout" ? 'bg-[#D4AF37]/10 border border-[#D4AF37]/20 shadow-[0_0_20px_rgba(212,175,55,0.05)]' : 'hover:bg-white/[0.02] border border-transparent'}`}
+            >
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${activeTab === "payout" ? 'bg-[#D4AF37] text-black' : hasPaymentDetails ? 'bg-emerald-500/20 text-emerald-400' : 'bg-[#1A1614] text-[#E6D3A6]/40'}`}>
+                {hasPaymentDetails ? <CheckCircle2 size={20} /> : <Banknote size={20} />}
+              </div>
+              <div>
+                <h3 className={`font-medium mb-1 ${activeTab === "payout" ? 'text-[#F6E7C0]' : 'text-[#E6D3A6]/70'}`}>Payout Details</h3>
+                <p className="text-xs text-[#E6D3A6]/40 leading-snug">Bank details to receive your earnings.</p>
+              </div>
+            </button>
+
+            {/* 3. Terms Tab */}
+            <button 
+              onClick={() => hasAddress && hasPaymentDetails && setActiveTab("terms")}
+              disabled={!(hasAddress && hasPaymentDetails)}
+              className={`w-full flex items-start gap-4 p-4 rounded-2xl transition-all text-left ${!(hasAddress && hasPaymentDetails) ? 'opacity-50 cursor-not-allowed' : ''} ${activeTab === "terms" ? 'bg-[#D4AF37]/10 border border-[#D4AF37]/20 shadow-[0_0_20px_rgba(212,175,55,0.05)]' : 'hover:bg-white/[0.02] border border-transparent'}`}
+            >
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${activeTab === "terms" ? 'bg-[#D4AF37] text-black' : termsAccepted ? 'bg-emerald-500/20 text-emerald-400' : 'bg-[#1A1614] text-[#E6D3A6]/40'}`}>
+                {termsAccepted ? <CheckCircle2 size={20} /> : <FileText size={20} />}
+              </div>
+              <div>
+                <h3 className={`font-medium mb-1 ${activeTab === "terms" ? 'text-[#F6E7C0]' : 'text-[#E6D3A6]/70'}`}>Partner Terms</h3>
+                <p className="text-xs text-[#E6D3A6]/40 leading-snug">Review and accept our collaboration guidelines.</p>
+              </div>
+            </button>
+          </nav>
+        </div>
         
-        <div className="text-center w-full mb-8">
-          <h1 className="text-3xl md:text-4xl font-serif text-[#F6E7C0] mb-3">
-            Welcome, {creatorName}
-          </h1>
-          <p className="text-[#E6D3A6]/80 text-sm md:text-base max-w-xl mx-auto leading-relaxed">
-            We are honored to welcome you as a partner. To ensure a seamless experience—from accurate pickups to timely, secure payments—we kindly request a few essential details.
-          </p>
+        {/* Progress Footer */}
+        <div className="p-6 border-t border-[#D4AF37]/10 bg-[#120F0D]">
+          <div className="flex justify-between text-xs text-[#E6D3A6]/60 mb-3 font-medium tracking-wide">
+            <span>ONBOARDING PROGRESS</span>
+            <span>{Math.round(progressPoints)}%</span>
+          </div>
+          <div className="h-1.5 w-full bg-[#1A1614] rounded-full overflow-hidden">
+            <div className="h-full bg-gradient-to-r from-[#D4AF37] to-[#F6E7C0] transition-all duration-700 ease-out" style={{ width: `${progressPoints}%` }} />
+          </div>
         </div>
+      </div>
 
-        <div className="flex justify-center items-center gap-3 sm:gap-6 mb-8 w-full">
-          {steps.map((step, index) => {
-            const isActive = currentStep === step.id;
-            const isCompleted = currentStep > step.id;
-            return (
-              <div key={step.id} className="flex items-center">
-                <div className="flex items-center gap-2">
-                  <div className={`flex items-center justify-center w-10 h-10 rounded-full border transition-all ${
-                      isActive 
-                        ? "border-[#D4AF37] bg-[#D4AF37]/10 text-[#D4AF37]" 
-                        : isCompleted 
-                        ? "border-emerald-500 bg-emerald-500/10 text-emerald-500" 
-                        : "border-white/10 bg-white/5 text-white/30"
-                    }`}
-                  >
-                    {isCompleted ? <CheckCircle2 size={16} /> : <step.icon size={16} />}
-                  </div>
-                  <span className={`text-xs font-medium uppercase tracking-wider hidden sm:block ${
-                    isActive ? "text-[#D4AF37]" : isCompleted ? "text-emerald-500" : "text-white/30"
-                  }`}>
-                    {step.name}
-                  </span>
-                </div>
-                {index < steps.length - 1 && (
-                  <div className={`w-8 sm:w-12 h-px mx-2 sm:mx-3 ${isCompleted ? 'bg-emerald-500/50' : 'bg-white/10'}`} />
-                )}
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Outer card wrapper */}
-        <div className="w-full rounded-2xl border border-[#D4AF37]/20 bg-[#1d1610] p-6 sm:p-8 shadow-2xl">
+      {/* Main Content Area */}
+      <div className="flex-1 overflow-y-auto hide-scrollbar bg-[#0C0A09] relative">
+        {/* Background gradient effects */}
+        <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-[#D4AF37]/5 blur-[120px] rounded-full pointer-events-none" />
+        
+        <div className="max-w-3xl mx-auto p-6 md:p-12 lg:p-16 relative z-10 min-h-full flex flex-col">
           
-          {currentStep === 1 && (
-            <form onSubmit={handleSaveAddress} className="animate-fadeIn w-full max-w-3xl mx-auto">
-              <div className="mb-6 border-b border-[#D4AF37]/10 pb-4">
-                <h2 className="text-xl font-serif text-[#F6E7C0]">Business Address</h2>
+          {/* Section 1: Address */}
+          {activeTab === "address" && (
+            <div className="animate-fadeIn space-y-8 pb-20">
+              <div className="space-y-2 mb-8">
+                <h2 className="text-2xl md:text-3xl font-serif text-[#F6E7C0]">Store Address</h2>
+                <p className="text-[#E6D3A6]/60">Where your business operates from. This ensures accurate pickups.</p>
               </div>
-              <div className="grid gap-x-6 gap-y-4 md:grid-cols-2">
-                <div>
-                  <Label className={labelClass}>Full Name *</Label>
-                  <Input name="full_name" value={addressData.full_name} onChange={handleAddressChange} className={inputClass} placeholder="Enter your full name" style={{ color: "white" }} required minLength={2} />
-                </div>
-                <div>
-                  <Label className={labelClass}>Contact Phone *</Label>
-                  <Input name="phone" type="tel" value={addressData.phone} onChange={handleAddressChange} className={inputClass} placeholder="+91 9876543210" style={{ color: "white" }} required pattern="^\+?[0-9]{10,13}$" title="Enter a valid phone number" />
-                </div>
-                <div className="md:col-span-2">
-                  <Label className={labelClass}>Address Line 1 *</Label>
-                  <Input name="address_line1" value={addressData.address_line1} onChange={handleAddressChange} className={inputClass} placeholder="House No, Building, Street Area" style={{ color: "white" }} required />
-                </div>
-                <div className="md:col-span-2">
-                  <Label className={labelClass}>Address Line 2 (Optional)</Label>
-                  <Input name="address_line2" value={addressData.address_line2} onChange={handleAddressChange} className={inputClass} placeholder="Locality, Landmark, etc." style={{ color: "white" }} />
-                </div>
-                <div>
-                  <Label className={labelClass}>City *</Label>
-                  <Input name="city" value={addressData.city} onChange={handleAddressChange} className={inputClass} placeholder="e.g. Mumbai" style={{ color: "white" }} required />
-                </div>
-                <div>
-                  <Label className={labelClass}>State *</Label>
-                  <Input name="state" value={addressData.state} onChange={handleAddressChange} className={inputClass} placeholder="e.g. Maharashtra" style={{ color: "white" }} required />
-                </div>
-                <div className="md:col-span-2">
-                  <Label className={labelClass}>Pincode *</Label>
-                  <Input name="pincode" type="text" inputMode="numeric" value={addressData.pincode} onChange={handleAddressChange} className={inputClass} placeholder="6-digit postal code" style={{ color: "white" }} maxLength={6} required pattern="^[0-9]{6}$" title="Enter a valid 6-digit pincode" />
-                </div>
-              </div>
-              {addressError && <p className="mt-4 text-sm text-red-400">{addressError}</p>}
-              <div className="mt-8 flex justify-end">
-                <Button type="submit" disabled={isSavingAddress} className="bg-[#D4AF37] text-black hover:bg-[#E7C45B] h-11 px-8 rounded-xl font-medium">
-                  {isSavingAddress ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Continue"}
-                </Button>
-              </div>
-            </form>
-          )}
 
-          {currentStep === 2 && (
-            <form onSubmit={handleSavePaymentDetails} className="animate-fadeIn w-full max-w-3xl mx-auto">
-              <div className="mb-6 border-b border-[#D4AF37]/10 pb-4">
-                <h2 className="text-xl font-serif text-[#F6E7C0]">Payout Details</h2>
-              </div>
-              <div className="space-y-5">
-                <div>
-                  <Label className={labelClass}>UPI ID *</Label>
-                  <div className="flex flex-col sm:flex-row gap-3">
-                    <Input value={paymentUpiId} onChange={(e) => { setPaymentUpiId(e.target.value); setPaymentError(""); if (e.target.value.trim().toLowerCase() !== verifiedUpiId) { setVerifiedUpiId(""); setVerifiedBeneficiaryName(""); } }} placeholder="e.g. yourname@upi" className={`${inputClass} flex-1`} style={{ color: "white" }} required />
-                    <Button type="button" onClick={handleVerifyUpi} disabled={isVerifyingUpi || !paymentUpiId.trim() || paymentUpiId.trim().toLowerCase() === verifiedUpiId} className={`h-12 px-6 rounded-xl font-medium border ${paymentUpiId.trim().toLowerCase() === verifiedUpiId && verifiedUpiId ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20" : "bg-[#16120e] text-[#D4AF37] border-[#D4AF37]/30 hover:bg-[#D4AF37]/10"}`}>
-                      {isVerifyingUpi ? <Loader2 className="h-4 w-4 animate-spin" /> : paymentUpiId.trim().toLowerCase() === verifiedUpiId && verifiedUpiId ? "Verified" : "Verify ID"}
+              <div className="bg-[#120F0D]/80 backdrop-blur-sm border border-[#D4AF37]/10 rounded-3xl p-6 md:p-8">
+                <form onSubmit={handleSaveAddress} className="space-y-5">
+                  <div className="grid gap-5 md:grid-cols-2">
+                    <div>
+                      <Label className={labelClass}>Full Name</Label>
+                      <Input name="full_name" value={addressData.full_name} onChange={handleAddressChange} className={inputClass} placeholder="Your legal name" required />
+                    </div>
+                    <div>
+                      <Label className={labelClass}>Phone Number</Label>
+                      <Input name="phone" type="tel" value={addressData.phone} onChange={handleAddressChange} className={inputClass} placeholder="+91 9876543210" required />
+                    </div>
+                    <div className="md:col-span-2">
+                      <Label className={labelClass}>Address Line 1</Label>
+                      <Input name="address_line1" value={addressData.address_line1} onChange={handleAddressChange} className={inputClass} placeholder="Street, Sector, Building" required />
+                    </div>
+                    <div className="md:col-span-2">
+                      <Label className={labelClass}>Address Line 2 (Optional)</Label>
+                      <Input name="address_line2" value={addressData.address_line2} onChange={handleAddressChange} className={inputClass} placeholder="Locality, Landmark" />
+                    </div>
+                    <div>
+                      <Label className={labelClass}>City</Label>
+                      <Input name="city" value={addressData.city} onChange={handleAddressChange} className={inputClass} placeholder="E.g. Mumbai" required />
+                    </div>
+                    <div>
+                      <Label className={labelClass}>State</Label>
+                      <Input name="state" value={addressData.state} onChange={handleAddressChange} className={inputClass} placeholder="E.g. Maharashtra" required />
+                    </div>
+                    <div className="md:col-span-2">
+                      <Label className={labelClass}>Pincode</Label>
+                      <Input name="pincode" type="text" value={addressData.pincode} onChange={handleAddressChange} className={inputClass} placeholder="6-digit pincode" maxLength={6} required />
+                    </div>
+                  </div>
+                  
+                  {addressError && <p className="text-sm text-red-400">{addressError}</p>}
+                  
+                  <div className="pt-6 flex justify-end">
+                    <Button type="submit" disabled={isSavingAddress} className={`h-12 px-10 rounded-xl font-bold transition-all ${hasAddress ? 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/20' : 'bg-gradient-to-r from-[#E7C45B] to-[#D4AF37] text-black hover:opacity-90 shadow-lg shadow-[#D4AF37]/20'}`}>
+                      {isSavingAddress ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : hasAddress ? <><CheckCircle2 className="h-5 w-5 mr-2"/>Saved & Continue</> : "Save & Continue"}
                     </Button>
                   </div>
-                </div>
-                <div>
-                  <Label className={labelClass}>Account Holder Name *</Label>
-                  <Input value={paymentBeneficiaryName} onChange={(e) => { setPaymentBeneficiaryName(e.target.value); setIsBeneficiaryAutoFilled(false); setPaymentError(""); }} placeholder="Enter full name as per bank account" className={inputClass} readOnly={isBeneficiaryAutoFilled} style={{ color: "white" }} required />
-                  {isBeneficiaryAutoFilled && <p className="text-xs text-emerald-400 mt-2 flex items-center gap-1"><CheckCircle2 size={12}/> Auto-verified from bank records</p>}
-                </div>
-              </div>
-              <div className="mt-6 rounded-xl bg-blue-500/5 border border-blue-500/20 p-4 flex items-start gap-3">
-                <ShieldCheck size={18} className="text-blue-400 mt-0.5" />
-                <p className="text-xs text-blue-200/80 leading-relaxed">Your payments are securely processed via PayU. We never ask for your UPI PIN. Ensure the account name matches your KYC.</p>
-              </div>
-              {paymentVerificationMessage && <p className="mt-4 text-sm text-emerald-400 flex items-center gap-2"><CheckCircle2 size={16} />{paymentVerificationMessage}</p>}
-              {paymentError && <p className="mt-4 text-sm text-red-400">{paymentError}</p>}
-              <div className="mt-8 flex justify-between">
-                <Button type="button" variant="ghost" onClick={() => setCurrentStep(1)} className="text-[#E6D3A6]/70 hover:text-[#E6D3A6] hover:bg-white/5 h-11 px-6 rounded-xl"><ChevronLeft className="mr-2 h-4 w-4" /> Back</Button>
-                <Button type="submit" disabled={isSavingPayment || !verifiedUpiId} className="bg-[#D4AF37] text-black hover:bg-[#E7C45B] h-11 px-8 rounded-xl font-medium disabled:opacity-50">
-                  {isSavingPayment ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Continue"}
-                </Button>
-              </div>
-            </form>
-          )}
-
-          {currentStep === 3 && (
-            <div className="animate-fadeIn w-full max-w-5xl mx-auto">
-              <div className="mb-6 border-b border-[#D4AF37]/10 pb-4 flex flex-col items-center">
-                <h2 className="text-2xl font-serif text-[#F6E7C0] mb-2">{creatorTermsContent.title}</h2>
-                <p className="text-sm text-[#E6D3A6]/60">{creatorTermsContent.brand} • {creatorTermsContent.intro}</p>
-              </div>
-              
-              {/* INTERACTIVE SIDEBAR LAYOUT FOR TERMS (Removes 'notes' feel, makes it highly premium) */}
-              <div className="flex flex-col md:flex-row gap-0 border border-[#D4AF37]/20 rounded-2xl bg-[#1d1610] overflow-hidden shadow-2xl h-[450px] mb-8">
-                 {/* Sidebar Navigation */}
-                 <div className="w-full md:w-1/3 bg-[#120f09] border-r border-[#D4AF37]/10 overflow-y-auto scrollbar-thin scrollbar-thumb-[#D4AF37]/20 p-2">
-                    {creatorTermsContent.sections.map((section, idx) => (
-                       <button 
-                          key={idx}
-                          type="button"
-                          onClick={() => setActiveTermSection(idx)}
-                          className={`w-full text-left px-4 py-3 mb-1 rounded-xl transition-all flex items-center gap-3 ${activeTermSection === idx ? 'bg-[#D4AF37]/10 text-[#D4AF37] border border-[#D4AF37]/20 shadow-inner' : 'border border-transparent text-[#E6D3A6]/60 hover:text-[#E6D3A6] hover:bg-white/5'}`}
-                       >
-                          <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs flex-shrink-0 ${activeTermSection === idx ? 'bg-[#D4AF37]/20 text-[#D4AF37]' : 'bg-white/5 text-white/40'}`}>
-                            {idx + 1}
-                          </div>
-                          <span className="text-[13px] font-medium leading-snug">{section.title}</span>
-                       </button>
-                    ))}
-                 </div>
-                 
-                 {/* Content Area */}
-                 <div className="w-full md:w-2/3 p-6 md:p-8 bg-[#16120e] overflow-y-auto scrollbar-thin scrollbar-thumb-[#D4AF37]/20">
-                     <div className="animate-fadeIn">
-                       <h3 className="text-xl font-serif text-[#F6E7C0] mb-6 pb-4 border-b border-white/5 flex items-center gap-3">
-                         <span className="flex items-center justify-center w-8 h-8 rounded-full bg-[#D4AF37]/10 text-[#D4AF37] text-sm">
-                           {activeTermSection + 1}
-                         </span>
-                         {creatorTermsContent.sections[activeTermSection].title}
-                       </h3>
-                       <div className="space-y-4">
-                           {creatorTermsContent.sections[activeTermSection].items.map((item, i) => (
-                               <div key={i} className="flex items-start gap-4 p-4 rounded-xl bg-white/[0.02] border border-white/5 hover:border-[#D4AF37]/20 transition-colors">
-                                   <CheckCircle2 size={18} className="text-[#D4AF37] mt-0.5 flex-shrink-0" />
-                                   <span className="text-[#E6D3A6]/90 text-[14px] leading-relaxed">{item}</span>
-                               </div>
-                           ))}
-                       </div>
-                     </div>
-                 </div>
-              </div>
-
-              <div className="flex items-start gap-4 p-5 rounded-xl border border-[#D4AF37]/40 bg-[#D4AF37]/5 cursor-pointer hover:bg-[#D4AF37]/10 transition-all shadow-sm max-w-3xl mx-auto" onClick={() => setTermsCheckboxChecked(!termsCheckboxChecked)}>
-                <div className={`mt-0.5 w-6 h-6 rounded flex-shrink-0 border flex items-center justify-center transition-all ${termsCheckboxChecked ? 'bg-[#D4AF37] border-[#D4AF37] text-black shadow-lg shadow-[#D4AF37]/20' : 'border-white/30'}`}>
-                  {termsCheckboxChecked && <CheckCircle2 size={16} strokeWidth={3} />}
-                </div>
-                <Label className="text-[15px] text-[#F6E7C0] cursor-pointer leading-relaxed font-medium">
-                  I have thoroughly read and agree to the {creatorTermsContent.title}.
-                </Label>
-              </div>
-
-              <div className="mt-10 flex justify-between border-t border-[#D4AF37]/10 pt-6 max-w-3xl mx-auto">
-                <Button variant="ghost" onClick={() => setCurrentStep(2)} className="text-[#E6D3A6]/70 hover:text-[#E6D3A6] hover:bg-white/5 h-12 px-6 rounded-xl"><ChevronLeft className="mr-2 h-4 w-4" /> Back</Button>
-                <Button onClick={handleAcceptTerms} disabled={!termsCheckboxChecked || isAcceptingTerms} className="bg-gradient-to-r from-[#E7C45B] to-[#D4AF37] text-black hover:opacity-90 h-12 px-10 rounded-xl font-bold shadow-lg shadow-[#D4AF37]/20 disabled:opacity-50 disabled:shadow-none transition-all">
-                  {isAcceptingTerms ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : "Complete Setup"}
-                </Button>
+                </form>
               </div>
             </div>
           )}
 
+          {/* Section 2: Payout */}
+          {activeTab === "payout" && (
+            <div className="animate-fadeIn space-y-8 pb-20">
+              <div className="space-y-2 mb-8 flex justify-between items-end">
+                <div>
+                  <h2 className="text-2xl md:text-3xl font-serif text-[#F6E7C0]">Payout Details</h2>
+                  <p className="text-[#E6D3A6]/60">Securely receive your earnings via UPI.</p>
+                </div>
+                <Button variant="ghost" onClick={() => setActiveTab("address")} className="text-[#D4AF37]/70 hover:text-[#D4AF37] hover:bg-[#D4AF37]/10 -mb-2">
+                  &larr; Back
+                </Button>
+              </div>
+
+              <div className="bg-[#120F0D]/80 backdrop-blur-sm border border-[#D4AF37]/10 rounded-3xl p-6 md:p-8">
+                <form onSubmit={handleSavePaymentDetails} className="space-y-6">
+                  <div className="space-y-5">
+                    <div>
+                      <Label className={labelClass}>UPI ID</Label>
+                      <div className="flex flex-col sm:flex-row gap-3">
+                        <Input value={paymentUpiId} onChange={(e) => { setPaymentUpiId(e.target.value); setPaymentError(""); if (e.target.value.trim().toLowerCase() !== verifiedUpiId) { setVerifiedUpiId(""); setVerifiedBeneficiaryName(""); } }} placeholder="e.g. yourname@upi" className={`${inputClass} flex-1`} required />
+                        <Button type="button" onClick={handleVerifyUpi} disabled={isVerifyingUpi || !paymentUpiId.trim() || paymentUpiId.trim().toLowerCase() === verifiedUpiId} className={`h-12 px-6 rounded-xl font-medium border transition-all ${paymentUpiId.trim().toLowerCase() === verifiedUpiId && verifiedUpiId ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30" : "bg-[#1A1614] text-[#D4AF37] border-[#D4AF37]/30 hover:bg-[#D4AF37]/10"}`}>
+                          {isVerifyingUpi ? <Loader2 className="h-4 w-4 animate-spin" /> : paymentUpiId.trim().toLowerCase() === verifiedUpiId && verifiedUpiId ? "Verified" : "Verify ID"}
+                        </Button>
+                      </div>
+                    </div>
+                    <div>
+                      <Label className={labelClass}>Account Holder Name</Label>
+                      <Input value={paymentBeneficiaryName} onChange={(e) => { setPaymentBeneficiaryName(e.target.value); setIsBeneficiaryAutoFilled(false); setPaymentError(""); }} placeholder="Full name as per bank" className={inputClass} readOnly={isBeneficiaryAutoFilled} required />
+                      {isBeneficiaryAutoFilled && <p className="text-xs text-emerald-400 mt-2 flex items-center gap-1.5"><CheckCircle2 size={12}/> Verified from bank records</p>}
+                    </div>
+                  </div>
+                  
+                  <div className="rounded-xl bg-blue-500/5 border border-blue-500/10 p-4 flex items-start gap-3">
+                    <ShieldCheck size={18} className="text-blue-400 shrink-0 mt-0.5" />
+                    <p className="text-xs text-blue-200/70 leading-relaxed">Securely processed via PayU. We never ask for your UPI PIN. Account name must match your KYC.</p>
+                  </div>
+                  
+                  {paymentVerificationMessage && <p className="text-sm text-emerald-400 flex items-center gap-2"><CheckCircle2 size={16} />{paymentVerificationMessage}</p>}
+                  {paymentError && <p className="text-sm text-red-400">{paymentError}</p>}
+                  
+                  <div className="pt-6 flex justify-end">
+                    <Button type="submit" disabled={isSavingPayment || !verifiedUpiId} className={`h-12 px-10 rounded-xl font-bold transition-all ${hasPaymentDetails ? 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/20' : 'bg-gradient-to-r from-[#E7C45B] to-[#D4AF37] text-black hover:opacity-90 shadow-lg shadow-[#D4AF37]/20'}`}>
+                      {isSavingPayment ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : hasPaymentDetails ? <><CheckCircle2 className="h-5 w-5 mr-2"/>Saved & Continue</> : "Save & Continue"}
+                    </Button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {/* Section 3: Terms */}
+          {activeTab === "terms" && (
+            <div className="animate-fadeIn flex flex-col h-full max-h-full pb-10">
+              <div className="mb-6 flex justify-between items-end">
+                <div>
+                  <h2 className="text-2xl md:text-3xl font-serif text-[#F6E7C0] mb-2">{creatorTermsContent.title}</h2>
+                  <p className="text-[#E6D3A6]/60 text-sm">Please review and agree to our partnership guidelines.</p>
+                </div>
+                <Button variant="ghost" onClick={() => setActiveTab("payout")} className="text-[#D4AF37]/70 hover:text-[#D4AF37] hover:bg-[#D4AF37]/10 -mb-2">
+                  &larr; Back
+                </Button>
+              </div>
+              
+              <div className="flex-1 bg-[#120F0D] border border-[#D4AF37]/20 rounded-3xl overflow-hidden flex flex-col mb-8 shadow-2xl relative">
+                <div className="p-4 md:p-6 bg-[#16120E] border-b border-[#D4AF37]/10 flex items-center justify-between shrink-0">
+                  <div className="font-serif text-[#D4AF37] text-xl tracking-wider">AIVESTIRE</div>
+                  <div className="text-xs text-[#E6D3A6]/40 uppercase tracking-widest">Confidential</div>
+                </div>
+                
+                <div className="p-6 md:p-10 overflow-y-auto hide-scrollbar space-y-10 custom-scroll">
+                  <div className="max-w-3xl mx-auto space-y-4">
+                    <div className="flex justify-end mb-2">
+                      <Button variant="ghost" onClick={() => setExpandedSections(expandedSections.length === creatorTermsContent.sections.length ? [] : creatorTermsContent.sections.map((_, i) => i))} className="text-[#D4AF37] hover:text-[#F6E7C0] hover:bg-[#D4AF37]/10 h-8 px-3 text-xs">
+                        {expandedSections.length === creatorTermsContent.sections.length ? "Collapse All" : "Expand All"}
+                      </Button>
+                    </div>
+                    {creatorTermsContent.sections.map((section, idx) => {
+                      const isExpanded = expandedSections.includes(idx);
+                      return (
+                        <div key={idx} className="border border-[#D4AF37]/10 rounded-2xl bg-[#1A1614]/40 overflow-hidden transition-all duration-300">
+                          <button 
+                            onClick={() => toggleSection(idx)}
+                            className="w-full flex items-center justify-between p-4 md:p-5 text-left hover:bg-[#D4AF37]/5 transition-colors"
+                          >
+                            <div className="flex items-center gap-4">
+                              <span className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-sans shrink-0 transition-colors ${isExpanded ? "bg-[#D4AF37] text-black" : "bg-[#D4AF37]/10 text-[#D4AF37]"}`}>
+                                {idx + 1}
+                              </span>
+                              <h3 className={`text-base md:text-lg font-serif pr-4 transition-colors ${isExpanded ? "text-[#F6E7C0]" : "text-[#E6D3A6]/80"}`}>{section.title}</h3>
+                            </div>
+                            <ChevronDown size={20} className={`text-[#D4AF37] transition-transform duration-300 shrink-0 ${isExpanded ? "rotate-180" : ""}`} />
+                          </button>
+                          
+                          <div className={`overflow-hidden transition-all duration-300 ease-in-out ${isExpanded ? "max-h-[1000px] opacity-100" : "max-h-0 opacity-0"}`}>
+                            <div className="p-4 md:p-5 pt-0 pl-[68px] space-y-3 pb-6">
+                              {section.items.map((item, i) => (
+                                <p key={i} className="text-[#E6D3A6]/80 text-[14px] md:text-[15px] leading-relaxed relative before:content-['•'] before:absolute before:-left-5 before:text-[#D4AF37]/50">
+                                  {item}
+                                </p>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              <div className="shrink-0 space-y-6">
+                <div 
+                  className={`flex items-start gap-4 p-5 rounded-2xl border transition-all cursor-pointer ${termsCheckboxChecked ? 'bg-[#D4AF37]/10 border-[#D4AF37]/40' : 'bg-[#120F0D] border-[#D4AF37]/10 hover:border-[#D4AF37]/30'}`}
+                  onClick={() => setTermsCheckboxChecked(!termsCheckboxChecked)}
+                >
+                  <div className={`mt-0.5 w-6 h-6 rounded-md flex-shrink-0 border flex items-center justify-center transition-all ${termsCheckboxChecked ? 'bg-[#D4AF37] border-[#D4AF37] text-black shadow-lg shadow-[#D4AF37]/20' : 'border-[#E6D3A6]/30'}`}>
+                    {termsCheckboxChecked && <CheckCircle2 size={16} strokeWidth={3} />}
+                  </div>
+                  <div>
+                    <Label className="text-[15px] text-[#F6E7C0] cursor-pointer leading-snug font-medium block mb-1">
+                      I accept the Creator & Partner Terms
+                    </Label>
+                    <p className="text-xs text-[#E6D3A6]/50">
+                      By checking this box, you digitally sign the agreement to adhere to AIVESTIRE's quality, pricing, and operational standards.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex justify-end pt-2 border-t border-[#D4AF37]/10">
+                  <Button 
+                    onClick={handleAcceptTerms} 
+                    disabled={!termsCheckboxChecked || isAcceptingTerms} 
+                    className="bg-gradient-to-r from-[#E7C45B] to-[#D4AF37] text-black hover:opacity-90 h-14 px-10 rounded-xl font-bold text-lg shadow-[0_0_30px_rgba(212,175,55,0.2)] disabled:opacity-40 disabled:shadow-none transition-all w-full sm:w-auto"
+                  >
+                    {isAcceptingTerms ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : "Complete Onboarding"}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+          
         </div>
       </div>
+      
+      {/* Autofill CSS Fixes applied globally within this component */}
+      <style dangerouslySetInnerHTML={{__html: `
+        .custom-scroll::-webkit-scrollbar { width: 6px; }
+        .custom-scroll::-webkit-scrollbar-track { background: transparent; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: rgba(212, 175, 55, 0.2); border-radius: 10px; }
+        .custom-scroll::-webkit-scrollbar-thumb:hover { background: rgba(212, 175, 55, 0.4); }
+
+        /* Force ALL inputs in this container to maintain our styling even if autofilled */
+        .custom-dark-input,
+        .custom-dark-input:-webkit-autofill,
+        .custom-dark-input:-webkit-autofill:hover, 
+        .custom-dark-input:-webkit-autofill:focus, 
+        .custom-dark-input:-webkit-autofill:active {
+            -webkit-box-shadow: 0 0 0 50px #1A1614 inset !important;
+            -webkit-text-fill-color: #ffffff !important;
+            background-color: #1A1614 !important;
+            color: #ffffff !important;
+        }
+      `}} />
     </div>
   );
 };
