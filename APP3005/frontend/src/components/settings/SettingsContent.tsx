@@ -16,6 +16,9 @@ interface DashboardConfig {
 
 const UPI_ID_REGEX = /^[a-zA-Z0-9._-]{2,256}@[a-zA-Z]{2,64}$/;
 
+const getNameFromEmail = (email?: string) =>
+    email?.split("@")[0]?.replace(/[._-]+/g, " ").trim() || "";
+
 const SettingsContent: React.FC = () => {
     const { user, fetchUser, loading } = useAuth();
     const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
@@ -62,19 +65,25 @@ const SettingsContent: React.FC = () => {
 
     async function loadAddress() {
         try {
+            const profileFullName = user?.store_name || getNameFromEmail(user?.email);
+            const profilePhone = user?.phone || "";
             const addr = await getCreatorAddress();
             if (addr) {
                 setAddressData({
-                    full_name: addr.full_name || "",
-                    phone: addr.phone || "",
+                    full_name: addr.full_name || profileFullName,
+                    phone: addr.phone || profilePhone,
                     address_line1: addr.address_line1 || "",
                     address_line2: addr.address_line2 || "",
                     city: addr.city || "",
                     state: addr.state || "",
                     pincode: addr.pincode || "",
                 });
-            } else if ((user as any)?.phone) {
-                setAddressData(prev => ({ ...prev, phone: (user as any).phone || "" }));
+            } else if (profileFullName || profilePhone) {
+                setAddressData(prev => ({
+                    ...prev,
+                    full_name: prev.full_name || profileFullName,
+                    phone: prev.phone || profilePhone,
+                }));
             }
         } catch (e) {
             console.error("Failed to load address", e);

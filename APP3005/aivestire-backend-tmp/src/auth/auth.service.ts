@@ -165,15 +165,20 @@ export class AuthService {
     });
 
     if (user.role === UserRole.CREATOR) {
-      const storeName = `${user.email.split('@')[0]} Store`;
-      let storeSlug = this.slugify(storeName);
+      const providedStoreName = dto.store_name?.trim();
+      const storeName = providedStoreName || `${user.email.split('@')[0]} Store`;
+      const baseStoreSlug =
+        this.slugify(dto.store_slug?.trim() || storeName) ||
+        this.slugify(user.email.split('@')[0]) ||
+        'creator-store';
+      let storeSlug = baseStoreSlug;
       let i = 1;
       while (
         await this.prisma.creator.findUnique({
           where: { store_slug: storeSlug },
         })
       ) {
-        storeSlug = `${this.slugify(storeName)}-${i++}`;
+        storeSlug = `${baseStoreSlug}-${i++}`;
       }
 
       await this.prisma.creator.create({
@@ -181,9 +186,11 @@ export class AuthService {
           user_id: user.user_id,
           store_name: storeName,
           store_slug: storeSlug,
+          ...(dto.about?.trim() ? { about: dto.about.trim() } : {}),
           verified: true,
           verification_data: {
             autoCreated: true,
+            manualRegistration: true,
             timestamp: new Date().toISOString(),
           },
         },
@@ -314,6 +321,7 @@ export class AuthService {
       select: {
         user_id: true,
         email: true,
+        phone: true,
         role: true,
         password_hash: true,
         date_of_birth: true,
@@ -363,10 +371,12 @@ export class AuthService {
       return {
         user_id: user.user_id,
         email: user.email,
+        phone: user.phone,
         role: user.role,
         dob: user.date_of_birth?.toISOString().split('T')[0],
         needs_dob_collection: !user.date_of_birth && !user.password_hash,
         try_on_permission: user.try_on_permission,
+        name: user.creatorProfile.store_name,
         store_name: user.creatorProfile.store_name,
         subtitle: verificationData.subtitle || null,
         avatar: verificationData.avatar || auraAvatar || null,
@@ -383,6 +393,7 @@ export class AuthService {
     return {
       user_id: user.user_id,
       email: user.email,
+      phone: user.phone,
       role: user.role,
       dob: user.date_of_birth?.toISOString().split('T')[0],
       needs_dob_collection: !user.date_of_birth && !user.password_hash,

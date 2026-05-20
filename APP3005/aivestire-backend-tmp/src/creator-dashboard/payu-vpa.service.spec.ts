@@ -58,8 +58,8 @@ describe('PayUVpaService', () => {
       .update('merchantKey123|validateVPA|testuser@upi|merchantSalt123')
       .digest('hex');
 
-    expect(url).toBe('https://test.payu.in/merchant/postservice.php');
-    expect(params.get('form')).toBe('2');
+    expect(url).toBe('https://test.payu.in/merchant/postservice.php?form=2');
+    expect(params.get('form')).toBeNull();
     expect(params.get('command')).toBe('validateVPA');
     expect(params.get('var1')).toBe('testuser@upi');
     expect(params.get('hash')).toBe(expectedHash);
@@ -131,6 +131,50 @@ describe('PayUVpaService', () => {
       .update('aliasKey123|validateVPA|alias@upi|aliasSalt123')
       .digest('hex');
 
+    expect(params.get('hash')).toBe(expectedHash);
+  });
+
+  it('uses dedicated PAYU_VPA credentials without changing payment credentials', async () => {
+    mockedAxios.post.mockResolvedValue({
+      data: {
+        message: 'Success',
+        status: 1,
+        result: {
+          isValidVpa: true,
+          payerAccountName: 'VPA User',
+          vpa: 'vpa@upi',
+        },
+      },
+    });
+
+    const service = new PayUVpaService(
+      createConfigService({
+        PAYU_MERCHANT_KEY: undefined,
+        PAYU_MERCHANT_SALT: undefined,
+        PAYU_KEY: 'checkoutTestKey',
+        PAYU_SALT: 'checkoutTestSalt',
+        PAYU_VPA_KEY: 'vpaProdKey',
+        PAYU_VPA_SALT: 'vpaProdSalt',
+        PAYU_VPA_VALIDATION_URL: 'https://info.payu.in/merchant/postservice.php',
+      }),
+    );
+
+    await expect(service.verifyUpiId('vpa@upi')).resolves.toEqual({
+      provider: 'PAYU',
+      isValid: true,
+      upiId: 'vpa@upi',
+      payerAccountName: 'VPA User',
+      rawMessage: 'Success',
+    });
+
+    const [url, requestBody] = mockedAxios.post.mock.calls[0];
+    const params = new URLSearchParams(requestBody as string);
+    const expectedHash = createHash('sha512')
+      .update('vpaProdKey|validateVPA|vpa@upi|vpaProdSalt')
+      .digest('hex');
+
+    expect(url).toBe('https://info.payu.in/merchant/postservice.php?form=2');
+    expect(params.get('key')).toBe('vpaProdKey');
     expect(params.get('hash')).toBe(expectedHash);
   });
 });

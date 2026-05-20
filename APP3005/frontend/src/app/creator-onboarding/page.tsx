@@ -20,7 +20,10 @@ import {
   verifyCreatorPayoutUpi,
   saveCreatorAddress
 } from "@/lib/api";
-import { fetchCreatorOnboardingState } from "@/lib/creatorOnboarding";
+import {
+  fetchCreatorOnboardingState,
+  type CreatorProfileResponse,
+} from "@/lib/creatorOnboarding";
 import {
   creatorTermsAcknowledgements,
   creatorTermsContent,
@@ -30,6 +33,21 @@ import "@/components/TermsModal.css";
 
 const UPI_ID_REGEX = /^[a-zA-Z0-9._-]{2,256}@[a-zA-Z]{2,64}$/;
 
+const getNameFromEmail = (email?: string) =>
+  email?.split("@")[0]?.replace(/[._-]+/g, " ").trim() || "";
+
+const getProfileDisplayName = (profile: CreatorProfileResponse) =>
+  profile.name?.trim() ||
+  profile.store_name?.trim() ||
+  getNameFromEmail(profile.email) ||
+  "Creator";
+
+const getRegisteredDob = (profile: CreatorProfileResponse) => {
+  if (profile.dob) return profile.dob;
+  if (!profile.email) return "";
+  return localStorage.getItem(`aivestire:dob:${profile.email.toLowerCase()}`) || "";
+};
+
 const CreatorOnboardingPage = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -38,6 +56,8 @@ const CreatorOnboardingPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
   const [creatorName, setCreatorName] = useState("Creator");
+  const [registeredEmail, setRegisteredEmail] = useState("");
+  const [registeredDob, setRegisteredDob] = useState("");
   
   // Step 1: Address
   const [hasAddress, setHasAddress] = useState(false);
@@ -81,27 +101,35 @@ const CreatorOnboardingPage = () => {
     setIsLoading(true);
     try {
       const onboardingState = await fetchCreatorOnboardingState();
-      
-      setCreatorName(
-        onboardingState.profile.name ||
-          onboardingState.profile.store_name ||
-          "Creator",
-      );
+      const profileDisplayName = getProfileDisplayName(onboardingState.profile);
+      const profilePhone = onboardingState.profile.phone || "";
+      const profileFullName =
+        profileDisplayName !== "Creator"
+          ? profileDisplayName
+          : getNameFromEmail(onboardingState.profile.email);
+
+      setCreatorName(profileDisplayName);
+      setRegisteredEmail(onboardingState.profile.email || "");
+      setRegisteredDob(getRegisteredDob(onboardingState.profile));
       
       // Load address
       setHasAddress(onboardingState.hasAddress);
       if (onboardingState.addressDetails) {
         setAddressData({
-          full_name: onboardingState.addressDetails.full_name || "",
-          phone: onboardingState.addressDetails.phone || onboardingState.profile.phone || "",
+          full_name: onboardingState.addressDetails.full_name || profileFullName,
+          phone: onboardingState.addressDetails.phone || profilePhone,
           address_line1: onboardingState.addressDetails.address_line1 || "",
           address_line2: onboardingState.addressDetails.address_line2 || "",
           city: onboardingState.addressDetails.city || "",
           state: onboardingState.addressDetails.state || "",
           pincode: onboardingState.addressDetails.pincode || ""
         });
-      } else if (onboardingState.profile.phone) {
-         setAddressData(prev => ({ ...prev, phone: onboardingState.profile.phone || "" }));
+      } else if (profileFullName || profilePhone) {
+        setAddressData(prev => ({
+          ...prev,
+          full_name: prev.full_name || profileFullName,
+          phone: prev.phone || profilePhone,
+        }));
       }
 
       // Load payment
@@ -313,6 +341,22 @@ const CreatorOnboardingPage = () => {
                 <h2 className="text-xl font-serif text-[#F6E7C0]">Business Address</h2>
               </div>
               <div className="grid gap-x-6 gap-y-4 md:grid-cols-2">
+                {(registeredEmail || registeredDob) && (
+                  <div className="md:col-span-2 grid gap-x-6 gap-y-4 md:grid-cols-2">
+                    {registeredEmail && (
+                      <div>
+                        <Label className={labelClass}>Registered Email</Label>
+                        <Input value={registeredEmail} readOnly className={`${inputClass} bg-[#120f09] !text-[#F6E7C0]`} style={{ color: "white" }} />
+                      </div>
+                    )}
+                    {registeredDob && (
+                      <div>
+                        <Label className={labelClass}>Date of Birth</Label>
+                        <Input value={registeredDob} readOnly className={`${inputClass} bg-[#120f09] !text-[#F6E7C0]`} style={{ color: "white" }} />
+                      </div>
+                    )}
+                  </div>
+                )}
                 <div>
                   <Label className={labelClass}>Full Name *</Label>
                   <Input name="full_name" value={addressData.full_name} onChange={handleAddressChange} className={inputClass} placeholder="Enter your full name" style={{ color: "white" }} required minLength={2} />

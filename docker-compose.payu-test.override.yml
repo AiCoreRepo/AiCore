@@ -4,6 +4,9 @@ services:
       PAYU_ENV: ${PAYU_ENV_OVERRIDE:-test}
       PAYU_KEY: ${PAYU_KEY_OVERRIDE:-gtKFFx}
       PAYU_SALT: ${PAYU_SALT_OVERRIDE:-4R38IvwiV57FwVpsgOvTXBdLE4tHUXFW}
+      PAYU_VPA_ENV: ${PAYU_VPA_ENV_OVERRIDE:-test}
+      PAYU_VPA_KEY: ${PAYU_VPA_KEY_OVERRIDE:-gtKFFx}
+      PAYU_VPA_SALT: ${PAYU_VPA_SALT_OVERRIDE:-4R38IvwiV57FwVpsgOvTXBdLE4tHUXFW}
       PAYU_SUCCESS_URL: ${PAYU_CALLBACK_BASE_URL:?Set PAYU_CALLBACK_BASE_URL in the selected .env.payu-* file}/api/payments/success
       PAYU_FAILURE_URL: ${PAYU_CALLBACK_BASE_URL:?Set PAYU_CALLBACK_BASE_URL in the selected .env.payu-* file}/api/payments/failure
       FRONTEND_URL: ${PAYU_FRONTEND_URL:-http://localhost:3005}
@@ -14,6 +17,9 @@ services:
       PAYU_ENV: ${PAYU_ENV_OVERRIDE:-test}
       PAYU_KEY: ${PAYU_KEY_OVERRIDE:-gtKFFx}
       PAYU_SALT: ${PAYU_SALT_OVERRIDE:-4R38IvwiV57FwVpsgOvTXBdLE4tHUXFW}
+      PAYU_VPA_ENV: ${PAYU_VPA_ENV_OVERRIDE:-test}
+      PAYU_VPA_KEY: ${PAYU_VPA_KEY_OVERRIDE:-gtKFFx}
+      PAYU_VPA_SALT: ${PAYU_VPA_SALT_OVERRIDE:-4R38IvwiV57FwVpsgOvTXBdLE4tHUXFW}
       PAYU_SUCCESS_URL: ${PAYU_CALLBACK_BASE_URL:?Set PAYU_CALLBACK_BASE_URL in the selected .env.payu-* file}/api/payments/success
       PAYU_FAILURE_URL: ${PAYU_CALLBACK_BASE_URL:?Set PAYU_CALLBACK_BASE_URL in the selected .env.payu-* file}/api/payments/failure
       FRONTEND_URL: ${PAYU_FRONTEND_URL:-http://localhost:3005}

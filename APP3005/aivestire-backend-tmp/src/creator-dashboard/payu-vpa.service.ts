@@ -44,10 +44,12 @@ export class PayUVpaService {
 
   constructor(private readonly configService: ConfigService) {
     this.merchantKey =
+      this.configService.get<string>('PAYU_VPA_KEY')?.trim() ||
       this.configService.get<string>('PAYU_MERCHANT_KEY')?.trim() ||
       this.configService.get<string>('PAYU_KEY')?.trim() ||
       '';
     this.merchantSalt =
+      this.configService.get<string>('PAYU_VPA_SALT')?.trim() ||
       this.configService.get<string>('PAYU_MERCHANT_SALT')?.trim() ||
       this.configService.get<string>('PAYU_SALT')?.trim() ||
       '';
@@ -55,6 +57,7 @@ export class PayUVpaService {
     const configuredUrl =
       this.configService.get<string>('PAYU_VPA_VALIDATION_URL')?.trim() || '';
     const configuredEnvironment = (
+      this.configService.get<string>('PAYU_VPA_ENV') ||
       this.configService.get<string>('PAYU_ENVIRONMENT') ||
       this.configService.get<string>('PAYU_ENV') ||
       ''
@@ -80,9 +83,13 @@ export class PayUVpaService {
 
     if (!this.isConfigured) {
       this.logger.warn(
-        'PayU merchant credentials are missing; creator UPI verification is disabled.',
+        'PayU VPA credentials are missing; creator UPI verification is disabled. Set PAYU_VPA_KEY/PAYU_VPA_SALT or PAYU_KEY/PAYU_SALT.',
       );
     }
+
+    this.logger.log(
+      `PayU VPA verification initialised in ${isProductionEnvironment ? 'PRODUCTION' : 'TEST'} mode`,
+    );
   }
 
   async verifyUpiId(rawUpiId: string): Promise<PayUUpiVerificationResult> {
@@ -90,12 +97,11 @@ export class PayUVpaService {
 
     if (!this.isConfigured) {
       throw new ServiceUnavailableException(
-        'PayU UPI verification is not configured. Set PAYU_KEY/PAYU_SALT or PAYU_MERCHANT_KEY/PAYU_MERCHANT_SALT before verifying payout IDs.',
+        'PayU UPI verification is not configured. Set PAYU_VPA_KEY/PAYU_VPA_SALT or PAYU_KEY/PAYU_SALT before verifying payout IDs.',
       );
     }
 
     const payload = new URLSearchParams({
-      form: '2',
       key: this.merchantKey,
       command: 'validateVPA',
       var1: upiId,
@@ -104,7 +110,7 @@ export class PayUVpaService {
 
     try {
       const response = await axios.post<PayUValidationResponse | string>(
-        this.validationUrl,
+        this.withFormQueryParam(this.validationUrl),
         payload.toString(),
         {
           headers: {
@@ -165,6 +171,16 @@ export class PayUVpaService {
       return new URL(url).hostname.trim().toLowerCase();
     } catch {
       return url.trim().toLowerCase().replace(/^https?:\/\//, '').split('/')[0];
+    }
+  }
+
+  private withFormQueryParam(url: string): string {
+    try {
+      const parsedUrl = new URL(url);
+      parsedUrl.searchParams.set('form', '2');
+      return parsedUrl.toString();
+    } catch {
+      return url.includes('?') ? `${url}&form=2` : `${url}?form=2`;
     }
   }
 

@@ -11,12 +11,14 @@ export interface CreatorPaymentDetails {
 }
 
 export interface CreatorProfileResponse {
+  email?: string;
   name?: string;
   store_name?: string;
   avatar?: string;
   subtitle?: string;
   role?: string;
   phone?: string;
+  dob?: string;
   paymentDetails?: CreatorPaymentDetails | null;
 }
 

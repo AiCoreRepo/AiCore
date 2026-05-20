@@ -51,6 +51,22 @@ if [[ ! -f "$ENV_FILE" ]]; then
   exit 1
 fi
 
+env_file_payment_mode="$(
+  grep -E '^PAYU_ENV_OVERRIDE=' "$ENV_FILE" 2>/dev/null \
+    | tail -n 1 \
+    | cut -d= -f2- \
+    | tr -d "\"'" \
+    || true
+)"
+payment_mode="${PAYU_ENV_OVERRIDE:-$env_file_payment_mode}"
+payment_mode="${payment_mode:-test}"
+
+if [[ "$selected_env" != "prod" && ! "$payment_mode" =~ ^(test|sandbox)$ ]]; then
+  echo "Refusing to run $selected_env with PAYU_ENV_OVERRIDE=$payment_mode. Payments must stay in PayU test mode outside prod." >&2
+  echo "Use PAYU_VPA_ENV_OVERRIDE/PAYU_VPA_KEY_OVERRIDE/PAYU_VPA_SALT_OVERRIDE for live UPI verification only." >&2
+  exit 1
+fi
+
 compose() {
   docker compose \
     --env-file "$ENV_FILE" \
@@ -69,7 +85,7 @@ print_service_env() {
   local service="$1"
   echo "=== $service ==="
   compose exec -T "$service" /bin/sh -lc \
-    "printenv | grep -E '^(PAYU_ENV|PAYU_KEY|PAYU_SALT|PAYU_SUCCESS_URL|PAYU_FAILURE_URL|FRONTEND_URL|TWILIO_ACCOUNT_SID|TWILIO_PHONE_NUMBER|SKIP_TWILIO|SKIP_SMS_IN_DEV|REDIS_HOST|REDIS_PORT|REDIS_URL)=' | sort || true"
+    "printenv | grep -E '^(PAYU_ENV|PAYU_KEY|PAYU_SALT|PAYU_VPA_ENV|PAYU_VPA_KEY|PAYU_VPA_SALT|PAYU_SUCCESS_URL|PAYU_FAILURE_URL|FRONTEND_URL|TWILIO_ACCOUNT_SID|TWILIO_PHONE_NUMBER|SKIP_TWILIO|SKIP_SMS_IN_DEV|REDIS_HOST|REDIS_PORT|REDIS_URL)=' | sort | sed -E 's/^(PAYU(_VPA)?_(KEY|SALT)=).+$/\1****/' || true"
 }
 
 command="${2:-up}"

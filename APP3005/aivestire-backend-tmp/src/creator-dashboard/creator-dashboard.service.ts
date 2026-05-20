@@ -934,7 +934,12 @@ export class CreatorDashboardService {
     const verificationData = (creator.verification_data as any) || {};
 
     return {
+      user_id: creator.user.user_id,
+      email: creator.user.email,
+      phone: creator.user.phone,
+      dob: creator.user.date_of_birth?.toISOString().split('T')[0],
       name: creator.store_name,
+      store_name: creator.store_name,
       subtitle: verificationData.subtitle || creator.about || 'Creator',
       avatar:
         verificationData.avatar ||

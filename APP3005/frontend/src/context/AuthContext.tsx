@@ -5,6 +5,7 @@ import { getUserDisplayName, getUserProfileImageUrl } from '../lib/profile-image
 interface User {
   user_id: string;
   email: string;
+  phone?: string;
   role: string;
   store_name?: string;
   avatar?: string;
