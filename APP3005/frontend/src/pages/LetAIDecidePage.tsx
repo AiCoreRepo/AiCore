@@ -6,7 +6,7 @@ import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { AuraDisplayCard } from '@/components/ai-tryon/AuraDisplayCard';
 import { AuthPopup } from '@/components/AuthPopup';
-import { getAura, tryOnWithGemini, tryOnWithVertex, generateMoreAngles } from '@/lib/api';
+import { getAura, tryOnWithGemini, tryOnWithVertex, generateMoreAngles, getTryOnHistory } from '@/lib/api';
 import { getAIRecommendations, type RecommendationRequest, type RecommendationsResponse, type RecommendationItem } from '@/lib/api-recommendations';
 import { useRef } from 'react';
 import { Sparkles, Heart, Star, AlertCircle, Loader2 } from 'lucide-react';
@@ -27,6 +27,14 @@ import {
     shouldShowMultipleTryOnProviders,
     type TryOnProvider,
 } from '@/lib/try-on-environment';
+import {
+    getLatestBaseTryOnForCurrentAvatar,
+    getLatestBaseTryOnForProduct,
+    normalizeTryOnResultImage,
+    type AuraAvatarRef,
+    type TryOnHistoryItem,
+    type TryOnHistoryResponse,
+} from '@/lib/try-on-history';
 
 interface AuraData {
     aura_id: string;
@@ -34,6 +42,8 @@ interface AuraData {
     image_url: string | null;
     model_url: string | null;
     tryon_model_url?: string | null;
+    selected_avatar_id?: string | null;
+    selected_avatar?: AuraAvatarRef | null;
     height_cm: number;
     weight_kg: number;
     skin_tone: string;
@@ -136,6 +146,7 @@ const LetAIDecidePage = () => {
     const showMultipleTryOnProviders = shouldShowMultipleTryOnProviders();
     const defaultTryOnProvider = getDefaultTryOnProvider();
     const [aura, setAura] = useState<AuraData | null>(null);
+    const [tryOnHistory, setTryOnHistory] = useState<TryOnHistoryItem[]>([]);
     const [loadingAura, setLoadingAura] = useState(true);
     const [showLoginPopup, setShowLoginPopup] = useState(false);
     const [showAuraPopup, setShowAuraPopup] = useState(false);
@@ -187,6 +198,42 @@ const LetAIDecidePage = () => {
         setShowUpgradePopup(true);
     };
 
+    const loadTryOnHistory = async (): Promise<TryOnHistoryItem[]> => {
+        try {
+            const history = await getTryOnHistory() as TryOnHistoryResponse;
+            const nextTryOns = history.tryOns || [];
+            setTryOnHistory(nextTryOns);
+            return nextTryOns;
+        } catch (error) {
+            console.error('Failed to load try-on history:', error);
+            return [];
+        }
+    };
+
+    const openSavedTryOn = (
+        savedTryOn: TryOnHistoryItem,
+        product: TryOnProduct,
+    ) => {
+        const savedImage =
+            normalizeTryOnResultImage(
+                savedTryOn.resultImageUrl || savedTryOn.resultImage,
+            ) ||
+            normalizeTryOnResultImage(savedTryOn.compressedUrl) ||
+            savedTryOn.resultImageUrl;
+
+        setSelectedTryOnProduct(product);
+        setSelectedTryOnLabel(savedTryOn.productTitle || product.title);
+        setTryOnLoading(false);
+        setGeneratingAngles(false);
+        setTryOnError(null);
+        setShowFeedbackSheet(false);
+        setFeedbackContext(null);
+        setResultImage(savedImage);
+        setOriginalTryOnImage(savedImage);
+        setGeneratedImages(savedImage ? [savedImage] : []);
+        setShowResultModal(true);
+    };
+
     useTryOnPurchaseRedirect(fetchUser);
 
     useEffect(() => {
@@ -222,6 +269,7 @@ const LetAIDecidePage = () => {
             setLoadingAura(true);
             const auraData = await getAura();
             setAura(auraData);
+            await loadTryOnHistory();
         } catch (error: any) {
             console.error('Error fetching Aura:', error);
             setShowAuraPopup(true);
@@ -286,6 +334,17 @@ const LetAIDecidePage = () => {
         const token = localStorage.getItem('access_token');
         if (!token) {
             navigate('/user-login');
+            return;
+        }
+
+        const reusableTryOn = getLatestBaseTryOnForCurrentAvatar(
+            tryOnHistory,
+            product.product_id,
+            aura,
+        );
+
+        if (reusableTryOn) {
+            openSavedTryOn(reusableTryOn, product);
             return;
         }
 
@@ -358,6 +417,8 @@ const LetAIDecidePage = () => {
                     avatarImage,
                     clothingImage,
                     additionalParams: buildGeminiTryOnAdditionalParams(aura),
+                    productId: product.product_id,
+                    auraId: aura?.aura_id,
                 });
             } else {
                 const avatarImage = getAvatarImageUrl(aura);
@@ -376,12 +437,10 @@ const LetAIDecidePage = () => {
             }
 
             if (result.success && result.resultImage) {
-                const imageData = result.resultImage.startsWith('data:')
-                    ? result.resultImage
-                    : `data:image/jpeg;base64,${result.resultImage}`;
+                const imageData = normalizeTryOnResultImage(result.resultImage);
                 setResultImage(imageData);
                 setOriginalTryOnImage(imageData);
-                setGeneratedImages([imageData]);
+                setGeneratedImages(imageData ? [imageData] : []);
                 fetchUser();
                 if (feedbackCloseTimerRef.current) {
                     clearTimeout(feedbackCloseTimerRef.current);
@@ -392,6 +451,7 @@ const LetAIDecidePage = () => {
                     referenceId: result.tryOnId ? String(result.tryOnId) : undefined,
                     label: selectedTryOnLabel,
                 });
+                await loadTryOnHistory();
             } else {
                 throw new Error(result.message || 'Try-on failed');
             }
@@ -443,12 +503,11 @@ const LetAIDecidePage = () => {
             });
 
             if (result.success && result.resultImage) {
-                const imageData = result.resultImage.startsWith('data:')
-                    ? result.resultImage
-                    : `data:image/jpeg;base64,${result.resultImage}`;
+                const imageData = normalizeTryOnResultImage(result.resultImage);
                 setResultImage(imageData);
-                setGeneratedImages(prev => [...prev, imageData]);
+                setGeneratedImages(prev => imageData ? [...prev, imageData] : prev);
                 fetchUser();
+                await loadTryOnHistory();
             }
         } catch (error: any) {
             if (isTryOnLimitError(error)) {
@@ -493,6 +552,65 @@ const LetAIDecidePage = () => {
             },
             metadata: item.metadata
         };
+    };
+
+    const renderRecommendationProductCard = (product: TryOnProduct) => {
+        const sameAvatarTryOn = getLatestBaseTryOnForCurrentAvatar(
+            tryOnHistory,
+            product.product_id,
+            aura,
+        );
+        const anyAvatarTryOn = getLatestBaseTryOnForProduct(
+            tryOnHistory,
+            product.product_id,
+        );
+        const primaryTryOnLabel = sameAvatarTryOn
+            ? 'View Try On'
+            : showMultipleTryOnProviders
+                ? defaultTryOnProvider === TRYON_PROVIDER.GEMINI
+                    ? 'Gemini Try On'
+                    : 'Vertex Try On'
+                : 'Try On';
+        const secondaryTryOnLabel =
+            !sameAvatarTryOn && anyAvatarTryOn
+                ? 'View Try On'
+                : showMultipleTryOnProviders
+                    ? 'Gemini Try On'
+                    : undefined;
+
+        return (
+            <ProductCard
+                key={product.product_id}
+                product={product}
+                loading={
+                    selectedTryOnProduct?.product_id === product.product_id &&
+                    (tryOnLoading || generatingAngles)
+                }
+                onTryOn={() =>
+                    sameAvatarTryOn
+                        ? openSavedTryOn(sameAvatarTryOn, product)
+                        : handleTryOnWithLabel(
+                            product,
+                            product.title,
+                            defaultTryOnProvider,
+                        )
+                }
+                onTryOnGemini={
+                    !sameAvatarTryOn && anyAvatarTryOn
+                        ? () => openSavedTryOn(anyAvatarTryOn, product)
+                        : showMultipleTryOnProviders && !sameAvatarTryOn
+                            ? () =>
+                                handleTryOnWithLabel(
+                                    product,
+                                    product.title,
+                                    TRYON_PROVIDER.GEMINI,
+                                )
+                            : undefined
+                }
+                primaryTryOnLabel={primaryTryOnLabel}
+                secondaryTryOnLabel={secondaryTryOnLabel}
+            />
+        );
     };
 
     return (
@@ -624,30 +742,7 @@ const LetAIDecidePage = () => {
                                                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                                                         {recommendations.perfect_for_you.map((item) => {
                                                             const product = mapToProduct(item);
-
-                                                            return (
-                                                                <ProductCard
-                                                                    key={product.product_id}
-                                                                    product={product}
-                                                                    onTryOn={() =>
-                                                                        handleTryOnWithLabel(
-                                                                            product,
-                                                                            product.title,
-                                                                            defaultTryOnProvider,
-                                                                        )
-                                                                    }
-                                                                    onTryOnGemini={
-                                                                        showMultipleTryOnProviders
-                                                                            ? () =>
-                                                                                handleTryOnWithLabel(
-                                                                                    product,
-                                                                                    product.title,
-                                                                                    TRYON_PROVIDER.GEMINI,
-                                                                                )
-                                                                            : undefined
-                                                                    }
-                                                                />
-                                                            );
+                                                            return renderRecommendationProductCard(product);
                                                         })}
                                                     </div>
                                                 </div>
@@ -664,30 +759,7 @@ const LetAIDecidePage = () => {
                                                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                                                         {recommendations.good_for_you.map((item) => {
                                                             const product = mapToProduct(item);
-
-                                                            return (
-                                                                <ProductCard
-                                                                    key={product.product_id}
-                                                                    product={product}
-                                                                    onTryOn={() =>
-                                                                        handleTryOnWithLabel(
-                                                                            product,
-                                                                            product.title,
-                                                                            defaultTryOnProvider,
-                                                                        )
-                                                                    }
-                                                                    onTryOnGemini={
-                                                                        showMultipleTryOnProviders
-                                                                            ? () =>
-                                                                                handleTryOnWithLabel(
-                                                                                    product,
-                                                                                    product.title,
-                                                                                    TRYON_PROVIDER.GEMINI,
-                                                                                )
-                                                                            : undefined
-                                                                    }
-                                                                />
-                                                            );
+                                                            return renderRecommendationProductCard(product);
                                                         })}
                                                     </div>
                                                 </div>
@@ -704,30 +776,7 @@ const LetAIDecidePage = () => {
                                                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                                                         {recommendations.you_can_also_try.map((item) => {
                                                             const product = mapToProduct(item);
-
-                                                            return (
-                                                                <ProductCard
-                                                                    key={product.product_id}
-                                                                    product={product}
-                                                                    onTryOn={() =>
-                                                                        handleTryOnWithLabel(
-                                                                            product,
-                                                                            product.title,
-                                                                            defaultTryOnProvider,
-                                                                        )
-                                                                    }
-                                                                    onTryOnGemini={
-                                                                        showMultipleTryOnProviders
-                                                                            ? () =>
-                                                                                handleTryOnWithLabel(
-                                                                                    product,
-                                                                                    product.title,
-                                                                                    TRYON_PROVIDER.GEMINI,
-                                                                                )
-                                                                            : undefined
-                                                                    }
-                                                                />
-                                                            );
+                                                            return renderRecommendationProductCard(product);
                                                         })}
                                                     </div>
                                                 </div>
@@ -783,7 +832,7 @@ const LetAIDecidePage = () => {
                 error={tryOnError}
                 onGenerateMoreAngles={handleGenerateMoreAngles}
                 generatingAngles={generatingAngles}
-                userPhoto={aura?.image_url}
+                userPhoto={getAvatarImageUrl(aura)}
                 garmentId={selectedTryOnProduct?.product_id}
                 garmentTitle={selectedTryOnLabel || undefined}
                 generatedImages={generatedImages}

@@ -12,6 +12,10 @@ import type { TryOnResponseDto } from '../ai-tryon/dto/tryon-response.dto';
 import { TRYON_WORKER_CONCURRENCY } from '../ai-tryon/constants/tryon.constants';
 import { TryOnErrorCode } from '../ai-tryon/enums/ai-provider.enum';
 import { TryOnException } from '../ai-tryon/exceptions/tryon.exceptions';
+import {
+  getAuraAttributeSnapshotFromRecord,
+  normalizeAuraAvatarHistory,
+} from '../aura/utils/aura-avatar-history.util';
 
 /**
  * TryOnProcessor — Bull queue consumer for virtual try-on jobs.
@@ -176,6 +180,10 @@ export class TryOnProcessor {
     processingTimeMs: number;
   }): Promise<string | null> {
     try {
+      const selectedAvatarSignature = await this.getSelectedAvatarSignature(
+        input.auraId,
+      );
+
       // Upload the final image to Cloudinary so gallery uses URLs.
       const upload = await this.cloudinary.uploadWithMetadata(
         input.resultImage,
@@ -217,6 +225,7 @@ export class TryOnProcessor {
             format: upload.format,
             width: upload.width,
             height: upload.height,
+            ...selectedAvatarSignature,
           },
         },
         select: { try_on_id: true },
@@ -234,6 +243,71 @@ export class TryOnProcessor {
       );
       return null;
     }
+  }
+
+  private async getSelectedAvatarSignature(auraId: string): Promise<{
+    selectedAvatarId?: string;
+    selectedAvatarModelUrl?: string;
+    selectedAvatarTryOnModelUrl?: string;
+  }> {
+    const aura = await this.prisma.aura.findUnique({
+      where: { aura_id: auraId },
+      select: {
+        attributes: true,
+        model_url: true,
+        tryon_model_url: true,
+        generated_avatar_urls: true,
+        created_at: true,
+        updated_at: true,
+        height_cm: true,
+        weight_kg: true,
+        skin_tone: true,
+        gender: true,
+        body_shape: true,
+        body_type: true,
+        body_size: true,
+        age_range: true,
+        hair_style: true,
+        beard: true,
+      },
+    });
+
+    if (!aura) {
+      return {};
+    }
+
+    const { selectedAvatar, selectedAvatarId } = normalizeAuraAvatarHistory({
+      attributesJson: aura.attributes,
+      modelUrl: aura.model_url,
+      tryOnModelUrl: aura.tryon_model_url,
+      generatedAvatarUrls: aura.generated_avatar_urls,
+      createdAt: aura.created_at,
+      updatedAt: aura.updated_at,
+      currentAttributes: getAuraAttributeSnapshotFromRecord(aura),
+    });
+
+    return {
+      ...(selectedAvatarId ? { selectedAvatarId } : {}),
+      ...(selectedAvatar?.model_url || aura.model_url
+        ? {
+            selectedAvatarModelUrl:
+              selectedAvatar?.model_url || aura.model_url || undefined,
+          }
+        : {}),
+      ...(selectedAvatar?.tryon_model_url ||
+      aura.tryon_model_url ||
+      selectedAvatar?.model_url ||
+      aura.model_url
+        ? {
+            selectedAvatarTryOnModelUrl:
+              selectedAvatar?.tryon_model_url ||
+              aura.tryon_model_url ||
+              selectedAvatar?.model_url ||
+              aura.model_url ||
+              undefined,
+          }
+        : {}),
+    };
   }
 
   private logTiming(message: string): void {

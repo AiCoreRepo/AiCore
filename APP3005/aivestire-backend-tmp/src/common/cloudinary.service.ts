@@ -164,6 +164,85 @@ export class CloudinaryService {
   }
 
   /**
+   * Upload an image without applying upload-time quality or format transforms.
+   * Use this when the caller needs Cloudinary to store the user's original bytes
+   * as closely as the API allows.
+   */
+  async uploadOriginalImage(
+    file: string,
+    folder: string = 'creator-products',
+  ): Promise<string> {
+    if (!this.isAvailable) {
+      throw new Error('Cloudinary is not configured');
+    }
+
+    return new Promise((resolve, reject) => {
+      this.logger.log(`☁️ Uploading original image to Cloudinary folder: ${folder}`);
+
+      cloudinary.uploader.upload(
+        file,
+        {
+          ...CLOUDINARY_UPLOAD_OPTIONS,
+          resource_type: 'image',
+          folder,
+        },
+        (error, result) => {
+          if (error || !result) {
+            this.logger.error(`❌ Cloudinary upload failed: ${error?.message}`);
+            reject(new Error('Failed to upload image to Cloudinary'));
+          } else {
+            this.logger.log(`✅ Upload success: ${result.secure_url}`);
+            resolve(result.secure_url);
+          }
+        },
+      );
+    });
+  }
+
+  /**
+   * Upload an image buffer directly. This avoids browser/base64 JSON overhead and
+   * does not request Cloudinary quality or format transformations.
+   */
+  async uploadImageBuffer(
+    buffer: Buffer,
+    options: {
+      folder?: string;
+      originalFilename?: string;
+    } = {},
+  ): Promise<string> {
+    if (!this.isAvailable) {
+      throw new Error('Cloudinary is not configured');
+    }
+
+    const folder = options.folder ?? 'creator-products';
+
+    return new Promise((resolve, reject) => {
+      this.logger.log(`☁️ Uploading original image buffer to Cloudinary folder: ${folder}`);
+
+      const stream = cloudinary.uploader.upload_stream(
+        {
+          ...CLOUDINARY_UPLOAD_OPTIONS,
+          resource_type: 'image',
+          folder,
+          use_filename: Boolean(options.originalFilename),
+          filename_override: options.originalFilename,
+        },
+        (error, result) => {
+          if (error || !result) {
+            this.logger.error(`❌ Cloudinary buffer upload failed: ${error?.message}`);
+            reject(new Error('Failed to upload image to Cloudinary'));
+          } else {
+            this.logger.log(`✅ Upload success: ${result.secure_url}`);
+            resolve(result.secure_url);
+          }
+        },
+      );
+
+      stream.end(buffer);
+    });
+  }
+
+  /**
    * Get optimized URL with transformations (for thumbnails, compression, etc.)
    * @param publicId - Cloudinary public ID
    * @param transformations - Transformation options

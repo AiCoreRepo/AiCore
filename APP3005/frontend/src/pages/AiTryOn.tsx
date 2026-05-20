@@ -35,6 +35,14 @@ import {
   shouldShowMultipleTryOnProviders,
   type TryOnProvider,
 } from "@/lib/try-on-environment";
+import {
+  getLatestBaseTryOnForCurrentAvatar,
+  getLatestBaseTryOnForProduct,
+  normalizeTryOnResultImage,
+  type AuraAvatarRef,
+  type TryOnHistoryItem,
+  type TryOnHistoryResponse,
+} from "@/lib/try-on-history";
 import _ from "lodash";
 import type { PublicProduct } from "@/hooks/usePublicProducts";
 
@@ -44,6 +52,8 @@ interface AuraData {
   image_url: string | null;
   model_url: string | null;
   tryon_model_url?: string | null;
+  selected_avatar_id?: string | null;
+  selected_avatar?: AuraAvatarRef | null;
   height_cm: number;
   weight_kg: number;
   skin_tone: string;
@@ -132,7 +142,7 @@ const AiTryOn = () => {
   const [tryOnError, setTryOnError] = useState<string | null>(null);
   const [generatingAngles, setGeneratingAngles] = useState(false);
   const [showGallery, setShowGallery] = useState(false);
-  const [tryOnHistory, setTryOnHistory] = useState<any[]>([]);
+  const [tryOnHistory, setTryOnHistory] = useState<TryOnHistoryItem[]>([]);
   const [requestingAccess, setRequestingAccess] = useState(false);
   const [requestSuccess, setRequestSuccess] = useState(false);
   const [generatedImages, setGeneratedImages] = useState<string[]>([]);
@@ -197,6 +207,55 @@ const AiTryOn = () => {
     setShowUpgradePopup(true);
   };
 
+  const loadTryOnHistory = async (): Promise<TryOnHistoryItem[]> => {
+    try {
+      const history = (await getTryOnHistory()) as TryOnHistoryResponse;
+      const nextTryOns = history.tryOns || [];
+      setTryOnHistory(nextTryOns);
+      return nextTryOns;
+    } catch (error) {
+      console.error("Failed to load try-on history:", error);
+      return [];
+    }
+  };
+
+  const openSavedTryOn = (
+    savedTryOn: TryOnHistoryItem,
+    sourceProduct?: TryOnProduct | null,
+  ) => {
+    const resolvedProduct =
+      sourceProduct?.product_id === savedTryOn.productId
+        ? sourceProduct
+        : ((_.find(
+            productsData?.products,
+            (item) => item.product_id === savedTryOn.productId,
+          ) as TryOnProduct | undefined) ??
+          null);
+    const savedImage =
+      normalizeTryOnResultImage(
+        savedTryOn.resultImageUrl || savedTryOn.resultImage,
+      ) ||
+      normalizeTryOnResultImage(savedTryOn.compressedUrl) ||
+      savedTryOn.resultImageUrl;
+
+    setSelectedProduct(null);
+    setCurrentProductId(savedTryOn.productId);
+    setCurrentGarmentImage(
+      resolvedProduct
+        ? getProductImageUrl(resolvedProduct)
+        : savedTryOn.productImage,
+    );
+    setTryOnLoading(false);
+    setGeneratingAngles(false);
+    setTryOnError(null);
+    setShowFeedbackSheet(false);
+    setFeedbackContext(null);
+    setResultImage(savedImage);
+    setOriginalTryOnImage(savedImage);
+    setGeneratedImages(savedImage ? [savedImage] : []);
+    setShowResultModal(true);
+  };
+
   // Check authentication and Aura status on mount
   useEffect(() => {
     // Wait for auth to load
@@ -230,6 +289,7 @@ const AiTryOn = () => {
       setLoadingAura(true);
       const auraData = await getAura();
       setAura(auraData);
+      await loadTryOnHistory();
     } catch (error: any) {
       console.error("Error fetching Aura:", error);
       // User doesn't have Aura, show popup
@@ -249,12 +309,24 @@ const AiTryOn = () => {
       return;
     }
 
-    if (!hasFreeTryOnsRemaining) {
-      openUpgradePopup();
-      return;
-    }
     if (!aura) {
       setShowAuraPopup(true);
+      return;
+    }
+
+    const reusableTryOn = getLatestBaseTryOnForCurrentAvatar(
+      tryOnHistory,
+      productId,
+      aura,
+    );
+
+    if (reusableTryOn) {
+      openSavedTryOn(reusableTryOn, sourceProduct);
+      return;
+    }
+
+    if (!hasFreeTryOnsRemaining) {
+      openUpgradePopup();
       return;
     }
 
@@ -329,13 +401,10 @@ const AiTryOn = () => {
       }
 
       if (result.success && result.resultImage) {
-        // Ensure the image has the data URI prefix
-        const imageData = result.resultImage.startsWith("data:")
-          ? result.resultImage
-          : `data:image/jpeg;base64,${result.resultImage}`;
+        const imageData = normalizeTryOnResultImage(result.resultImage);
         setResultImage(imageData);
         setOriginalTryOnImage(imageData); // Store original for face consistency in angle generation
-        setGeneratedImages([imageData]);
+        setGeneratedImages(imageData ? [imageData] : []);
         if (feedbackCloseTimerRef.current) {
           clearTimeout(feedbackCloseTimerRef.current);
           feedbackCloseTimerRef.current = null;
@@ -347,6 +416,7 @@ const AiTryOn = () => {
         });
         // Refresh user data to update try-on count
         fetchUser();
+        await loadTryOnHistory();
       } else {
         throw new Error(result.message || "Try-on failed");
       }
@@ -411,13 +481,14 @@ const AiTryOn = () => {
       });
 
       if (result.success && result.resultImage) {
-        const imageData = result.resultImage.startsWith("data:")
-          ? result.resultImage
-          : `data:image/jpeg;base64,${result.resultImage}`;
+        const imageData = normalizeTryOnResultImage(result.resultImage);
         setResultImage(imageData);
-        setGeneratedImages((prev) => [...prev, imageData]);
+        setGeneratedImages((prev) =>
+          imageData ? [...prev, imageData] : prev,
+        );
         // Refresh user data to update try-on count
         fetchUser();
+        await loadTryOnHistory();
       } else {
         throw new Error(result.message || "Failed to generate more angles");
       }
@@ -501,10 +572,9 @@ const AiTryOn = () => {
                 <button
                   onClick={() => {
                     console.log("Gallery button clicked!");
-                    getTryOnHistory()
+                    loadTryOnHistory()
                       .then((history) => {
                         console.log("Got history:", history);
-                        setTryOnHistory(history.tryOns || []);
                         setShowGallery(true);
                       })
                       .catch((error) => {
@@ -709,31 +779,80 @@ const AiTryOn = () => {
                                   return true;
                                 })
                                 .map((product: any) => (
-                                  <ClothingItemCard
-                                    key={product.product_id}
-                                    product={product}
-                                    onTryOn={() =>
-                                      handleTryOn(
-                                        product.product_id,
-                                        defaultTryOnProvider,
-                                      )
-                                    }
-                                    onTryOnGemini={
-                                      showMultipleTryOnProviders
-                                        ? () =>
-                                            handleTryOn(
-                                              product.product_id,
-                                              TRYON_PROVIDER.GEMINI,
-                                            )
-                                        : undefined
-                                    }
-                                    loading={
-                                      (selectedProduct === product.product_id &&
-                                        tryOnLoading) ||
-                                      (currentProductId === product.product_id &&
-                                        generatingAngles)
-                                    }
-                                  />
+                                  (() => {
+                                    const productId = product.product_id;
+                                    const sameAvatarTryOn =
+                                      getLatestBaseTryOnForCurrentAvatar(
+                                        tryOnHistory,
+                                        productId,
+                                        aura,
+                                      );
+                                    const anyAvatarTryOn =
+                                      getLatestBaseTryOnForProduct(
+                                        tryOnHistory,
+                                        productId,
+                                      );
+                                    const primaryTryOnLabel = sameAvatarTryOn
+                                      ? "View Try On"
+                                      : showMultipleTryOnProviders
+                                        ? defaultTryOnProvider ===
+                                          TRYON_PROVIDER.GEMINI
+                                          ? "Gemini Try On"
+                                          : "Vertex Try On"
+                                        : "Try On";
+                                    const secondaryTryOnLabel =
+                                      !sameAvatarTryOn && anyAvatarTryOn
+                                        ? "View Try On"
+                                        : showMultipleTryOnProviders
+                                          ? "Gemini Try On"
+                                          : undefined;
+
+                                    return (
+                                      <ClothingItemCard
+                                        key={productId}
+                                        product={product}
+                                        onTryOn={() =>
+                                          sameAvatarTryOn
+                                            ? openSavedTryOn(
+                                                sameAvatarTryOn,
+                                                product,
+                                              )
+                                            : handleTryOn(
+                                                productId,
+                                                defaultTryOnProvider,
+                                                product,
+                                              )
+                                        }
+                                        onTryOnGemini={
+                                          !sameAvatarTryOn && anyAvatarTryOn
+                                            ? () =>
+                                                openSavedTryOn(
+                                                  anyAvatarTryOn,
+                                                  product,
+                                                )
+                                            : showMultipleTryOnProviders &&
+                                                !sameAvatarTryOn
+                                              ? () =>
+                                                  handleTryOn(
+                                                    productId,
+                                                    TRYON_PROVIDER.GEMINI,
+                                                    product,
+                                                  )
+                                              : undefined
+                                        }
+                                        loading={
+                                          (selectedProduct === productId &&
+                                            tryOnLoading) ||
+                                          (currentProductId === productId &&
+                                            generatingAngles)
+                                        }
+                                        primaryTryOnLabel={primaryTryOnLabel}
+                                        secondaryTryOnLabel={
+                                          secondaryTryOnLabel
+                                        }
+                                      />
+                                    );
+                                  })()
                                 ))}
                             </div>
                           </>

@@ -25,6 +25,7 @@ describe('TryOnPackPurchasesService', () => {
 
     const repository = {
       findUserForPurchase: jest.fn(),
+      listPurchasesForUser: jest.fn(),
       createPurchase: jest.fn(),
       findPurchaseByTxnId: jest.fn().mockResolvedValue(purchaseRecord),
       capturePurchaseAndCredit: jest.fn().mockResolvedValue({
@@ -168,5 +169,44 @@ describe('TryOnPackPurchasesService', () => {
     expect(payload.furl).toBe(
       'http://localhost:3005/api/try-on-pack-purchases/failure',
     );
+  });
+
+  it('returns purchase history in newest-first API shape', async () => {
+    const { service, repository } = createService();
+    const createdAt = new Date('2026-05-17T12:00:00.000Z');
+    const creditedAt = new Date('2026-05-17T12:03:00.000Z');
+
+    repository.listPurchasesForUser.mockResolvedValue([
+      {
+        purchase_id: 'purchase-1',
+        plan_id: 'studio',
+        pack_name: 'Studio Pack',
+        try_ons: 12,
+        amount_paise: 14900,
+        currency: 'INR',
+        status: TryOnPackPurchaseStatus.CAPTURED,
+        payment_method: 'PAYU',
+        credited_at: creditedAt,
+        created_at: createdAt,
+      },
+    ]);
+
+    const result = await service.getPurchaseHistory('user-1');
+
+    expect(repository.listPurchasesForUser).toHaveBeenCalledWith('user-1');
+    expect(result).toEqual([
+      {
+        purchaseId: 'purchase-1',
+        planId: 'studio',
+        packName: 'Studio Pack',
+        tryOns: 12,
+        amountPaise: 14900,
+        currency: 'INR',
+        status: TryOnPackPurchaseStatus.CAPTURED,
+        paymentMethod: 'PAYU',
+        creditedAt,
+        createdAt,
+      },
+    ]);
   });
 });

@@ -38,6 +38,16 @@ export class TryOnPackPurchasesController {
     );
   }
 
+  @common.Get('history')
+  @common.UseGuards(JwtAuthGuard)
+  async getPurchaseHistory(
+    @common.Request() req: { user: { user_id: string } },
+  ) {
+    return this.tryOnPackPurchasesService.getPurchaseHistory(
+      req.user.user_id,
+    );
+  }
+
   @common.Post('success')
   async paymentSuccess(
     @common.Body() dto: VerifyTryOnPackPurchaseDto,

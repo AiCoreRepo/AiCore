@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowRight, Check, X } from 'lucide-react';
 import {
@@ -7,7 +7,11 @@ import {
   TRY_ON_PURCHASE_CONTACT_EMAIL,
   TRY_ON_PURCHASE_PLANS,
 } from '@/lib/try-on-limit';
-import { initiateTryOnPackPurchase } from '@/lib/api';
+import {
+  getTryOnPackPurchaseHistory,
+  initiateTryOnPackPurchase,
+  type TryOnPackPurchaseHistoryItem,
+} from '@/lib/api';
 import { usePayU } from '@/hooks/usePayU';
 import { useToast } from '@/hooks/use-toast';
 import { isUatOrLocalTryOnHost } from '@/lib/try-on-environment';
@@ -29,6 +33,42 @@ const PRIORITIZED_TRY_ON_PLANS = [
 const DEFAULT_PLAN_ID =
   PRIORITIZED_TRY_ON_PLANS[0]?.id ?? TRY_ON_PURCHASE_PLANS[0].id;
 
+const historyDateFormatter = new Intl.DateTimeFormat('en-IN', {
+  day: 'numeric',
+  month: 'short',
+  year: 'numeric',
+});
+
+function formatHistoryAmount(amountPaise: number) {
+  return `₹${Math.round(amountPaise / 100)}`;
+}
+
+function formatHistoryDate(value?: string | null) {
+  if (!value) {
+    return 'Pending';
+  }
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return 'Pending';
+  }
+
+  return historyDateFormatter.format(parsed);
+}
+
+function getHistoryStatusTone(status: TryOnPackPurchaseHistoryItem['status']) {
+  switch (status) {
+    case 'CAPTURED':
+      return 'bg-emerald-50 text-emerald-700';
+    case 'FAILED':
+      return 'bg-rose-50 text-rose-700';
+    case 'CANCELLED':
+      return 'bg-stone-100 text-stone-700';
+    default:
+      return 'bg-amber-50 text-amber-700';
+  }
+}
+
 export function TryOnUpgradePopup({
   isOpen,
   onClose,
@@ -39,12 +79,71 @@ export function TryOnUpgradePopup({
   const { redirectToPayU } = usePayU();
   const [selectedPlanId, setSelectedPlanId] = useState<string>(DEFAULT_PLAN_ID);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [hasLoadedHistory, setHasLoadedHistory] = useState(false);
+  const [historyError, setHistoryError] = useState<string | null>(null);
+  const [purchaseHistory, setPurchaseHistory] = useState<
+    TryOnPackPurchaseHistoryItem[]
+  >([]);
   const isTestMode = isUatOrLocalTryOnHost();
   const remainingTryOns = Math.max(maxTryOns - tryOnsUsed, 0);
 
   const selectedPlan = TRY_ON_PURCHASE_PLANS.find(
     (plan) => plan.id === selectedPlanId,
   );
+
+  useEffect(() => {
+    if (isOpen) {
+      return;
+    }
+
+    setShowHistory(false);
+    setHistoryLoading(false);
+    setHasLoadedHistory(false);
+    setHistoryError(null);
+    setPurchaseHistory([]);
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen || !showHistory || hasLoadedHistory || historyLoading) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadHistory = async () => {
+      try {
+        setHistoryLoading(true);
+        setHistoryError(null);
+        const history = await getTryOnPackPurchaseHistory();
+
+        if (!cancelled) {
+          setPurchaseHistory(history);
+          setHasLoadedHistory(true);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setHistoryError(
+            error instanceof Error
+              ? error.message
+              : 'Unable to load purchase history.',
+          );
+          setHasLoadedHistory(true);
+        }
+      } finally {
+        if (!cancelled) {
+          setHistoryLoading(false);
+        }
+      }
+    };
+
+    void loadHistory();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [hasLoadedHistory, historyLoading, isOpen, showHistory]);
 
   const handleStartPayment = async () => {
     if (!selectedPlan) {
@@ -178,6 +277,54 @@ export function TryOnUpgradePopup({
                       </button>
                     );
                   })}
+                </div>
+
+                <div className="mt-6 border-t border-[#E8DCC3] pt-5">
+                  <button
+                    type="button"
+                    onClick={() => setShowHistory((current) => !current)}
+                    className="text-sm font-medium text-[#241B12] underline underline-offset-4"
+                  >
+                    {showHistory ? 'Hide purchase history' : 'Show purchase history'}
+                  </button>
+
+                  {showHistory && (
+                    <div className="mt-4 rounded-[22px] border border-[#E8DCC3] bg-white p-4">
+                      {historyLoading ? (
+                        <p className="text-sm text-[#6D5C45]">Loading purchase history...</p>
+                      ) : historyError ? (
+                        <p className="text-sm text-rose-700">{historyError}</p>
+                      ) : purchaseHistory.length === 0 ? (
+                        <p className="text-sm text-[#6D5C45]">No try-on pack purchases yet.</p>
+                      ) : (
+                        <div className="space-y-3">
+                          {purchaseHistory.slice(0, 5).map((purchase) => (
+                            <div
+                              key={purchase.purchaseId}
+                              className="flex flex-col gap-2 rounded-2xl border border-[#EFE4CF] px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+                            >
+                              <div>
+                                <p className="text-sm font-medium text-[#241B12]">
+                                  {purchase.packName}
+                                </p>
+                                <p className="mt-1 text-xs text-[#6D5C45]">
+                                  {purchase.tryOns} try-ons • {formatHistoryAmount(purchase.amountPaise)} •{' '}
+                                  {formatHistoryDate(purchase.creditedAt || purchase.createdAt)}
+                                </p>
+                              </div>
+                              <span
+                                className={`inline-flex w-fit rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] ${getHistoryStatusTone(
+                                  purchase.status,
+                                )}`}
+                              >
+                                {purchase.status}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 <div className="mt-6 flex flex-col gap-3 border-t border-[#E8DCC3] pt-5 sm:flex-row sm:items-center sm:justify-between">

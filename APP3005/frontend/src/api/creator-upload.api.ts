@@ -39,6 +39,27 @@ export interface CreateProductHierarchyPayload {
   patterns: PatternPayload[];
 }
 
+export interface ColorVariantFilePayload {
+  color: ClothingColorValue;
+  hex_code?: string;
+  stock: number;
+  skin_tones: SkinToneValue[];
+  images: File[];
+}
+
+export interface PatternFilePayload {
+  name: string;
+  body_shapes: BodyShapeValue[];
+  color_variants: ColorVariantFilePayload[];
+}
+
+export type CreateProductHierarchyFilePayload = Omit<
+  CreateProductHierarchyPayload,
+  'patterns'
+> & {
+  patterns: PatternFilePayload[];
+};
+
 // ── API calls ─────────────────────────────────────────────────
 
 export async function createProductHierarchy(payload: CreateProductHierarchyPayload) {
@@ -51,6 +72,46 @@ export async function createProductHierarchy(payload: CreateProductHierarchyPayl
     const err = await res.json().catch(() => ({}));
     throw new Error(err?.message ?? `Upload failed (${res.status})`);
   }
+  return res.json();
+}
+
+export async function createProductHierarchyFromFiles(
+  payload: CreateProductHierarchyFilePayload,
+) {
+  const formData = new FormData();
+  const jsonPayload: CreateProductHierarchyPayload = {
+    ...payload,
+    patterns: payload.patterns.map((pattern, patternIndex) => ({
+      ...pattern,
+      color_variants: pattern.color_variants.map((variant, variantIndex) => ({
+        color: variant.color,
+        hex_code: variant.hex_code,
+        stock: variant.stock,
+        skin_tones: variant.skin_tones,
+        images: variant.images.map((file, imageIndex) => {
+          const key = `image_${patternIndex}_${variantIndex}_${imageIndex}`;
+          formData.append(key, file, file.name);
+          return key;
+        }),
+      })),
+    })),
+  };
+
+  formData.append('payload', JSON.stringify(jsonPayload));
+
+  const res = await fetch(`${API_BASE}/products/hierarchy/files`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${localStorage.getItem('access_token')}`,
+    },
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err?.message ?? `Upload failed (${res.status})`);
+  }
+
   return res.json();
 }
 

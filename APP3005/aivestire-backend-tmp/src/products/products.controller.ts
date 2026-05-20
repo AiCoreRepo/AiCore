@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Controller,
   Post,
   Body,
@@ -9,7 +10,12 @@ import {
   Query,
   Request,
   Delete,
+  UploadedFiles,
+  UseInterceptors,
 } from '@nestjs/common';
+import { AnyFilesInterceptor } from '@nestjs/platform-express';
+import { plainToInstance } from 'class-transformer';
+import { validateSync, ValidationError } from 'class-validator';
 import { ProductsService } from './products.service';
 import { BulkUploadService } from './bulk-upload.service';
 import { CreatorUploadService } from './creator-upload.service';
@@ -21,6 +27,26 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 
+const ALLOWED_CREATOR_IMAGE_TYPES = new Set([
+  'image/jpeg',
+  'image/jpg',
+  'image/png',
+  'image/webp',
+]);
+const MAX_CREATOR_UPLOAD_FILE_SIZE = 20 * 1024 * 1024;
+const MAX_CREATOR_UPLOAD_FILES = 40;
+
+function flattenValidationErrors(errors: ValidationError[]): string[] {
+  return errors.flatMap((error) => {
+    const current = error.constraints ? Object.values(error.constraints) : [];
+    const children = error.children?.length
+      ? flattenValidationErrors(error.children)
+      : [];
+
+    return [...current, ...children];
+  });
+}
+
 @Controller('products')
 export class ProductsController {
   constructor(
@@ -28,6 +54,36 @@ export class ProductsController {
     private readonly bulkUploadService: BulkUploadService,
     private readonly creatorUploadService: CreatorUploadService,
   ) {}
+
+  private parseHierarchyPayload(payload: string): CreateProductHierarchyDto {
+    if (!payload) {
+      throw new BadRequestException('Missing product hierarchy payload');
+    }
+
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(payload);
+    } catch {
+      throw new BadRequestException('Invalid product hierarchy payload');
+    }
+
+    const dto = plainToInstance(CreateProductHierarchyDto, parsed);
+    const validationErrors = validateSync(dto, {
+      whitelist: true,
+      forbidUnknownValues: false,
+    });
+
+    if (validationErrors.length > 0) {
+      const messages = flattenValidationErrors(validationErrors);
+      throw new BadRequestException(
+        messages.length > 0
+          ? messages
+          : 'Invalid product hierarchy payload',
+      );
+    }
+
+    return dto;
+  }
 
   // ============================================================
   // CREATOR UPLOAD HIERARCHY ENDPOINTS
@@ -47,6 +103,53 @@ export class ProductsController {
     @Body() dto: CreateProductHierarchyDto,
   ) {
     return this.creatorUploadService.createProductHierarchy(dto, req.user.user_id);
+  }
+
+  /**
+   * POST /products/hierarchy/files
+   * Faster creator upload path. Sends original image files as multipart bytes
+   * instead of base64 JSON, avoiding payload bloat and preserving input quality.
+   */
+  @Post('hierarchy/files')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('CREATOR')
+  @UseInterceptors(
+    AnyFilesInterceptor({
+      limits: {
+        files: MAX_CREATOR_UPLOAD_FILES,
+        fileSize: MAX_CREATOR_UPLOAD_FILE_SIZE,
+      },
+    }),
+  )
+  async createProductHierarchyWithFiles(
+    @Request() req,
+    @Body('payload') payload: string,
+    @UploadedFiles() files: Express.Multer.File[] = [],
+  ) {
+    const dto = this.parseHierarchyPayload(payload);
+    const filesByKey = new Map<string, Express.Multer.File>();
+
+    for (const file of files) {
+      if (!ALLOWED_CREATOR_IMAGE_TYPES.has(file.mimetype)) {
+        throw new BadRequestException(
+          'Only JPEG, PNG, and WebP product images are allowed',
+        );
+      }
+
+      if (file.size > MAX_CREATOR_UPLOAD_FILE_SIZE) {
+        throw new BadRequestException(
+          'Each product image must be 20MB or smaller',
+        );
+      }
+
+      filesByKey.set(file.fieldname, file);
+    }
+
+    return this.creatorUploadService.createProductHierarchy(
+      dto,
+      req.user.user_id,
+      filesByKey,
+    );
   }
 
   /**

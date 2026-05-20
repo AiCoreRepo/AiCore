@@ -19,6 +19,7 @@ import {
     tryOnWithVertex,
     generateMoreAngles,
     getAura,
+    getTryOnHistory,
     getProductById,
     FeedbackContextType,
 } from '@/lib/api';
@@ -35,6 +36,13 @@ import {
     shouldShowMultipleTryOnProviders,
     type TryOnProvider,
 } from '@/lib/try-on-environment';
+import {
+    getLatestBaseTryOnForCurrentAvatar,
+    getLatestBaseTryOnForProduct,
+    normalizeTryOnResultImage,
+    type TryOnHistoryItem,
+    type TryOnHistoryResponse,
+} from '@/lib/try-on-history';
 import _ from 'lodash';
 import type { PublicProduct } from '@/hooks/useInfinitePublicProducts';
 
@@ -121,6 +129,7 @@ const CollectionPage = () => {
 
     // AI Try-On State
     const [aura, setAura] = useState<any>(null);
+    const [tryOnHistory, setTryOnHistory] = useState<TryOnHistoryItem[]>([]);
     const [showResultModal, setShowResultModal] = useState(false);
     const [resultImage, setResultImage] = useState<string | null>(null);
     const [tryOnLoading, setTryOnLoading] = useState(false);
@@ -167,6 +176,43 @@ const CollectionPage = () => {
         setShowUpgradePopup(true);
     };
 
+    const loadTryOnHistory = async (): Promise<TryOnHistoryItem[]> => {
+        try {
+            const history = await getTryOnHistory() as TryOnHistoryResponse;
+            const nextTryOns = history.tryOns || [];
+            setTryOnHistory(nextTryOns);
+            return nextTryOns;
+        } catch (error) {
+            console.error('Failed to load try-on history:', error);
+            return [];
+        }
+    };
+
+    const openSavedTryOn = (
+        savedTryOn: TryOnHistoryItem,
+        product: PublicProduct,
+    ) => {
+        const savedImage =
+            normalizeTryOnResultImage(
+                savedTryOn.resultImageUrl || savedTryOn.resultImage,
+            ) ||
+            normalizeTryOnResultImage(savedTryOn.compressedUrl) ||
+            savedTryOn.resultImageUrl;
+
+        setSelectedTryOnProduct(product);
+        setCurrentGarmentImage(getProductImageUrl(product) || savedTryOn.productImage);
+        setTryOnLoading(false);
+        setGeneratingAngles(false);
+        setTryOnError(null);
+        setShowFeedbackSheet(false);
+        setFeedbackContext(null);
+        setResultImage(savedImage);
+        setOriginalTryOnImage(savedImage);
+        setGeneratedImages(savedImage ? [savedImage] : []);
+        setSelectedTryOnLabel(savedTryOn.productTitle || product.title);
+        setShowResultModal(true);
+    };
+
     const closeWorkflowDiscovery = () => {
         clearWorkflowDiscoveryPending();
         setShowWorkflowDiscovery(false);
@@ -177,7 +223,10 @@ const CollectionPage = () => {
         if (user) {
             setIsAuraResolved(false);
             getAura()
-                .then(setAura)
+                .then(async (nextAura) => {
+                    setAura(nextAura);
+                    await loadTryOnHistory();
+                })
                 .catch(() => {
                     setAura(null);
                 })
@@ -328,6 +377,17 @@ const CollectionPage = () => {
             return;
         }
 
+        const reusableTryOn = getLatestBaseTryOnForCurrentAvatar(
+            tryOnHistory,
+            product.product_id,
+            aura,
+        );
+
+        if (reusableTryOn) {
+            openSavedTryOn(reusableTryOn, product);
+            return;
+        }
+
         if (!hasFreeTryOnsRemaining) {
             openUpgradePopup();
             return;
@@ -382,8 +442,6 @@ const CollectionPage = () => {
             setShowFeedbackSheet(false);
             setShowResultModal(true);
 
-            // Use aura.user_id if available, otherwise fallback to user.user_id (though aura is preferred)
-            const userId = aura?.user_id || user.user_id;
             let result: TryOnResult;
             let resolvedProductLabel =
                 selectedTryOnLabel || resolveProductLabel(product.product_id);
@@ -437,12 +495,10 @@ const CollectionPage = () => {
             }
 
             if (result.success && result.resultImage) {
-                const imageData = result.resultImage.startsWith('data:')
-                    ? result.resultImage
-                    : `data:image/jpeg;base64,${result.resultImage}`;
+                const imageData = normalizeTryOnResultImage(result.resultImage);
                 setResultImage(imageData);
                 setOriginalTryOnImage(imageData);
-                setGeneratedImages([imageData]);
+                setGeneratedImages(imageData ? [imageData] : []);
                 fetchUser();
                 if (feedbackCloseTimerRef.current) {
                     clearTimeout(feedbackCloseTimerRef.current);
@@ -454,6 +510,7 @@ const CollectionPage = () => {
                     referenceId: result.tryOnId ? String(result.tryOnId) : undefined,
                     label: resolvedProductLabel,
                 });
+                await loadTryOnHistory();
             } else {
                 throw new Error(result.message || 'Try-on failed');
             }
@@ -505,12 +562,11 @@ const CollectionPage = () => {
             });
 
             if (result.success && result.resultImage) {
-                const imageData = result.resultImage.startsWith('data:')
-                    ? result.resultImage
-                    : `data:image/jpeg;base64,${result.resultImage}`;
+                const imageData = normalizeTryOnResultImage(result.resultImage);
                 setResultImage(imageData);
-                setGeneratedImages(prev => [...prev, imageData]);
+                setGeneratedImages(prev => imageData ? [...prev, imageData] : prev);
                 fetchUser();
+                await loadTryOnHistory();
             }
         } catch (error: any) {
             if (isTryOnLimitError(error)) {
@@ -800,31 +856,64 @@ const CollectionPage = () => {
                     ) : (
                         <>
                             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                                {filteredProducts.map(product => (
-                                    <ProductCard
-                                        key={product.product_id}
-                                        product={product}
-                                        loading={
-                                            selectedTryOnProduct?.product_id === product.product_id &&
-                                            (tryOnLoading || generatingAngles)
-                                        }
-                                        onTryOn={() =>
-                                            handleTryOn(
-                                                product,
-                                                defaultTryOnProvider,
-                                            )
-                                        }
-                                        onTryOnGemini={
-                                            showMultipleTryOnProviders
-                                                ? () =>
-                                                    handleTryOn(
+                                {filteredProducts.map(product => {
+                                    const sameAvatarTryOn =
+                                        getLatestBaseTryOnForCurrentAvatar(
+                                            tryOnHistory,
+                                            product.product_id,
+                                            aura,
+                                        );
+                                    const anyAvatarTryOn =
+                                        getLatestBaseTryOnForProduct(
+                                            tryOnHistory,
+                                            product.product_id,
+                                        );
+                                    const primaryTryOnLabel = sameAvatarTryOn
+                                        ? 'View Try On'
+                                        : showMultipleTryOnProviders
+                                            ? defaultTryOnProvider === TRYON_PROVIDER.GEMINI
+                                                ? 'Gemini Try On'
+                                                : 'Vertex Try On'
+                                            : 'Try On';
+                                    const secondaryTryOnLabel =
+                                        !sameAvatarTryOn && anyAvatarTryOn
+                                            ? 'View Try On'
+                                            : showMultipleTryOnProviders
+                                                ? 'Gemini Try On'
+                                                : undefined;
+
+                                    return (
+                                        <ProductCard
+                                            key={product.product_id}
+                                            product={product}
+                                            loading={
+                                                selectedTryOnProduct?.product_id === product.product_id &&
+                                                (tryOnLoading || generatingAngles)
+                                            }
+                                            onTryOn={() =>
+                                                sameAvatarTryOn
+                                                    ? openSavedTryOn(sameAvatarTryOn, product)
+                                                    : handleTryOn(
                                                         product,
-                                                        TRYON_PROVIDER.GEMINI,
+                                                        defaultTryOnProvider,
                                                     )
-                                                : undefined
-                                        }
-                                    />
-                                ))}
+                                            }
+                                            onTryOnGemini={
+                                                !sameAvatarTryOn && anyAvatarTryOn
+                                                    ? () => openSavedTryOn(anyAvatarTryOn, product)
+                                                    : showMultipleTryOnProviders && !sameAvatarTryOn
+                                                        ? () =>
+                                                            handleTryOn(
+                                                                product,
+                                                                TRYON_PROVIDER.GEMINI,
+                                                            )
+                                                        : undefined
+                                            }
+                                            primaryTryOnLabel={primaryTryOnLabel}
+                                            secondaryTryOnLabel={secondaryTryOnLabel}
+                                        />
+                                    );
+                                })}
                             </div>
 
                             {/* Pagination and Items Per Page selection */}

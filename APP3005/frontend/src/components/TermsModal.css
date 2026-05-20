@@ -14,6 +14,112 @@
     animation: overlayFadeIn 0.4s ease;
 }
 
+.terms-summary {
+    padding: 0 32px 24px;
+}
+
+.terms-summary-list {
+    display: grid;
+    gap: 12px;
+    margin-bottom: 18px;
+}
+
+.terms-summary-check {
+    position: relative;
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 16px 18px;
+    border: 1px solid rgba(91, 68, 18, 0.18);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.48);
+    color: #302514;
+    font-size: 14px;
+    font-weight: 650;
+    line-height: 1.45;
+    cursor: pointer;
+    transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.terms-summary-check:hover,
+.terms-summary-check.is-checked {
+    border-color: rgba(120, 84, 13, 0.46);
+    background: rgba(255, 255, 255, 0.72);
+    box-shadow: 0 10px 24px rgba(91, 68, 18, 0.08);
+}
+
+.terms-summary-check input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.terms-summary-box {
+    width: 22px;
+    height: 22px;
+    flex: 0 0 22px;
+    border: 2px solid rgba(91, 68, 18, 0.32);
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #1f170b;
+    background: rgba(255, 255, 255, 0.7);
+}
+
+.terms-summary-check.is-checked .terms-summary-box {
+    border-color: #D4AF37;
+    background: #D4AF37;
+}
+
+.terms-read-full {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    border: 1px solid rgba(91, 68, 18, 0.18);
+    border-radius: 12px;
+    background: rgba(27, 21, 12, 0.88);
+    color: #F6E7C0;
+    min-height: 46px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 0.2s ease, background 0.2s ease;
+}
+
+.terms-read-full:hover {
+    background: rgba(27, 21, 12, 0.96);
+    transform: translateY(-1px);
+}
+
+.terms-pdf-panel {
+    margin-top: 16px;
+    height: min(58vh, 620px);
+    min-height: 420px;
+    overflow: hidden;
+    border: 1px solid rgba(91, 68, 18, 0.2);
+    border-radius: 12px;
+    background: #111;
+}
+
+.terms-pdf-panel iframe {
+    width: 100%;
+    height: 100%;
+    border: 0;
+    display: block;
+}
+
+@media (max-width: 640px) {
+    .terms-summary {
+        padding: 0 18px 20px;
+    }
+
+    .terms-pdf-panel {
+        min-height: 360px;
+    }
+}
+
 @keyframes overlayFadeIn {
     from {
         opacity: 0;

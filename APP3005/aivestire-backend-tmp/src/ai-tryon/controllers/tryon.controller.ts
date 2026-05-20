@@ -18,12 +18,16 @@ import { AIProvider, TryOnStatus } from '../enums/ai-provider.enum';
 import { TryOnRequestDto } from '../dto/tryon-request.dto';
 import {
   HealthCheckResponseDto,
+  TryOnResponseDto,
   TryOnJobStatusResponseDto,
   TryOnQueuedResponseDto,
   TryOnErrorResponseDto,
 } from '../dto/tryon-response.dto';
 import { TryOnQueueService } from '../../queues/tryon-queue.service';
-import { TryOnHistoryService } from '../services/tryon-history.service';
+import {
+  TryOnHistoryItem,
+  TryOnHistoryService,
+} from '../services/tryon-history.service';
 
 @ApiTags('AI Try-On')
 @Controller('v1/tryon')
@@ -46,6 +50,61 @@ export class TryOnController {
       message,
       timestamp: new Date().toISOString(),
     };
+  }
+
+  private mapStoredProviderToApiProvider(
+    provider: string,
+    fallbackProvider: AIProvider,
+  ): AIProvider {
+    if (provider === 'vertex') {
+      return AIProvider.VERTEX_AI;
+    }
+
+    if (provider === 'gemini') {
+      return AIProvider.GEMINI_AI;
+    }
+
+    return fallbackProvider;
+  }
+
+  private createReusedTryOnResponse(
+    existingTryOn: TryOnHistoryItem,
+    requestedProvider: AIProvider,
+  ): TryOnResponseDto {
+    return {
+      success: true,
+      status: TryOnStatus.SUCCESS,
+      provider: this.mapStoredProviderToApiProvider(
+        existingTryOn.provider,
+        requestedProvider,
+      ),
+      resultImage: existingTryOn.resultImageUrl,
+      processingTimeMs: 0,
+      metadata: {
+        reusedFromDb: true,
+        reusedTryOnId: existingTryOn.tryOnId,
+        reusedAuraId: existingTryOn.auraId,
+        reusedSelectedAvatarId: existingTryOn.selectedAvatarId,
+        requestedProvider,
+      },
+      tryOnId: existingTryOn.tryOnId,
+      timestamp: existingTryOn.createdAt,
+    };
+  }
+
+  private async getReusableTryOn(
+    userId: string,
+    request: TryOnRequestDto,
+  ): Promise<TryOnHistoryItem | null> {
+    if (!request.productId || !request.auraId) {
+      return null;
+    }
+
+    return this.tryOnHistoryService.findReusableBaseTryOnForCurrentAvatar(
+      userId,
+      request.productId,
+      request.auraId,
+    );
   }
 
   /**
@@ -72,7 +131,19 @@ export class TryOnController {
   async startTryOnWithVertex(
     @Body() request: TryOnRequestDto,
     @Request() req,
-  ): Promise<TryOnQueuedResponseDto> {
+  ): Promise<TryOnQueuedResponseDto | TryOnResponseDto> {
+    const reusableTryOn = await this.getReusableTryOn(
+      req.user.user_id,
+      request,
+    );
+
+    if (reusableTryOn) {
+      return this.createReusedTryOnResponse(
+        reusableTryOn,
+        AIProvider.VERTEX_AI,
+      );
+    }
+
     const job = await this.tryOnQueueService.addDirectTryOnJob({
       type: 'direct',
       provider: AIProvider.VERTEX_AI,
@@ -114,7 +185,19 @@ export class TryOnController {
   async startTryOnWithGemini(
     @Body() request: TryOnRequestDto,
     @Request() req,
-  ): Promise<TryOnQueuedResponseDto> {
+  ): Promise<TryOnQueuedResponseDto | TryOnResponseDto> {
+    const reusableTryOn = await this.getReusableTryOn(
+      req.user.user_id,
+      request,
+    );
+
+    if (reusableTryOn) {
+      return this.createReusedTryOnResponse(
+        reusableTryOn,
+        AIProvider.GEMINI_AI,
+      );
+    }
+
     const job = await this.tryOnQueueService.addDirectTryOnJob({
       type: 'direct',
       provider: AIProvider.GEMINI_AI,

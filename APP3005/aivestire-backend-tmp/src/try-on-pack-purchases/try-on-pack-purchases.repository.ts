@@ -21,6 +21,26 @@ interface CreateTryOnPackPurchaseInput {
 export class TryOnPackPurchasesRepository {
   constructor(private readonly prisma: PrismaService) {}
 
+  async listPurchasesForUser(userId: string, limit = 10) {
+    return this.prisma.tryOnPackPurchase.findMany({
+      where: { user_id: userId },
+      orderBy: { created_at: 'desc' },
+      take: limit,
+      select: {
+        purchase_id: true,
+        plan_id: true,
+        pack_name: true,
+        try_ons: true,
+        amount_paise: true,
+        currency: true,
+        status: true,
+        payment_method: true,
+        credited_at: true,
+        created_at: true,
+      },
+    });
+  }
+
   async findUserForPurchase(userId: string) {
     return this.prisma.user.findUnique({
       where: { user_id: userId },

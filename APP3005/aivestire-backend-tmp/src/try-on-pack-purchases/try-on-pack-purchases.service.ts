@@ -95,6 +95,23 @@ export class TryOnPackPurchasesService {
     });
   }
 
+  async getPurchaseHistory(userId: string) {
+    const purchases = await this.repository.listPurchasesForUser(userId);
+
+    return purchases.map((purchase) => ({
+      purchaseId: purchase.purchase_id,
+      planId: purchase.plan_id,
+      packName: purchase.pack_name,
+      tryOns: purchase.try_ons,
+      amountPaise: purchase.amount_paise,
+      currency: purchase.currency,
+      status: purchase.status,
+      paymentMethod: purchase.payment_method,
+      creditedAt: purchase.credited_at,
+      createdAt: purchase.created_at,
+    }));
+  }
+
   async handlePaymentSuccess(dto: VerifyTryOnPackPurchaseDto) {
     this.verifyResponseHash(dto);
 

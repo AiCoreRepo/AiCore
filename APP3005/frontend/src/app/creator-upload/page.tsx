@@ -17,7 +17,7 @@ import {
 } from "../../constants/product-hierarchy.enums";
 import { AGE_RANGE_OPTIONS } from "@/constants/aura.constants";
 import { getAvailableSizes } from "@/constants/sizeChart";
-import { createProductHierarchy, fileToDataUri } from "../../api/creator-upload.api";
+import { createProductHierarchyFromFiles } from "../../api/creator-upload.api";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -514,16 +514,14 @@ const CreatorUploadPage: React.FC = () => {
     }
     setIsLoading(true);
     try {
-      const patternsPayload = await Promise.all(
-        patterns.map(async p => ({
-          name: p.name, body_shapes: p.body_shapes,
-          color_variants: await Promise.all(p.color_variants.map(async v => ({
-            color: v.color as ClothingColorValue, stock: v.stock,
-            skin_tones: v.skin_tones, images: await Promise.all(v.imageFiles.map(fileToDataUri)),
-          }))),
-        }))
-      );
-      await createProductHierarchy({
+      const patternsPayload = patterns.map(p => ({
+        name: p.name, body_shapes: p.body_shapes,
+        color_variants: p.color_variants.map(v => ({
+          color: v.color as ClothingColorValue, stock: v.stock,
+          skin_tones: v.skin_tones, images: v.imageFiles,
+        })),
+      }));
+      await createProductHierarchyFromFiles({
         title: title.trim(), description: description.trim() || undefined,
         price_cents: Math.round(parseFloat(price) * 100),
         category_id: categoryId || undefined, sub_category_id: subCategoryId || undefined,

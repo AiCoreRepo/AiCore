@@ -65,3 +65,13 @@ function parseCreatorTerms(markdown: string): CreatorTermsContent {
 }
 
 export const creatorTermsContent = parseCreatorTerms(creatorTermsMarkdown);
+
+export const creatorTermsPdfUrl =
+  "/documents/aivestire-partner-terms-conditions.pdf";
+
+export const creatorTermsAcknowledgements = [
+  "My designs are original, approved, and uploaded with clear true-colour images.",
+  "I will produce made-to-order pieces on time and respond within 24 hours.",
+  "I accept the commission, payout cycle, shipping, return, and refund rules.",
+  "I am responsible for quality, sizing, defects, corrections, and platform standards.",
+];

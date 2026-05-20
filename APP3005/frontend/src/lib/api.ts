@@ -33,6 +33,19 @@ export interface InitiateTryOnPackPurchaseResponse {
   udf5?: string;
 }
 
+export interface TryOnPackPurchaseHistoryItem {
+  purchaseId: string;
+  planId: string;
+  packName: string;
+  tryOns: number;
+  amountPaise: number;
+  currency: string;
+  status: "CREATED" | "CAPTURED" | "FAILED" | "CANCELLED";
+  paymentMethod?: string | null;
+  creditedAt?: string | null;
+  createdAt: string;
+}
+
 export type FeedbackContextType =
   | "AVATAR_CREATION"
   | "AVATAR_RECREATION"
@@ -1621,6 +1634,31 @@ export async function initiateTryOnPackPurchase(data: {
       res,
       await res.text(),
       "Failed to start virtual try-on pack payment",
+    );
+  }
+
+  return res.json();
+}
+
+export async function getTryOnPackPurchaseHistory(): Promise<
+  TryOnPackPurchaseHistoryItem[]
+> {
+  const token = localStorage.getItem("access_token");
+  if (!token) {
+    throw new Error("Login required");
+  }
+
+  const res = await fetch(`${BASE_URL}/try-on-pack-purchases/history`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!res.ok) {
+    handleApiError(
+      res,
+      await res.text(),
+      "Failed to fetch virtual try-on purchase history",
     );
   }
 

@@ -21,7 +21,11 @@ import {
   saveCreatorAddress
 } from "@/lib/api";
 import { fetchCreatorOnboardingState } from "@/lib/creatorOnboarding";
-import { creatorTermsContent } from "@/content/creatorTerms";
+import {
+  creatorTermsAcknowledgements,
+  creatorTermsContent,
+  creatorTermsPdfUrl,
+} from "@/content/creatorTerms";
 import "@/components/TermsModal.css";
 
 const UPI_ID_REGEX = /^[a-zA-Z0-9._-]{2,256}@[a-zA-Z]{2,64}$/;
@@ -62,10 +66,12 @@ const CreatorOnboardingPage = () => {
   const [isVerifyingUpi, setIsVerifyingUpi] = useState(false);
 
   // Step 3: Terms
-  const [termsAccepted, setTermsAccepted] = useState(false);
   const [isAcceptingTerms, setIsAcceptingTerms] = useState(false);
-  const [termsCheckboxChecked, setTermsCheckboxChecked] = useState(false);
-  const [activeTermSection, setActiveTermSection] = useState(0);
+  const [termsChecks, setTermsChecks] = useState<boolean[]>(
+    creatorTermsAcknowledgements.map(() => false),
+  );
+  const [showTermsDocument, setShowTermsDocument] = useState(false);
+  const allTermsChecked = termsChecks.every(Boolean);
 
   useEffect(() => {
     void loadOnboardingState();
@@ -112,9 +118,8 @@ const CreatorOnboardingPage = () => {
       }
 
       // Load terms
-      setTermsAccepted(onboardingState.termsAccepted);
       if (onboardingState.termsAccepted) {
-        setTermsCheckboxChecked(true);
+        setTermsChecks(creatorTermsAcknowledgements.map(() => true));
       }
 
       if (onboardingState.isComplete) {
@@ -221,11 +226,10 @@ const CreatorOnboardingPage = () => {
   const handleAcceptTerms = async () => {
     const token = localStorage.getItem("access_token");
     if (!token) { navigate("/login", { replace: true }); return; }
-    if (!termsCheckboxChecked) return;
+    if (!allTermsChecked) return;
     setIsAcceptingTerms(true);
     try {
       await acceptCreatorTerms(token);
-      setTermsAccepted(true);
       window.dispatchEvent(new Event("auth-refresh"));
       toast({ title: "Terms Accepted", description: "Onboarding complete! Welcome." });
       navigate("/creator-dashboard", { replace: true });
@@ -390,58 +394,59 @@ const CreatorOnboardingPage = () => {
                 <p className="text-sm text-[#E6D3A6]/60">{creatorTermsContent.brand} • {creatorTermsContent.intro}</p>
               </div>
               
-              {/* INTERACTIVE SIDEBAR LAYOUT FOR TERMS (Removes 'notes' feel, makes it highly premium) */}
-              <div className="flex flex-col md:flex-row gap-0 border border-[#D4AF37]/20 rounded-2xl bg-[#1d1610] overflow-hidden shadow-2xl h-[450px] mb-8">
-                 {/* Sidebar Navigation */}
-                 <div className="w-full md:w-1/3 bg-[#120f09] border-r border-[#D4AF37]/10 overflow-y-auto scrollbar-thin scrollbar-thumb-[#D4AF37]/20 p-2">
-                    {creatorTermsContent.sections.map((section, idx) => (
-                       <button 
-                          key={idx}
-                          type="button"
-                          onClick={() => setActiveTermSection(idx)}
-                          className={`w-full text-left px-4 py-3 mb-1 rounded-xl transition-all flex items-center gap-3 ${activeTermSection === idx ? 'bg-[#D4AF37]/10 text-[#D4AF37] border border-[#D4AF37]/20 shadow-inner' : 'border border-transparent text-[#E6D3A6]/60 hover:text-[#E6D3A6] hover:bg-white/5'}`}
-                       >
-                          <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs flex-shrink-0 ${activeTermSection === idx ? 'bg-[#D4AF37]/20 text-[#D4AF37]' : 'bg-white/5 text-white/40'}`}>
-                            {idx + 1}
-                          </div>
-                          <span className="text-[13px] font-medium leading-snug">{section.title}</span>
-                       </button>
-                    ))}
-                 </div>
-                 
-                 {/* Content Area */}
-                 <div className="w-full md:w-2/3 p-6 md:p-8 bg-[#16120e] overflow-y-auto scrollbar-thin scrollbar-thumb-[#D4AF37]/20">
-                     <div className="animate-fadeIn">
-                       <h3 className="text-xl font-serif text-[#F6E7C0] mb-6 pb-4 border-b border-white/5 flex items-center gap-3">
-                         <span className="flex items-center justify-center w-8 h-8 rounded-full bg-[#D4AF37]/10 text-[#D4AF37] text-sm">
-                           {activeTermSection + 1}
-                         </span>
-                         {creatorTermsContent.sections[activeTermSection].title}
-                       </h3>
-                       <div className="space-y-4">
-                           {creatorTermsContent.sections[activeTermSection].items.map((item, i) => (
-                               <div key={i} className="flex items-start gap-4 p-4 rounded-xl bg-white/[0.02] border border-white/5 hover:border-[#D4AF37]/20 transition-colors">
-                                   <CheckCircle2 size={18} className="text-[#D4AF37] mt-0.5 flex-shrink-0" />
-                                   <span className="text-[#E6D3A6]/90 text-[14px] leading-relaxed">{item}</span>
-                               </div>
-                           ))}
-                       </div>
-                     </div>
-                 </div>
+              <div className="max-w-3xl mx-auto space-y-3 mb-6">
+                {creatorTermsAcknowledgements.map((item, index) => (
+                  <label
+                    key={item}
+                    className={`flex items-start gap-4 p-4 rounded-xl border cursor-pointer transition-all shadow-sm ${termsChecks[index] ? 'border-[#D4AF37] bg-[#D4AF37]/10' : 'border-[#D4AF37]/30 bg-[#D4AF37]/5 hover:bg-[#D4AF37]/10'}`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={termsChecks[index]}
+                      onChange={() =>
+                        setTermsChecks((current) =>
+                          current.map((checked, itemIndex) =>
+                            itemIndex === index ? !checked : checked,
+                          ),
+                        )
+                      }
+                      className="mt-1 h-5 w-5 rounded border-[#D4AF37]/50 bg-[#120f09] text-[#D4AF37] accent-[#D4AF37]"
+                    />
+                    <span className="text-[14px] text-[#F6E7C0] leading-relaxed font-medium">
+                      {item}
+                    </span>
+                  </label>
+                ))}
               </div>
 
-              <div className="flex items-start gap-4 p-5 rounded-xl border border-[#D4AF37]/40 bg-[#D4AF37]/5 cursor-pointer hover:bg-[#D4AF37]/10 transition-all shadow-sm max-w-3xl mx-auto" onClick={() => setTermsCheckboxChecked(!termsCheckboxChecked)}>
-                <div className={`mt-0.5 w-6 h-6 rounded flex-shrink-0 border flex items-center justify-center transition-all ${termsCheckboxChecked ? 'bg-[#D4AF37] border-[#D4AF37] text-black shadow-lg shadow-[#D4AF37]/20' : 'border-white/30'}`}>
-                  {termsCheckboxChecked && <CheckCircle2 size={16} strokeWidth={3} />}
-                </div>
-                <Label className="text-[15px] text-[#F6E7C0] cursor-pointer leading-relaxed font-medium">
-                  I have thoroughly read and agree to the {creatorTermsContent.title}.
-                </Label>
+              <div className="max-w-3xl mx-auto rounded-2xl border border-[#D4AF37]/20 bg-[#16120e] overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setShowTermsDocument((current) => !current)}
+                  className="w-full flex items-center justify-between gap-4 px-5 py-4 text-left text-[#F6E7C0] hover:bg-white/5 transition-colors"
+                >
+                  <span className="flex items-center gap-3 font-medium">
+                    <FileText size={18} className="text-[#D4AF37]" />
+                    Read full terms
+                  </span>
+                  <span className="text-xs text-[#D4AF37]">
+                    {showTermsDocument ? "Hide document" : "Open document"}
+                  </span>
+                </button>
+                {showTermsDocument && (
+                  <div className="h-[520px] border-t border-[#D4AF37]/10 bg-black">
+                    <iframe
+                      title="AIVESTIRE partner terms and conditions"
+                      src={`${creatorTermsPdfUrl}#toolbar=1&navpanes=0`}
+                      className="h-full w-full"
+                    />
+                  </div>
+                )}
               </div>
 
               <div className="mt-10 flex justify-between border-t border-[#D4AF37]/10 pt-6 max-w-3xl mx-auto">
                 <Button variant="ghost" onClick={() => setCurrentStep(2)} className="text-[#E6D3A6]/70 hover:text-[#E6D3A6] hover:bg-white/5 h-12 px-6 rounded-xl"><ChevronLeft className="mr-2 h-4 w-4" /> Back</Button>
-                <Button onClick={handleAcceptTerms} disabled={!termsCheckboxChecked || isAcceptingTerms} className="bg-gradient-to-r from-[#E7C45B] to-[#D4AF37] text-black hover:opacity-90 h-12 px-10 rounded-xl font-bold shadow-lg shadow-[#D4AF37]/20 disabled:opacity-50 disabled:shadow-none transition-all">
+                <Button onClick={handleAcceptTerms} disabled={!allTermsChecked || isAcceptingTerms} className="bg-gradient-to-r from-[#E7C45B] to-[#D4AF37] text-black hover:opacity-90 h-12 px-10 rounded-xl font-bold shadow-lg shadow-[#D4AF37]/20 disabled:opacity-50 disabled:shadow-none transition-all">
                   {isAcceptingTerms ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : "Complete Setup"}
                 </Button>
               </div>

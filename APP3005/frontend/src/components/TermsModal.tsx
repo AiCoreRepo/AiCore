@@ -1,6 +1,10 @@
 import { useEffect, useState } from 'react';
-import { X } from 'lucide-react';
-import { creatorTermsContent } from '@/content/creatorTerms';
+import { CheckCircle2, FileText, X } from 'lucide-react';
+import {
+    creatorTermsAcknowledgements,
+    creatorTermsContent,
+    creatorTermsPdfUrl,
+} from '@/content/creatorTerms';
 import './TermsModal.css';
 
 interface TermsModalProps {
@@ -16,13 +20,26 @@ export default function TermsModal({
     onDecline,
     isSubmitting = false,
 }: TermsModalProps) {
-    const [isChecked, setIsChecked] = useState(false);
+    const [checkedItems, setCheckedItems] = useState<boolean[]>(
+        creatorTermsAcknowledgements.map(() => false),
+    );
+    const [showDocument, setShowDocument] = useState(false);
+    const allChecked = checkedItems.every(Boolean);
 
     useEffect(() => {
         if (!isOpen) {
-            setIsChecked(false);
+            setCheckedItems(creatorTermsAcknowledgements.map(() => false));
+            setShowDocument(false);
         }
     }, [isOpen]);
+
+    const toggleItem = (index: number) => {
+        setCheckedItems((current) =>
+            current.map((checked, itemIndex) =>
+                itemIndex === index ? !checked : checked,
+            ),
+        );
+    };
 
     if (!isOpen) return null;
 
@@ -41,41 +58,51 @@ export default function TermsModal({
                 <div className="terms-header">
                     <h2>{creatorTermsContent.title}</h2>
                     <p className="terms-subtitle">
-                        {creatorTermsContent.brand} • {creatorTermsContent.intro}
+                        Confirm the essentials before continuing.
                     </p>
                 </div>
 
-                <div className="terms-content">
-                    {creatorTermsContent.sections.map((section, index) => (
-                        <section className="terms-section" key={`${section.title}-${index}`}>
-                            <h3>{section.title}</h3>
-                            <ul>
-                                {section.items.map((item, itemIndex) => (
-                                    <li key={`${section.title}-${itemIndex}`}>{item}</li>
-                                ))}
-                            </ul>
-                        </section>
-                    ))}
-
-                    <div className="terms-footer-note">
-                        <p>
-                            <strong>{creatorTermsContent.closingNote}</strong>{" "}
-                            {creatorTermsContent.welcomeMessage}
-                        </p>
+                <div className="terms-summary">
+                    <div className="terms-summary-list">
+                        {creatorTermsAcknowledgements.map((item, index) => (
+                            <label
+                                key={item}
+                                className={`terms-summary-check ${checkedItems[index] ? 'is-checked' : ''}`}
+                            >
+                                <input
+                                    type="checkbox"
+                                    checked={checkedItems[index]}
+                                    onChange={() => toggleItem(index)}
+                                    disabled={isSubmitting}
+                                />
+                                <span className="terms-summary-box">
+                                    {checkedItems[index] && <CheckCircle2 size={16} strokeWidth={3} />}
+                                </span>
+                                <span>{item}</span>
+                            </label>
+                        ))}
                     </div>
+
+                    <button
+                        type="button"
+                        className="terms-read-full"
+                        onClick={() => setShowDocument((current) => !current)}
+                    >
+                        <FileText size={18} />
+                        {showDocument ? 'Hide full terms' : 'Read full terms'}
+                    </button>
+
+                    {showDocument && (
+                        <div className="terms-pdf-panel">
+                            <iframe
+                                title="AIVESTIRE partner terms and conditions"
+                                src={`${creatorTermsPdfUrl}#toolbar=1&navpanes=0`}
+                            />
+                        </div>
+                    )}
                 </div>
 
                 <div className="terms-actions">
-                    <label className="terms-checkbox">
-                        <input
-                            type="checkbox"
-                            checked={isChecked}
-                            onChange={(e) => setIsChecked(e.target.checked)}
-                            disabled={isSubmitting}
-                        />
-                        <span>I have read and agree to the creator onboarding terms.</span>
-                    </label>
-
                     <div className="terms-buttons">
                         <button
                             className="terms-btn terms-btn-decline"
@@ -87,7 +114,7 @@ export default function TermsModal({
                         <button
                             className="terms-btn terms-btn-accept"
                             onClick={onAccept}
-                            disabled={!isChecked || isSubmitting}
+                            disabled={!allChecked || isSubmitting}
                         >
                             {isSubmitting ? 'Processing...' : 'Accept & Continue'}
                         </button>
