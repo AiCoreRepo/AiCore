@@ -16,6 +16,12 @@ const ENV_DEFAULT_TRY_ON_PROVIDER =
       : null;
 
 const PRODUCTION_TRY_ON_HOSTS = new Set(['aivestire.com', 'www.aivestire.com']);
+const DEV_SKIP_TRY_ON_HOSTS = new Set([
+  'dev.aivestire.com',
+  'uat.aivestire.com',
+  'localhost',
+  '127.0.0.1',
+]);
 const UAT_OR_LOCAL_TRY_ON_HOSTS = new Set([
   'uat.aivestire.com',
   'dev.aivestire.com',
@@ -38,6 +44,18 @@ export function isProductionTryOnHost(): boolean {
 
 export function isUatOrLocalTryOnHost(): boolean {
   return UAT_OR_LOCAL_TRY_ON_HOSTS.has(getCurrentHostname());
+}
+
+export function canUseTryOnPackDevSkip(): boolean {
+  if (isProductionTryOnHost()) {
+    return false;
+  }
+
+  if (import.meta.env.VITE_ENABLE_TRY_ON_PACK_DEV_SKIP === 'true') {
+    return true;
+  }
+
+  return import.meta.env.DEV || DEV_SKIP_TRY_ON_HOSTS.has(getCurrentHostname());
 }
 
 export function isSupportedTryOnHost(): boolean {

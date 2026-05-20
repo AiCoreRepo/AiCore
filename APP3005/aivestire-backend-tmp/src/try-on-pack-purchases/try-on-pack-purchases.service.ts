@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   Logger,
   NotFoundException,
@@ -24,6 +25,13 @@ import {
   VerifyTryOnPackPurchaseDto,
 } from './dto/try-on-pack-purchases.dto';
 import { TryOnPackPurchasesRepository } from './try-on-pack-purchases.repository';
+
+const TRY_ON_PACK_DEV_SKIP_HOSTS = new Set([
+  'dev.aivestire.com',
+  'uat.aivestire.com',
+  'localhost',
+  '127.0.0.1',
+]);
 
 @Injectable()
 export class TryOnPackPurchasesService {
@@ -98,18 +106,67 @@ export class TryOnPackPurchasesService {
   async getPurchaseHistory(userId: string) {
     const purchases = await this.repository.listPurchasesForUser(userId);
 
-    return purchases.map((purchase) => ({
+    return purchases.map((purchase) => this.mapPurchaseHistoryItem(purchase));
+  }
+
+  async devSkipPurchase(
+    userId: string,
+    dto: InitiateTryOnPackPurchaseDto,
+    requestOrigin?: string,
+  ) {
+    this.assertDevSkipAllowed(requestOrigin);
+
+    const user = await this.repository.findUserForPurchase(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const pack = TRY_ON_PACKS[dto.planId as TryOnPackId];
+    if (!pack) {
+      throw new BadRequestException('Invalid try-on pack selected');
+    }
+
+    const txnid = this.generateTxnId('TOV_DEV_');
+    const safeReturnPath = this.sanitizeReturnPath(dto.returnPath);
+
+    const purchase = await this.repository.createPurchase({
+      userId: user.user_id,
+      planId: pack.id,
+      packName: pack.name,
+      tryOns: pack.tryOns,
+      amountPaise: pack.priceInr * 100,
+      gatewayTxnId: txnid,
+      returnPath: safeReturnPath,
+      metadata: {
+        dev_skip: true,
+        skipped_at: new Date().toISOString(),
+        user_id: user.user_id,
+        plan_id: pack.id,
+        try_ons: pack.tryOns,
+        return_path: safeReturnPath,
+      },
+    });
+
+    const captureResult = await this.repository.capturePurchaseAndCredit({
       purchaseId: purchase.purchase_id,
-      planId: purchase.plan_id,
-      packName: purchase.pack_name,
-      tryOns: purchase.try_ons,
-      amountPaise: purchase.amount_paise,
-      currency: purchase.currency,
-      status: purchase.status,
-      paymentMethod: purchase.payment_method,
-      creditedAt: purchase.credited_at,
-      createdAt: purchase.created_at,
-    }));
+      userId: user.user_id,
+      tryOns: pack.tryOns,
+      gatewayPaymentId: `DEV_SKIP_${txnid}`,
+      paymentMethod: 'DEV_SKIP',
+      metadata: {
+        ...(this.asMetadata(purchase.metadata)),
+        dev_skip: true,
+        credited_without_gateway: true,
+        credited_at: new Date().toISOString(),
+      },
+    });
+
+    return {
+      success: true,
+      tryOns: pack.tryOns,
+      planId: pack.id,
+      purchase: this.mapPurchaseHistoryItem(captureResult.purchase),
+    };
   }
 
   async handlePaymentSuccess(dto: VerifyTryOnPackPurchaseDto) {
@@ -383,9 +440,88 @@ export class TryOnPackPurchasesService {
       : {};
   }
 
-  private generateTxnId() {
+  private mapPurchaseHistoryItem(purchase: {
+    purchase_id: string;
+    plan_id: string;
+    pack_name: string;
+    try_ons: number;
+    amount_paise: number;
+    currency: string;
+    status: TryOnPackPurchaseStatus;
+    payment_method: string | null;
+    credited_at: Date | null;
+    created_at: Date;
+  }) {
+    return {
+      purchaseId: purchase.purchase_id,
+      planId: purchase.plan_id,
+      packName: purchase.pack_name,
+      tryOns: purchase.try_ons,
+      amountPaise: purchase.amount_paise,
+      currency: purchase.currency,
+      status: purchase.status,
+      paymentMethod: purchase.payment_method,
+      creditedAt: purchase.credited_at,
+      createdAt: purchase.created_at,
+    };
+  }
+
+  private assertDevSkipAllowed(requestOrigin?: string) {
+    const explicitEnabled = this.configService
+      .get<string>('TRY_ON_PACK_DEV_SKIP_ENABLED')
+      ?.trim()
+      .toLowerCase();
+
+    if (explicitEnabled === 'true') {
+      return;
+    }
+
+    const frontendHost = this.normalizeHost(
+      this.configService.get<string>('FRONTEND_URL') ?? '',
+    );
+    const originHost = this.normalizeHost(requestOrigin ?? '');
+    const payuEnv =
+      this.configService.get<string>('PAYU_ENV')?.trim().toLowerCase() ?? '';
+    const productionPayu =
+      ['production', 'prod', 'live'].includes(payuEnv) ||
+      (!payuEnv &&
+        (frontendHost === 'aivestire.com' ||
+          frontendHost === 'www.aivestire.com'));
+    const devHostConfigured =
+      Boolean(frontendHost) && TRY_ON_PACK_DEV_SKIP_HOSTS.has(frontendHost);
+    const devRequestOrigin =
+      Boolean(originHost) && TRY_ON_PACK_DEV_SKIP_HOSTS.has(originHost);
+
+    if (!productionPayu && (devHostConfigured || devRequestOrigin)) {
+      return;
+    }
+
+    throw new ForbiddenException(
+      'Dev payment skip is only available in dev/test environments',
+    );
+  }
+
+  private normalizeHost(value: string): string {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return '';
+    }
+
+    try {
+      return new URL(trimmed).hostname.trim().toLowerCase();
+    } catch {
+      return trimmed
+        .replace(/^https?:\/\//i, '')
+        .split('/')[0]
+        .split(':')[0]
+        .trim()
+        .toLowerCase();
+    }
+  }
+
+  private generateTxnId(prefix = TRY_ON_PACK_TXN_PREFIX) {
     const timestamp = Date.now().toString().slice(-8);
     const randomSuffix = Math.random().toString(36).slice(2, 6).toUpperCase();
-    return `${TRY_ON_PACK_TXN_PREFIX}${timestamp}_${randomSuffix}`;
+    return `${prefix}${timestamp}_${randomSuffix}`;
   }
 }

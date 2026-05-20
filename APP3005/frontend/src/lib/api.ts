@@ -46,6 +46,13 @@ export interface TryOnPackPurchaseHistoryItem {
   createdAt: string;
 }
 
+export interface DevSkipTryOnPackPurchaseResponse {
+  success: boolean;
+  tryOns: number;
+  planId: string;
+  purchase: TryOnPackPurchaseHistoryItem;
+}
+
 export type FeedbackContextType =
   | "AVATAR_CREATION"
   | "AVATAR_RECREATION"
@@ -1659,6 +1666,35 @@ export async function getTryOnPackPurchaseHistory(): Promise<
       res,
       await res.text(),
       "Failed to fetch virtual try-on purchase history",
+    );
+  }
+
+  return res.json();
+}
+
+export async function devSkipTryOnPackPurchase(data: {
+  planId: string;
+  returnPath?: string;
+}): Promise<DevSkipTryOnPackPurchaseResponse> {
+  const token = localStorage.getItem("access_token");
+  if (!token) {
+    throw new Error("Login required");
+  }
+
+  const res = await fetch(`${BASE_URL}/try-on-pack-purchases/dev-skip`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!res.ok) {
+    handleApiError(
+      res,
+      await res.text(),
+      "Dev payment skip is unavailable for this environment",
     );
   }
 

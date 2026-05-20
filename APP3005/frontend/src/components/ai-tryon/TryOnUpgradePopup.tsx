@@ -8,17 +8,22 @@ import {
   TRY_ON_PURCHASE_PLANS,
 } from '@/lib/try-on-limit';
 import {
+  devSkipTryOnPackPurchase,
   getTryOnPackPurchaseHistory,
   initiateTryOnPackPurchase,
   type TryOnPackPurchaseHistoryItem,
 } from '@/lib/api';
 import { usePayU } from '@/hooks/usePayU';
 import { useToast } from '@/hooks/use-toast';
-import { isUatOrLocalTryOnHost } from '@/lib/try-on-environment';
+import {
+  canUseTryOnPackDevSkip,
+  isUatOrLocalTryOnHost,
+} from '@/lib/try-on-environment';
 
 interface TryOnUpgradePopupProps {
   isOpen: boolean;
   onClose: () => void;
+  onPurchaseComplete?: () => Promise<void> | void;
   tryOnsUsed: number;
   maxTryOns: number;
 }
@@ -72,6 +77,7 @@ function getHistoryStatusTone(status: TryOnPackPurchaseHistoryItem['status']) {
 export function TryOnUpgradePopup({
   isOpen,
   onClose,
+  onPurchaseComplete,
   tryOnsUsed,
   maxTryOns,
 }: TryOnUpgradePopupProps) {
@@ -79,6 +85,7 @@ export function TryOnUpgradePopup({
   const { redirectToPayU } = usePayU();
   const [selectedPlanId, setSelectedPlanId] = useState<string>(DEFAULT_PLAN_ID);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isDevSkipping, setIsDevSkipping] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [hasLoadedHistory, setHasLoadedHistory] = useState(false);
@@ -87,6 +94,8 @@ export function TryOnUpgradePopup({
     TryOnPackPurchaseHistoryItem[]
   >([]);
   const isTestMode = isUatOrLocalTryOnHost();
+  const showDevSkip = canUseTryOnPackDevSkip();
+  const isBusy = isProcessing || isDevSkipping;
   const remainingTryOns = Math.max(maxTryOns - tryOnsUsed, 0);
 
   const selectedPlan = TRY_ON_PURCHASE_PLANS.find(
@@ -103,10 +112,11 @@ export function TryOnUpgradePopup({
     setHasLoadedHistory(false);
     setHistoryError(null);
     setPurchaseHistory([]);
+    setIsDevSkipping(false);
   }, [isOpen]);
 
   useEffect(() => {
-    if (!isOpen || !showHistory || hasLoadedHistory || historyLoading) {
+    if (!isOpen || !showHistory || hasLoadedHistory) {
       return;
     }
 
@@ -143,7 +153,7 @@ export function TryOnUpgradePopup({
     return () => {
       cancelled = true;
     };
-  }, [hasLoadedHistory, historyLoading, isOpen, showHistory]);
+  }, [hasLoadedHistory, isOpen, showHistory]);
 
   const handleStartPayment = async () => {
     if (!selectedPlan) {
@@ -180,6 +190,56 @@ export function TryOnUpgradePopup({
     }
   };
 
+  const handleDevSkipPayment = async () => {
+    if (!selectedPlan) {
+      toast({
+        title: 'Select a try-on pack',
+        description: 'Choose a pack before continuing.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsDevSkipping(true);
+
+    try {
+      const result = await devSkipTryOnPackPurchase({
+        planId: selectedPlan.id,
+        returnPath: buildTryOnPurchaseReturnPath(
+          window.location.pathname,
+          window.location.search,
+        ),
+      });
+
+      setPurchaseHistory((current) => [
+        result.purchase,
+        ...current.filter(
+          (purchase) => purchase.purchaseId !== result.purchase.purchaseId,
+        ),
+      ]);
+      setHasLoadedHistory(true);
+      setShowHistory(true);
+      await onPurchaseComplete?.();
+      toast({
+        title: 'Dev skip applied',
+        description: `${result.tryOns} try-ons credited without PayU.`,
+        className: 'bg-emerald-50 border-emerald-200 text-emerald-950',
+      });
+      onClose();
+    } catch (error) {
+      toast({
+        title: 'Unable to skip payment',
+        description:
+          error instanceof Error
+            ? error.message
+            : 'Dev payment skip is unavailable.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsDevSkipping(false);
+    }
+  };
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -205,7 +265,7 @@ export function TryOnUpgradePopup({
             >
               <button
                 onClick={onClose}
-                disabled={isProcessing}
+                disabled={isBusy}
                 aria-label="Close try-on pack popup"
                 className="absolute right-4 top-4 rounded-full border border-[#E8DCC3] bg-white p-2 text-[#6D5C45] transition hover:bg-[#F7F1E5] disabled:cursor-not-allowed disabled:opacity-60"
               >
@@ -229,6 +289,11 @@ export function TryOnUpgradePopup({
                   {isTestMode && (
                     <p className="mt-3 text-xs text-[#8A6936]">
                       Test mode enabled. Payment continues on PayU.
+                    </p>
+                  )}
+                  {showDevSkip && (
+                    <p className="mt-2 text-xs text-[#8A6936]">
+                      Dev skip is available for testing without PayU.
                     </p>
                   )}
                 </div>
@@ -349,7 +414,7 @@ export function TryOnUpgradePopup({
 
                   <button
                     onClick={handleStartPayment}
-                    disabled={isProcessing || !selectedPlan}
+                    disabled={isBusy || !selectedPlan}
                     className="flex min-w-[220px] items-center justify-center gap-2 rounded-2xl bg-[#241B12] px-6 py-4 text-sm font-semibold text-white transition hover:bg-[#17110B] disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {isProcessing
@@ -357,6 +422,16 @@ export function TryOnUpgradePopup({
                       : `Pay ${formatCurrency(selectedPlan?.priceInr ?? 0)}`}
                     {!isProcessing && <ArrowRight className="h-4 w-4" />}
                   </button>
+                  {showDevSkip && (
+                    <button
+                      type="button"
+                      onClick={handleDevSkipPayment}
+                      disabled={isBusy || !selectedPlan}
+                      className="flex min-w-[180px] items-center justify-center rounded-2xl border border-[#B68A2D] bg-white px-5 py-4 text-sm font-semibold text-[#8A6936] transition hover:bg-[#FFF6E3] disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {isDevSkipping ? 'Crediting...' : 'Skip for now'}
+                    </button>
+                  )}
                 </div>
               </div>
             </motion.div>

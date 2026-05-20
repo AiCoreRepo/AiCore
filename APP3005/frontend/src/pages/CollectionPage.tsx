@@ -972,6 +972,7 @@ const CollectionPage = () => {
             <TryOnUpgradePopup
                 isOpen={showUpgradePopup}
                 onClose={() => setShowUpgradePopup(false)}
+                onPurchaseComplete={fetchUser}
                 tryOnsUsed={tryOnUsageSnapshot.tryOnsUsed}
                 maxTryOns={tryOnUsageSnapshot.maxTryOns}
             />

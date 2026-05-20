@@ -38,6 +38,24 @@ export class TryOnPackPurchasesController {
     );
   }
 
+  @common.Post('dev-skip')
+  @common.UseGuards(JwtAuthGuard)
+  @common.HttpCode(common.HttpStatus.CREATED)
+  async devSkipPurchase(
+    @common.Request()
+    req: {
+      user: { user_id: string };
+      headers?: Record<string, string | string[] | undefined>;
+    },
+    @common.Body() dto: InitiateTryOnPackPurchaseDto,
+  ) {
+    return this.tryOnPackPurchasesService.devSkipPurchase(
+      req.user.user_id,
+      dto,
+      this.resolveCallbackBaseUrl(req.headers),
+    );
+  }
+
   @common.Get('history')
   @common.UseGuards(JwtAuthGuard)
   async getPurchaseHistory(

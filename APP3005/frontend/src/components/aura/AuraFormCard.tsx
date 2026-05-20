@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles, ArrowRight, Wand2, CheckCircle2, AlertCircle, ArrowLeft } from "lucide-react";
 import { PhotoUploadZone } from "./PhotoUploadZone";
@@ -197,6 +197,7 @@ const calculateAgeRangeFromDob = (dobString?: string): string => {
 export const AuraFormCard = ({ onCreateAura, isProcessing, prefilledDob }: AuraFormCardProps) => {
     const { user, loading } = useAuth();
     const navigate = useNavigate();
+    const analysisRunId = useRef(0);
     const requiresDobCollection = Boolean(user?.needs_dob_collection);
     const initialDobValue = prefilledDob || user?.dob || "";
 
@@ -216,6 +217,14 @@ export const AuraFormCard = ({ onCreateAura, isProcessing, prefilledDob }: AuraF
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [analysisResult, setAnalysisResult] = useState<BodyAnalysisResult | null>(null);
     const [analysisError, setAnalysisError] = useState<string | null>(null);
+
+    const getBaseAttributes = (dobValue = dob): BodyAttributes => {
+        const calculatedRange = calculateAgeRangeFromDob(dobValue);
+        return {
+            gender: "female",
+            ...(calculatedRange ? { ageRange: calculatedRange } : {}),
+        };
+    };
 
     useEffect(() => {
         if (!prefilledDob) return;
@@ -252,31 +261,32 @@ export const AuraFormCard = ({ onCreateAura, isProcessing, prefilledDob }: AuraF
     }, [currentStep, dob, loading, prefilledDob, requiresDobCollection, user?.email]);
 
     const handlePhotoSelect = (file: File, preview: string) => {
+        analysisRunId.current += 1;
+        if (photoPreview) {
+            URL.revokeObjectURL(photoPreview);
+        }
         setPhotoFile(file);
         setPhotoPreview(preview);
-        // Reset analysis state for new photo
+        setCurrentStep("upload");
+        setIsAnalyzing(false);
         setAnalysisResult(null);
         setAnalysisError(null);
         setAttributeErrors({});
-
-        // Auto-populate age range and default gender.
-        const calculatedRange = calculateAgeRangeFromDob(dob);
-        if (calculatedRange) {
-            setAttributes(prev => ({
-                ...prev,
-                ageRange: calculatedRange,
-                gender: "female",
-            }));
-        }
+        setAttributes(getBaseAttributes());
     };
 
     const handlePhotoRemove = () => {
+        analysisRunId.current += 1;
+        if (photoPreview) {
+            URL.revokeObjectURL(photoPreview);
+        }
         setPhotoFile(null);
         setPhotoPreview(null);
+        setIsAnalyzing(false);
         setAnalysisResult(null);
         setAnalysisError(null);
         setAttributeErrors({});
-        setAttributes({ gender: "female" });
+        setAttributes(getBaseAttributes());
         setCurrentStep("upload");
     };
 
@@ -313,11 +323,16 @@ export const AuraFormCard = ({ onCreateAura, isProcessing, prefilledDob }: AuraF
     const handleProceedToConfirm = async () => {
         if (!photoFile) return;
 
+        const runId = analysisRunId.current + 1;
+        analysisRunId.current = runId;
+        const isCurrentRun = () => analysisRunId.current === runId;
+
         setIsAnalyzing(true);
         setAnalysisError(null);
 
         // Failsafe timeout - if analysis takes more than 35 seconds, force proceed
         const failsafeTimeout = setTimeout(() => {
+            if (!isCurrentRun()) return;
             console.warn('⚠️ Failsafe timeout triggered - forcing step transition');
             setIsAnalyzing(false);
             setCurrentStep("confirm");
@@ -326,6 +341,7 @@ export const AuraFormCard = ({ onCreateAura, isProcessing, prefilledDob }: AuraF
         try {
             console.log('🔍 Analyzing photo...');
             const result = await analyzeBodyImage(photoFile);
+            if (!isCurrentRun()) return;
             console.log('📊 Analysis result:', result);
             setAnalysisResult(result);
 
@@ -359,6 +375,7 @@ export const AuraFormCard = ({ onCreateAura, isProcessing, prefilledDob }: AuraF
                 }
             }
         } catch (error: any) {
+            if (!isCurrentRun()) return;
             console.log('⚠️ Analysis error, proceeding with manual entry:', error.message);
             setAnalysisError("AI analysis unavailable - please fill manually");
             // Ensure age range is still populated
@@ -368,6 +385,7 @@ export const AuraFormCard = ({ onCreateAura, isProcessing, prefilledDob }: AuraF
             }
         } finally {
             clearTimeout(failsafeTimeout);
+            if (!isCurrentRun()) return;
             console.log('🎯 Transitioning to confirm step');
             setIsAnalyzing(false);
             setCurrentStep("confirm");

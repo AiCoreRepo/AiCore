@@ -1,9 +1,11 @@
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { TryOnPackPurchaseStatus } from '@prisma/client';
 import { TryOnPackPurchasesService } from './try-on-pack-purchases.service';
 
 describe('TryOnPackPurchasesService', () => {
-  const createService = () => {
+  const createService = (
+    configOverrides: Record<string, string | undefined> = {},
+  ) => {
     const purchaseRecord = {
       purchase_id: 'purchase-1',
       user_id: 'user-1',
@@ -45,6 +47,9 @@ describe('TryOnPackPurchasesService', () => {
 
     const configService = {
       get: jest.fn().mockImplementation((key: string, fallback?: string) => {
+        if (Object.prototype.hasOwnProperty.call(configOverrides, key)) {
+          return configOverrides[key];
+        }
         if (key === 'FRONTEND_URL') {
           return 'https://aivestire.com';
         }
@@ -208,5 +213,105 @@ describe('TryOnPackPurchasesService', () => {
         createdAt,
       },
     ]);
+  });
+
+  it('credits selected try-ons without PayU in dev/test environments', async () => {
+    const { service, repository } = createService({
+      FRONTEND_URL: 'https://dev.aivestire.com',
+      PAYU_ENV: 'test',
+    });
+    const createdAt = new Date('2026-05-18T12:00:00.000Z');
+    const creditedAt = new Date('2026-05-18T12:01:00.000Z');
+    const createdPurchase = {
+      purchase_id: 'purchase-dev',
+      user_id: 'user-1',
+      plan_id: 'studio',
+      pack_name: 'Studio Pack',
+      try_ons: 12,
+      amount_paise: 14900,
+      currency: 'INR',
+      payment_method: null,
+      credited_at: null,
+      created_at: createdAt,
+      metadata: {},
+      status: TryOnPackPurchaseStatus.CREATED,
+    };
+
+    repository.findUserForPurchase.mockResolvedValue({
+      user_id: 'user-1',
+      email: 'buyer@example.com',
+      phone: '9999999999',
+    });
+    repository.createPurchase.mockResolvedValue(createdPurchase);
+    repository.capturePurchaseAndCredit.mockResolvedValue({
+      alreadyCaptured: false,
+      purchase: {
+        ...createdPurchase,
+        status: TryOnPackPurchaseStatus.CAPTURED,
+        payment_method: 'DEV_SKIP',
+        credited_at: creditedAt,
+      },
+    });
+
+    const result = await service.devSkipPurchase(
+      'user-1',
+      {
+        planId: 'studio',
+        returnPath: '/ai-try-on',
+      },
+      'https://dev.aivestire.com',
+    );
+
+    expect(repository.createPurchase).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: 'user-1',
+        planId: 'studio',
+        gatewayTxnId: expect.stringMatching(/^TOV_DEV_/),
+      }),
+    );
+    expect(repository.capturePurchaseAndCredit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        purchaseId: 'purchase-dev',
+        userId: 'user-1',
+        tryOns: 12,
+        paymentMethod: 'DEV_SKIP',
+      }),
+    );
+    expect(result).toEqual({
+      success: true,
+      tryOns: 12,
+      planId: 'studio',
+      purchase: expect.objectContaining({
+        purchaseId: 'purchase-dev',
+        status: TryOnPackPurchaseStatus.CAPTURED,
+        paymentMethod: 'DEV_SKIP',
+        creditedAt,
+      }),
+    });
+  });
+
+  it('rejects dev payment skip in production payment environments', async () => {
+    const { service, repository } = createService({
+      FRONTEND_URL: 'https://aivestire.com',
+      PAYU_ENV: 'production',
+    });
+
+    await expect(
+      service.devSkipPurchase(
+        'user-1',
+        {
+          planId: 'starter',
+          returnPath: '/ai-try-on',
+        },
+        'https://aivestire.com',
+      ),
+    ).rejects.toEqual(
+      new ForbiddenException(
+        'Dev payment skip is only available in dev/test environments',
+      ),
+    );
+
+    expect(repository.createPurchase).not.toHaveBeenCalled();
+    expect(repository.capturePurchaseAndCredit).not.toHaveBeenCalled();
   });
 });
