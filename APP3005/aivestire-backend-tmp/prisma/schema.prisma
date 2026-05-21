@@ -169,7 +169,6 @@ model ProductColorVariant {
   pattern_id    String     @db.Uuid
   color         ClothingColor
   hex_code      String?    // Optional custom hex for display
-  stock         Int        @default(0)
   skin_tones    SkinTone[] // which skin tones this color suits
   display_order Int        @default(0)
   created_at    DateTime   @default(now())
@@ -177,6 +176,7 @@ model ProductColorVariant {
 
   pattern ProductPattern          @relation(fields: [pattern_id], references: [pattern_id], onDelete: Cascade)
   images  ProductColorVariantImage[]
+  size_stocks ProductColorSizeStock[]
 
   @@index([pattern_id])
   @@map("product_color_variants")
@@ -195,6 +195,22 @@ model ProductColorVariantImage {
   @@index([variant_id])
   @@map("product_color_variant_images")
 }
+
+model ProductColorSizeStock {
+  size_stock_id String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  variant_id    String   @db.Uuid
+  size          String
+  stock         Int      @default(0)
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+
+  variant       ProductColorVariant @relation(fields: [variant_id], references: [variant_id], onDelete: Cascade)
+
+  @@unique([variant_id, size])
+  @@index([variant_id])
+  @@map("product_color_size_stocks")
+}
+
 
 model ProductGroup {
   group_id    String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid

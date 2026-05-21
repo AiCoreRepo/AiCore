@@ -1,9 +1,31 @@
-import { IsEnum, IsInt, IsOptional, Min } from 'class-validator';
+import { IsEnum, IsInt, IsOptional, Min, IsArray, ValidateNested, IsString, IsNotEmpty } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export enum StockLabelOverride {
   LOW = 'LOW',
   OK = 'OK',
   HIGH = 'HIGH',
+}
+
+export class SizeStockUpdateDto {
+  @IsString()
+  @IsNotEmpty()
+  size: string;
+
+  @IsInt()
+  @Min(0)
+  stock: number;
+}
+
+export class VariantSizeStockUpdateDto {
+  @IsString()
+  @IsNotEmpty()
+  variant_id: string;
+
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => SizeStockUpdateDto)
+  size_stocks: SizeStockUpdateDto[];
 }
 
 export class UpdateStockExtendedDto {
@@ -18,4 +40,11 @@ export class UpdateStockExtendedDto {
   @IsOptional()
   @IsEnum(StockLabelOverride)
   stock_label_override?: StockLabelOverride | null;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => VariantSizeStockUpdateDto)
+  variants?: VariantSizeStockUpdateDto[];
 }
+

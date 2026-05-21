@@ -103,13 +103,36 @@ export class CartMergeService {
           continue;
         }
 
-        // Check if out of stock
+        // Check if out of stock (flat level)
         if (product.inventory_count === 0) {
           mergeResult.dropped_items++;
           mergeResult.dropped_reasons.push(
             `${guestItem.product_id}: Out of stock`,
           );
           continue;
+        }
+
+        // If the guest item has a specific size+color, check per-size stock
+        if (guestItem.size && guestItem.color) {
+          const variant = await tx.productColorVariant.findFirst({
+            where: {
+              pattern: { product_id: guestItem.product_id },
+              color: guestItem.color as any,
+            },
+            include: {
+              size_stocks: { where: { size: guestItem.size } },
+            },
+          });
+
+          const sizeStock = variant?.size_stocks[0]?.stock ?? null;
+
+          if (sizeStock !== null && sizeStock === 0) {
+            mergeResult.dropped_items++;
+            mergeResult.dropped_reasons.push(
+              `${guestItem.product_id}: Size ${guestItem.size} out of stock in selected colour`,
+            );
+            continue;
+          }
         }
 
         // Find existing item in user cart with same SKU+size+color

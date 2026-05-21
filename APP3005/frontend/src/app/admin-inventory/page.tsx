@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Sidebar } from '@/components/admin/Sidebar';
-import { Package, Search, Loader2, ChevronLeft, ChevronRight, Edit, AlertTriangle, CheckCircle, PackageOpen, PackageX, Settings2, Save } from 'lucide-react';
+import { Package, Search, Loader2, ChevronLeft, ChevronRight, AlertTriangle, CheckCircle, PackageOpen, PackageX, Settings2, Save } from 'lucide-react';
 import { typography } from '@/constants/theme';
 import { useAdminInventoryDashboard } from '@/hooks/useAdminInventory';
 import { useAdminCreators } from '@/hooks/useAdminCreators';
-import { StockEditModal } from '@/components/admin/inventory/StockEditModal';
+import { ProductInventoryDetailPanel } from '@/components/admin/inventory/ProductInventoryDetailPanel';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -41,7 +41,7 @@ function AdminInventoryPage() {
         });
     };
 
-    const [editStockModal, setEditStockModal] = useState<any | null>(null);
+    const [selectedProduct, setSelectedProduct] = useState<any | null>(null);
 
     const { data, isLoading, error } = useAdminInventoryDashboard({
         page,
@@ -93,6 +93,7 @@ function AdminInventoryPage() {
                             </div>
                             <p className="text-sm md:text-base text-neutral-400">
                                 Monitor product stock levels, set custom thresholds, and prevent stockouts.
+                                <span className="block mt-1 text-neutral-500 text-xs">Click any product row to view colour-wise stock and images.</span>
                             </p>
                         </div>
                     </div>
@@ -237,12 +238,24 @@ function AdminInventoryPage() {
                                             <th className="hidden md:table-cell px-6 py-4 text-xs font-semibold text-neutral-400 font-mono uppercase tracking-wider">Creator</th>
                                             <th className="px-4 md:px-6 py-4 text-xs font-semibold text-neutral-400 font-mono uppercase tracking-wider text-right">Available Stock</th>
                                             <th className="px-4 md:px-6 py-4 text-xs font-semibold text-neutral-400 font-mono uppercase tracking-wider text-center">Status Label</th>
-                                            <th className="px-4 md:px-6 py-4 text-xs font-semibold text-neutral-400 font-mono uppercase tracking-wider text-right">Action</th>
+                                            <th className="w-10 px-2 py-4" />
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-white/5">
                                         {data.products.map((product: any) => (
-                                            <tr key={product.product_id} className="hover:bg-white/[0.02] transition-colors group">
+                                            <tr
+                                                key={product.product_id}
+                                                role="button"
+                                                tabIndex={0}
+                                                onClick={() => setSelectedProduct(product)}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter' || e.key === ' ') {
+                                                        e.preventDefault();
+                                                        setSelectedProduct(product);
+                                                    }
+                                                }}
+                                                className="hover:bg-[#D4AF37]/5 cursor-pointer transition-colors group border-l-2 border-l-transparent hover:border-l-[#D4AF37]/50 focus:outline-none focus:bg-[#D4AF37]/10"
+                                            >
                                                 <td className="px-4 md:px-6 py-4">
                                                     <div className="flex items-center gap-3">
                                                         <div className="w-10 h-10 md:w-12 md:h-12 bg-neutral-800 rounded-lg overflow-hidden border border-white/10 flex-shrink-0">
@@ -267,14 +280,8 @@ function AdminInventoryPage() {
                                                 <td className="px-4 md:px-6 py-4 text-center">
                                                     <StockBadge label={product.stock_label} isOverride={!!product.stock_label_override} />
                                                 </td>
-                                                <td className="px-4 md:px-6 py-4 text-right">
-                                                    <button
-                                                        onClick={() => setEditStockModal(product)}
-                                                        className="p-2 text-[#D4AF37] hover:bg-[#D4AF37]/10 rounded-lg transition-all"
-                                                        title="Update Stock"
-                                                    >
-                                                        <Edit className="w-5 h-5" />
-                                                    </button>
+                                                <td className="px-2 py-4 text-right">
+                                                    <ChevronRight className="w-5 h-5 text-neutral-600 group-hover:text-[#D4AF37] transition-colors" />
                                                 </td>
                                             </tr>
                                         ))}
@@ -321,10 +328,10 @@ function AdminInventoryPage() {
                 </div>
             </main>
 
-            <StockEditModal
-                isOpen={!!editStockModal}
-                onClose={() => setEditStockModal(null)}
-                product={editStockModal}
+            <ProductInventoryDetailPanel
+                isOpen={!!selectedProduct}
+                onClose={() => setSelectedProduct(null)}
+                product={selectedProduct}
             />
         </div>
     );

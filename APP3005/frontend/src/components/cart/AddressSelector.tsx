@@ -10,6 +10,7 @@ import { AddressForm } from './AddressForm';
 import { AddressCard } from './AddressCard';
 import { getAddresses, createAddress, updateAddress, deleteAddress } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/context/AuthContext';
 
 // Brand Colors
 const GOLD = '#D4AF37';
@@ -51,6 +52,7 @@ export const AddressSelector: React.FC<AddressSelectorProps> = ({
     selectedAddressId,
 }) => {
     const { toast } = useToast();
+    const { user } = useAuth();
     const [addresses, setAddresses] = useState<Address[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [showForm, setShowForm] = useState(false);
@@ -73,6 +75,12 @@ export const AddressSelector: React.FC<AddressSelectorProps> = ({
     }, [isOpen, selectedAddressId]);
 
     const fetchAddresses = async () => {
+        // Silently skip if not authenticated — the component will show an empty state
+        const token = localStorage.getItem('access_token');
+        if (!token || !user) {
+            setIsLoading(false);
+            return;
+        }
         try {
             setIsLoading(true);
             const data = await getAddresses();
@@ -82,13 +90,16 @@ export const AddressSelector: React.FC<AddressSelectorProps> = ({
                 const defaultAddr = data.find(a => a.is_default) || data[0];
                 setLocalSelectedId(defaultAddr.address_id);
             }
-        } catch (error) {
-            console.error('Failed to fetch addresses:', error);
-            toast({
-                variant: 'destructive',
-                title: ADDRESS_MESSAGES.FETCH_ERROR,
-                duration: 3000,
-            });
+        } catch (error: any) {
+            // Don't show toast for auth errors — user just isn't logged in
+            const isAuthError = error?.status === 401 || error?.message?.toLowerCase().includes('login');
+            if (!isAuthError) {
+                toast({
+                    variant: 'destructive',
+                    title: ADDRESS_MESSAGES.FETCH_ERROR,
+                    duration: 3000,
+                });
+            }
         } finally {
             setIsLoading(false);
         }

@@ -14,10 +14,10 @@ function authHeaders() {
 export interface ColorVariantPayload {
   color: ClothingColorValue;
   hex_code?: string;
-  stock: number;
   skin_tones: SkinToneValue[];
   /** base64 data URIs */
   images: string[];
+  size_stocks: { size: string; stock: number }[];
 }
 
 export interface PatternPayload {

@@ -26,17 +26,22 @@ import {
   type ClothingColorValue,
 } from "@/constants/product-hierarchy.enums";
 import { createProductHierarchy, fileToDataUri } from "@/api/creator-upload.api";
+import {
+  parseStockInput,
+  commitSizeStockDrafts,
+} from "@/utils/inventory";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface ColorVariantForm {
   id: string;
   color: ClothingColorValue | "";
-  stock: number;
   skin_tones: SkinToneValue[];
   imageFiles: File[];
   imagePreviews: string[];
   errors: Record<string, string>;
+  size_stocks?: { [size: string]: number };
+  size_stock_drafts?: { [size: string]: string };
 }
 
 interface PatternForm {
@@ -53,9 +58,24 @@ interface PatternForm {
 const uid = () => Math.random().toString(36).slice(2, 9);
 
 const makeVariant = (): ColorVariantForm => ({
-  id: uid(), color: "", stock: 0, skin_tones: [],
+  id: uid(), color: "", skin_tones: [],
   imageFiles: [], imagePreviews: [], errors: {},
+  size_stocks: {}, size_stock_drafts: {},
 });
+
+function sumVariantStockDrafts(variant: ColorVariantForm): number {
+  const drafts = variant.size_stock_drafts ?? {};
+  const sizes = new Set([
+    ...Object.keys(variant.size_stocks ?? {}),
+    ...Object.keys(drafts),
+  ]);
+  let total = 0;
+  for (const sz of sizes) {
+    const raw = drafts[sz];
+    total += raw !== undefined ? parseStockInput(raw) : (variant.size_stocks?.[sz] ?? 0);
+  }
+  return total;
+}
 
 const makePattern = (): PatternForm => ({
   id: uid(), name: "", body_shapes: [], color_variants: [makeVariant()],
@@ -206,6 +226,8 @@ const ImageDropZone = ({ previews, onAdd, onRemove }: {
 
 // ─── Color Variant Card ───────────────────────────────────────────────────────
 
+const AVAILABLE_SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL'];
+
 const ColorVariantCard = ({ variant, varIdx, onChange, onRemove, canRemove }: {
   variant: ColorVariantForm; varIdx: number;
   onChange: (v: ColorVariantForm) => void;
@@ -227,6 +249,46 @@ const ColorVariantCard = ({ variant, varIdx, onChange, onRemove, canRemove }: {
     const nf = [...variant.imageFiles]; nf.splice(idx, 1);
     const np = [...variant.imagePreviews]; np.splice(idx, 1);
     onChange({ ...variant, imageFiles: nf, imagePreviews: np });
+  };
+
+  const handleSizeToggle = (size: string) => {
+    const stocks = { ...(variant.size_stocks || {}) };
+    const drafts = { ...(variant.size_stock_drafts || {}) };
+    if (size in stocks) {
+      delete stocks[size];
+      delete drafts[size];
+    } else {
+      stocks[size] = 0;
+      drafts[size] = "";
+    }
+    onChange({
+      ...variant,
+      size_stocks: stocks,
+      size_stock_drafts: drafts,
+      errors: { ...variant.errors, stock: "" },
+    });
+  };
+
+  const handleSizeStockDraftChange = (size: string, raw: string) => {
+    if (raw !== "" && !/^\d+$/.test(raw)) return;
+    onChange({
+      ...variant,
+      size_stock_drafts: { ...(variant.size_stock_drafts || {}), [size]: raw },
+      errors: { ...variant.errors, stock: "" },
+    });
+  };
+
+  const commitSizeStockDraft = (size: string) => {
+    const raw = variant.size_stock_drafts?.[size] ?? "";
+    const qty = parseStockInput(raw);
+    onChange({
+      ...variant,
+      size_stocks: { ...(variant.size_stocks || {}), [size]: qty },
+      size_stock_drafts: {
+        ...(variant.size_stock_drafts || {}),
+        [size]: qty === 0 ? "" : String(qty),
+      },
+    });
   };
 
   return (
@@ -260,20 +322,75 @@ const ColorVariantCard = ({ variant, varIdx, onChange, onRemove, canRemove }: {
         <FieldError msg={variant.errors.color} />
       </div>
 
-      {/* Stock */}
-      <div>
-        <SectionLabel required>Stock</SectionLabel>
-        <div className="flex items-center gap-2">
-          <input type="number" min={0} value={variant.stock}
-            onChange={e => onChange({ ...variant, stock: parseInt(e.target.value) || 0, errors: { ...variant.errors, stock: "" } })}
-            style={{ width: 90, padding: "8px 10px", borderRadius: 8, border: "1.5px solid rgba(201,165,95,0.3)", background: "rgba(255,255,255,0.85)", color: "#1a1408", fontSize: 13, fontWeight: 700, outline: "none" }}
-            onFocus={e => e.target.style.borderColor = "#C9A75F"}
-            onBlur={e => e.target.style.borderColor = "rgba(201,165,95,0.3)"}
-          />
-          <span className="text-[11px]" style={{ color: "rgba(44,36,22,0.45)" }}>units</span>
+      {/* Dynamic Size & Stock section */}
+      {variant.color && (
+        <div className="space-y-2 p-2.5 rounded-lg border bg-white/50" style={{ borderColor: "rgba(201,165,95,0.15)" }}>
+          <SectionLabel required hint="Choose available sizes and enter stock for each size.">
+            Available Sizes & Stock
+          </SectionLabel>
+          
+          {/* Size Chips */}
+          <div className="flex flex-wrap gap-1.5">
+            {AVAILABLE_SIZES.map(sz => {
+              const isSelected = sz in (variant.size_stocks || {});
+              return (
+                <button
+                  key={sz}
+                  type="button"
+                  onClick={() => handleSizeToggle(sz)}
+                  className="px-2.5 py-1 rounded-md text-[11px] font-semibold border transition-all"
+                  style={{
+                    borderColor: isSelected ? "#C9A75F" : "rgba(201,165,95,0.2)",
+                    background: isSelected ? "rgba(201,165,95,0.15)" : "rgba(255,255,255,0.7)",
+                    color: isSelected ? "#2C2416" : "rgba(44,36,22,0.6)",
+                  }}
+                >
+                  {sz}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Size Stock Input Fields */}
+          {Object.keys(variant.size_stocks || {}).length > 0 ? (
+            <div className="space-y-2 pt-2 border-t" style={{ borderColor: "rgba(201,165,95,0.1)" }}>
+              {Object.entries(variant.size_stocks || {}).map(([sz]) => (
+                <div key={sz} className="flex items-center justify-between gap-4 p-1.5 rounded bg-white/80">
+                  <span className="text-[11px] font-bold text-brown-800" style={{ color: "#2C2416" }}>Size {sz}</span>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      value={variant.size_stock_drafts?.[sz] ?? ""}
+                      placeholder="0"
+                      onChange={e => handleSizeStockDraftChange(sz, e.target.value)}
+                      onBlur={() => commitSizeStockDraft(sz)}
+                      className="w-20 px-2 py-1 text-xs font-bold rounded border text-right outline-none bg-white"
+                      style={{
+                        borderColor: "rgba(201,165,95,0.3)",
+                        color: "#1a1408",
+                      }}
+                    />
+                    <span className="text-[10px]" style={{ color: "rgba(44,36,22,0.5)" }}>units</span>
+                  </div>
+                </div>
+              ))}
+              
+              {/* Total Stock summary display */}
+              <div className="flex items-center justify-between pt-1 text-[11px] font-extrabold" style={{ color: "#C9A75F" }}>
+                <span>Total Variant Stock:</span>
+                <span>{sumVariantStockDrafts(variant)} units</span>
+              </div>
+            </div>
+          ) : (
+            <div className="text-[10px] text-center py-2 font-semibold" style={{ color: "rgba(44,36,22,0.4)" }}>
+              Select one or more sizes above to input stock levels
+            </div>
+          )}
+          <FieldError msg={variant.errors.stock} />
         </div>
-        <FieldError msg={variant.errors.stock} />
-      </div>
+      )}
 
       {/* Skin tones */}
       <div>
@@ -320,7 +437,7 @@ const PatternCard = ({ pattern, patIdx, onChange, onRemove, canRemove }: {
   onChange: (p: PatternForm) => void;
   onRemove: () => void; canRemove: boolean;
 }) => {
-  const totalStock = pattern.color_variants.reduce((s, v) => s + v.stock, 0);
+  const totalStock = pattern.color_variants.reduce((s, v) => s + sumVariantStockDrafts(v), 0);
 
   return (
     <div className="rounded-2xl overflow-hidden" style={{
@@ -510,6 +627,7 @@ const UploadCollectionModal = ({ open, onOpenChange, onSuccess, initialData }: U
         if (!v.color) { vErr.color = "Select a color"; valid = false; }
         if (v.skin_tones.length === 0) { vErr.skin_tones = "Select at least one skin tone"; valid = false; }
         if (v.imageFiles.length === 0) { vErr.images = "Upload at least one image"; valid = false; }
+        if (sumVariantStockDrafts(v) <= 0) { vErr.stock = "Add stock for at least one size"; valid = false; }
         return { ...v, errors: vErr };
       });
       return { ...p, errors: patErr, color_variants: updatedVariants };
@@ -532,9 +650,18 @@ const UploadCollectionModal = ({ open, onOpenChange, onSuccess, initialData }: U
           color_variants: await Promise.all(
             p.color_variants.map(async v => ({
               color: v.color as ClothingColorValue,
-              stock: v.stock,
               skin_tones: v.skin_tones,
               images: await Promise.all(v.imageFiles.map(fileToDataUri)),
+              size_stocks: Object.entries(
+                commitSizeStockDrafts(
+                  Object.fromEntries(
+                    Object.keys(v.size_stocks || {}).map((s) => [
+                      s,
+                      v.size_stock_drafts?.[s] ?? String(v.size_stocks?.[s] ?? 0),
+                    ]),
+                  ),
+                ),
+              ).map(([size, stock]) => ({ size, stock })),
             }))
           ),
         }))
@@ -567,7 +694,7 @@ const UploadCollectionModal = ({ open, onOpenChange, onSuccess, initialData }: U
 
   // ── Render ──────────────────────────────────────────────────────────────
   const totalVariants = patterns.reduce((s, p) => s + p.color_variants.length, 0);
-  const totalStock = patterns.reduce((s, p) => s + p.color_variants.reduce((ss, v) => ss + v.stock, 0), 0);
+  const totalStock = patterns.reduce((s, p) => s + p.color_variants.reduce((ss, v) => ss + sumVariantStockDrafts(v), 0), 0);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

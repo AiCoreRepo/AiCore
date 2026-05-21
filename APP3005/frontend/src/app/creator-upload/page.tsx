@@ -17,19 +17,24 @@ import {
   type BodyShapeValue, type SkinToneValue, type ClothingColorValue,
 } from "../../constants/product-hierarchy.enums";
 import { AGE_RANGE_OPTIONS } from "@/constants/aura.constants";
-import { getAvailableSizes } from "@/constants/sizeChart";
 import { createProductHierarchy, fileToDataUri } from "../../api/creator-upload.api";
+import {
+  parseStockInput,
+  commitSizeStockDrafts,
+} from "@/utils/inventory";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface ColorVariantForm {
   id: string;
   color: ClothingColorValue | "";
-  stock: number;
   skin_tones: SkinToneValue[];
   imageFiles: File[];
   imagePreviews: string[];
   errors: Record<string, string>;
+  size_stocks?: { [size: string]: number };
+  /** String drafts while typing — prevents number-input digit glitches (e.g. 50 → 505). */
+  size_stock_drafts?: { [size: string]: string };
 }
 
 interface PatternForm {
@@ -42,7 +47,24 @@ interface PatternForm {
 }
 
 const uid = () => Math.random().toString(36).slice(2, 9);
-const makeVariant = (): ColorVariantForm => ({ id: uid(), color: "", stock: 0, skin_tones: [], imageFiles: [], imagePreviews: [], errors: {} });
+const makeVariant = (): ColorVariantForm => ({
+  id: uid(), color: "", skin_tones: [], imageFiles: [], imagePreviews: [], errors: {},
+  size_stocks: {}, size_stock_drafts: {},
+});
+
+function sumVariantStockDrafts(variant: ColorVariantForm): number {
+  const drafts = variant.size_stock_drafts ?? {};
+  const sizes = new Set([
+    ...Object.keys(variant.size_stocks ?? {}),
+    ...Object.keys(drafts),
+  ]);
+  let total = 0;
+  for (const sz of sizes) {
+    const raw = drafts[sz];
+    total += raw !== undefined ? parseStockInput(raw) : (variant.size_stocks?.[sz] ?? 0);
+  }
+  return total;
+}
 const makePattern = (): PatternForm => ({ id: uid(), name: "", body_shapes: [], color_variants: [makeVariant()], collapsed: false, errors: {} });
 
 // ─── Micro Components ─────────────────────────────────────────────────────────
@@ -238,6 +260,46 @@ const ColorCard = ({ variant, idx, onChange, onRemove, canRemove }: {
 }) => {
   const selected = CLOTHING_COLORS.find(c => c.value === variant.color);
 
+  const handleSizeToggle = (size: string) => {
+    const stocks = { ...(variant.size_stocks || {}) };
+    const drafts = { ...(variant.size_stock_drafts || {}) };
+    if (size in stocks) {
+      delete stocks[size];
+      delete drafts[size];
+    } else {
+      stocks[size] = 0;
+      drafts[size] = "";
+    }
+    onChange({
+      ...variant,
+      size_stocks: stocks,
+      size_stock_drafts: drafts,
+      errors: { ...variant.errors, stock: "" },
+    });
+  };
+
+  const handleSizeStockDraftChange = (size: string, raw: string) => {
+    if (raw !== "" && !/^\d+$/.test(raw)) return;
+    onChange({
+      ...variant,
+      size_stock_drafts: { ...(variant.size_stock_drafts || {}), [size]: raw },
+      errors: { ...variant.errors, stock: "" },
+    });
+  };
+
+  const commitSizeStockDraft = (size: string) => {
+    const raw = variant.size_stock_drafts?.[size] ?? "";
+    const qty = parseStockInput(raw);
+    onChange({
+      ...variant,
+      size_stocks: { ...(variant.size_stocks || {}), [size]: qty },
+      size_stock_drafts: {
+        ...(variant.size_stock_drafts || {}),
+        [size]: qty === 0 ? "" : String(qty),
+      },
+    });
+  };
+
   return (
     <div className="rounded-2xl md:rounded-[24px] p-4 md:p-6 lg:p-8 bg-white/85 backdrop-blur-md border-[1.5px] border-[#C9A75F]/20 shadow-[0_8px_30px_rgba(201,165,95,0.08)] relative transition-all hover:border-[#C9A75F]/40 hover:shadow-[0_8px_30px_rgba(201,165,95,0.12)]">
       {/* Header */}
@@ -258,9 +320,9 @@ const ColorCard = ({ variant, idx, onChange, onRemove, canRemove }: {
         )}
       </div>
 
-      <div className="flex flex-col lg:flex-row gap-6 lg:gap-8 lg:items-start mb-6 md:mb-8">
+      <div className="flex flex-col gap-6 mb-6 md:mb-8">
         {/* ── Color Swatch Dropdown ── */}
-        <div className="flex-1">
+        <div className="w-full">
           <SLabel req hint="select actual colour">Garment Colour</SLabel>
           <ColorSelect 
             value={variant.color} 
@@ -270,19 +332,74 @@ const ColorCard = ({ variant, idx, onChange, onRemove, canRemove }: {
           <FieldErr msg={variant.errors.color} />
         </div>
 
-        {/* ── Stock ── */}
-        <div className="lg:w-1/3">
-          <SLabel req>Stock Quantity</SLabel>
-          <div className="flex items-center gap-3 md:gap-4">
-            <input type="number" min={0} value={variant.stock === 0 ? "" : variant.stock}
-              placeholder="0"
-              onChange={e => onChange({ ...variant, stock: e.target.value === "" ? 0 : parseInt(e.target.value, 10) || 0, errors: { ...variant.errors, stock: "" } })}
-              className={`w-24 md:w-32 py-3 md:py-4 rounded-xl md:rounded-2xl border-2 font-bold text-center text-base md:text-lg outline-none transition-all ${variant.errors.stock ? 'border-red-400 bg-red-50' : 'border-[#C9A75F]/30 bg-white hover:border-[#C9A75F]/60 focus:border-[#C9A75F] focus:ring-4 focus:ring-[#C9A75F]/15'}`}
-            />
-            <span className="text-sm md:text-base text-[#2C2416]/50 font-bold uppercase tracking-wide">Units Available</span>
+        {/* ── Dynamic Size & Stock section ── */}
+        {variant.color && (
+          <div className="p-4 sm:p-6 rounded-2xl border bg-white/60 transition-all border-[#C9A75F]/20" style={{ boxShadow: "inset 0 2px 8px rgba(201,165,95,0.03)" }}>
+            <SLabel req hint="Choose available sizes and enter stock for each size.">Available Sizes & Stock</SLabel>
+            
+            {/* Size Chips */}
+            <div className="flex flex-wrap gap-2 mt-2">
+              {['XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL'].map(sz => {
+                const isSelected = sz in (variant.size_stocks || {});
+                return (
+                  <button
+                    key={sz}
+                    type="button"
+                    onClick={() => handleSizeToggle(sz)}
+                    className="px-4 py-2 rounded-xl text-xs sm:text-sm font-bold border transition-all active:scale-95 duration-200"
+                    style={{
+                      borderColor: isSelected ? "#C9A75F" : "rgba(201,165,95,0.25)",
+                      background: isSelected ? "linear-gradient(135deg,rgba(201,165,95,0.18),rgba(201,165,95,0.08))" : "rgba(255,255,255,0.8)",
+                      color: isSelected ? "#2C2416" : "rgba(44,36,22,0.6)",
+                      boxShadow: isSelected ? "0 4px 12px rgba(201,165,95,0.12)" : "none",
+                    }}
+                  >
+                    {sz}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Size Stock Input Fields */}
+            {Object.keys(variant.size_stocks || {}).length > 0 ? (
+              <div className="space-y-3 mt-4 pt-4 border-t border-[#C9A75F]/15">
+                {Object.entries(variant.size_stocks || {}).map(([sz]) => (
+                  <div key={sz} className="flex items-center justify-between gap-4 p-2.5 rounded-xl bg-white border border-[#C9A75F]/10 shadow-sm">
+                    <span className="text-xs sm:text-sm font-bold text-[#2C2416]">Size {sz}</span>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        value={variant.size_stock_drafts?.[sz] ?? ""}
+                        placeholder="0"
+                        onChange={e => handleSizeStockDraftChange(sz, e.target.value)}
+                        onBlur={() => commitSizeStockDraft(sz)}
+                        className="w-24 px-3 py-2 text-center text-sm font-bold rounded-lg border focus:border-[#C9A75F] focus:ring-2 focus:ring-[#C9A75F]/15 outline-none bg-white transition-all"
+                        style={{
+                          borderColor: "rgba(201,165,95,0.3)",
+                          color: "#1a1408",
+                        }}
+                      />
+                      <span className="text-xs font-bold text-[#2C2416]/50">units</span>
+                    </div>
+                  </div>
+                ))}
+                
+                {/* Total Stock Summary */}
+                <div className="flex items-center justify-between pt-2 px-1 text-sm font-extrabold text-[#C9A75F]">
+                  <span>Total Variant Stock:</span>
+                  <span>{sumVariantStockDrafts(variant)} units</span>
+                </div>
+              </div>
+            ) : (
+              <div className="text-xs text-center py-4 font-semibold text-[#2C2416]/40 mt-2 bg-[#C9A75F]/5 rounded-xl border border-dashed border-[#C9A75F]/15">
+                Select one or more sizes above to input stock levels
+              </div>
+            )}
+            <FieldErr msg={variant.errors.stock} />
           </div>
-          <FieldErr msg={variant.errors.stock} />
-        </div>
+        )}
       </div>
 
       {/* ── Skin Tone Swatches ── */}
@@ -333,11 +450,12 @@ const ColorCard = ({ variant, idx, onChange, onRemove, canRemove }: {
 
 // ─── Pattern Card ─────────────────────────────────────────────────────────────
 
+
 const PatternCard = ({ pattern, pi, onChange, onRemove, canRemove }: {
   pattern: PatternForm; pi: number;
   onChange: (p: PatternForm) => void; onRemove: () => void; canRemove: boolean;
 }) => {
-  const totalStock = pattern.color_variants.reduce((s, v) => s + v.stock, 0);
+  const totalStock = pattern.color_variants.reduce((s, v) => s + sumVariantStockDrafts(v), 0);
 
   return (
     <div className={`rounded-2xl md:rounded-[28px] transition-all duration-300 border-2 ${pattern.collapsed ? 'border-[#C9A75F]/20' : 'border-[#C9A75F]/40 shadow-[0_12px_40px_rgba(201,165,95,0.12)] bg-gradient-to-br from-[#FFFDF8] to-[#FFF6E5]'}`}>
@@ -466,7 +584,6 @@ const CreatorUploadPage: React.FC = () => {
   const [price, setPrice] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [subCategoryId, setSubCategoryId] = useState("");
-  const [selectedSizes, setSelectedSizes] = useState<string[]>([]);
   const [selectedAgeRanges, setSelectedAgeRanges] = useState<string[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -481,7 +598,6 @@ const CreatorUploadPage: React.FC = () => {
 
   const selectedCategory = categories.find(c => c.category_id === categoryId);
   const subCategories = selectedCategory?.subcategories?.filter(s => s.is_active) ?? [];
-  const availableSizes = getAvailableSizes(selectedCategory?.slug).map(s => ({ value: s, label: s }));
 
   const validate = () => {
     let valid = true;
@@ -500,7 +616,7 @@ const CreatorUploadPage: React.FC = () => {
       const updatedV = p.color_variants.map(v => {
         const ve: Record<string, string> = {};
         if (!v.color) { ve.color = "Select a garment colour"; valid = false; }
-        if (v.stock <= 0) { ve.stock = "Stock must be > 0"; valid = false; }
+        if (sumVariantStockDrafts(v) <= 0) { ve.stock = "Add stock for at least one size"; valid = false; }
         if (!v.skin_tones.length) { ve.skin_tones = "Select at least one skin tone"; valid = false; }
         if (!v.imageFiles.length) { ve.images = "Upload at least one image for this variant"; valid = false; }
         return { ...v, errors: ve };
@@ -524,8 +640,18 @@ const CreatorUploadPage: React.FC = () => {
         patterns.map(async p => ({
           name: p.name, body_shapes: p.body_shapes,
           color_variants: await Promise.all(p.color_variants.map(async v => ({
-            color: v.color as ClothingColorValue, stock: v.stock,
+            color: v.color as ClothingColorValue,
             skin_tones: v.skin_tones, images: await Promise.all(v.imageFiles.map(fileToDataUri)),
+            size_stocks: Object.entries(
+              commitSizeStockDrafts(
+                Object.fromEntries(
+                  Object.keys(v.size_stocks || {}).map((s) => [
+                    s,
+                    v.size_stock_drafts?.[s] ?? String(v.size_stocks?.[s] ?? 0),
+                  ]),
+                ),
+              ),
+            ).map(([size, stock]) => ({ size, stock })),
           }))),
         }))
       );
@@ -533,7 +659,7 @@ const CreatorUploadPage: React.FC = () => {
         title: title.trim(), description: description.trim() || undefined,
         price_cents: Math.round(parseFloat(price) * 100),
         category_id: categoryId || undefined, sub_category_id: subCategoryId || undefined,
-        sizes: selectedSizes, age_ranges: selectedAgeRanges,
+        age_ranges: selectedAgeRanges,
         patterns: patternsPayload,
       });
       setDone(true);
@@ -548,13 +674,13 @@ const CreatorUploadPage: React.FC = () => {
 
   const resetForm = () => {
     setTitle(""); setDescription(""); setPrice(""); setCategoryId(""); setSubCategoryId("");
-    setSelectedSizes([]); setSelectedAgeRanges([]);
+    setSelectedAgeRanges([]);
     setPatterns([makePattern()]); setErrors({}); setDone(false);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const totalVariants = patterns.reduce((s, p) => s + p.color_variants.length, 0);
-  const totalStock = patterns.reduce((s, p) => s + p.color_variants.reduce((ss, v) => ss + v.stock, 0), 0);
+  const totalStock = patterns.reduce((s, p) => s + p.color_variants.reduce((ss, v) => ss + sumVariantStockDrafts(v), 0), 0);
 
   return (
     <div className="min-h-screen flex bg-gradient-to-br from-[#FFF9E6] via-[#FFF4D6] to-[#FFE8B3] bg-[length:400%_400%] animate-gradientShift">
@@ -671,7 +797,7 @@ const CreatorUploadPage: React.FC = () => {
                       <SLabel req>Category</SLabel>
                       <div className="relative">
                         <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#C9A75F]/70 pointer-events-none"><FolderTree size={20} /></div>
-                        <select value={categoryId} onChange={e => { setCategoryId(e.target.value); setSubCategoryId(""); setSelectedSizes([]); setErrors(err => ({...err, category: ""})); }}
+                        <select value={categoryId} onChange={e => { setCategoryId(e.target.value); setSubCategoryId(""); setErrors(err => ({...err, category: ""})); }}
                           className={`w-full py-3.5 md:py-4 pl-12 pr-10 rounded-xl md:rounded-2xl border-2 transition-all outline-none font-semibold text-[#1a1408] text-sm md:text-base appearance-none bg-white/90 bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20width%3D%2220%22%20height%3D%2220%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cpath%20d%3D%22M5%208l5%205%205-5%22%20stroke%3D%22%23C9A75F%22%20stroke-width%3D%222%22%20fill%3D%22none%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%3C%2Fsvg%3E')] bg-[position:calc(100%-1rem)_center] bg-no-repeat ${errors.category ? 'border-red-400 focus:border-red-500 focus:ring-4 focus:ring-red-500/10' : 'border-[#C9A75F]/30 focus:border-[#C9A75F] focus:ring-4 focus:ring-[#C9A75F]/15'}`}>
                           <option value="" disabled>Choose a category...</option>
                           {categories.filter(c => c.is_active).map(c => <option key={c.category_id} value={c.category_id}>{c.name}</option>)}
@@ -701,27 +827,14 @@ const CreatorUploadPage: React.FC = () => {
                     />
                   </div>
 
-                  {/* ── Sizes & Age Ranges Multi-Select Dropdowns ── */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-8 mt-2">
-                    <div className="animate-in fade-in duration-300">
-                      <SLabel hint="Select all available sizes">Available Sizes</SLabel>
-                      <MultiSelectDropdown 
-                        options={availableSizes} 
-                        selected={selectedSizes} 
-                        onChange={setSelectedSizes} 
-                        placeholder={categoryId ? "Select sizes..." : "Select a category first"} 
-                      />
-                    </div>
-
-                    <div className="animate-in fade-in duration-300">
-                      <SLabel hint="Who is this suited for?">Target Audience</SLabel>
-                      <MultiSelectDropdown 
-                        options={AGE_RANGE_OPTIONS} 
-                        selected={selectedAgeRanges} 
-                        onChange={setSelectedAgeRanges} 
-                        placeholder="Select target audience..." 
-                      />
-                    </div>
+                  <div className="animate-in fade-in duration-300 mt-2">
+                    <SLabel hint="Who is this suited for?">Target Audience</SLabel>
+                    <MultiSelectDropdown
+                      options={AGE_RANGE_OPTIONS}
+                      selected={selectedAgeRanges}
+                      onChange={setSelectedAgeRanges}
+                      placeholder="Select target audience..."
+                    />
                   </div>
 
                 </div>

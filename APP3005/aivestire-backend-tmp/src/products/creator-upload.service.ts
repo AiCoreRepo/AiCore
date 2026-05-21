@@ -7,6 +7,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { CloudinaryService } from '../common/cloudinary.service';
 import { slugify } from '../common/utils/string.utils';
+import { coerceStockQuantity, sumSizeStockRows } from '../common/utils/inventory.utils';
 import {
   CreateProductHierarchyDto,
   CreatePatternDto,
@@ -79,7 +80,8 @@ export class CreatorUploadService {
 
     // Compute total inventory BEFORE the transaction so we set it atomically
     const totalInventoryCount = uploadedPatterns.reduce(
-      (sum, p) => sum + p.color_variants.reduce((s, cv) => s + cv.stock, 0),
+      (sum, p) =>
+        sum + p.color_variants.reduce((s, cv) => s + sumSizeStockRows(cv.size_stocks), 0),
       0,
     );
 
@@ -147,9 +149,14 @@ export class CreatorUploadService {
               pattern_id: pattern.pattern_id,
               color: variantData.color as any,
               hex_code: variantData.hex_code ?? undefined,
-              stock: variantData.stock,
               skin_tones: variantData.skin_tones as any,
               display_order: ci,
+              size_stocks: {
+                create: variantData.size_stocks.map((ss) => ({
+                  size: ss.size.trim(),
+                  stock: coerceStockQuantity(ss.stock),
+                })),
+              },
             },
           });
 
@@ -301,6 +308,9 @@ export class CreatorUploadService {
                 images: {
                   orderBy: [{ is_primary: 'desc' }, { order_index: 'asc' }],
                 },
+                size_stocks: {
+                  orderBy: { size: 'asc' },
+                },
               },
             },
           },
@@ -330,7 +340,7 @@ export class CreatorUploadService {
       ),
       total_stock: product.patterns.reduce(
         (sum, p) =>
-          sum + p.color_variants.reduce((s, cv) => s + cv.stock, 0),
+          sum + p.color_variants.reduce((s, cv) => s + sumSizeStockRows(cv.size_stocks), 0),
         0,
       ),
       patterns: product.patterns.map((pattern) => ({
@@ -343,7 +353,7 @@ export class CreatorUploadService {
           variant_id: cv.variant_id,
           color: cv.color,
           hex_code: cv.hex_code,
-          stock: cv.stock,
+          stock: sumSizeStockRows(cv.size_stocks),
           skin_tones: cv.skin_tones,
           display_order: cv.display_order,
           primary_image: cv.images.find((img) => img.is_primary)?.url ?? null,
@@ -352,6 +362,11 @@ export class CreatorUploadService {
             url: img.url,
             is_primary: img.is_primary,
             order_index: img.order_index,
+          })),
+          size_stocks: cv.size_stocks.map((ss) => ({
+            size_stock_id: ss.size_stock_id,
+            size: ss.size,
+            stock: ss.stock,
           })),
         })),
       })),
@@ -390,7 +405,6 @@ export class CreatorUploadService {
           create: uploadedVariants.map((v, ci) => ({
             color: v.color as any,
             hex_code: v.hex_code ?? undefined,
-            stock: v.stock,
             skin_tones: v.skin_tones as any,
             display_order: ci,
             images: {
@@ -398,6 +412,12 @@ export class CreatorUploadService {
                 url,
                 order_index: imgIdx,
                 is_primary: imgIdx === 0,
+              })),
+            },
+            size_stocks: {
+              create: v.size_stocks.map((ss) => ({
+                size: ss.size.trim(),
+                stock: coerceStockQuantity(ss.stock),
               })),
             },
           })),
@@ -462,7 +482,6 @@ export class CreatorUploadService {
         pattern_id: patternId,
         color: uploadedVariant.color as any,
         hex_code: uploadedVariant.hex_code ?? undefined,
-        stock: uploadedVariant.stock,
         skin_tones: uploadedVariant.skin_tones as any,
         display_order: existingCount,
         images: {
@@ -472,8 +491,14 @@ export class CreatorUploadService {
             is_primary: imgIdx === 0,
           })),
         },
+        size_stocks: {
+          create: uploadedVariant.size_stocks.map((ss) => ({
+            size: ss.size.trim(),
+            stock: coerceStockQuantity(ss.stock),
+          })),
+        },
       },
-      include: { images: true },
+      include: { images: true, size_stocks: true },
     });
 
     await this._syncFlatArrays(pattern.product_id);
@@ -553,9 +578,9 @@ export class CreatorUploadService {
         return {
           color: variant.color,
           hex_code: variant.hex_code,
-          stock: variant.stock,
           skin_tones: variant.skin_tones,
           uploadedImageUrls,
+          size_stocks: variant.size_stocks,
         };
       }),
     );
@@ -575,9 +600,8 @@ export class CreatorUploadService {
   /**
    * Re-compute and persist flat arrays + inventory_count on the parent Product.
    *
-   * SINGLE SOURCE OF TRUTH: Product.inventory_count always equals the sum of
-   * all ProductColorVariant.stock values for that product. This method enforces
-   * that invariant whenever patterns or variants are created/removed.
+   * SINGLE SOURCE OF TRUTH: Product.inventory_count equals the sum of all
+   * ProductColorSizeStock rows for that product.
    *
    * Uses sequential awaits (not the fragile array-form $transaction) so that
    * a failure in image sync does not silently skip the inventory_count update.
@@ -591,6 +615,7 @@ export class CreatorUploadService {
           orderBy: { display_order: 'asc' },
           include: {
             images: { orderBy: [{ is_primary: 'desc' }, { order_index: 'asc' }] },
+            size_stocks: true,
           },
         },
       },
@@ -619,9 +644,25 @@ export class CreatorUploadService {
 
     // ✅ Compute the single-source-of-truth inventory count
     const totalInventory = patterns.reduce(
-      (sum, p) => sum + p.color_variants.reduce((s, cv) => s + cv.stock, 0),
+      (sum, p) =>
+        sum + p.color_variants.reduce((s, cv) => s + sumSizeStockRows(cv.size_stocks), 0),
       0,
     );
+
+    // Retrieve all active size-stock records to sync overall product sizes list
+    const sizeStocks = await this.prisma.productColorSizeStock.findMany({
+      where: {
+        variant: {
+          pattern: {
+            product_id: productId,
+          },
+        },
+      },
+      select: {
+        size: true,
+      },
+    });
+    const allSizes = Array.from(new Set(sizeStocks.map((ss) => ss.size)));
 
     // Step 1: Update the product's flat columns + inventory_count atomically
     // This MUST succeed — it is the most critical operation.
@@ -633,6 +674,8 @@ export class CreatorUploadService {
         metadata: { colors: allColors },
         // ✅ Keep flat inventory_count in sync with sum of variant stocks
         inventory_count: totalInventory,
+        // ✅ Sync product sizes list dynamically
+        sizes: allSizes,
         updated_at: new Date(),
       },
     });
