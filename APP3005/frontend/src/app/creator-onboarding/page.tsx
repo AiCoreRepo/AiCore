@@ -7,8 +7,8 @@ import {
   ShieldCheck,
   Smartphone,
   MapPin,
-  ChevronRight,
-  ChevronLeft
+  ChevronLeft,
+  ExternalLink
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,9 +27,8 @@ import {
 import {
   creatorTermsAcknowledgements,
   creatorTermsContent,
-  creatorTermsPdfUrl,
+  creatorTermsPagePath,
 } from "@/content/creatorTerms";
-import "@/components/TermsModal.css";
 
 const UPI_ID_REGEX = /^[a-zA-Z0-9._-]{2,256}@[a-zA-Z]{2,64}$/;
 
@@ -90,7 +89,6 @@ const CreatorOnboardingPage = () => {
   const [termsChecks, setTermsChecks] = useState<boolean[]>(
     creatorTermsAcknowledgements.map(() => false),
   );
-  const [showTermsDocument, setShowTermsDocument] = useState(false);
   const allTermsChecked = termsChecks.every(Boolean);
 
   useEffect(() => {
@@ -464,28 +462,21 @@ const CreatorOnboardingPage = () => {
               </div>
 
               <div className="max-w-3xl mx-auto rounded-2xl border border-[#D4AF37]/20 bg-[#16120e] overflow-hidden">
-                <button
-                  type="button"
-                  onClick={() => setShowTermsDocument((current) => !current)}
+                <a
+                  href={creatorTermsPagePath}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="w-full flex items-center justify-between gap-4 px-5 py-4 text-left text-[#F6E7C0] hover:bg-white/5 transition-colors"
                 >
                   <span className="flex items-center gap-3 font-medium">
                     <FileText size={18} className="text-[#D4AF37]" />
                     Read full terms
                   </span>
-                  <span className="text-xs text-[#D4AF37]">
-                    {showTermsDocument ? "Hide document" : "Open document"}
+                  <span className="flex items-center gap-2 text-xs text-[#D4AF37]">
+                    Open document
+                    <ExternalLink size={14} />
                   </span>
-                </button>
-                {showTermsDocument && (
-                  <div className="h-[520px] border-t border-[#D4AF37]/10 bg-black">
-                    <iframe
-                      title="AIVESTIRE partner terms and conditions"
-                      src={`${creatorTermsPdfUrl}#toolbar=1&navpanes=0`}
-                      className="h-full w-full"
-                    />
-                  </div>
-                )}
+                </a>
               </div>
 
               <div className="mt-10 flex justify-between border-t border-[#D4AF37]/10 pt-6 max-w-3xl mx-auto">

@@ -67,6 +67,7 @@ import { useActivityTracking } from "./hooks/useActivityTracking";
 import ProductDetailsPage from "./pages/ProductDetailsPage";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsCondition from "./pages/TermsCondition";
+import CreatorPartnerTerms from "./pages/CreatorPartnerTerms";
 import RefundPolicy from "./pages/RefundPolicy";
 import ReturnPolicy from "./pages/ReturnPolicy";
 import ShippingPolicy from "./pages/ShippingPolicy";
@@ -297,6 +298,7 @@ const App = () => (
                       {/* Legal Pages */}
                       <Route path="/privacy-policy" element={<PrivacyPolicy />} />
                       <Route path="/terms-conditions" element={<TermsCondition />} />
+                      <Route path="/creator-partner-terms" element={<CreatorPartnerTerms />} />
                       <Route path="/refund-policy" element={<RefundPolicy />} />
                       <Route path="/return-policy" element={<ReturnPolicy />} />
                       <Route path="/shipping-policy" element={<ShippingPolicy />} />

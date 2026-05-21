@@ -61,16 +61,28 @@ function formatHistoryDate(value?: string | null) {
   return historyDateFormatter.format(parsed);
 }
 
-function getHistoryStatusTone(status: TryOnPackPurchaseHistoryItem['status']) {
+function getHistoryStatusMeta(status: TryOnPackPurchaseHistoryItem['status']) {
   switch (status) {
     case 'CAPTURED':
-      return 'bg-emerald-50 text-emerald-700';
+      return {
+        label: 'Paid',
+        tone: 'bg-emerald-50 text-emerald-700',
+      };
     case 'FAILED':
-      return 'bg-rose-50 text-rose-700';
+      return {
+        label: 'Payment failed',
+        tone: 'bg-rose-50 text-rose-700',
+      };
     case 'CANCELLED':
-      return 'bg-stone-100 text-stone-700';
+      return {
+        label: 'Cancelled',
+        tone: 'bg-stone-100 text-stone-700',
+      };
     default:
-      return 'bg-amber-50 text-amber-700';
+      return {
+        label: 'Payment started',
+        tone: 'bg-amber-50 text-amber-700',
+      };
   }
 }
 
@@ -363,29 +375,31 @@ export function TryOnUpgradePopup({
                         <p className="text-sm text-[#6D5C45]">No try-on pack purchases yet.</p>
                       ) : (
                         <div className="space-y-3">
-                          {purchaseHistory.slice(0, 5).map((purchase) => (
-                            <div
-                              key={purchase.purchaseId}
-                              className="flex flex-col gap-2 rounded-2xl border border-[#EFE4CF] px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
-                            >
-                              <div>
-                                <p className="text-sm font-medium text-[#241B12]">
-                                  {purchase.packName}
-                                </p>
-                                <p className="mt-1 text-xs text-[#6D5C45]">
-                                  {purchase.tryOns} try-ons • {formatHistoryAmount(purchase.amountPaise)} •{' '}
-                                  {formatHistoryDate(purchase.creditedAt || purchase.createdAt)}
-                                </p>
-                              </div>
-                              <span
-                                className={`inline-flex w-fit rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] ${getHistoryStatusTone(
-                                  purchase.status,
-                                )}`}
+                          {purchaseHistory.slice(0, 5).map((purchase) => {
+                            const statusMeta = getHistoryStatusMeta(purchase.status);
+
+                            return (
+                              <div
+                                key={purchase.purchaseId}
+                                className="flex flex-col gap-2 rounded-2xl border border-[#EFE4CF] px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
                               >
-                                {purchase.status}
-                              </span>
-                            </div>
-                          ))}
+                                <div>
+                                  <p className="text-sm font-medium text-[#241B12]">
+                                    {purchase.packName}
+                                  </p>
+                                  <p className="mt-1 text-xs text-[#6D5C45]">
+                                    {purchase.tryOns} try-ons • {formatHistoryAmount(purchase.amountPaise)} •{' '}
+                                    {formatHistoryDate(purchase.creditedAt || purchase.createdAt)}
+                                  </p>
+                                </div>
+                                <span
+                                  className={`inline-flex w-fit rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] ${statusMeta.tone}`}
+                                >
+                                  {statusMeta.label}
+                                </span>
+                              </div>
+                            );
+                          })}
                         </div>
                       )}
                     </div>

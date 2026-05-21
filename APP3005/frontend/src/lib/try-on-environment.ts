@@ -19,6 +19,7 @@ const PRODUCTION_TRY_ON_HOSTS = new Set(['aivestire.com', 'www.aivestire.com']);
 const DEV_SKIP_TRY_ON_HOSTS = new Set([
   'dev.aivestire.com',
   'uat.aivestire.com',
+  'prod.aivestire.com',
   'localhost',
   '127.0.0.1',
 ]);

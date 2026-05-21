@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
-import { CheckCircle2, FileText, X } from 'lucide-react';
+import { CheckCircle2, ExternalLink, FileText, X } from 'lucide-react';
 import {
     creatorTermsAcknowledgements,
     creatorTermsContent,
-    creatorTermsPdfUrl,
+    creatorTermsPagePath,
 } from '@/content/creatorTerms';
 import './TermsModal.css';
 
@@ -23,13 +23,11 @@ export default function TermsModal({
     const [checkedItems, setCheckedItems] = useState<boolean[]>(
         creatorTermsAcknowledgements.map(() => false),
     );
-    const [showDocument, setShowDocument] = useState(false);
     const allChecked = checkedItems.every(Boolean);
 
     useEffect(() => {
         if (!isOpen) {
             setCheckedItems(creatorTermsAcknowledgements.map(() => false));
-            setShowDocument(false);
         }
     }, [isOpen]);
 
@@ -83,23 +81,16 @@ export default function TermsModal({
                         ))}
                     </div>
 
-                    <button
-                        type="button"
+                    <a
+                        href={creatorTermsPagePath}
+                        target="_blank"
+                        rel="noopener noreferrer"
                         className="terms-read-full"
-                        onClick={() => setShowDocument((current) => !current)}
                     >
                         <FileText size={18} />
-                        {showDocument ? 'Hide full terms' : 'Read full terms'}
-                    </button>
-
-                    {showDocument && (
-                        <div className="terms-pdf-panel">
-                            <iframe
-                                title="AIVESTIRE partner terms and conditions"
-                                src={`${creatorTermsPdfUrl}#toolbar=1&navpanes=0`}
-                            />
-                        </div>
-                    )}
+                        Read full terms
+                        <ExternalLink size={16} />
+                    </a>
                 </div>
 
                 <div className="terms-actions">

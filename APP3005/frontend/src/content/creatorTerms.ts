@@ -8,6 +8,7 @@ export interface CreatorTermsSection {
 export interface CreatorTermsContent {
   title: string;
   brand: string;
+  tagline: string;
   intro: string;
   sections: CreatorTermsSection[];
   closingNote: string;
@@ -22,7 +23,20 @@ function parseCreatorTerms(markdown: string): CreatorTermsContent {
     .map((line) => line.trim())
     .filter(Boolean);
 
-  const [title = "Creator / Partner Terms & Conditions", brand = "AIVESTIRE", intro = "", ...bodyLines] = normalizedLines;
+  const isBrandFirstDocument = normalizedLines[0]?.toUpperCase() === "AIVESTIRE";
+  const title = isBrandFirstDocument
+    ? normalizedLines[2] ?? "Creator / Partner Terms & Conditions"
+    : normalizedLines[0] ?? "Creator / Partner Terms & Conditions";
+  const brand = isBrandFirstDocument
+    ? normalizedLines[0] ?? "AIVESTIRE"
+    : normalizedLines[1] ?? "AIVESTIRE";
+  const tagline = isBrandFirstDocument
+    ? normalizedLines[1] ?? "Where Designers Drop & AI Styles You"
+    : "";
+  const intro = isBrandFirstDocument
+    ? normalizedLines[3] ?? ""
+    : normalizedLines[2] ?? "";
+  const bodyLines = normalizedLines.slice(isBrandFirstDocument ? 4 : 3);
   const sections: CreatorTermsSection[] = [];
   const closingLines: string[] = [];
   let currentSection: CreatorTermsSection | null = null;
@@ -57,6 +71,7 @@ function parseCreatorTerms(markdown: string): CreatorTermsContent {
   return {
     title,
     brand,
+    tagline,
     intro,
     sections,
     closingNote: closingLines[0] ?? "By proceeding with onboarding, you agree to all the above terms and conditions.",
@@ -66,8 +81,29 @@ function parseCreatorTerms(markdown: string): CreatorTermsContent {
 
 export const creatorTermsContent = parseCreatorTerms(creatorTermsMarkdown);
 
-export const creatorTermsPdfUrl =
-  "/documents/aivestire-partner-terms-conditions.pdf";
+export const creatorTermsPagePath = "/creator-partner-terms";
+
+export const creatorTermsConfidentialityLabel =
+  "Confidential - AIVESTIRE Platform";
+
+export const creatorTermsCommissionRows = [
+  {
+    orderValue: "\u20B90 - \u20B91,000",
+    platformCommission: "\u20B9150",
+  },
+  {
+    orderValue: "\u20B91,001 - \u20B92,000",
+    platformCommission: "\u20B9250",
+  },
+  {
+    orderValue: "\u20B92,001 - \u20B95,000",
+    platformCommission: "\u20B9400",
+  },
+  {
+    orderValue: "\u20B95,001 and above",
+    platformCommission: "Custom (agreed upon onboarding)",
+  },
+];
 
 export const creatorTermsAcknowledgements = [
   "My designs are original, approved, and uploaded with clear true-colour images.",

@@ -85,6 +85,7 @@ services:
         VITE_API_URL: ${VITE_API_URL:-/api}
         VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID:-}
         VITE_TRY_ON_DEFAULT_PROVIDER: ${VITE_TRY_ON_DEFAULT_PROVIDER:-gemini}
+        VITE_ENABLE_TRY_ON_PACK_DEV_SKIP: ${VITE_ENABLE_TRY_ON_PACK_DEV_SKIP:-false}
     container_name: aivestire-frontend
     ports:
       - "3005:8080"

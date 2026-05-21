@@ -29,6 +29,7 @@ import { TryOnPackPurchasesRepository } from './try-on-pack-purchases.repository
 const TRY_ON_PACK_DEV_SKIP_HOSTS = new Set([
   'dev.aivestire.com',
   'uat.aivestire.com',
+  'prod.aivestire.com',
   'localhost',
   '127.0.0.1',
 ]);
