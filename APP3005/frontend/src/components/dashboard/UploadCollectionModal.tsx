@@ -25,7 +25,12 @@ import {
   type SkinToneValue,
   type ClothingColorValue,
 } from "@/constants/product-hierarchy.enums";
-import { createProductHierarchy, fileToDataUri } from "@/api/creator-upload.api";
+import {
+  CREATOR_UPLOAD_ACCEPT,
+  MAX_CREATOR_PRODUCT_IMAGES,
+  createProductHierarchyFromFiles,
+  getCreatorImageFileError,
+} from "@/api/creator-upload.api";
 import {
   parseStockInput,
   commitSizeStockDrafts,
@@ -81,6 +86,33 @@ const makePattern = (): PatternForm => ({
   id: uid(), name: "", body_shapes: [], color_variants: [makeVariant()],
   collapsed: false, errors: {},
 });
+
+const filterCreatorImages = (files: File[]) => {
+  const accepted: File[] = [];
+  let error = "";
+
+  for (const file of files) {
+    const fileError = getCreatorImageFileError(file);
+    if (fileError) {
+      error ||= fileError;
+    } else {
+      accepted.push(file);
+    }
+  }
+
+  return { accepted, error };
+};
+
+const countProductImages = (patterns: PatternForm[]) =>
+  patterns.reduce(
+    (sum, pattern) =>
+      sum +
+      pattern.color_variants.reduce(
+        (variantSum, variant) => variantSum + variant.imageFiles.length,
+        0,
+      ),
+    0,
+  );
 
 // ─── Small shared components ──────────────────────────────────────────────────
 
@@ -217,7 +249,7 @@ const ImageDropZone = ({ previews, onAdd, onRemove }: {
         <p className="text-[11px]" style={{ color: "rgba(44,36,22,0.5)" }}>
           {previews.length === 0 ? "Drop images or click to upload" : "Add more images"}
         </p>
-        <input ref={inputRef} type="file" accept="image/*" multiple className="hidden"
+        <input ref={inputRef} type="file" accept={CREATOR_UPLOAD_ACCEPT} multiple className="hidden"
           onChange={e => { const f = Array.from(e.target.files ?? []); if (f.length) onAdd(f); e.target.value = ""; }} />
       </div>
     </div>
@@ -236,18 +268,29 @@ const ColorVariantCard = ({ variant, varIdx, onChange, onRemove, canRemove }: {
   const selectedColor = CLOTHING_COLORS.find(c => c.value === variant.color);
 
   const handleImages = (files: File[]) => {
-    const newPreviews = files.map(f => URL.createObjectURL(f));
+    const { accepted, error } = filterCreatorImages(files);
+    if (!accepted.length) {
+      onChange({
+        ...variant,
+        errors: { ...variant.errors, images: error || "Choose valid product images." },
+      });
+      return;
+    }
+
+    const newPreviews = accepted.map(f => URL.createObjectURL(f));
     onChange({
       ...variant,
-      imageFiles: [...variant.imageFiles, ...files],
+      imageFiles: [...variant.imageFiles, ...accepted],
       imagePreviews: [...variant.imagePreviews, ...newPreviews],
-      errors: { ...variant.errors, images: "" },
+      errors: { ...variant.errors, images: error },
     });
   };
 
   const removeImage = (idx: number) => {
     const nf = [...variant.imageFiles]; nf.splice(idx, 1);
-    const np = [...variant.imagePreviews]; np.splice(idx, 1);
+    const np = [...variant.imagePreviews];
+    const [removedPreview] = np.splice(idx, 1);
+    if (removedPreview) URL.revokeObjectURL(removedPreview);
     onChange({ ...variant, imageFiles: nf, imagePreviews: np });
   };
 
@@ -641,17 +684,24 @@ const UploadCollectionModal = ({ open, onOpenChange, onSuccess, initialData }: U
     e.preventDefault();
     if (!validate()) return;
 
+    if (countProductImages(patterns) > MAX_CREATOR_PRODUCT_IMAGES) {
+      toast({
+        title: "Too Many Images",
+        description: `Upload at most ${MAX_CREATOR_PRODUCT_IMAGES} images per product.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsLoading(true);
     try {
-      const patternsPayload = await Promise.all(
-        patterns.map(async p => ({
+      const patternsPayload = patterns.map(p => ({
           name: p.name,
           body_shapes: p.body_shapes,
-          color_variants: await Promise.all(
-            p.color_variants.map(async v => ({
+          color_variants: p.color_variants.map(v => ({
               color: v.color as ClothingColorValue,
               skin_tones: v.skin_tones,
-              images: await Promise.all(v.imageFiles.map(fileToDataUri)),
+              images: v.imageFiles,
               size_stocks: Object.entries(
                 commitSizeStockDrafts(
                   Object.fromEntries(
@@ -662,12 +712,10 @@ const UploadCollectionModal = ({ open, onOpenChange, onSuccess, initialData }: U
                   ),
                 ),
               ).map(([size, stock]) => ({ size, stock })),
-            }))
-          ),
-        }))
-      );
+            })),
+        }));
 
-      const result = await createProductHierarchy({
+      const result = await createProductHierarchyFromFiles({
         title: title.trim(),
         description: description.trim() || undefined,
         price_cents: Math.round(parseFloat(price) * 100),

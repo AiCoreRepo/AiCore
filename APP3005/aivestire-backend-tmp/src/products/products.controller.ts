@@ -35,6 +35,31 @@ const ALLOWED_CREATOR_IMAGE_TYPES = new Set([
 ]);
 const MAX_CREATOR_UPLOAD_FILE_SIZE = 20 * 1024 * 1024;
 const MAX_CREATOR_UPLOAD_FILES = 40;
+const MAX_CREATOR_UPLOAD_TOTAL_SIZE = 200 * 1024 * 1024;
+
+function hasAllowedCreatorImageSignature(file: Express.Multer.File): boolean {
+  const buffer = file.buffer;
+  if (!buffer || buffer.length < 12) return false;
+
+  const isJpeg =
+    buffer[0] === 0xff &&
+    buffer[1] === 0xd8 &&
+    buffer[2] === 0xff;
+  const isPng =
+    buffer[0] === 0x89 &&
+    buffer[1] === 0x50 &&
+    buffer[2] === 0x4e &&
+    buffer[3] === 0x47 &&
+    buffer[4] === 0x0d &&
+    buffer[5] === 0x0a &&
+    buffer[6] === 0x1a &&
+    buffer[7] === 0x0a;
+  const isWebp =
+    buffer.subarray(0, 4).toString('ascii') === 'RIFF' &&
+    buffer.subarray(8, 12).toString('ascii') === 'WEBP';
+
+  return isJpeg || isPng || isWebp;
+}
 
 function flattenValidationErrors(errors: ValidationError[]): string[] {
   return errors.flatMap((error) => {
@@ -128,8 +153,13 @@ export class ProductsController {
   ) {
     const dto = this.parseHierarchyPayload(payload);
     const filesByKey = new Map<string, Express.Multer.File>();
+    let totalUploadBytes = 0;
 
     for (const file of files) {
+      if (filesByKey.has(file.fieldname)) {
+        throw new BadRequestException('Duplicate product image upload field');
+      }
+
       if (!ALLOWED_CREATOR_IMAGE_TYPES.has(file.mimetype)) {
         throw new BadRequestException(
           'Only JPEG, PNG, and WebP product images are allowed',
@@ -139,6 +169,19 @@ export class ProductsController {
       if (file.size > MAX_CREATOR_UPLOAD_FILE_SIZE) {
         throw new BadRequestException(
           'Each product image must be 20MB or smaller',
+        );
+      }
+
+      if (!hasAllowedCreatorImageSignature(file)) {
+        throw new BadRequestException(
+          'Uploaded product image content must be a valid JPEG, PNG, or WebP file',
+        );
+      }
+
+      totalUploadBytes += file.size;
+      if (totalUploadBytes > MAX_CREATOR_UPLOAD_TOTAL_SIZE) {
+        throw new BadRequestException(
+          'Total product image upload size must be 200MB or smaller',
         );
       }
 

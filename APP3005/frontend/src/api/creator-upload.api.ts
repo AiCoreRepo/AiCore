@@ -1,12 +1,29 @@
 import { ClothingColorValue, BodyShapeValue, SkinToneValue } from '../constants/product-hierarchy.enums';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
+export const CREATOR_UPLOAD_ACCEPT = 'image/jpeg,image/png,image/webp';
+export const MAX_CREATOR_IMAGE_SIZE_BYTES = 20 * 1024 * 1024;
+export const MAX_CREATOR_PRODUCT_IMAGES = 40;
+
+const ACCEPTED_CREATOR_IMAGE_TYPES = new Set(CREATOR_UPLOAD_ACCEPT.split(','));
 
 function authHeaders() {
   return {
     'Content-Type': 'application/json',
     Authorization: `Bearer ${localStorage.getItem('access_token')}`,
   };
+}
+
+export function getCreatorImageFileError(file: File): string | null {
+  if (!ACCEPTED_CREATOR_IMAGE_TYPES.has(file.type)) {
+    return 'Only JPEG, PNG, and WebP product images are allowed.';
+  }
+
+  if (file.size > MAX_CREATOR_IMAGE_SIZE_BYTES) {
+    return 'Each product image must be 20MB or smaller.';
+  }
+
+  return null;
 }
 
 // ── types ─────────────────────────────────────────────────────
@@ -42,9 +59,9 @@ export interface CreateProductHierarchyPayload {
 export interface ColorVariantFilePayload {
   color: ClothingColorValue;
   hex_code?: string;
-  stock: number;
   skin_tones: SkinToneValue[];
   images: File[];
+  size_stocks: { size: string; stock: number }[];
 }
 
 export interface PatternFilePayload {
@@ -86,13 +103,13 @@ export async function createProductHierarchyFromFiles(
       color_variants: pattern.color_variants.map((variant, variantIndex) => ({
         color: variant.color,
         hex_code: variant.hex_code,
-        stock: variant.stock,
         skin_tones: variant.skin_tones,
         images: variant.images.map((file, imageIndex) => {
           const key = `image_${patternIndex}_${variantIndex}_${imageIndex}`;
           formData.append(key, file, file.name);
           return key;
         }),
+        size_stocks: variant.size_stocks,
       })),
     })),
   };

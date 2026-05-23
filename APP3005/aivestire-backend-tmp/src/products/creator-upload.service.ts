@@ -16,9 +16,19 @@ import {
 import { ProductStatus } from '@prisma/client';
 import { SmsQueueService } from '../queues/sms-queue.service';
 
+const CREATOR_UPLOAD_FOLDER = 'creator-products';
+const CREATOR_IMAGE_KEY_PATTERN = /^image_\d+_\d+_\d+$/;
+const DEFAULT_CREATOR_IMAGE_UPLOAD_CONCURRENCY = 6;
+const MAX_CREATOR_IMAGE_UPLOAD_CONCURRENCY = 12;
+const MAX_CREATOR_UPLOAD_IMAGES = 40;
+
 @Injectable()
 export class CreatorUploadService {
   private readonly logger = new Logger(CreatorUploadService.name);
+  private readonly creatorImageUploadConcurrency =
+    this.resolveCreatorImageUploadConcurrency();
+  private activeCreatorImageUploads = 0;
+  private readonly creatorImageUploadWaitQueue: Array<() => void> = [];
 
   constructor(
     private readonly prisma: PrismaService,
@@ -46,6 +56,7 @@ export class CreatorUploadService {
   async createProductHierarchy(
     dto: CreateProductHierarchyDto,
     userId: string,
+    filesByKey?: Map<string, Express.Multer.File>,
   ) {
     this.logger.log(
       `Creator (user ${userId}) uploading "${dto.title}" with ${dto.patterns.length} pattern(s)`,
@@ -59,7 +70,12 @@ export class CreatorUploadService {
     const creatorId = creator.creator_id;
 
     // 2. Upload all images before the DB transaction (avoids Prisma tx timeout)
-    const uploadedPatterns = await this._uploadAllImages(dto, creatorId);
+    this._assertCreatorImageCount(dto);
+    const uploadedPatterns = await this._uploadAllImages(
+      dto,
+      creatorId,
+      filesByKey,
+    );
 
     // 3. Derive flat arrays for backward-compat columns on Product
     const allBodyShapes = [
@@ -530,21 +546,141 @@ export class CreatorUploadService {
   // PRIVATE HELPERS
   // ──────────────────────────────────────────────────────────────────────────
 
+  private resolveCreatorImageUploadConcurrency(): number {
+    const configured = Number.parseInt(
+      process.env.CREATOR_IMAGE_UPLOAD_CONCURRENCY ?? '',
+      10,
+    );
+
+    if (!Number.isFinite(configured) || configured < 1) {
+      return DEFAULT_CREATOR_IMAGE_UPLOAD_CONCURRENCY;
+    }
+
+    return Math.min(configured, MAX_CREATOR_IMAGE_UPLOAD_CONCURRENCY);
+  }
+
+  private _assertCreatorImageCount(dto: CreateProductHierarchyDto) {
+    const imageCount = dto.patterns.reduce(
+      (sum, pattern) =>
+        sum +
+        pattern.color_variants.reduce(
+          (variantSum, variant) => variantSum + variant.images.length,
+          0,
+        ),
+      0,
+    );
+
+    if (imageCount > MAX_CREATOR_UPLOAD_IMAGES) {
+      throw new BadRequestException(
+        `A product can include at most ${MAX_CREATOR_UPLOAD_IMAGES} images`,
+      );
+    }
+  }
+
+  private async acquireCreatorImageUploadSlot(): Promise<void> {
+    if (this.activeCreatorImageUploads < this.creatorImageUploadConcurrency) {
+      this.activeCreatorImageUploads += 1;
+      return;
+    }
+
+    await new Promise<void>((resolve) => {
+      this.creatorImageUploadWaitQueue.push(() => {
+        this.activeCreatorImageUploads += 1;
+        resolve();
+      });
+    });
+  }
+
+  private releaseCreatorImageUploadSlot() {
+    this.activeCreatorImageUploads = Math.max(
+      0,
+      this.activeCreatorImageUploads - 1,
+    );
+    const next = this.creatorImageUploadWaitQueue.shift();
+    if (next) next();
+  }
+
+  private async withCreatorImageUploadSlot<T>(
+    task: () => Promise<T>,
+  ): Promise<T> {
+    await this.acquireCreatorImageUploadSlot();
+    try {
+      return await task();
+    } finally {
+      this.releaseCreatorImageUploadSlot();
+    }
+  }
+
+  private normalizeOriginalFilename(filename?: string): string | undefined {
+    if (!filename) return undefined;
+
+    const normalized = filename
+      .replace(/\.[^.]+$/, '')
+      .replace(/[^a-zA-Z0-9._-]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 80);
+
+    return normalized || undefined;
+  }
+
+  private async uploadCreatorImage(
+    imageRef: string,
+    filesByKey?: Map<string, Express.Multer.File>,
+  ): Promise<string> {
+    if (!imageRef || typeof imageRef !== 'string') {
+      throw new BadRequestException('Invalid product image reference');
+    }
+
+    const file = filesByKey?.get(imageRef);
+    if (file) {
+      return this.cloudinaryService.uploadImageBuffer(file.buffer, {
+        folder: CREATOR_UPLOAD_FOLDER,
+        originalFilename: this.normalizeOriginalFilename(file.originalname),
+      });
+    }
+
+    if (filesByKey && CREATOR_IMAGE_KEY_PATTERN.test(imageRef)) {
+      throw new BadRequestException(`Missing uploaded image file: ${imageRef}`);
+    }
+
+    const imageData = imageRef.startsWith('data:')
+      ? imageRef
+      : `data:image/jpeg;base64,${imageRef}`;
+
+    return this.cloudinaryService.uploadOriginalImage(
+      imageData,
+      CREATOR_UPLOAD_FOLDER,
+    );
+  }
+
   /** Upload images for all patterns/variants before the DB transaction */
   private async _uploadAllImages(
     dto: CreateProductHierarchyDto,
     creatorId: string,
+    filesByKey?: Map<string, Express.Multer.File>,
   ) {
-    return Promise.all(
-      dto.patterns.map(async (pattern) => ({
-        ...pattern,
-        color_variants: await this._uploadVariantImages(
-          pattern.color_variants,
-          creatorId,
-          'pending',
-        ),
-      })),
+    const allVariants = dto.patterns.flatMap((pattern) => pattern.color_variants);
+    const uploadedVariants = await this._uploadVariantImages(
+      allVariants,
+      creatorId,
+      'pending',
+      filesByKey,
     );
+
+    let variantOffset = 0;
+    return dto.patterns.map((pattern) => {
+      const colorVariantCount = pattern.color_variants.length;
+      const colorVariants = uploadedVariants.slice(
+        variantOffset,
+        variantOffset + colorVariantCount,
+      );
+      variantOffset += colorVariantCount;
+
+      return {
+        ...pattern,
+        color_variants: colorVariants,
+      };
+    });
   }
 
   /** Upload images for a list of color variant DTOs */
@@ -552,19 +688,28 @@ export class CreatorUploadService {
     variants: CreateColorVariantDto[],
     creatorId: string,
     _productId: string,
+    filesByKey?: Map<string, Express.Multer.File>,
   ) {
-    return Promise.all(
-      variants.map(async (variant) => {
-        const uploadedImageUrls: string[] = [];
+    const imageCount = variants.reduce(
+      (sum, variant) => sum + variant.images.length,
+      0,
+    );
+    if (imageCount > MAX_CREATOR_UPLOAD_IMAGES) {
+      throw new BadRequestException(
+        `A product update can include at most ${MAX_CREATOR_UPLOAD_IMAGES} images`,
+      );
+    }
 
-        for (const base64 of variant.images) {
+    const uploadedImageUrlsByVariant = variants.map(
+      (variant) => new Array<string>(variant.images.length),
+    );
+
+    const uploadTasks = variants.flatMap((variant, variantIndex) =>
+      variant.images.map((imageRef, imageIndex) =>
+        this.withCreatorImageUploadSlot(async () => {
           try {
-            const imageData = base64.startsWith('data:')
-              ? base64
-              : `data:image/jpeg;base64,${base64}`;
-
-            const url = await this.cloudinaryService.uploadImage(imageData);
-            uploadedImageUrls.push(url);
+            uploadedImageUrlsByVariant[variantIndex][imageIndex] =
+              await this.uploadCreatorImage(imageRef, filesByKey);
           } catch (err: any) {
             this.logger.error(
               `Image upload failed for creator ${creatorId}: ${err.message}`,
@@ -573,17 +718,19 @@ export class CreatorUploadService {
               `Image upload failed for color ${variant.color}: ${err.message}`,
             );
           }
-        }
-
-        return {
-          color: variant.color,
-          hex_code: variant.hex_code,
-          skin_tones: variant.skin_tones,
-          uploadedImageUrls,
-          size_stocks: variant.size_stocks,
-        };
-      }),
+        }),
+      ),
     );
+
+    await Promise.all(uploadTasks);
+
+    return variants.map((variant, variantIndex) => ({
+      color: variant.color,
+      hex_code: variant.hex_code,
+      skin_tones: variant.skin_tones,
+      uploadedImageUrls: uploadedImageUrlsByVariant[variantIndex],
+      size_stocks: variant.size_stocks,
+    }));
   }
 
   /** Generate a unique URL-safe slug */

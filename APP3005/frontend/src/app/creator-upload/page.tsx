@@ -17,7 +17,12 @@ import {
   type BodyShapeValue, type SkinToneValue, type ClothingColorValue,
 } from "../../constants/product-hierarchy.enums";
 import { AGE_RANGE_OPTIONS } from "@/constants/aura.constants";
-import { createProductHierarchy, fileToDataUri } from "../../api/creator-upload.api";
+import {
+  CREATOR_UPLOAD_ACCEPT,
+  MAX_CREATOR_PRODUCT_IMAGES,
+  createProductHierarchyFromFiles,
+  getCreatorImageFileError,
+} from "../../api/creator-upload.api";
 import {
   parseStockInput,
   commitSizeStockDrafts,
@@ -66,6 +71,33 @@ function sumVariantStockDrafts(variant: ColorVariantForm): number {
   return total;
 }
 const makePattern = (): PatternForm => ({ id: uid(), name: "", body_shapes: [], color_variants: [makeVariant()], collapsed: false, errors: {} });
+
+const filterCreatorImages = (files: File[]) => {
+  const accepted: File[] = [];
+  let error = "";
+
+  for (const file of files) {
+    const fileError = getCreatorImageFileError(file);
+    if (fileError) {
+      error ||= fileError;
+    } else {
+      accepted.push(file);
+    }
+  }
+
+  return { accepted, error };
+};
+
+const countProductImages = (patterns: PatternForm[]) =>
+  patterns.reduce(
+    (sum, pattern) =>
+      sum +
+      pattern.color_variants.reduce(
+        (variantSum, variant) => variantSum + variant.imageFiles.length,
+        0,
+      ),
+    0,
+  );
 
 // ─── Micro Components ─────────────────────────────────────────────────────────
 
@@ -245,7 +277,7 @@ const ImageZone = ({ previews, onAdd, onRemove, error }: {
         <p className="text-sm md:text-base text-[#2C2416]/60 font-semibold text-center">
           {previews.length ? "Tap or drag to add more images" : "Tap or drag images here to upload"}
         </p>
-        <input ref={ref} type="file" accept="image/*" multiple className="hidden"
+        <input ref={ref} type="file" accept={CREATOR_UPLOAD_ACCEPT} multiple className="hidden"
           onChange={e => { const f = Array.from(e.target.files ?? []); if (f.length) onAdd(f); e.target.value = ""; }} />
       </div>
     </div>
@@ -433,12 +465,20 @@ const ColorCard = ({ variant, idx, onChange, onRemove, canRemove }: {
           previews={variant.imagePreviews}
           error={variant.errors.images}
           onAdd={files => {
-            const newPreviews = files.map(f => URL.createObjectURL(f));
-            onChange({ ...variant, imageFiles: [...variant.imageFiles, ...files], imagePreviews: [...variant.imagePreviews, ...newPreviews], errors: { ...variant.errors, images: "" } });
+            const { accepted, error } = filterCreatorImages(files);
+            if (!accepted.length) {
+              onChange({ ...variant, errors: { ...variant.errors, images: error || "Choose valid product images." } });
+              return;
+            }
+
+            const newPreviews = accepted.map(f => URL.createObjectURL(f));
+            onChange({ ...variant, imageFiles: [...variant.imageFiles, ...accepted], imagePreviews: [...variant.imagePreviews, ...newPreviews], errors: { ...variant.errors, images: error } });
           }}
           onRemove={i => {
             const nf = [...variant.imageFiles]; nf.splice(i, 1);
-            const np = [...variant.imagePreviews]; np.splice(i, 1);
+            const np = [...variant.imagePreviews];
+            const [removedPreview] = np.splice(i, 1);
+            if (removedPreview) URL.revokeObjectURL(removedPreview);
             onChange({ ...variant, imageFiles: nf, imagePreviews: np });
           }}
         />
@@ -634,14 +674,24 @@ const CreatorUploadPage: React.FC = () => {
       window.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
+
+    if (countProductImages(patterns) > MAX_CREATOR_PRODUCT_IMAGES) {
+      toast({
+        title: "Too Many Images",
+        description: `Upload at most ${MAX_CREATOR_PRODUCT_IMAGES} images per product.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsLoading(true);
     try {
-      const patternsPayload = await Promise.all(
-        patterns.map(async p => ({
+      const patternsPayload = patterns.map(p => ({
           name: p.name, body_shapes: p.body_shapes,
-          color_variants: await Promise.all(p.color_variants.map(async v => ({
+          color_variants: p.color_variants.map(v => ({
             color: v.color as ClothingColorValue,
-            skin_tones: v.skin_tones, images: await Promise.all(v.imageFiles.map(fileToDataUri)),
+            skin_tones: v.skin_tones,
+            images: v.imageFiles,
             size_stocks: Object.entries(
               commitSizeStockDrafts(
                 Object.fromEntries(
@@ -652,10 +702,9 @@ const CreatorUploadPage: React.FC = () => {
                 ),
               ),
             ).map(([size, stock]) => ({ size, stock })),
-          }))),
-        }))
-      );
-      await createProductHierarchy({
+          })),
+        }));
+      await createProductHierarchyFromFiles({
         title: title.trim(), description: description.trim() || undefined,
         price_cents: Math.round(parseFloat(price) * 100),
         category_id: categoryId || undefined, sub_category_id: subCategoryId || undefined,
