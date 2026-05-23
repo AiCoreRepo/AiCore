@@ -8,10 +8,10 @@ const storyCards = [
     id: "artisans",
     scrollTo: "#section-artisans",
     number: "01",
-    category: "Heritage",
-    title: "From Hands\nto Heritage",
-    tagline: "Every thread carries a story of generations.",
-    image: IMG.jaipurArtisansThread,
+    category: "Artisans",
+    title: "Craft Begins\nWith Hands",
+    tagline: "Jaipur artisans shape every thread, motif, and silhouette before it reaches the digital stage.",
+    image: IMG.storyLoomHands,
     accent: "#D4AF37",
     accentRgb: "212,175,55",
   },
@@ -19,10 +19,10 @@ const storyCards = [
     id: "tryon",
     scrollTo: "#section-tryon",
     number: "02",
-    category: "Experience",
-    title: "See It Before\nYou Wear It",
-    tagline: "Confidence before every purchase.",
-    image: IMG.jaipurWomenCraft,
+    category: "Our Platform",
+    title: "The Platform\nCarries The Story",
+    tagline: "Aivestire gives each creator a curated storefront where craft is presented with context, care, and trust.",
+    image: IMG.jaipurTextileMarket,
     accent: "#C9A55C",
     accentRgb: "201,165,92",
   },
@@ -30,10 +30,10 @@ const storyCards = [
     id: "recommendation",
     scrollTo: "#section-recommendation",
     number: "03",
-    category: "Intelligence",
-    title: "Styled Just\nFor You",
-    tagline: "Your personal AI stylist, always learning.",
-    image: IMG.jaipurShopWomen,
+    category: "Technology",
+    title: "Technology\nCreates The Match",
+    tagline: "AI connects product detail with body shape, skin tone, style intent, and virtual try-on confidence.",
+    image: IMG.aiBridge,
     accent: "#B8860B",
     accentRgb: "184,134,11",
   },
@@ -41,10 +41,10 @@ const storyCards = [
     id: "aura",
     scrollTo: "#section-aura",
     number: "04",
-    category: "Identity",
-    title: "Your Style Has\nan Identity",
-    tagline: "Not just fashion — your evolving aura.",
-    image: IMG.jaipurStreetMural,
+    category: "Connection",
+    title: "Craft Reaches\nThe Right Wardrobe",
+    tagline: "The result is a direct bridge: meaningful artisan work reaching people who can see, trust, and wear the story.",
+    image: IMG.jaipurShopWomen,
     accent: "#D4AF37",
     accentRgb: "212,175,55",
   },
@@ -302,7 +302,7 @@ export const ValueCards = () => {
                 color: "hsl(44 78% 54%)",
               }}
             >
-              Four Stories
+              One Connected Flow
             </span>
             <span
               style={{
@@ -323,7 +323,7 @@ export const ValueCards = () => {
               marginBottom: "14px",
             }}
           >
-            Where would you like to{" "}
+            From artisan hands to{" "}
             <em
               style={{
                 fontStyle: "italic",
@@ -335,7 +335,7 @@ export const ValueCards = () => {
                 backgroundClip: "text",
               }}
             >
-              begin?
+              your wardrobe
             </em>
           </h2>
 
@@ -348,12 +348,20 @@ export const ValueCards = () => {
               lineHeight: 1.7,
             }}
           >
-            Each card is a portal — click to immerse yourself in a chapter of the Aivestire story.
+            Aivestire is not four separate ideas. It is one path: artisans create, the platform preserves their story, technology makes each piece understandable, and the right buyer connects with confidence.
           </p>
         </div>
 
         {/* ── 2×2 Story Card Grid ── */}
-        <div data-gsap-group="story-grid" className="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2">
+        <div data-gsap-group="story-grid" className="relative grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2">
+          <div
+            aria-hidden
+            className="pointer-events-none absolute left-1/2 top-10 bottom-10 hidden w-px -translate-x-1/2 md:block"
+            style={{
+              background:
+                "linear-gradient(180deg, transparent, rgba(212,175,55,0.42), transparent)",
+            }}
+          />
           {storyCards.map((card) => (
             <StoryCard key={card.id} card={card} />
           ))}
