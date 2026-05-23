@@ -143,15 +143,46 @@ export class CartService {
       throw new BadRequestException(CART_MESSAGES.PRODUCT_NOT_APPROVED);
     }
 
-    // Check inventory
+    // Check inventory (size-specific if size and color are specified)
     const quantity = dto.quantity ?? 1;
-    if (product.inventory_count < quantity) {
-      throw new BadRequestException(
-        CART_MESSAGES.INSUFFICIENT_INVENTORY.replace(
-          '{count}',
-          product.inventory_count.toString(),
-        ),
-      );
+    let sizeStockCount = product.inventory_count;
+    let isSizeStockChecked = false;
+
+    if (dto.size && dto.color) {
+      const variant = await this.prisma.productColorVariant.findFirst({
+        where: {
+          pattern: { product_id: dto.product_id },
+          color: dto.color as any,
+        },
+        include: {
+          size_stocks: {
+            where: { size: dto.size },
+          },
+        },
+      });
+
+      if (variant) {
+        const sizeStock = variant.size_stocks[0];
+        sizeStockCount = sizeStock ? sizeStock.stock : 0;
+        isSizeStockChecked = true;
+      }
+    }
+
+    if (isSizeStockChecked) {
+      if (sizeStockCount < quantity) {
+        throw new BadRequestException(
+          `Insufficient inventory. Only ${sizeStockCount} items available for Size ${dto.size} of this color.`,
+        );
+      }
+    } else {
+      if (product.inventory_count < quantity) {
+        throw new BadRequestException(
+          CART_MESSAGES.INSUFFICIENT_INVENTORY.replace(
+            '{count}',
+            product.inventory_count.toString(),
+          ),
+        );
+      }
     }
 
     // Get or create cart
@@ -175,13 +206,21 @@ export class CartService {
         throw new BadRequestException(CART_MESSAGES.MAX_QUANTITY_EXCEEDED);
       }
 
-      if (newQuantity > product.inventory_count) {
-        throw new BadRequestException(
-          CART_MESSAGES.INSUFFICIENT_INVENTORY.replace(
-            '{count}',
-            product.inventory_count.toString(),
-          ),
-        );
+      if (isSizeStockChecked) {
+        if (newQuantity > sizeStockCount) {
+          throw new BadRequestException(
+            `Insufficient inventory. Only ${sizeStockCount} items available for Size ${dto.size} of this color.`,
+          );
+        }
+      } else {
+        if (newQuantity > product.inventory_count) {
+          throw new BadRequestException(
+            CART_MESSAGES.INSUFFICIENT_INVENTORY.replace(
+              '{count}',
+              product.inventory_count.toString(),
+            ),
+          );
+        }
       }
 
       await this.prisma.cartItem.update({
@@ -219,6 +258,9 @@ export class CartService {
       where: { cart_item_id: cartItemId },
       select: {
         cart_item_id: true,
+        product_id: true,
+        size: true,
+        color: true,
         cart: {
           select: {
             user_id: true,
@@ -241,13 +283,44 @@ export class CartService {
     }
 
     // Check inventory
-    if (cartItem.product.inventory_count < dto.quantity) {
-      throw new BadRequestException(
-        CART_MESSAGES.INSUFFICIENT_INVENTORY.replace(
-          '{count}',
-          cartItem.product.inventory_count.toString(),
-        ),
-      );
+    let targetStockCount = cartItem.product.inventory_count;
+    let isSizeChecked = false;
+
+    if (cartItem.size && cartItem.color) {
+      const variant = await this.prisma.productColorVariant.findFirst({
+        where: {
+          pattern: { product_id: cartItem.product_id },
+          color: cartItem.color as any,
+        },
+        include: {
+          size_stocks: {
+            where: { size: cartItem.size },
+          },
+        },
+      });
+
+      if (variant) {
+        const sizeStock = variant.size_stocks[0];
+        targetStockCount = sizeStock ? sizeStock.stock : 0;
+        isSizeChecked = true;
+      }
+    }
+
+    if (isSizeChecked) {
+      if (targetStockCount < dto.quantity) {
+        throw new BadRequestException(
+          `Insufficient inventory. Only ${targetStockCount} items available for Size ${cartItem.size} of this color.`,
+        );
+      }
+    } else {
+      if (cartItem.product.inventory_count < dto.quantity) {
+        throw new BadRequestException(
+          CART_MESSAGES.INSUFFICIENT_INVENTORY.replace(
+            '{count}',
+            cartItem.product.inventory_count.toString(),
+          ),
+        );
+      }
     }
 
     // Update quantity

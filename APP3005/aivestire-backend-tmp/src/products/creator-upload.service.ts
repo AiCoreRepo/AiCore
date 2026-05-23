@@ -7,6 +7,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { CloudinaryService } from '../common/cloudinary.service';
 import { slugify } from '../common/utils/string.utils';
+import { coerceStockQuantity, sumSizeStockRows } from '../common/utils/inventory.utils';
 import {
   CreateProductHierarchyDto,
   CreatePatternDto,
@@ -15,40 +16,9 @@ import {
 import { ProductStatus } from '@prisma/client';
 import { SmsQueueService } from '../queues/sms-queue.service';
 
-const DEFAULT_IMAGE_UPLOAD_CONCURRENCY = 4;
-const MAX_IMAGE_UPLOAD_CONCURRENCY = 8;
-
-type UploadedColorVariant = Omit<CreateColorVariantDto, 'images'> & {
-  uploadedImageUrls: string[];
-};
-
-type UploadedPattern = Omit<CreatePatternDto, 'color_variants'> & {
-  color_variants: UploadedColorVariant[];
-};
-
-type CreatorImageFile = Pick<
-  Express.Multer.File,
-  'buffer' | 'mimetype' | 'originalname' | 'size'
->;
-type CreatorImageFileMap = Map<string, CreatorImageFile>;
-
-function resolveImageUploadConcurrency(): number {
-  const parsed = Number(process.env.CREATOR_UPLOAD_CONCURRENCY);
-
-  if (!Number.isFinite(parsed) || parsed <= 0) {
-    return DEFAULT_IMAGE_UPLOAD_CONCURRENCY;
-  }
-
-  return Math.min(
-    Math.floor(parsed),
-    MAX_IMAGE_UPLOAD_CONCURRENCY,
-  );
-}
-
 @Injectable()
 export class CreatorUploadService {
   private readonly logger = new Logger(CreatorUploadService.name);
-  private readonly imageUploadConcurrency = resolveImageUploadConcurrency();
 
   constructor(
     private readonly prisma: PrismaService,
@@ -76,26 +46,20 @@ export class CreatorUploadService {
   async createProductHierarchy(
     dto: CreateProductHierarchyDto,
     userId: string,
-    imageFilesByKey?: CreatorImageFileMap,
   ) {
     this.logger.log(
-      `Creator (user ${userId}) uploading "${dto.title}" with ${dto.patterns.length} pattern(s); image upload concurrency=${this.imageUploadConcurrency}`,
+      `Creator (user ${userId}) uploading "${dto.title}" with ${dto.patterns.length} pattern(s)`,
     );
 
     // 1. Validate creator exists
     const creator = await this.prisma.creator.findUnique({
       where: { user_id: userId },
-      select: { creator_id: true },
     });
     if (!creator) throw new NotFoundException('Creator profile not found');
     const creatorId = creator.creator_id;
 
     // 2. Upload all images before the DB transaction (avoids Prisma tx timeout)
-    const uploadedPatterns = await this._uploadAllImages(
-      dto,
-      creatorId,
-      imageFilesByKey,
-    );
+    const uploadedPatterns = await this._uploadAllImages(dto, creatorId);
 
     // 3. Derive flat arrays for backward-compat columns on Product
     const allBodyShapes = [
@@ -113,13 +77,11 @@ export class CreatorUploadService {
         uploadedPatterns.flatMap((p) => p.color_variants.map((cv) => cv.color as string)),
       ),
     ];
-    const allImageUrls = uploadedPatterns.flatMap((p) =>
-      p.color_variants.flatMap((cv) => cv.uploadedImageUrls),
-    );
 
     // Compute total inventory BEFORE the transaction so we set it atomically
     const totalInventoryCount = uploadedPatterns.reduce(
-      (sum, p) => sum + p.color_variants.reduce((s, cv) => s + cv.stock, 0),
+      (sum, p) =>
+        sum + p.color_variants.reduce((s, cv) => s + sumSizeStockRows(cv.size_stocks), 0),
       0,
     );
 
@@ -166,17 +128,6 @@ export class CreatorUploadService {
         });
       }
 
-      if (allImageUrls.length > 0) {
-        await tx.productImage.createMany({
-          data: allImageUrls.map((url, imgIdx) => ({
-            product_id: newProduct.product_id,
-            url,
-            order_index: imgIdx,
-            is_primary: imgIdx === 0,
-          })),
-        });
-      }
-
       // 5c. Create Patterns → Color Variants → Images
       for (let pi = 0; pi < uploadedPatterns.length; pi++) {
         const patternData = uploadedPatterns[pi];
@@ -198,9 +149,14 @@ export class CreatorUploadService {
               pattern_id: pattern.pattern_id,
               color: variantData.color as any,
               hex_code: variantData.hex_code ?? undefined,
-              stock: variantData.stock,
               skin_tones: variantData.skin_tones as any,
               display_order: ci,
+              size_stocks: {
+                create: variantData.size_stocks.map((ss) => ({
+                  size: ss.size.trim(),
+                  stock: coerceStockQuantity(ss.stock),
+                })),
+              },
             },
           });
 
@@ -220,12 +176,109 @@ export class CreatorUploadService {
       return newProduct;
     });
 
+    // Ensure all images are synced correctly to the backwards-compatible flat table
+    // This also recomputes and persists inventory_count from variant stocks.
+    await this._syncFlatArrays(product.product_id);
+
     this.logger.log(`✅ Product hierarchy created: ${product.product_id}`);
 
-    const hierarchy = await this.getProductHierarchy(product.product_id);
-    void this._enqueueCreatorUploadSms(product, dto, userId, hierarchy);
+    // ─── SMS: Notify creator and admins about the new upload ───────────────
+    // Enqueued after all DB work is done. Failure never blocks the response.
+    try {
+      const creatorUser = await this.prisma.user.findUnique({
+        where: { user_id: userId },
+        select: { email: true, phone: true },
+      });
+      const adminRecipients = await this.prisma.user.findMany({
+        where: {
+          role: 'ADMIN',
+          status: 'active',
+          phone: { not: null },
+        },
+        select: {
+          phone: true,
+        },
+      });
+      const envAdminPhones = this.getAdminAlertPhonesFromEnv();
+      const uniqueAdminPhones = Array.from(
+        new Set([
+          ...adminRecipients
+            .map((admin) => admin.phone?.trim())
+            .filter((phone): phone is string => Boolean(phone)),
+          ...envAdminPhones,
+        ]),
+      );
+      const hierarchy = await this.getProductHierarchy(product.product_id);
 
-    return hierarchy;
+      if (!creatorUser?.phone && uniqueAdminPhones.length === 0) {
+        this.logger.warn(
+          `Product ${product.product_id}: no creator/admin phone numbers found in DB or ADMIN_ORDER_ALERT_PHONES — skipping upload SMS`,
+        );
+      } else {
+        // Derive a friendly display name from the email (e.g. priya.sharma@... → Priya)
+        const displayName =
+          creatorUser?.email.split('@')[0]?.split('.')[0] ?? 'Creator';
+        const creatorName = displayName.charAt(0).toUpperCase() + displayName.slice(1);
+        const frontendBaseUrl = (
+          process.env.FRONTEND_URL || 'http://localhost:3005'
+        ).replace(/\/+$/, '');
+        const recipientsByPhone = new Map<
+          string,
+          { to: string; dashboardUrl: string }
+        >();
+
+        if (creatorUser?.phone) {
+          recipientsByPhone.set(creatorUser.phone, {
+            to: creatorUser.phone,
+            dashboardUrl: `${frontendBaseUrl}/creator-dashboard`,
+          });
+        }
+
+        for (const phone of uniqueAdminPhones) {
+          if (!recipientsByPhone.has(phone)) {
+            recipientsByPhone.set(phone, {
+              to: phone,
+              dashboardUrl: `${frontendBaseUrl}/admin-collection`,
+            });
+          }
+        }
+
+        const recipients = Array.from(recipientsByPhone.values());
+
+        if (envAdminPhones.length > 0) {
+          this.logger.log(
+            `Product ${product.product_id}: using ${envAdminPhones.length} admin SMS recipient(s) from ADMIN_ORDER_ALERT_PHONES`,
+          );
+        }
+
+        await Promise.all(
+          recipients.map(({ to, dashboardUrl }) =>
+            this.smsQueueService.enqueueCreatorUploadSms({
+              to,
+              creatorName,
+              productTitle: product.title,
+              productId: product.product_id,
+              dashboardUrl,
+              priceInRupees: dto.price_cents / 100,
+              patternCount: hierarchy.pattern_count,
+              totalColorVariants: hierarchy.total_color_variants,
+              totalStock: hierarchy.total_stock,
+              category: hierarchy.category_name ?? undefined,
+              uploadedAt: new Date(),
+              status: (product.status as 'DRAFT' | 'APPROVED' | 'PENDING') ?? 'DRAFT',
+            }),
+          ),
+        );
+      }
+    } catch (error) {
+      // SMS failure must never affect the product creation response
+      this.logger.error(
+        `Failed to enqueue creator upload SMS for product ${product.product_id}:`,
+        error instanceof Error ? error.message : error,
+      );
+    }
+
+    return this.getProductHierarchy(product.product_id);
   }
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -254,6 +307,9 @@ export class CreatorUploadService {
               include: {
                 images: {
                   orderBy: [{ is_primary: 'desc' }, { order_index: 'asc' }],
+                },
+                size_stocks: {
+                  orderBy: { size: 'asc' },
                 },
               },
             },
@@ -284,7 +340,7 @@ export class CreatorUploadService {
       ),
       total_stock: product.patterns.reduce(
         (sum, p) =>
-          sum + p.color_variants.reduce((s, cv) => s + cv.stock, 0),
+          sum + p.color_variants.reduce((s, cv) => s + sumSizeStockRows(cv.size_stocks), 0),
         0,
       ),
       patterns: product.patterns.map((pattern) => ({
@@ -297,7 +353,7 @@ export class CreatorUploadService {
           variant_id: cv.variant_id,
           color: cv.color,
           hex_code: cv.hex_code,
-          stock: cv.stock,
+          stock: sumSizeStockRows(cv.size_stocks),
           skin_tones: cv.skin_tones,
           display_order: cv.display_order,
           primary_image: cv.images.find((img) => img.is_primary)?.url ?? null,
@@ -306,6 +362,11 @@ export class CreatorUploadService {
             url: img.url,
             is_primary: img.is_primary,
             order_index: img.order_index,
+          })),
+          size_stocks: cv.size_stocks.map((ss) => ({
+            size_stock_id: ss.size_stock_id,
+            size: ss.size,
+            stock: ss.stock,
           })),
         })),
       })),
@@ -344,7 +405,6 @@ export class CreatorUploadService {
           create: uploadedVariants.map((v, ci) => ({
             color: v.color as any,
             hex_code: v.hex_code ?? undefined,
-            stock: v.stock,
             skin_tones: v.skin_tones as any,
             display_order: ci,
             images: {
@@ -352,6 +412,12 @@ export class CreatorUploadService {
                 url,
                 order_index: imgIdx,
                 is_primary: imgIdx === 0,
+              })),
+            },
+            size_stocks: {
+              create: v.size_stocks.map((ss) => ({
+                size: ss.size.trim(),
+                stock: coerceStockQuantity(ss.stock),
               })),
             },
           })),
@@ -416,7 +482,6 @@ export class CreatorUploadService {
         pattern_id: patternId,
         color: uploadedVariant.color as any,
         hex_code: uploadedVariant.hex_code ?? undefined,
-        stock: uploadedVariant.stock,
         skin_tones: uploadedVariant.skin_tones as any,
         display_order: existingCount,
         images: {
@@ -426,8 +491,14 @@ export class CreatorUploadService {
             is_primary: imgIdx === 0,
           })),
         },
+        size_stocks: {
+          create: uploadedVariant.size_stocks.map((ss) => ({
+            size: ss.size.trim(),
+            stock: coerceStockQuantity(ss.stock),
+          })),
+        },
       },
-      include: { images: true },
+      include: { images: true, size_stocks: true },
     });
 
     await this._syncFlatArrays(pattern.product_id);
@@ -463,37 +534,17 @@ export class CreatorUploadService {
   private async _uploadAllImages(
     dto: CreateProductHierarchyDto,
     creatorId: string,
-    imageFilesByKey?: CreatorImageFileMap,
-  ): Promise<UploadedPattern[]> {
-    const uploadedPatterns: UploadedPattern[] = dto.patterns.map((pattern) => ({
-      ...pattern,
-      color_variants: pattern.color_variants.map((variant) => ({
-        color: variant.color,
-        hex_code: variant.hex_code,
-        stock: variant.stock,
-        skin_tones: variant.skin_tones,
-        uploadedImageUrls: new Array<string>(variant.images.length),
+  ) {
+    return Promise.all(
+      dto.patterns.map(async (pattern) => ({
+        ...pattern,
+        color_variants: await this._uploadVariantImages(
+          pattern.color_variants,
+          creatorId,
+          'pending',
+        ),
       })),
-    }));
-
-    const tasks = dto.patterns.flatMap((pattern, patternIndex) =>
-      pattern.color_variants.flatMap((variant, variantIndex) =>
-        variant.images.map((base64, imageIndex) => async () => {
-          uploadedPatterns[patternIndex].color_variants[
-            variantIndex
-          ].uploadedImageUrls[imageIndex] = await this._uploadCreatorImage(
-            base64,
-            creatorId,
-            variant.color,
-            imageIndex,
-            imageFilesByKey,
-          );
-        }),
-      ),
     );
-
-    await this._runWithConcurrency(tasks, this.imageUploadConcurrency);
-    return uploadedPatterns;
   }
 
   /** Upload images for a list of color variant DTOs */
@@ -501,202 +552,38 @@ export class CreatorUploadService {
     variants: CreateColorVariantDto[],
     creatorId: string,
     _productId: string,
-    imageFilesByKey?: CreatorImageFileMap,
-  ): Promise<UploadedColorVariant[]> {
-    const uploadedVariants: UploadedColorVariant[] = variants.map((variant) => ({
-      color: variant.color,
-      hex_code: variant.hex_code,
-      stock: variant.stock,
-      skin_tones: variant.skin_tones,
-      uploadedImageUrls: new Array<string>(variant.images.length),
-    }));
+  ) {
+    return Promise.all(
+      variants.map(async (variant) => {
+        const uploadedImageUrls: string[] = [];
 
-    const tasks = variants.flatMap((variant, variantIndex) =>
-      variant.images.map((base64, imageIndex) => async () => {
-        uploadedVariants[variantIndex].uploadedImageUrls[
-          imageIndex
-        ] = await this._uploadCreatorImage(
-          base64,
-          creatorId,
-          variant.color,
-          imageIndex,
-          imageFilesByKey,
-        );
+        for (const base64 of variant.images) {
+          try {
+            const imageData = base64.startsWith('data:')
+              ? base64
+              : `data:image/jpeg;base64,${base64}`;
+
+            const url = await this.cloudinaryService.uploadImage(imageData);
+            uploadedImageUrls.push(url);
+          } catch (err: any) {
+            this.logger.error(
+              `Image upload failed for creator ${creatorId}: ${err.message}`,
+            );
+            throw new BadRequestException(
+              `Image upload failed for color ${variant.color}: ${err.message}`,
+            );
+          }
+        }
+
+        return {
+          color: variant.color,
+          hex_code: variant.hex_code,
+          skin_tones: variant.skin_tones,
+          uploadedImageUrls,
+          size_stocks: variant.size_stocks,
+        };
       }),
     );
-
-    await this._runWithConcurrency(tasks, this.imageUploadConcurrency);
-    return uploadedVariants;
-  }
-
-  private async _uploadCreatorImage(
-    base64: string,
-    creatorId: string,
-    color: CreateColorVariantDto['color'],
-    imageIndex: number,
-    imageFilesByKey?: CreatorImageFileMap,
-  ): Promise<string> {
-    try {
-      const file = imageFilesByKey?.get(base64);
-
-      if (imageFilesByKey && !file) {
-        throw new BadRequestException(
-          `Uploaded image file is missing for color ${color}`,
-        );
-      }
-
-      if (file) {
-        return await this.cloudinaryService.uploadImageBuffer(file.buffer, {
-          folder: 'creator-products',
-          originalFilename: file.originalname,
-        });
-      }
-
-      const imageData = base64.startsWith('data:')
-        ? base64
-        : `data:image/jpeg;base64,${base64}`;
-
-      return await this.cloudinaryService.uploadOriginalImage(
-        imageData,
-        'creator-products',
-      );
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
-      this.logger.error(
-        `Image upload failed for creator ${creatorId}, color ${color}, image ${imageIndex + 1}: ${message}`,
-      );
-      throw new BadRequestException(
-        `Image upload failed for color ${color}: ${message}`,
-      );
-    }
-  }
-
-  private async _runWithConcurrency<T>(
-    tasks: Array<() => Promise<T>>,
-    limit: number,
-  ): Promise<T[]> {
-    if (tasks.length === 0) return [];
-
-    const results = new Array<T>(tasks.length);
-    let nextIndex = 0;
-    const workerCount = Math.min(limit, tasks.length);
-
-    await Promise.all(
-      Array.from({ length: workerCount }, async () => {
-        while (nextIndex < tasks.length) {
-          const currentIndex = nextIndex++;
-          results[currentIndex] = await tasks[currentIndex]();
-        }
-      }),
-    );
-
-    return results;
-  }
-
-  private async _enqueueCreatorUploadSms(
-    product: { product_id: string; title: string; status: ProductStatus },
-    dto: CreateProductHierarchyDto,
-    userId: string,
-    hierarchy: {
-      pattern_count: number;
-      total_color_variants: number;
-      total_stock: number;
-      category_name: string | null;
-    },
-  ): Promise<void> {
-    // SMS failure must never affect product creation or response latency.
-    try {
-      const creatorUser = await this.prisma.user.findUnique({
-        where: { user_id: userId },
-        select: { email: true, phone: true },
-      });
-      const adminRecipients = await this.prisma.user.findMany({
-        where: {
-          role: 'ADMIN',
-          status: 'active',
-          phone: { not: null },
-        },
-        select: {
-          phone: true,
-        },
-      });
-      const envAdminPhones = this.getAdminAlertPhonesFromEnv();
-      const uniqueAdminPhones = Array.from(
-        new Set([
-          ...adminRecipients
-            .map((admin) => admin.phone?.trim())
-            .filter((phone): phone is string => Boolean(phone)),
-          ...envAdminPhones,
-        ]),
-      );
-
-      if (!creatorUser?.phone && uniqueAdminPhones.length === 0) {
-        this.logger.warn(
-          `Product ${product.product_id}: no creator/admin phone numbers found in DB or ADMIN_ORDER_ALERT_PHONES — skipping upload SMS`,
-        );
-        return;
-      }
-
-      // Derive a friendly display name from the email (e.g. priya.sharma@... → Priya)
-      const displayName =
-        creatorUser?.email.split('@')[0]?.split('.')[0] ?? 'Creator';
-      const creatorName = displayName.charAt(0).toUpperCase() + displayName.slice(1);
-      const frontendBaseUrl = (
-        process.env.FRONTEND_URL || 'http://localhost:3005'
-      ).replace(/\/+$/, '');
-      const recipientsByPhone = new Map<
-        string,
-        { to: string; dashboardUrl: string }
-      >();
-
-      if (creatorUser?.phone) {
-        recipientsByPhone.set(creatorUser.phone, {
-          to: creatorUser.phone,
-          dashboardUrl: `${frontendBaseUrl}/creator-dashboard`,
-        });
-      }
-
-      for (const phone of uniqueAdminPhones) {
-        if (!recipientsByPhone.has(phone)) {
-          recipientsByPhone.set(phone, {
-            to: phone,
-            dashboardUrl: `${frontendBaseUrl}/admin-collection`,
-          });
-        }
-      }
-
-      const recipients = Array.from(recipientsByPhone.values());
-
-      if (envAdminPhones.length > 0) {
-        this.logger.log(
-          `Product ${product.product_id}: using ${envAdminPhones.length} admin SMS recipient(s) from ADMIN_ORDER_ALERT_PHONES`,
-        );
-      }
-
-      await Promise.all(
-        recipients.map(({ to, dashboardUrl }) =>
-          this.smsQueueService.enqueueCreatorUploadSms({
-            to,
-            creatorName,
-            productTitle: product.title,
-            productId: product.product_id,
-            dashboardUrl,
-            priceInRupees: dto.price_cents / 100,
-            patternCount: hierarchy.pattern_count,
-            totalColorVariants: hierarchy.total_color_variants,
-            totalStock: hierarchy.total_stock,
-            category: hierarchy.category_name ?? undefined,
-            uploadedAt: new Date(),
-            status: (product.status as 'DRAFT' | 'APPROVED' | 'PENDING') ?? 'DRAFT',
-          }),
-        ),
-      );
-    } catch (error) {
-      this.logger.error(
-        `Failed to enqueue creator upload SMS for product ${product.product_id}:`,
-        error instanceof Error ? error.message : error,
-      );
-    }
   }
 
   /** Generate a unique URL-safe slug */
@@ -713,9 +600,8 @@ export class CreatorUploadService {
   /**
    * Re-compute and persist flat arrays + inventory_count on the parent Product.
    *
-   * SINGLE SOURCE OF TRUTH: Product.inventory_count always equals the sum of
-   * all ProductColorVariant.stock values for that product. This method enforces
-   * that invariant whenever patterns or variants are created/removed.
+   * SINGLE SOURCE OF TRUTH: Product.inventory_count equals the sum of all
+   * ProductColorSizeStock rows for that product.
    *
    * Uses sequential awaits (not the fragile array-form $transaction) so that
    * a failure in image sync does not silently skip the inventory_count update.
@@ -729,6 +615,7 @@ export class CreatorUploadService {
           orderBy: { display_order: 'asc' },
           include: {
             images: { orderBy: [{ is_primary: 'desc' }, { order_index: 'asc' }] },
+            size_stocks: true,
           },
         },
       },
@@ -757,9 +644,25 @@ export class CreatorUploadService {
 
     // ✅ Compute the single-source-of-truth inventory count
     const totalInventory = patterns.reduce(
-      (sum, p) => sum + p.color_variants.reduce((s, cv) => s + cv.stock, 0),
+      (sum, p) =>
+        sum + p.color_variants.reduce((s, cv) => s + sumSizeStockRows(cv.size_stocks), 0),
       0,
     );
+
+    // Retrieve all active size-stock records to sync overall product sizes list
+    const sizeStocks = await this.prisma.productColorSizeStock.findMany({
+      where: {
+        variant: {
+          pattern: {
+            product_id: productId,
+          },
+        },
+      },
+      select: {
+        size: true,
+      },
+    });
+    const allSizes = Array.from(new Set(sizeStocks.map((ss) => ss.size)));
 
     // Step 1: Update the product's flat columns + inventory_count atomically
     // This MUST succeed — it is the most critical operation.
@@ -771,6 +674,8 @@ export class CreatorUploadService {
         metadata: { colors: allColors },
         // ✅ Keep flat inventory_count in sync with sum of variant stocks
         inventory_count: totalInventory,
+        // ✅ Sync product sizes list dynamically
+        sizes: allSizes,
         updated_at: new Date(),
       },
     });

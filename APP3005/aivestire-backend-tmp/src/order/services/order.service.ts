@@ -49,6 +49,8 @@ export class OrderService {
           select: {
             product_id: true,
             quantity: true,
+            size: true,
+            color: true,
             product: {
               select: {
                 inventory_count: true,
@@ -69,14 +71,65 @@ export class OrderService {
     }
 
     for (const item of order.items) {
-      OrderValidations.validateInventory(
-        item.product.inventory_count,
-        item.quantity,
-        item.product.title,
-      );
+      if (item.size && item.color) {
+        const variant = await tx.productColorVariant.findFirst({
+          where: {
+            pattern: { product_id: item.product_id },
+            color: item.color as any,
+          },
+          include: {
+            size_stocks: {
+              where: { size: item.size },
+            },
+          },
+        });
+
+        let stockCount = 0;
+        if (variant) {
+          const sizeStock = variant.size_stocks[0];
+          stockCount = sizeStock ? sizeStock.stock : 0;
+        }
+
+        OrderValidations.validateInventory(
+          stockCount,
+          item.quantity,
+          `${item.product.title} (Color: ${item.color}${item.size ? `, Size: ${item.size}` : ''})`,
+        );
+      } else {
+        OrderValidations.validateInventory(
+          item.product.inventory_count,
+          item.quantity,
+          item.product.title,
+        );
+      }
     }
 
     for (const item of order.items) {
+      if (item.size && item.color) {
+        const variant = await tx.productColorVariant.findFirst({
+          where: {
+            pattern: { product_id: item.product_id },
+            color: item.color as any,
+          },
+        });
+
+        if (variant) {
+          // Decrement in size stock table
+          await tx.productColorSizeStock.updateMany({
+            where: {
+              variant_id: variant.variant_id,
+              size: item.size,
+            },
+            data: {
+              stock: {
+                decrement: item.quantity,
+              },
+            },
+          });
+        }
+      }
+
+      // Decrement product flat inventory_count
       await tx.product.update({
         where: { product_id: item.product_id },
         data: {
@@ -106,6 +159,8 @@ export class OrderService {
           select: {
             product_id: true,
             quantity: true,
+            size: true,
+            color: true,
           },
         },
       },
@@ -120,6 +175,31 @@ export class OrderService {
     }
 
     for (const item of order.items) {
+      if (item.size && item.color) {
+        const variant = await tx.productColorVariant.findFirst({
+          where: {
+            pattern: { product_id: item.product_id },
+            color: item.color as any,
+          },
+        });
+
+        if (variant) {
+          // Increment in size stock table
+          await tx.productColorSizeStock.updateMany({
+            where: {
+              variant_id: variant.variant_id,
+              size: item.size,
+            },
+            data: {
+              stock: {
+                increment: item.quantity,
+              },
+            },
+          });
+        }
+      }
+
+      // Increment product flat inventory_count
       await tx.product.update({
         where: { product_id: item.product_id },
         data: {
@@ -184,6 +264,34 @@ export class OrderService {
 
     // Validate all products were found
     OrderValidations.validateProductsFound(products.length, productIds.length);
+
+    // ── Per-size stock pre-validation ──────────────────────────────────────
+    // For items with both size + color specified, check the granular
+    // ProductColorSizeStock table BEFORE creating the order so we fail
+    // early (before any DB write) rather than inside the transaction.
+    for (const item of dto.items) {
+      if (item.size && item.color) {
+        const variant = await this.prisma.productColorVariant.findFirst({
+          where: {
+            pattern: { product_id: item.productId },
+            color: item.color as any,
+          },
+          include: {
+            size_stocks: { where: { size: item.size } },
+          },
+        });
+
+        const sizeStock = variant?.size_stocks[0]?.stock ?? null;
+
+        if (sizeStock !== null && sizeStock < item.quantity) {
+          const product = products.find((p) => p.product_id === item.productId);
+          throw new BadRequestException(
+            `Insufficient stock for size ${item.size} in selected colour${product ? ` (${product.title})` : ''}. Only ${sizeStock} unit(s) available.`,
+          );
+        }
+      }
+    }
+    // ─────────────────────────────────────────────────────────────────────
 
     // COD and WALLET orders are instantly confirmed/booked. Prepaid wait for payment.
     const initialStatus = (dto.paymentMethod === PaymentMethod.COD || dto.paymentMethod === PaymentMethod.WALLET) ? OrderStatus.BOOKED : OrderStatus.PENDING;

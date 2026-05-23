@@ -6,6 +6,8 @@ import {
   Sparkles, Layers, Palette, Package2, Info,
   FolderTree, Tags, DollarSign,
 } from "lucide-react";
+
+import { BODY_SHAPE_ICONS } from "../../constants/body-shape-icons";
 import {
   Dialog,
   DialogContent,
@@ -23,18 +25,23 @@ import {
   type SkinToneValue,
   type ClothingColorValue,
 } from "@/constants/product-hierarchy.enums";
-import { createProductHierarchyFromFiles } from "@/api/creator-upload.api";
+import { createProductHierarchy, fileToDataUri } from "@/api/creator-upload.api";
+import {
+  parseStockInput,
+  commitSizeStockDrafts,
+} from "@/utils/inventory";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface ColorVariantForm {
   id: string;
   color: ClothingColorValue | "";
-  stock: number;
   skin_tones: SkinToneValue[];
   imageFiles: File[];
   imagePreviews: string[];
   errors: Record<string, string>;
+  size_stocks?: { [size: string]: number };
+  size_stock_drafts?: { [size: string]: string };
 }
 
 interface PatternForm {
@@ -51,9 +58,24 @@ interface PatternForm {
 const uid = () => Math.random().toString(36).slice(2, 9);
 
 const makeVariant = (): ColorVariantForm => ({
-  id: uid(), color: "", stock: 0, skin_tones: [],
+  id: uid(), color: "", skin_tones: [],
   imageFiles: [], imagePreviews: [], errors: {},
+  size_stocks: {}, size_stock_drafts: {},
 });
+
+function sumVariantStockDrafts(variant: ColorVariantForm): number {
+  const drafts = variant.size_stock_drafts ?? {};
+  const sizes = new Set([
+    ...Object.keys(variant.size_stocks ?? {}),
+    ...Object.keys(drafts),
+  ]);
+  let total = 0;
+  for (const sz of sizes) {
+    const raw = drafts[sz];
+    total += raw !== undefined ? parseStockInput(raw) : (variant.size_stocks?.[sz] ?? 0);
+  }
+  return total;
+}
 
 const makePattern = (): PatternForm => ({
   id: uid(), name: "", body_shapes: [], color_variants: [makeVariant()],
@@ -82,8 +104,8 @@ const SectionLabel = ({ children, hint, required }: {
 
 // Pill-style chip
 const Chip = ({
-  label, selected, onClick, swatchColor, emoji,
-}: { label: string; selected: boolean; onClick: () => void; swatchColor?: string; emoji?: string }) => (
+  label, selected, onClick, swatchColor, icon: Icon, iconClassName,
+}: { label: string; selected: boolean; onClick: () => void; swatchColor?: string; icon?: React.ComponentType<any>; iconClassName?: string }) => (
   <button
     type="button"
     onClick={onClick}
@@ -97,7 +119,7 @@ const Chip = ({
       boxShadow: selected ? "0 0 0 2px rgba(201,165,95,0.15)" : "none",
     }}
   >
-    {emoji && <span>{emoji}</span>}
+    {Icon && <Icon size={12} className={iconClassName} />}
     {swatchColor && (
       <span
         className="w-3 h-3 rounded-full border border-white/50 shadow-sm flex-shrink-0"
@@ -204,6 +226,8 @@ const ImageDropZone = ({ previews, onAdd, onRemove }: {
 
 // ─── Color Variant Card ───────────────────────────────────────────────────────
 
+const AVAILABLE_SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL'];
+
 const ColorVariantCard = ({ variant, varIdx, onChange, onRemove, canRemove }: {
   variant: ColorVariantForm; varIdx: number;
   onChange: (v: ColorVariantForm) => void;
@@ -225,6 +249,46 @@ const ColorVariantCard = ({ variant, varIdx, onChange, onRemove, canRemove }: {
     const nf = [...variant.imageFiles]; nf.splice(idx, 1);
     const np = [...variant.imagePreviews]; np.splice(idx, 1);
     onChange({ ...variant, imageFiles: nf, imagePreviews: np });
+  };
+
+  const handleSizeToggle = (size: string) => {
+    const stocks = { ...(variant.size_stocks || {}) };
+    const drafts = { ...(variant.size_stock_drafts || {}) };
+    if (size in stocks) {
+      delete stocks[size];
+      delete drafts[size];
+    } else {
+      stocks[size] = 0;
+      drafts[size] = "";
+    }
+    onChange({
+      ...variant,
+      size_stocks: stocks,
+      size_stock_drafts: drafts,
+      errors: { ...variant.errors, stock: "" },
+    });
+  };
+
+  const handleSizeStockDraftChange = (size: string, raw: string) => {
+    if (raw !== "" && !/^\d+$/.test(raw)) return;
+    onChange({
+      ...variant,
+      size_stock_drafts: { ...(variant.size_stock_drafts || {}), [size]: raw },
+      errors: { ...variant.errors, stock: "" },
+    });
+  };
+
+  const commitSizeStockDraft = (size: string) => {
+    const raw = variant.size_stock_drafts?.[size] ?? "";
+    const qty = parseStockInput(raw);
+    onChange({
+      ...variant,
+      size_stocks: { ...(variant.size_stocks || {}), [size]: qty },
+      size_stock_drafts: {
+        ...(variant.size_stock_drafts || {}),
+        [size]: qty === 0 ? "" : String(qty),
+      },
+    });
   };
 
   return (
@@ -258,25 +322,80 @@ const ColorVariantCard = ({ variant, varIdx, onChange, onRemove, canRemove }: {
         <FieldError msg={variant.errors.color} />
       </div>
 
-      {/* Stock */}
-      <div>
-        <SectionLabel required>Stock</SectionLabel>
-        <div className="flex items-center gap-2">
-          <input type="number" min={0} value={variant.stock}
-            onChange={e => onChange({ ...variant, stock: parseInt(e.target.value) || 0, errors: { ...variant.errors, stock: "" } })}
-            style={{ width: 90, padding: "8px 10px", borderRadius: 8, border: "1.5px solid rgba(201,165,95,0.3)", background: "rgba(255,255,255,0.85)", color: "#1a1408", fontSize: 13, fontWeight: 700, outline: "none" }}
-            onFocus={e => e.target.style.borderColor = "#C9A75F"}
-            onBlur={e => e.target.style.borderColor = "rgba(201,165,95,0.3)"}
-          />
-          <span className="text-[11px]" style={{ color: "rgba(44,36,22,0.45)" }}>units</span>
+      {/* Dynamic Size & Stock section */}
+      {variant.color && (
+        <div className="space-y-2 p-2.5 rounded-lg border bg-white/50" style={{ borderColor: "rgba(201,165,95,0.15)" }}>
+          <SectionLabel required hint="Choose available sizes and enter stock for each size.">
+            Available Sizes & Stock
+          </SectionLabel>
+          
+          {/* Size Chips */}
+          <div className="flex flex-wrap gap-1.5">
+            {AVAILABLE_SIZES.map(sz => {
+              const isSelected = sz in (variant.size_stocks || {});
+              return (
+                <button
+                  key={sz}
+                  type="button"
+                  onClick={() => handleSizeToggle(sz)}
+                  className="px-2.5 py-1 rounded-md text-[11px] font-semibold border transition-all"
+                  style={{
+                    borderColor: isSelected ? "#C9A75F" : "rgba(201,165,95,0.2)",
+                    background: isSelected ? "rgba(201,165,95,0.15)" : "rgba(255,255,255,0.7)",
+                    color: isSelected ? "#2C2416" : "rgba(44,36,22,0.6)",
+                  }}
+                >
+                  {sz}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Size Stock Input Fields */}
+          {Object.keys(variant.size_stocks || {}).length > 0 ? (
+            <div className="space-y-2 pt-2 border-t" style={{ borderColor: "rgba(201,165,95,0.1)" }}>
+              {Object.entries(variant.size_stocks || {}).map(([sz]) => (
+                <div key={sz} className="flex items-center justify-between gap-4 p-1.5 rounded bg-white/80">
+                  <span className="text-[11px] font-bold text-brown-800" style={{ color: "#2C2416" }}>Size {sz}</span>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      value={variant.size_stock_drafts?.[sz] ?? ""}
+                      placeholder="0"
+                      onChange={e => handleSizeStockDraftChange(sz, e.target.value)}
+                      onBlur={() => commitSizeStockDraft(sz)}
+                      className="w-20 px-2 py-1 text-xs font-bold rounded border text-right outline-none bg-white"
+                      style={{
+                        borderColor: "rgba(201,165,95,0.3)",
+                        color: "#1a1408",
+                      }}
+                    />
+                    <span className="text-[10px]" style={{ color: "rgba(44,36,22,0.5)" }}>units</span>
+                  </div>
+                </div>
+              ))}
+              
+              {/* Total Stock summary display */}
+              <div className="flex items-center justify-between pt-1 text-[11px] font-extrabold" style={{ color: "#C9A75F" }}>
+                <span>Total Variant Stock:</span>
+                <span>{sumVariantStockDrafts(variant)} units</span>
+              </div>
+            </div>
+          ) : (
+            <div className="text-[10px] text-center py-2 font-semibold" style={{ color: "rgba(44,36,22,0.4)" }}>
+              Select one or more sizes above to input stock levels
+            </div>
+          )}
+          <FieldError msg={variant.errors.stock} />
         </div>
-        <FieldError msg={variant.errors.stock} />
-      </div>
+      )}
 
       {/* Skin tones */}
       <div>
         <SectionLabel required hint="Which skin tones does this color complement?">Skin Tones</SectionLabel>
-        <div className="flex flex-wrap gap-1.5">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-1.5">
           {SKIN_TONES.map(st => (
             <button key={st.value} type="button"
               onClick={() => {
@@ -285,7 +404,7 @@ const ColorVariantCard = ({ variant, varIdx, onChange, onRemove, canRemove }: {
                   : [...variant.skin_tones, st.value];
                 onChange({ ...variant, skin_tones: next, errors: { ...variant.errors, skin_tones: "" } });
               }}
-              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-all"
+              className="inline-flex items-center justify-start gap-2 px-3 py-1.5 rounded-full text-[11px] font-semibold border transition-all w-full"
               style={{
                 borderColor: variant.skin_tones.includes(st.value) ? "#C9A75F" : "rgba(201,165,95,0.25)",
                 background: variant.skin_tones.includes(st.value)
@@ -293,8 +412,8 @@ const ColorVariantCard = ({ variant, varIdx, onChange, onRemove, canRemove }: {
                 color: variant.skin_tones.includes(st.value) ? "#2C2416" : "rgba(44,36,22,0.6)",
               }}
             >
-              <span className="w-3 h-3 rounded-full border border-white/40 shadow-sm" style={{ backgroundColor: st.hex }} />
-              {st.label}
+              <span className="w-3 h-3 rounded-full border border-white/40 shadow-sm shrink-0" style={{ backgroundColor: st.hex }} />
+              <span className="truncate">{st.label}</span>
             </button>
           ))}
         </div>
@@ -318,7 +437,7 @@ const PatternCard = ({ pattern, patIdx, onChange, onRemove, canRemove }: {
   onChange: (p: PatternForm) => void;
   onRemove: () => void; canRemove: boolean;
 }) => {
-  const totalStock = pattern.color_variants.reduce((s, v) => s + v.stock, 0);
+  const totalStock = pattern.color_variants.reduce((s, v) => s + sumVariantStockDrafts(v), 0);
 
   return (
     <div className="rounded-2xl overflow-hidden" style={{
@@ -339,7 +458,7 @@ const PatternCard = ({ pattern, patIdx, onChange, onRemove, canRemove }: {
           </div>
           <div>
             <p className="text-xs font-bold" style={{ color: "#2C2416" }}>
-              {pattern.name || `Pattern ${patIdx + 1}`}
+              {pattern.name || `Silhouette ${patIdx + 1}`}
             </p>
             <p className="text-[10px]" style={{ color: "rgba(44,36,22,0.45)" }}>
               {pattern.color_variants.length} color{pattern.color_variants.length !== 1 ? "s" : ""} · {totalStock} units
@@ -364,7 +483,7 @@ const PatternCard = ({ pattern, patIdx, onChange, onRemove, canRemove }: {
         <div className="p-4 space-y-4">
           {/* Pattern name */}
           <div>
-            <SectionLabel required hint='e.g. "Slim Fit", "Relaxed Fit"'>Pattern Name</SectionLabel>
+            <SectionLabel required hint='e.g. "Slim Fit", "Relaxed Fit"'>Silhouette Name</SectionLabel>
             <LuxeInput
               value={pattern.name}
               onChange={v => onChange({ ...pattern, name: v, errors: { ...pattern.errors, name: "" } })}
@@ -376,10 +495,12 @@ const PatternCard = ({ pattern, patIdx, onChange, onRemove, canRemove }: {
 
           {/* Body shapes */}
           <div>
-            <SectionLabel required hint="Which body shapes does this pattern suit?">Body Shapes</SectionLabel>
-            <div className="flex flex-wrap gap-1.5">
+            <SectionLabel required hint="Which body shapes does this silhouette suit?">Body Shapes</SectionLabel>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
               {BODY_SHAPES.map(bs => (
-                <Chip key={bs.value} label={bs.label} emoji={bs.icon}
+                <Chip key={bs.value} label={bs.label}
+                  icon={BODY_SHAPE_ICONS[bs.value]}
+                  iconClassName={`transition-all duration-300 ${pattern.body_shapes.includes(bs.value as BodyShapeValue) ? 'text-[#C9A75F]' : 'text-[#2C2416]/40'}`}
                   selected={pattern.body_shapes.includes(bs.value as BodyShapeValue)}
                   onClick={() => {
                     const next = pattern.body_shapes.includes(bs.value as BodyShapeValue)
@@ -498,7 +619,7 @@ const UploadCollectionModal = ({ open, onOpenChange, onSuccess, initialData }: U
 
     const updatedPatterns = patterns.map(p => {
       const patErr: Record<string, string> = {};
-      if (!p.name.trim()) { patErr.name = "Pattern name is required"; valid = false; }
+      if (!p.name.trim()) { patErr.name = "Silhouette name is required"; valid = false; }
       if (p.body_shapes.length === 0) { patErr.body_shapes = "Select at least one body shape"; valid = false; }
 
       const updatedVariants = p.color_variants.map(v => {
@@ -506,6 +627,7 @@ const UploadCollectionModal = ({ open, onOpenChange, onSuccess, initialData }: U
         if (!v.color) { vErr.color = "Select a color"; valid = false; }
         if (v.skin_tones.length === 0) { vErr.skin_tones = "Select at least one skin tone"; valid = false; }
         if (v.imageFiles.length === 0) { vErr.images = "Upload at least one image"; valid = false; }
+        if (sumVariantStockDrafts(v) <= 0) { vErr.stock = "Add stock for at least one size"; valid = false; }
         return { ...v, errors: vErr };
       });
       return { ...p, errors: patErr, color_variants: updatedVariants };
@@ -521,18 +643,31 @@ const UploadCollectionModal = ({ open, onOpenChange, onSuccess, initialData }: U
 
     setIsLoading(true);
     try {
-      const patternsPayload = patterns.map(p => ({
-        name: p.name,
-        body_shapes: p.body_shapes,
-        color_variants: p.color_variants.map(v => ({
-          color: v.color as ClothingColorValue,
-          stock: v.stock,
-          skin_tones: v.skin_tones,
-          images: v.imageFiles,
-        })),
-      }));
+      const patternsPayload = await Promise.all(
+        patterns.map(async p => ({
+          name: p.name,
+          body_shapes: p.body_shapes,
+          color_variants: await Promise.all(
+            p.color_variants.map(async v => ({
+              color: v.color as ClothingColorValue,
+              skin_tones: v.skin_tones,
+              images: await Promise.all(v.imageFiles.map(fileToDataUri)),
+              size_stocks: Object.entries(
+                commitSizeStockDrafts(
+                  Object.fromEntries(
+                    Object.keys(v.size_stocks || {}).map((s) => [
+                      s,
+                      v.size_stock_drafts?.[s] ?? String(v.size_stocks?.[s] ?? 0),
+                    ]),
+                  ),
+                ),
+              ).map(([size, stock]) => ({ size, stock })),
+            }))
+          ),
+        }))
+      );
 
-      const result = await createProductHierarchyFromFiles({
+      const result = await createProductHierarchy({
         title: title.trim(),
         description: description.trim() || undefined,
         price_cents: Math.round(parseFloat(price) * 100),
@@ -559,7 +694,7 @@ const UploadCollectionModal = ({ open, onOpenChange, onSuccess, initialData }: U
 
   // ── Render ──────────────────────────────────────────────────────────────
   const totalVariants = patterns.reduce((s, p) => s + p.color_variants.length, 0);
-  const totalStock = patterns.reduce((s, p) => s + p.color_variants.reduce((ss, v) => ss + v.stock, 0), 0);
+  const totalStock = patterns.reduce((s, p) => s + p.color_variants.reduce((ss, v) => ss + sumVariantStockDrafts(v), 0), 0);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -614,7 +749,7 @@ const UploadCollectionModal = ({ open, onOpenChange, onSuccess, initialData }: U
 
           {/* Flow steps */}
           <div className="flex items-center gap-2 mt-3 text-[10px]">
-            {[{ icon: Package2, label: "Product Info" }, { icon: Layers, label: "Patterns" }, { icon: Palette, label: "Colors" }].map(({ icon: Icon, label }, i) => (
+            {[{ icon: Package2, label: "Product Info" }, { icon: Layers, label: "Silhouettes" }, { icon: Palette, label: "Colors" }].map(({ icon: Icon, label }, i) => (
               <div key={i} className="flex items-center gap-1.5">
                 <div className="flex items-center gap-1 px-2 py-1 rounded-full"
                   style={{ background: "rgba(201,165,95,0.1)", border: "1px solid rgba(201,165,95,0.25)", color: "#2C2416" }}>
@@ -710,7 +845,7 @@ const UploadCollectionModal = ({ open, onOpenChange, onSuccess, initialData }: U
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-1.5">
                 <Layers size={14} style={{ color: "#C9A75F" }} />
-                <span className="text-xs font-bold" style={{ color: "#2C2416" }}>Patterns & Colors</span>
+                <span className="text-xs font-bold" style={{ color: "#2C2416" }}>Silhouettes & Colors</span>
               </div>
             </div>
 
@@ -719,7 +854,7 @@ const UploadCollectionModal = ({ open, onOpenChange, onSuccess, initialData }: U
               style={{ background: "rgba(201,165,95,0.07)", border: "1px solid rgba(201,165,95,0.2)" }}>
               <Info size={12} style={{ color: "#C9A75F", marginTop: 1, flexShrink: 0 }} />
               <p className="text-[11px]" style={{ color: "rgba(44,36,22,0.6)", lineHeight: 1.5 }}>
-                Add <strong>Patterns</strong> (fits like Slim/Relaxed), then inside each pattern add
+                Add <strong>Silhouettes</strong> (fits like Slim/Relaxed), then inside each silhouette add
                 <strong> Color Variants</strong> with stock and photos.
               </p>
             </div>
@@ -731,7 +866,7 @@ const UploadCollectionModal = ({ open, onOpenChange, onSuccess, initialData }: U
                     const next = [...patterns]; next[pi] = updated; setPatterns(next);
                   }}
                   onRemove={() => {
-                    if (!window.confirm("Remove this pattern?")) return;
+                    if (!window.confirm("Remove this silhouette?")) return;
                     setPatterns(prev => prev.filter((_, i) => i !== pi));
                   }}
                   canRemove={patterns.length > 1}
@@ -749,7 +884,7 @@ const UploadCollectionModal = ({ open, onOpenChange, onSuccess, initialData }: U
               onMouseOver={e => { e.currentTarget.style.borderColor = "#C9A75F"; e.currentTarget.style.background = "rgba(201,165,95,0.07)"; }}
               onMouseOut={e => { e.currentTarget.style.borderColor = "rgba(201,165,95,0.3)"; e.currentTarget.style.background = "rgba(201,165,95,0.03)"; }}
             >
-              <Plus size={13} /> Add Pattern
+              <Plus size={13} /> Add Silhouette
             </button>
           </div>
 

@@ -385,15 +385,71 @@ export class AdminService {
   }
 
   /**
-   * Update product inventory count
+   * Update product inventory count.
+   *
+   * @deprecated Use PATCH /admin/inventory/:id/stock which also handles
+   * per-variant size_stocks. This endpoint only updates the flat
+   * inventory_count and will NOT update ProductColorSizeStock rows.
+   * It exists for backward compatibility but should be migrated.
    */
   async updateProductStock(productId: string, inventoryCount: number) {
     const product = await this.prisma.product.findUnique({
       where: { product_id: productId },
+      include: {
+        patterns: {
+          include: {
+            color_variants: {
+              include: { size_stocks: true },
+            },
+          },
+        },
+      },
     });
 
     if (!product) {
       throw new NotFoundException(ADMIN_MESSAGES.ERRORS.PRODUCT_NOT_FOUND);
+    }
+
+    // If the product has no size_stocks configured, update the flat count directly.
+    // If size_stocks exist, we refuse to silently overwrite the aggregated value
+    // and instead return the current computed total to prevent desyncs.
+    const hasSizeStocks = product.patterns.some((p) =>
+      p.color_variants.some((cv) => cv.size_stocks.length > 0),
+    );
+
+    if (hasSizeStocks) {
+      // Recompute from size_stocks to keep aggregate accurate
+      const totalFromSizeStocks = product.patterns.reduce(
+        (total, pattern) =>
+          total +
+          pattern.color_variants.reduce(
+            (vTotal, cv) =>
+              vTotal + cv.size_stocks.reduce((sTotal, ss) => sTotal + ss.stock, 0),
+            0,
+          ),
+        0,
+      );
+
+      this.logger.warn(
+        `updateProductStock called for product ${productId} which has size_stocks. ` +
+          `Ignoring raw inventoryCount=${inventoryCount}; recomputed from size_stocks=${totalFromSizeStocks}. ` +
+          `Use PATCH /admin/inventory/:id/stock for granular control.`,
+      );
+
+      const updated = await this.prisma.product.update({
+        where: { product_id: productId },
+        data: {
+          inventory_count: totalFromSizeStocks,
+          updated_at: new Date(),
+        },
+      });
+
+      return {
+        message: 'Stock recalculated from size variants (per-size stocks exist). Use /admin/inventory/:id/stock for granular updates.',
+        product_id: updated.product_id,
+        inventory_count: updated.inventory_count,
+        has_size_stocks: true,
+      };
     }
 
     const updated = await this.prisma.product.update({
@@ -408,6 +464,7 @@ export class AdminService {
       message: 'Stock updated successfully',
       product_id: updated.product_id,
       inventory_count: updated.inventory_count,
+      has_size_stocks: false,
     };
   }
 

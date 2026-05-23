@@ -64,6 +64,16 @@ export class InventoryManagementController {
   }
 
   /**
+   * GET /admin/inventory/:id
+   *
+   * Fetch a single product's inventory details (including variant size stocks).
+   */
+  @Get(':id')
+  async getProductStockDetails(@Param('id') productId: string) {
+    return this.inventoryService.getProductStockDetails(productId);
+  }
+
+  /**
    * PATCH /admin/inventory/:id/stock
    *
    * Update stock count and optional label override for a single product.

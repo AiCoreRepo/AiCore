@@ -40,7 +40,32 @@ npm run script:check-db
 
 ---
 
-### 3. Seed 1-Rupee Test Product
+### 3. Fix product size stocks
+List or correct per-size inventory (`product_color_size_stocks`) for one product, then re-sync `Product.inventory_count`.
+
+```bash
+# List current stocks for a product
+npm run script:fix-size-stocks -- --product-id <product-uuid>
+
+# Preview corrections (dry run)
+npm run script:fix-size-stocks -- --product-id <product-uuid> --file scripts/examples/fix-size-stocks.example.json
+
+# Apply corrections
+npm run script:fix-size-stocks -- --product-id <product-uuid> --file my-corrections.json --apply
+```
+
+Copy `scripts/examples/fix-size-stocks.example.json` and replace `variant_id` / `color` / sizes with your values.
+
+### 4. Re-sync inventory totals
+Recompute `Product.inventory_count` from the sum of all size-stock rows (all hierarchy products).
+
+```bash
+npm run script:fix-inventory-sync
+```
+
+---
+
+### 5. Seed 1-Rupee Test Product
 Creates or updates a public approved product priced at exactly `₹1.00` for payment testing.
 
 ```bash

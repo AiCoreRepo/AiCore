@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { fetchInventoryDashboard, updateProductStock, bulkUpdateStock } from '../api/admin-inventory.api';
 import { useToast } from './use-toast';
+import { fetchInventoryDashboard, fetchProductStockDetails, updateProductStock, bulkUpdateStock } from '../api/admin-inventory.api';
 
 export function useAdminInventoryDashboard(params: {
   page?: number;
@@ -19,15 +19,33 @@ export function useAdminInventoryDashboard(params: {
   });
 }
 
+export function useProductStockDetails(productId: string | null) {
+  return useQuery({
+    queryKey: ['adminProductStockDetails', productId],
+    queryFn: () => (productId ? fetchProductStockDetails(productId) : null),
+    enabled: !!productId,
+  });
+}
+
 export function useUpdateProductStock() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: ({ productId, data }: { productId: string; data: { inventory_count: number; stock_label_override?: string | null } }) =>
-      updateProductStock(productId, data),
+    mutationFn: ({
+      productId,
+      data,
+    }: {
+      productId: string;
+      data: {
+        inventory_count: number;
+        stock_label_override?: string | null;
+        variants?: any[];
+      };
+    }) => updateProductStock(productId, data),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['adminInventory'] });
+      queryClient.invalidateQueries({ queryKey: ['adminProductStockDetails', variables.productId] });
       // Invalidate products query as well since stock changing affects product list optionally
       queryClient.invalidateQueries({ queryKey: ['adminProducts'] });
       toast({

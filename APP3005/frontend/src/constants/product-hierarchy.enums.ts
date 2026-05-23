@@ -3,15 +3,12 @@
 // ============================================================
 
 export const BODY_SHAPES = [
-  { value: 'HOURGLASS',         label: 'Hourglass',          icon: '⌛' },
-  { value: 'PEAR',              label: 'Pear',               icon: '🍐' },
-  { value: 'APPLE',             label: 'Apple',              icon: '🍎' },
-  { value: 'RECTANGLE',         label: 'Rectangle',          icon: '▭'  },
-  { value: 'INVERTED_TRIANGLE', label: 'Inverted Triangle',  icon: '🔺' },
-  { value: 'OVAL',              label: 'Oval',               icon: '⬭'  },
-  { value: 'ATHLETIC',          label: 'Athletic',           icon: '💪' },
-  { value: 'PETITE',            label: 'Petite',             icon: '🌸' },
-  { value: 'PLUS_SIZE',         label: 'Plus Size',          icon: '✨' },
+  { value: 'HOURGLASS',         label: 'Hourglass',          icon: 'Hourglass' },
+  { value: 'PEAR',              label: 'Pear',               icon: 'Activity'  },
+  { value: 'APPLE',             label: 'Apple',              icon: 'Apple'     },
+  { value: 'RECTANGLE',         label: 'Rectangle',          icon: 'RectangleHorizontal' },
+  { value: 'INVERTED_TRIANGLE', label: 'Inverted Triangle',  icon: 'Triangle'  },
+  { value: 'ATHLETIC',          label: 'Athletic',           icon: 'Dumbbell'  },
 ] as const;
 
 export type BodyShapeValue = typeof BODY_SHAPES[number]['value'];

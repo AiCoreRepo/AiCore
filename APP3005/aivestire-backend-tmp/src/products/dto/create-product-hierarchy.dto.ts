@@ -5,13 +5,12 @@ import {
   IsEnum,
   IsArray,
   Min,
-  Max,
   MaxLength,
   ValidateNested,
   ArrayMinSize,
   IsNotEmpty,
 } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Type, Transform } from 'class-transformer';
 import {
   BodyShape,
   SkinTone,
@@ -21,6 +20,20 @@ import {
 // ============================================
 // COLOR VARIANT DTO
 // ============================================
+
+export class SizeStockDto {
+  @IsString()
+  @IsNotEmpty()
+  size: string;
+
+  @Transform(({ value }) => {
+    const n = typeof value === 'number' ? value : parseInt(String(value ?? '').trim(), 10);
+    return Number.isFinite(n) && n >= 0 ? Math.min(n, 99999) : 0;
+  })
+  @IsInt()
+  @Min(0)
+  stock: number;
+}
 
 export class CreateColorVariantDto {
   /**
@@ -41,12 +54,14 @@ export class CreateColorVariantDto {
   hex_code?: string;
 
   /**
-   * Stock quantity for this specific color.
+   * Per-size stock for this color variant (required; sole source of truth).
    */
-  @IsInt()
-  @Min(0)
-  @Max(99999)
-  stock: number;
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => SizeStockDto)
+  @ArrayMinSize(1, { message: 'At least one size with stock is required per color variant' })
+  size_stocks: SizeStockDto[];
+
 
   /**
    * Skin tones this color suits best.

@@ -10,7 +10,7 @@ import { getProductById, getProductLikes, getProductComments } from "@/lib/api";
 import { CommentsModal } from "@/components/collection/CommentsModal";
 import { SizeChartModal } from "@/components/SizeChartModal";
 import { FashionStylistSection } from "@/components/FashionStylistSection";
-import { getSizeChart, getAvailableSizes } from "@/constants/sizeChart";
+import { getSizeChart } from "@/constants/sizeChart";
 import {
     TRYON_PROVIDER,
     getDefaultTryOnProvider,
@@ -27,6 +27,27 @@ interface Comment {
         user_id: string;
         email: string;
     };
+}
+
+interface SizeStock {
+    size_stock_id: string;
+    size: string;
+    stock: number;
+}
+
+interface ColorVariant {
+    variant_id: string;
+    color: string;
+    hex_code?: string | null;
+    thumbnail?: string | null;
+    images: Array<{ url: string; is_primary: boolean }>;
+    size_stocks: SizeStock[];
+}
+
+interface ProductPattern {
+    pattern_id: string;
+    name: string;
+    color_variants: ColorVariant[];
 }
 
 interface Product {
@@ -53,6 +74,23 @@ interface Product {
         verified: boolean;
     };
     metadata?: any;
+    patterns?: ProductPattern[];
+}
+
+/** Colour name → hex background for the swatch */
+const COLOR_DISPLAY: Record<string, string> = {
+    BLACK: "#000000", WHITE: "#FFFFFF", GREY: "#808080", CHARCOAL: "#36454F",
+    NAVY: "#001F5B", ROYAL_BLUE: "#4169E1", SKY_BLUE: "#87CEEB", TEAL: "#008080",
+    GREEN: "#008000", OLIVE_GREEN: "#6B8E23", MINT: "#98FF98", RED: "#DC143C",
+    MAROON: "#800000", PINK: "#FFC0CB", HOT_PINK: "#FF69B4", CORAL: "#FF7F50",
+    ORANGE: "#FF8C00", YELLOW: "#FFD700", GOLD: "#FFD700", BEIGE: "#F5F5DC",
+    CREAM: "#FFFDD0", BROWN: "#8B4513", CHOCOLATE: "#7B3F00", CARAMEL: "#C19A6B",
+    LAVENDER: "#E6E6FA", PURPLE: "#800080", INDIGO: "#4B0082", RUST: "#B7410E",
+    OFF_WHITE: "#FAF9F6", MULTI_COLOR: "#d946ef", PRINTED: "#C0A0B0", OTHER: "#D3D3D3",
+};
+
+function formatColorLabel(raw: string) {
+    return raw.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 const ProductDetailsPage = () => {
@@ -67,15 +105,14 @@ const ProductDetailsPage = () => {
     const [product, setProduct] = useState<Product | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [currentImageIndex, setCurrentImageIndex] = useState(0);
     const [showComments, setShowComments] = useState(false);
     const [showSizeChart, setShowSizeChart] = useState(false);
     const [showImageModal, setShowImageModal] = useState(false);
     const [modalImageIndex, setModalImageIndex] = useState(0);
     const [commentsCount, setCommentsCount] = useState(0);
     const [comments, setComments] = useState<Comment[]>([]);
-    const [likesCount, setLikesCount] = useState(0);
     const [selectedSize, setSelectedSize] = useState<string>('');
+    const [selectedColor, setSelectedColor] = useState<string>('');
     const [pincode, setPincode] = useState('');
 
     useEffect(() => {
@@ -85,6 +122,12 @@ const ProductDetailsPage = () => {
                 setLoading(true);
                 const data = await getProductById(id);
                 setProduct(data);
+
+                // Auto-select first colour variant if available
+                const firstVariant = data.patterns?.[0]?.color_variants?.[0];
+                if (firstVariant) {
+                    setSelectedColor(firstVariant.color);
+                }
 
                 try {
                     const commentsData = await getProductComments(id);
@@ -96,9 +139,8 @@ const ProductDetailsPage = () => {
 
                 try {
                     const likesData = await getProductLikes(id);
-                    setLikesCount(likesData.likesCount);
                 } catch (e) {
-                    setLikesCount(data.likes || 0);
+                    // ignore
                 }
             } catch (err) {
                 console.error("Failed to fetch product:", err);
@@ -113,56 +155,107 @@ const ProductDetailsPage = () => {
 
     const { user } = useAuth();
 
+    // Derive the active colour variant and its sizes from product.patterns
+    const allColorVariants: ColorVariant[] = (product?.patterns ?? []).flatMap(
+        (p) => p.color_variants
+    );
+
+    const activeVariant: ColorVariant | undefined = selectedColor
+        ? allColorVariants.find((cv) => cv.color === selectedColor)
+        : allColorVariants[0];
+
+    const variantSizesWithStock: SizeStock[] = activeVariant?.size_stocks ?? [];
+    const hasVariantSizes = variantSizesWithStock.length > 0;
+
+    const fallbackSizes: string[] = (() => {
+        if (!product) return [];
+        const meta = product.metadata;
+        if (meta?.sizes) {
+            return Array.isArray(meta.sizes)
+                ? meta.sizes
+                : String(meta.sizes).split(',').map((s: string) => s.trim());
+        }
+        return [];
+    })();
+
     const handleWishlistToggle = async () => {
         if (!product) return;
-
         if (!user) {
             toast({
                 title: "Login Required",
                 description: "Please login to add items to your wishlist.",
                 variant: "destructive",
             });
-            // Optional: redirect to login
             navigate('/login', { state: { returnUrl: location.pathname } });
             return;
         }
-
         try {
             await toggleWishlist(product.product_id);
         } catch (err: any) {
             console.error('Wishlist toggle error:', err);
-            // Error is already handled by WishlistContext
         }
     };
 
     const handleAddToCart = async () => {
         if (!product) return;
+
+        // Require size when sizes are available
+        if ((hasVariantSizes || fallbackSizes.length > 0) && !selectedSize) {
+            toast({
+                title: "Please select a size",
+                description: "Choose a size before adding to bag.",
+                variant: "destructive",
+            });
+            return;
+        }
+
+        // Require colour when colour variants are available
+        if (allColorVariants.length > 0 && !selectedColor) {
+            toast({
+                title: "Please select a colour",
+                description: "Choose a colour before adding to bag.",
+                variant: "destructive",
+            });
+            return;
+        }
+
+        // Client-side OOS guard
+        if (hasVariantSizes && selectedSize) {
+            const sizeRow = variantSizesWithStock.find((ss) => ss.size === selectedSize);
+            if (sizeRow && sizeRow.stock === 0) {
+                toast({
+                    title: "Out of stock",
+                    description: `Size ${selectedSize} is currently out of stock in this colour.`,
+                    variant: "destructive",
+                });
+                return;
+            }
+        }
+
         try {
             await addToCart({
                 product_id: product.product_id,
                 title: product.title,
-                thumbnail: product.thumbnail,
+                thumbnail: product.thumbnail ?? undefined,
                 price_cents: product.price_cents,
                 currency: product.currency,
                 quantity: 1,
+                size: selectedSize || undefined,
+                color: selectedColor || undefined,
                 creator: product.creator,
             });
-            // Toast is handled by CartContext with CartToast component
         } catch (error) {
             console.error('Error adding to cart:', error);
-            // Error toast is handled by CartContext
         }
     };
 
     const handleVirtualTryOn = (provider: TryOnProvider = defaultTryOnProvider) => {
         if (!product) return;
-
         const token = localStorage.getItem('access_token');
         if (!token) {
             navigate('/user-login', { state: { returnUrl: location.pathname } });
             return;
         }
-
         navigate('/ai-try-on', {
             state: {
                 autoTryOnProductId: product.product_id,
@@ -189,15 +282,8 @@ const ProductDetailsPage = () => {
 
     const formatPrice = (priceCents: number, currency: string) => {
         const price = priceCents / 100;
-        if (currency === "INR") {
-            return `₹${price.toLocaleString('en-IN')}`;
-        }
+        if (currency === "INR") return `₹${price.toLocaleString('en-IN')}`;
         return `$${price.toFixed(2)}`;
-    };
-
-    const calculateAverageRating = () => {
-        if (comments.length === 0) return 0;
-        return 4.5;
     };
 
     const openImageModal = (index: number) => {
@@ -239,18 +325,23 @@ const ProductDetailsPage = () => {
         );
     }
 
-    const productImages = product.images && product.images.length > 0
-        ? product.images
-        : (product.thumbnail ? [{ url: product.thumbnail, is_primary: true, order_index: 0 }] : []);
+    // Use active variant images if available, fall back to product images
+    const activeVariantImages =
+        activeVariant?.images && activeVariant.images.length > 0
+            ? activeVariant.images.map((img) => ({ ...img, order_index: 0 }))
+            : null;
+
+    const productImages =
+        activeVariantImages ??
+        (product.images && product.images.length > 0
+            ? product.images
+            : product.thumbnail
+            ? [{ url: product.thumbnail, is_primary: true, order_index: 0 }]
+            : []);
 
     const isInWishlistState = isInWishlist(product.product_id);
-    const averageRating = calculateAverageRating();
+    const averageRating = comments.length === 0 ? 0 : 4.5;
     const sizeChart = getSizeChart(product.category);
-    const availableSizes = product.metadata?.sizes
-        ? (Array.isArray(product.metadata.sizes)
-            ? product.metadata.sizes
-            : product.metadata.sizes.split(',').map((s: string) => s.trim()))
-        : getAvailableSizes(product.category);
 
     return (
         <div className="min-h-screen bg-white">
@@ -320,9 +411,7 @@ const ProductDetailsPage = () => {
                                 <span className="font-semibold">{averageRating.toFixed(1)}</span>
                                 <Star className="w-3 h-3 fill-current" />
                             </div>
-                            <span className="text-gray-600">
-                                {commentsCount} Ratings
-                            </span>
+                            <span className="text-gray-600">{commentsCount} Ratings</span>
                         </div>
 
                         {/* Price */}
@@ -330,18 +419,58 @@ const ProductDetailsPage = () => {
                             <span className="text-2xl font-bold text-gray-900">
                                 {formatPrice(product.price_cents, product.currency)}
                             </span>
-                            <span className="text-sm text-green-600 font-medium">
-                                inclusive of all taxes
-                            </span>
+                            <span className="text-sm text-green-600 font-medium">inclusive of all taxes</span>
                         </div>
 
-                        {/* Size Selection */}
-                        {availableSizes.length > 0 && (
+                        {/* ─── Colour Variant Selector ─── */}
+                        {allColorVariants.length > 0 && (
+                            <div className="pb-3 border-b">
+                                <div className="flex items-center gap-2 mb-2">
+                                    <h3 className="text-sm font-semibold text-gray-900 uppercase">Colour</h3>
+                                    {selectedColor && (
+                                        <span className="text-sm text-gray-500">— {formatColorLabel(selectedColor)}</span>
+                                    )}
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                    {allColorVariants.map((cv) => {
+                                        const bg = cv.hex_code || COLOR_DISPLAY[cv.color] || "#D3D3D3";
+                                        const isSelected = selectedColor === cv.color;
+                                        const totalStock = cv.size_stocks.reduce((s, ss) => s + ss.stock, 0);
+                                        const isOos = cv.size_stocks.length > 0 && totalStock === 0;
+                                        return (
+                                            <button
+                                                key={cv.variant_id}
+                                                title={`${formatColorLabel(cv.color)}${isOos ? ' (Out of stock)' : ''}`}
+                                                onClick={() => {
+                                                    if (isOos) return;
+                                                    setSelectedColor(cv.color);
+                                                    setSelectedSize('');
+                                                }}
+                                                className={[
+                                                    "relative w-9 h-9 rounded-full border-2 transition-all",
+                                                    isSelected ? "border-[#D4AF37] scale-110 shadow-md" : "border-gray-300 hover:border-gray-500",
+                                                    isOos ? "opacity-40 cursor-not-allowed" : "cursor-pointer",
+                                                ].join(' ')}
+                                                style={{ background: bg }}
+                                                aria-label={formatColorLabel(cv.color)}
+                                            >
+                                                {isOos && (
+                                                    <span className="absolute inset-0 flex items-center justify-center">
+                                                        <span className="block w-[120%] h-px bg-gray-600 rotate-45 origin-center" />
+                                                    </span>
+                                                )}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* ─── Size Selection ─── */}
+                        {(hasVariantSizes || fallbackSizes.length > 0) && (
                             <div className="pb-3 border-b">
                                 <div className="flex items-center justify-between mb-2">
-                                    <h3 className="text-sm font-semibold text-gray-900 uppercase">
-                                        Select Size
-                                    </h3>
+                                    <h3 className="text-sm font-semibold text-gray-900 uppercase">Select Size</h3>
                                     <button
                                         onClick={() => setShowSizeChart(true)}
                                         className="text-sm text-[#D4AF37] font-semibold hover:text-[#C9A55C]"
@@ -350,19 +479,55 @@ const ProductDetailsPage = () => {
                                     </button>
                                 </div>
                                 <div className="flex flex-wrap gap-2">
-                                    {availableSizes.map((size) => (
-                                        <button
-                                            key={size}
-                                            onClick={() => setSelectedSize(size)}
-                                            className={`w-12 h-12 rounded-full border-2 font-medium text-sm transition-all ${selectedSize === size
-                                                ? 'border-[#D4AF37] bg-[#FEF9F0] text-[#D4AF37]'
-                                                : 'border-gray-300 text-gray-700 hover:border-gray-400'
-                                                }`}
-                                        >
-                                            {size}
-                                        </button>
-                                    ))}
+                                    {hasVariantSizes
+                                        ? variantSizesWithStock.map((ss) => {
+                                              const isOos = ss.stock === 0;
+                                              const isSelected = selectedSize === ss.size;
+                                              return (
+                                                  <button
+                                                      key={ss.size_stock_id}
+                                                      onClick={() => !isOos && setSelectedSize(ss.size)}
+                                                      title={isOos ? "Out of stock" : `${ss.stock} left`}
+                                                      className={[
+                                                          "w-12 h-12 rounded-full border-2 font-medium text-sm transition-all",
+                                                          isSelected
+                                                              ? "border-[#D4AF37] bg-[#FEF9F0] text-[#D4AF37]"
+                                                              : isOos
+                                                              ? "border-gray-200 text-gray-300 cursor-not-allowed line-through"
+                                                              : "border-gray-300 text-gray-700 hover:border-gray-400",
+                                                      ].join(' ')}
+                                                  >
+                                                      {ss.size}
+                                                  </button>
+                                              );
+                                          })
+                                        : fallbackSizes.map((size) => (
+                                              <button
+                                                  key={size}
+                                                  onClick={() => setSelectedSize(size)}
+                                                  className={[
+                                                      "w-12 h-12 rounded-full border-2 font-medium text-sm transition-all",
+                                                      selectedSize === size
+                                                          ? "border-[#D4AF37] bg-[#FEF9F0] text-[#D4AF37]"
+                                                          : "border-gray-300 text-gray-700 hover:border-gray-400",
+                                                  ].join(' ')}
+                                              >
+                                                  {size}
+                                              </button>
+                                          ))}
                                 </div>
+                                {/* Low stock warning */}
+                                {selectedSize && hasVariantSizes && (() => {
+                                    const ss = variantSizesWithStock.find((s) => s.size === selectedSize);
+                                    if (ss && ss.stock > 0 && ss.stock <= 3) {
+                                        return (
+                                            <p className="mt-2 text-xs text-orange-500 font-medium">
+                                                ⚠ Only {ss.stock} left in this size!
+                                            </p>
+                                        );
+                                    }
+                                    return null;
+                                })()}
                             </div>
                         )}
 
@@ -377,10 +542,11 @@ const ProductDetailsPage = () => {
                             </button>
                             <button
                                 onClick={handleWishlistToggle}
-                                className={`px-6 py-3 rounded font-semibold border-2 transition-colors ${isInWishlistState
-                                    ? 'border-[#D4AF37] text-[#D4AF37] bg-[#FEF9F0]'
-                                    : 'border-gray-300 text-gray-700 hover:border-gray-400'
-                                    }`}
+                                className={`px-6 py-3 rounded font-semibold border-2 transition-colors ${
+                                    isInWishlistState
+                                        ? "border-[#D4AF37] text-[#D4AF37] bg-[#FEF9F0]"
+                                        : "border-gray-300 text-gray-700 hover:border-gray-400"
+                                }`}
                             >
                                 WISHLIST
                             </button>
@@ -417,9 +583,7 @@ const ProductDetailsPage = () => {
                         <div className="pt-3 border-t">
                             <div className="flex items-center gap-2 mb-2">
                                 <Truck className="w-5 h-5 text-gray-600" />
-                                <h3 className="text-sm font-semibold text-gray-900 uppercase">
-                                    Delivery Options
-                                </h3>
+                                <h3 className="text-sm font-semibold text-gray-900 uppercase">Delivery Options</h3>
                             </div>
                             <div className="flex gap-2">
                                 <input
@@ -438,9 +602,7 @@ const ProductDetailsPage = () => {
 
                         {/* Product Details */}
                         <div className="pt-3 border-t space-y-2">
-                            <h3 className="text-sm font-semibold text-gray-900 uppercase">
-                                Product Details
-                            </h3>
+                            <h3 className="text-sm font-semibold text-gray-900 uppercase">Product Details</h3>
                             <div className="text-sm text-gray-600 space-y-1">
                                 <p>{product.description || "Premium quality product with excellent craftsmanship."}</p>
                                 {product.metadata?.material && (
@@ -464,8 +626,8 @@ const ProductDetailsPage = () => {
                             <div className="flex items-start gap-3">
                                 <RotateCcw className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
                                 <div>
-                                    <p className="text-sm font-medium text-gray-900">Easy 7-day Return & Exchange</p>
-                                    <p className="text-xs text-gray-600">Free & hassle-free returns</p>
+                                    <p className="text-sm font-medium text-gray-900">Easy 7-day Return &amp; Exchange</p>
+                                    <p className="text-xs text-gray-600">Free &amp; hassle-free returns</p>
                                 </div>
                             </div>
                         </div>
@@ -475,9 +637,7 @@ const ProductDetailsPage = () => {
                 {/* Reviews Section */}
                 <div className="mt-10 border-t pt-8">
                     <div className="flex items-center justify-between mb-6">
-                        <h2 className="text-xl font-bold text-gray-900">
-                            Ratings & Reviews
-                        </h2>
+                        <h2 className="text-xl font-bold text-gray-900">Ratings &amp; Reviews</h2>
                         <button
                             onClick={() => setShowComments(true)}
                             className="px-4 py-2 border border-[#D4AF37] text-[#D4AF37] rounded font-medium hover:bg-[#FEF9F0] transition-colors"
@@ -487,7 +647,6 @@ const ProductDetailsPage = () => {
                     </div>
 
                     <div className="grid md:grid-cols-3 gap-6">
-                        {/* Rating Summary */}
                         <div className="md:col-span-1">
                             <div className="flex items-end gap-3 mb-4">
                                 <div className="text-4xl font-bold text-gray-900">{averageRating.toFixed(1)}</div>
@@ -496,23 +655,8 @@ const ProductDetailsPage = () => {
                                     <p className="text-sm text-gray-600 mt-1">{commentsCount} Ratings</p>
                                 </div>
                             </div>
-                            <div className="space-y-2">
-                                {[5, 4, 3, 2, 1].map((stars) => (
-                                    <div key={stars} className="flex items-center gap-2">
-                                        <span className="text-sm w-2">{stars}</span>
-                                        <Star className="w-3 h-3 fill-gray-300 text-gray-300" />
-                                        <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
-                                            <div
-                                                className="h-full bg-green-600"
-                                                style={{ width: `${Math.random() * 100}%` }}
-                                            />
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
                         </div>
 
-                        {/* Reviews List */}
                         <div className="md:col-span-2 space-y-4">
                             {comments.length > 0 ? (
                                 comments.map((comment) => (
@@ -529,20 +673,13 @@ const ProductDetailsPage = () => {
                                         {comment.image_urls && comment.image_urls.length > 0 && (
                                             <div className="flex gap-2">
                                                 {comment.image_urls.map((url, i) => (
-                                                    <img
-                                                        key={i}
-                                                        src={url}
-                                                        alt="Review"
-                                                        className="w-16 h-16 object-cover rounded"
-                                                    />
+                                                    <img key={i} src={url} alt="Review" className="w-16 h-16 object-cover rounded" />
                                                 ))}
                                             </div>
                                         )}
                                         <p className="text-xs text-gray-500 mt-2">
                                             {new Date(comment.created_at).toLocaleDateString('en-US', {
-                                                day: 'numeric',
-                                                month: 'long',
-                                                year: 'numeric'
+                                                day: 'numeric', month: 'long', year: 'numeric',
                                             })}
                                         </p>
                                     </div>
@@ -576,7 +713,6 @@ const ProductDetailsPage = () => {
                     >
                         <X className="w-8 h-8" />
                     </button>
-
                     <button
                         onClick={prevImage}
                         className="absolute left-4 top-1/2 -translate-y-1/2 text-white hover:text-gray-300 transition-colors"
@@ -584,7 +720,6 @@ const ProductDetailsPage = () => {
                     >
                         <ChevronLeft className="w-10 h-10" />
                     </button>
-
                     <div className="max-w-4xl max-h-[90vh] flex items-center justify-center">
                         <img
                             src={productImages[modalImageIndex]?.url}
@@ -592,7 +727,6 @@ const ProductDetailsPage = () => {
                             className="max-w-full max-h-[90vh] object-contain"
                         />
                     </div>
-
                     <button
                         onClick={nextImage}
                         className="absolute right-4 top-1/2 -translate-y-1/2 text-white hover:text-gray-300 transition-colors"
@@ -600,7 +734,6 @@ const ProductDetailsPage = () => {
                     >
                         <ChevronRight className="w-10 h-10" />
                     </button>
-
                     <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white text-sm">
                         {modalImageIndex + 1} / {productImages.length}
                     </div>

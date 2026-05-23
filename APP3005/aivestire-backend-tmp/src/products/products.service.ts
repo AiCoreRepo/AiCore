@@ -171,6 +171,24 @@ export class ProductsService {
             comments_count: true,
           },
         },
+        patterns: {
+          orderBy: { display_order: 'asc' },
+          include: {
+            color_variants: {
+              orderBy: { display_order: 'asc' },
+              include: {
+                images: {
+                  orderBy: [{ is_primary: 'desc' }, { order_index: 'asc' }],
+                  select: { url: true, is_primary: true },
+                },
+                size_stocks: {
+                  orderBy: { size: 'asc' },
+                  select: { size_stock_id: true, size: true, stock: true },
+                },
+              },
+            },
+          },
+        },
         category_rel: true,
         sub_category_rel: true,
       },
@@ -212,6 +230,19 @@ export class ProductsService {
         verified: product.creator.verified,
       },
       metadata: product.metadata,
+      // Colour variant hierarchy with per-size stock data
+      patterns: product.patterns.map((pattern) => ({
+        pattern_id: pattern.pattern_id,
+        name: pattern.name,
+        color_variants: pattern.color_variants.map((cv) => ({
+          variant_id: cv.variant_id,
+          color: cv.color,
+          hex_code: cv.hex_code,
+          thumbnail: cv.images.find((img) => img.is_primary)?.url || cv.images[0]?.url || null,
+          images: cv.images,
+          size_stocks: cv.size_stocks, // [{ size_stock_id, size, stock }]
+        })),
+      })),
     };
   }
 

@@ -21,9 +21,14 @@ export const fetchInventoryDashboard = async (params: {
   return response.data;
 };
 
+export const fetchProductStockDetails = async (productId: string) => {
+  const response = await adminInventoryApi.get(`/${productId}`);
+  return response.data;
+};
+
 export const updateProductStock = async (
   productId: string,
-  data: { inventory_count: number; stock_label_override?: string | null }
+  data: { inventory_count: number; stock_label_override?: string | null; variants?: any[] }
 ) => {
   const response = await adminInventoryApi.patch(`/${productId}/stock`, data);
   return response.data;

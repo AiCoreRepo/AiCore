@@ -39,32 +39,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   const logout = () => {
-    console.log('🚪 Logging out user...');
     localStorage.removeItem('access_token');
     localStorage.removeItem('user_name');
     localStorage.removeItem('user_email');
     setUser(null);
-    console.log('✅ User logged out successfully');
-
     // Redirect to home page
     window.location.href = '/';
   };
 
   const fetchUser = async () => {
-    console.log('🔄 fetchUser called');
     setLoading(true);
     try {
       const token = localStorage.getItem('access_token');
       if (!token) {
-        console.log('❌ No token found, skipping fetch');
         setUser(null);
         setLoading(false);
         return;
       }
 
-      console.log('📡 Fetching user profile from /auth/me...');
       const userData = await fetchProfile();
-      console.log('📦 Received user data:', userData);
 
       // Map backend 'name' to 'store_name' if needed
       const mappedUser = {
@@ -78,36 +71,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUser(mappedUser);
       localStorage.setItem('user_email', mappedUser.email);
       localStorage.setItem('user_name', getUserDisplayName(mappedUser));
-      console.log('✅ User authenticated:', userData.email, '| Role:', userData.role);
-      console.log('👤 User state set to:', mappedUser);
     } catch (error) {
-      console.error('❌ Failed to fetch user profile:', error);
-      console.error('🔍 Error details:', (error as Error).message);
-
       // Check if it's an authentication error (401)
       const apiError = error as { status?: number };
       if (apiError.status === 401) {
-        console.log('🔒 Token expired or invalid, logging out...');
         logout();
       } else {
         setUser(null);
         localStorage.removeItem('user_name');
         localStorage.removeItem('user_email');
-        console.log('👤 User state set to: null');
       }
     } finally {
       setLoading(false);
-      console.log('⏸️ Loading set to: false');
     }
   };
 
   // Validate token on mount
   useEffect(() => {
     const token = localStorage.getItem('access_token');
-    console.log('🔍 Checking auth token:', token ? '✅ Token exists' : '❌ No token');
 
     if (token) {
-      // Validate the token by fetching user profile
       fetchUser();
     } else {
       setUser(null);
@@ -119,7 +102,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     // Listen for storage changes (login/logout from other tabs)
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === 'access_token') {
-        console.log('🔄 Token changed in storage');
         const newToken = e.newValue;
         if (newToken) {
           fetchUser();
@@ -133,7 +115,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     // Listen for custom auth-refresh event (for same-tab login)
     const handleAuthRefresh = () => {
-      console.log('🔄 Auth refresh event triggered');
       const currentToken = localStorage.getItem('access_token');
       if (currentToken) {
         fetchUser();
@@ -146,7 +127,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     // Listen for custom auth-error event (for 401 errors from API calls)
     const handleAuthError = () => {
-      console.log('🔒 Auth error event triggered - logging out');
       logout();
     };
 
