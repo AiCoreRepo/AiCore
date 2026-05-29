@@ -2,7 +2,6 @@ import { useRef } from "react";
 import { Navbar } from "@/components/Navbar";
 import { Hero } from "@/components/Hero";
 import { ValueCards } from "@/components/ValueCards";
-import { StoryDetailSections } from "@/components/StoryDetailSections";
 import { ValueFlowSection } from "@/components/ValueFlowSection";
 import { ArtisanTestimonials } from "@/components/ArtisanTestimonials";
 import { Footer } from "@/components/Footer";
@@ -18,7 +17,6 @@ const Index = () => {
             <main className="relative">
                 <Hero />
                 <ValueCards />
-                <StoryDetailSections />
                 <ValueFlowSection />
                 <ArtisanTestimonials />
             </main>

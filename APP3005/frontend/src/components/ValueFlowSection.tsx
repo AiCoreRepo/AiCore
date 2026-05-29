@@ -36,9 +36,9 @@ export const ValueFlowSection = () => {
         {/* Storytelling Grid */}
         <div data-gsap-group="ecosystem-grid" className="mb-12 grid grid-cols-1 gap-5 sm:mb-16 sm:gap-6 md:grid-cols-3 md:gap-8 lg:mb-24">
           {/* Card 1: Creators */}
-          <div data-gsap="ecosystem-card" data-gsap-hover="lift-card" className="group relative flex flex-col items-center overflow-hidden rounded-[2rem] border border-white/10 bg-white/5 p-6 text-center transition-transform duration-500 hover:-translate-y-2 sm:p-8">
-            <div className="mb-5 h-44 w-full overflow-hidden rounded-xl sm:mb-6 sm:h-48">
-              <img data-gsap="ecosystem-image" src={IMG.storyLoomHands} alt="Creators" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" style={{ filter: "brightness(0.85)" }} />
+          <div data-gsap="ecosystem-card" data-gsap-hover="lift-card" className="group relative flex flex-col items-center overflow-hidden rounded-[2rem] border border-white/10 bg-white/5 p-5 xs:p-6 sm:p-8 text-center transition-transform duration-500 hover:-translate-y-2">
+            <div className="mb-4 h-32 xs:h-40 sm:h-48 w-full overflow-hidden rounded-xl">
+              <img data-gsap="ecosystem-image" src={IMG.jaipurArtisansThread} alt="Creators" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" style={{ filter: "brightness(0.85)" }} />
             </div>
             <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-full border border-[#D4AF37]/30 bg-white/10 sm:mb-6 sm:h-14 sm:w-14">
               <Brush className="w-6 h-6 text-[#D4AF37]" />
@@ -50,8 +50,8 @@ export const ValueFlowSection = () => {
           </div>
 
           {/* Card 2: The Bridge (AI) */}
-          <div data-gsap="ecosystem-card" data-gsap-hover="lift-card" className="group relative flex translate-y-0 flex-col items-center overflow-hidden rounded-[2rem] border border-[#D4AF37]/30 bg-gradient-to-b from-[#D4AF37]/10 to-transparent p-6 text-center shadow-[0_0_40px_rgba(212,175,55,0.08)] transition-transform duration-500 hover:-translate-y-2 sm:p-8 lg:translate-y-8">
-            <div className="relative mb-5 h-44 w-full overflow-hidden rounded-xl sm:mb-6 sm:h-48">
+          <div data-gsap="ecosystem-card" data-gsap-hover="lift-card" className="group relative flex translate-y-0 flex-col items-center overflow-hidden rounded-[2rem] border border-[#D4AF37]/30 bg-gradient-to-b from-[#D4AF37]/10 to-transparent p-5 xs:p-6 sm:p-8 text-center shadow-[0_0_40px_rgba(212,175,55,0.08)] transition-transform duration-500 hover:-translate-y-2 lg:translate-y-8">
+            <div className="relative mb-4 h-32 xs:h-40 sm:h-48 w-full overflow-hidden rounded-xl">
               <img data-gsap="ecosystem-image" src={IMG.aiBridge} alt="The Bridge" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" style={{ filter: "brightness(0.9)" }} />
               <div className="absolute inset-0 bg-[#D4AF37]/20 mix-blend-overlay" />
             </div>
@@ -65,9 +65,9 @@ export const ValueFlowSection = () => {
           </div>
 
           {/* Card 3: The Users */}
-          <div data-gsap="ecosystem-card" data-gsap-hover="lift-card" className="group relative flex flex-col items-center overflow-hidden rounded-[2rem] border border-white/10 bg-white/5 p-6 text-center transition-transform duration-500 hover:-translate-y-2 sm:p-8">
-            <div className="mb-5 h-44 w-full overflow-hidden rounded-xl sm:mb-6 sm:h-48">
-              <img data-gsap="ecosystem-image" src={IMG.jaipurShopWomen} alt="Users" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" style={{ filter: "brightness(0.85)" }} />
+          <div data-gsap="ecosystem-card" data-gsap-hover="lift-card" className="group relative flex flex-col items-center overflow-hidden rounded-[2rem] border border-white/10 bg-white/5 p-5 xs:p-6 sm:p-8 text-center transition-transform duration-500 hover:-translate-y-2">
+            <div className="mb-4 h-32 xs:h-40 sm:h-48 w-full overflow-hidden rounded-xl">
+              <img data-gsap="ecosystem-image" src={IMG.jaipurWomenGroup} alt="Users" className="w-full h-full object-cover object-top transition-transform duration-700 group-hover:scale-110" style={{ filter: "brightness(0.85)" }} />
             </div>
             <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-full border border-[#D4AF37]/30 bg-white/10 sm:mb-6 sm:h-14 sm:w-14">
               <HeartHandshake className="w-6 h-6 text-[#D4AF37]" />

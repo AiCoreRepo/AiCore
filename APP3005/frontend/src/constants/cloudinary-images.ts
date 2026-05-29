@@ -79,6 +79,14 @@ export const HOMEPAGE_IMAGES = {
   auraHeritage: 'aivestire/homepage/aura-heritage',
   /** aura-avant-garde.png (1024×1024, 117KB) */
   auraAvantGarde: 'aivestire/homepage/aura-avant-garde',
+  /** aura-minimal-saree.jpg — Indian model in ivory white silk saree */
+  auraMinimalSaree: 'aivestire/homepage/aura-minimal-saree',
+  /** aura-bold-saree.jpg — Indian model in teal Kanjivaram saree */
+  auraBoldSaree: 'aivestire/homepage/aura-bold-saree',
+  /** aura-heritage-saree.jpg — Indian model in red Banarasi saree at palace */
+  auraHeritageSaree: 'aivestire/homepage/aura-heritage-saree',
+  /** aura-avantgarde-saree.jpg — Indian model in mint fusion saree */
+  auraAvantgardeSaree: 'aivestire/homepage/aura-avantgarde-saree',
   /** story-loom-hands.png (736×1104, 137KB) */
   storyLoomHands: 'aivestire/homepage/story-loom-hands',
   /** ai-bridge.png (1024×1024, 177KB) */
@@ -121,6 +129,10 @@ export const IMG = {
   auraBold: cloudinaryUrl(HOMEPAGE_IMAGES.auraBold),
   auraHeritage: cloudinaryUrl(HOMEPAGE_IMAGES.auraHeritage),
   auraAvantGarde: cloudinaryUrl(HOMEPAGE_IMAGES.auraAvantGarde),
+  auraMinimalSaree: cloudinaryUrl(HOMEPAGE_IMAGES.auraMinimalSaree, { w: 800, crop: 'fill' }),
+  auraBoldSaree: cloudinaryUrl(HOMEPAGE_IMAGES.auraBoldSaree, { w: 800, crop: 'fill' }),
+  auraHeritageSaree: cloudinaryUrl(HOMEPAGE_IMAGES.auraHeritageSaree, { w: 800, crop: 'fill' }),
+  auraAvantgardeSaree: cloudinaryUrl(HOMEPAGE_IMAGES.auraAvantgardeSaree, { w: 800, crop: 'fill' }),
   storyLoomHands: cloudinaryUrl(HOMEPAGE_IMAGES.storyLoomHands),
   aiBridge: cloudinaryUrl(HOMEPAGE_IMAGES.aiBridge),
   avatarArtisan1: cloudinaryUrl(HOMEPAGE_IMAGES.avatarArtisan1),

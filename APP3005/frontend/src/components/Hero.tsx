@@ -100,7 +100,7 @@ export const Hero = () => {
                 <div className="flex justify-start">
                     <div
                         data-gsap="hero-panel"
-                        className="hero-panel-glass relative mx-auto w-full max-w-[88vw] overflow-hidden rounded-[1.65rem] border border-white/12 sm:mx-0 sm:max-w-4xl sm:rounded-[2rem] sm:border-white/14"
+                        className="hero-panel-glass relative mx-auto w-full max-w-[94vw] overflow-hidden rounded-[1.65rem] border border-white/12 sm:mx-0 sm:max-w-4xl sm:rounded-[2rem] sm:border-white/14"
                     >
                         <div
                             data-gsap="hero-panel-shimmer"
@@ -152,7 +152,7 @@ export const Hero = () => {
                                     <span
                                         data-gsap="hero-title-line"
                                         className="block"
-                                        style={{ fontSize: "clamp(2.15rem, 10vw, 5rem)" }}
+                                        style={{ fontSize: "clamp(1.75rem, 8.5vw, 5rem)" }}
                                     >
                                         Where Artisans
                                     </span>
@@ -161,7 +161,7 @@ export const Hero = () => {
                                     <span
                                         data-gsap="hero-title-line"
                                         className="block"
-                                        style={{ fontSize: "clamp(2.15rem, 10vw, 5rem)" }}
+                                        style={{ fontSize: "clamp(1.75rem, 8.5vw, 5rem)" }}
                                     >
                                         Meet{" "}
                                         <span
@@ -230,11 +230,11 @@ export const Hero = () => {
                             </div>
 
                             {/* Stats */}
-                            <div data-gsap="hero-stats" className="mt-6 grid gap-2 border-t border-white/10 pt-4 xs:grid-cols-3 sm:mt-10 sm:gap-3 sm:pt-8">
+                            <div data-gsap="hero-stats" className="mt-6 grid grid-cols-3 gap-1.5 border-t border-white/10 pt-4 sm:mt-10 sm:gap-3 sm:pt-8">
                                 {heroStats.map((item) => (
                                     <div
                                         key={item.label}
-                                        className="rounded-[1rem] border border-white/10 px-3 py-3 sm:rounded-[1.25rem] sm:px-4 sm:py-4"
+                                        className="rounded-[0.75rem] border border-white/10 px-2 py-2.5 text-center sm:rounded-[1.25rem] sm:px-4 sm:py-4"
                                         style={{ background: "rgba(255,255,255,0.04)" }}
                                     >
                                         <div
@@ -244,14 +244,14 @@ export const Hero = () => {
                                             data-count-decimals={item.decimals ?? 0}
                                             className="font-serif leading-none"
                                             style={{
-                                                fontSize: "clamp(2rem, 3vw, 2.7rem)",
+                                                fontSize: "clamp(1.1rem, 4vw, 2.7rem)",
                                                 color: "rgba(255,255,255,0.96)",
                                             }}
                                         >
                                             {item.value}
                                         </div>
                                         <div
-                                            className="mt-2.5 text-[9px] uppercase tracking-[0.18em] xs:tracking-[0.2em] sm:mt-3 sm:text-[10px] sm:tracking-[0.28em]"
+                                            className="mt-1 text-[7.5px] uppercase tracking-[0.1em] xs:tracking-[0.15em] sm:mt-3 sm:text-[10px] sm:tracking-[0.28em] leading-tight"
                                             style={{
                                                 color: "rgba(255,255,255,0.56)",
                                             }}
