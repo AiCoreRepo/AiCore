@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { ArrowRight, X, Upload, Scan, Wand2, Sparkles } from "lucide-react";
+import { ArrowRight, Upload, Scan, Wand2, Sparkles } from "lucide-react";
 import { IMG } from "@/constants/cloudinary-images";
 
 /* ─── STORY CARD DATA ─────────────────────────────────────── */
@@ -491,24 +491,20 @@ const StoryCard = ({
               textTransform: "uppercase",
               letterSpacing: "0.24em",
               fontWeight: 600,
-              color: isActive ? `hsl(44 78% 78%)` : `hsl(44 78% 72%)`,
+              color: `hsl(44 78% 72%)`,
               transform: hovered || isActive ? "translateX(6px)" : "translateX(0)",
               transition: "transform 0.35s ease, color 0.3s ease",
             }}
           >
-            {isActive ? "Close" : card.ctaLabel}
-            {isActive ? (
-              <X style={{ width: 15, height: 15, opacity: 1 }} />
-            ) : (
-              <ArrowRight
-                style={{
-                  width: 15,
-                  height: 15,
-                  opacity: hovered ? 1 : 0.6,
-                  transition: "opacity 0.3s ease",
-                }}
-              />
-            )}
+            {card.ctaLabel}
+            <ArrowRight
+              style={{
+                width: 15,
+                height: 15,
+                opacity: hovered || isActive ? 1 : 0.6,
+                transition: "opacity 0.3s ease",
+              }}
+            />
           </div>
         </div>
       </div>
