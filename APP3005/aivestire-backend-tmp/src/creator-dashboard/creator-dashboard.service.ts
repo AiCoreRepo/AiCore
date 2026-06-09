@@ -1078,4 +1078,216 @@ export class CreatorDashboardService {
       message: 'Product submitted for approval',
     };
   }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // STOCK MANAGEMENT — dedicated endpoints for creator stock updates
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /**
+   * GET /creator-dashboard/stock-management
+   *
+   * Returns all non-deleted products for the creator with the full
+   * Pattern → ColorVariant → SizeStock hierarchy so the frontend can
+   * render the stock management tree without a separate "expand" call.
+   */
+  async getCreatorStockManagement(userId: string) {
+    const creatorId = await this.getCreatorIdFromUserId(userId);
+
+    const products = await this.prisma.product.findMany({
+      where: {
+        creator_id: creatorId,
+        is_deleted: false,
+      },
+      orderBy: { created_at: 'desc' },
+      include: {
+        category_rel: { select: { name: true } },
+        sub_category_rel: { select: { name: true } },
+        patterns: {
+          orderBy: { display_order: 'asc' },
+          include: {
+            color_variants: {
+              orderBy: { display_order: 'asc' },
+              include: {
+                images: {
+                  orderBy: [{ is_primary: 'desc' }, { order_index: 'asc' }],
+                  take: 1, // only primary image per variant for list view
+                },
+                size_stocks: {
+                  orderBy: { size: 'asc' },
+                },
+              },
+            },
+          },
+        },
+        images: {
+          where: { is_primary: true },
+          take: 1,
+        },
+      },
+    });
+
+    return products.map((product) => {
+      const totalStock = product.patterns.reduce(
+        (productSum, pattern) =>
+          productSum +
+          pattern.color_variants.reduce(
+            (variantSum, variant) =>
+              variantSum +
+              variant.size_stocks.reduce((s, ss) => s + ss.stock, 0),
+            0,
+          ),
+        0,
+      );
+
+      const stockLabel =
+        totalStock === 0 ? 'OUT_OF_STOCK' : totalStock <= 10 ? 'LOW' : 'OK';
+
+      const mappedStatus =
+        product.status === ProductStatus.APPROVED
+          ? 'Active'
+          : product.status === ProductStatus.REJECTED
+            ? 'Rejected'
+            : product.status === ProductStatus.DRAFT
+              ? 'Draft'
+              : 'Pending';
+
+      return {
+        product_id: product.product_id,
+        title: product.title,
+        status: mappedStatus,
+        primary_image: product.images[0]?.url ?? null,
+        price_cents: product.price_cents,
+        currency: product.currency,
+        inventory_count: product.inventory_count,
+        total_stock: totalStock,
+        stock_label: stockLabel,
+        category_name: product.category_rel?.name ?? null,
+        sub_category_name: product.sub_category_rel?.name ?? null,
+        created_at: product.created_at,
+        updated_at: product.updated_at,
+        patterns: product.patterns.map((pattern) => ({
+          pattern_id: pattern.pattern_id,
+          name: pattern.name,
+          body_shapes: pattern.body_shapes,
+          display_order: pattern.display_order,
+          color_variants: pattern.color_variants.map((variant) => {
+            const variantStock = variant.size_stocks.reduce(
+              (s, ss) => s + ss.stock,
+              0,
+            );
+            return {
+              variant_id: variant.variant_id,
+              color: variant.color,
+              hex_code: variant.hex_code ?? null,
+              display_order: variant.display_order,
+              primary_image: variant.images[0]?.url ?? null,
+              total_stock: variantStock,
+              stock_label:
+                variantStock === 0
+                  ? 'OUT_OF_STOCK'
+                  : variantStock <= 10
+                    ? 'LOW'
+                    : 'OK',
+              size_stocks: variant.size_stocks.map((ss) => ({
+                size_stock_id: ss.size_stock_id,
+                size: ss.size,
+                stock: ss.stock,
+                stock_label:
+                  ss.stock === 0 ? 'OUT_OF_STOCK' : ss.stock <= 10 ? 'LOW' : 'OK',
+              })),
+            };
+          }),
+        })),
+      };
+    });
+  }
+
+  /**
+   * PATCH /creator-dashboard/stock-management/:variantId/sizes/:size
+   *
+   * Updates a single ProductColorSizeStock row for the given variant + size.
+   * Verifies the creator owns the product before making any changes.
+   * Re-syncs Product.inventory_count after the update.
+   */
+  async updateVariantSizeStock(
+    userId: string,
+    variantId: string,
+    size: string,
+    newStock: number,
+  ) {
+    const creatorId = await this.getCreatorIdFromUserId(userId);
+
+    // Resolve variant → pattern → product and verify creator ownership
+    const variant = await this.prisma.productColorVariant.findUnique({
+      where: { variant_id: variantId },
+      include: {
+        pattern: {
+          include: {
+            product: { select: { product_id: true, creator_id: true } },
+          },
+        },
+      },
+    });
+
+    if (!variant) {
+      throw new NotFoundException('Color variant not found');
+    }
+
+    const product = variant.pattern.product;
+
+    if (product.creator_id !== creatorId) {
+      throw new ForbiddenException(
+        'You do not have permission to update stock for this product',
+      );
+    }
+
+    // Find and update the specific size-stock row
+    const sizeStockRow = await this.prisma.productColorSizeStock.findUnique({
+      where: { variant_id_size: { variant_id: variantId, size } },
+    });
+
+    if (!sizeStockRow) {
+      throw new NotFoundException(
+        `Size "${size}" not found for this color variant`,
+      );
+    }
+
+    const updatedRow = await this.prisma.productColorSizeStock.update({
+      where: { size_stock_id: sizeStockRow.size_stock_id },
+      data: { stock: newStock, updated_at: new Date() },
+    });
+
+    // Re-sync Product.inventory_count from all size-stock rows
+    const { _sum } = await this.prisma.productColorSizeStock.aggregate({
+      where: {
+        variant: {
+          pattern: { product_id: product.product_id },
+        },
+      },
+      _sum: { stock: true },
+    });
+
+    await this.prisma.product.update({
+      where: { product_id: product.product_id },
+      data: { inventory_count: _sum.stock ?? 0, updated_at: new Date() },
+    });
+
+    this.logger.log(
+      `Stock updated by creator ${creatorId}: variant=${variantId} size=${size} stock=${newStock}`,
+    );
+
+    return {
+      size_stock_id: updatedRow.size_stock_id,
+      variant_id: variantId,
+      size: updatedRow.size,
+      stock: updatedRow.stock,
+      stock_label:
+        updatedRow.stock === 0
+          ? 'OUT_OF_STOCK'
+          : updatedRow.stock <= 10
+            ? 'LOW'
+            : 'OK',
+      product_inventory_count: _sum.stock ?? 0,
+    };
+  }
 }
