@@ -43,6 +43,10 @@ import {
   type TryOnHistoryItem,
   type TryOnHistoryResponse,
 } from "@/lib/try-on-history";
+import {
+  getProductImageUrl,
+  type ProductImageSource,
+} from "@/lib/product-image";
 import _ from "lodash";
 import type { PublicProduct } from "@/hooks/usePublicProducts";
 
@@ -66,16 +70,7 @@ interface AuraData {
   extra_attributes: any;
 }
 
-interface ProductImage {
-  url: string;
-  is_primary?: boolean;
-  order_index?: number;
-}
-
-type TryOnProduct = PublicProduct & {
-  images?: ProductImage[];
-  thumbnail?: string | null;
-};
+type TryOnProduct = PublicProduct & ProductImageSource;
 
 type TryOnResult = {
   success: boolean;
@@ -88,12 +83,6 @@ type AutoTryOnNavigationState = {
   autoTryOnProductId?: string;
   autoTryOnProvider?: TryOnProvider;
   autoTryOnProduct?: TryOnProduct;
-};
-
-const getProductImageUrl = (product: TryOnProduct): string | null => {
-  const primaryImage = _.find(product.images, (image) => image.is_primary);
-  const fallbackImage = primaryImage ?? _.head(product.images);
-  return fallbackImage?.url ?? product.thumbnail ?? null;
 };
 
 const getAvatarImageUrl = (aura: AuraData | null): string | null =>
@@ -359,10 +348,14 @@ const AiTryOn = () => {
               ((await getProductById(productId)) as TryOnProduct));
         resolvedProductLabel = product?.title || fallbackProductLabel;
         const avatarImage = getAvatarImageUrl(aura);
-        const clothingImage = product ? getProductImageUrl(product) : null;
+        const clothingImage = product
+          ? getProductImageUrl(product, { requireRemote: true })
+          : null;
 
         if (!avatarImage || !clothingImage) {
-          throw new Error("Try-on requires both avatar and clothing images");
+          throw new Error(
+            "Try-on requires your avatar and a public clothing image.",
+          );
         }
 
         setCurrentGarmentImage(clothingImage); // Set garment image for modal header
@@ -385,10 +378,14 @@ const AiTryOn = () => {
 
         resolvedProductLabel = product?.title || fallbackProductLabel;
         const avatarImage = getAvatarImageUrl(aura);
-        const clothingImage = product ? getProductImageUrl(product) : null;
+        const clothingImage = product
+          ? getProductImageUrl(product, { requireRemote: true })
+          : null;
 
         if (!avatarImage || !clothingImage) {
-          throw new Error("Try-on requires both avatar and clothing images");
+          throw new Error(
+            "Try-on requires your avatar and a public clothing image.",
+          );
         }
 
         setCurrentGarmentImage(clothingImage); // Set garment image for modal header

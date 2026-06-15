@@ -1,7 +1,7 @@
 import { Sparkles, Zap } from 'lucide-react';
-import _ from 'lodash';
 import { useState } from 'react';
 import { ProductDetailsModal } from '@/components/collection/ProductDetailsModal';
+import { getProductImageUrl } from '@/lib/product-image';
 
 interface Product {
     product_id: string;
@@ -36,9 +36,7 @@ export function ClothingItemCard({
     const [imageLoaded, setImageLoaded] = useState(false);
     const [showDetails, setShowDetails] = useState(false);
 
-    const primaryImage = _.find(product.images, (image) => image.is_primary);
-    const fallbackImage = primaryImage ?? _.head(product.images);
-    const imageUrl = fallbackImage?.url ?? product.thumbnail ?? null;
+    const imageUrl = getProductImageUrl(product);
 
     const price = (product.price_cents / 100).toFixed(2);
     const resolvedPrimaryTryOnLabel =

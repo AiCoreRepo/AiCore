@@ -95,6 +95,9 @@ export function TryOnResultModal({
     null,
   );
   const lightboxHistoryActiveRef = useRef(false);
+  const chatScrollContainersRef = useRef<Record<string, HTMLDivElement | null>>(
+    {},
+  );
 
   // Progress State
   const [loadingProgress, setLoadingProgress] = useState(0);
@@ -352,17 +355,70 @@ export function TryOnResultModal({
     onComplimentComplete?.();
   };
 
-  // Prevent body scroll when modal or lightbox is open
+  // Prevent body scroll when modal or lightbox is open.
   useEffect(() => {
-    if (isOpen || isLightboxOpen) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "unset";
+    if (!isOpen && !isLightboxOpen) {
+      return;
     }
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
     return () => {
-      document.body.style.overflow = "unset";
+      document.body.style.overflow = previousOverflow;
     };
   }, [isOpen, isLightboxOpen]);
+
+  useEffect(() => {
+    if (!isOpen || !resultImage || loading || error) {
+      return;
+    }
+
+    const containers = Object.values(chatScrollContainersRef.current).filter(
+      (container): container is HTMLDivElement => Boolean(container),
+    );
+
+    if (containers.length === 0) {
+      return;
+    }
+
+    const scrollToBottom = (container: HTMLDivElement) => {
+      container.scrollTo({
+        top: container.scrollHeight,
+        behavior: "smooth",
+      });
+    };
+
+    const frameId = window.requestAnimationFrame(() => {
+      containers.forEach(scrollToBottom);
+    });
+
+    const observers = containers.map((container) => {
+      const observer = new MutationObserver(() => scrollToBottom(container));
+      observer.observe(container, {
+        childList: true,
+        characterData: true,
+        subtree: true,
+      });
+      return observer;
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frameId);
+      observers.forEach((observer) => observer.disconnect());
+    };
+  }, [
+    currentCompliment?.id,
+    error,
+    feedbackComment,
+    feedbackRating,
+    feedbackSubmitted,
+    hasCompletedUserPrompt,
+    isOpen,
+    loading,
+    resultImage,
+    showInlineFeedback,
+  ]);
 
   useEffect(() => {
     if (!isLightboxOpen) {
@@ -743,6 +799,7 @@ export function TryOnResultModal({
   const renderComplimentCard = (
     className = "",
     layout: "default" | "mobile" = "default",
+    scrollKey = "default",
   ) => {
     if (!currentCompliment || !resultImage || loading || error) {
       return null;
@@ -754,7 +811,7 @@ export function TryOnResultModal({
       <div
         className={`relative min-w-0 rounded-[24px] border border-[rgba(201,165,92,0.18)] md:rounded-[28px] ${
           isMobileLayout
-            ? "max-h-[46vh] overflow-hidden p-3.5 sm:max-h-[52vh]"
+            ? "max-h-[58dvh] overflow-hidden p-3.5 sm:max-h-[60dvh]"
             : "flex min-h-[18rem] flex-col overflow-hidden p-4 md:max-h-[40vh] md:p-5 lg:max-h-[42vh]"
         } ${className}`}
         style={{
@@ -773,6 +830,9 @@ export function TryOnResultModal({
           }}
         />
         <div
+          ref={(node) => {
+            chatScrollContainersRef.current[scrollKey] = node;
+          }}
           className={`relative min-w-0 flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain ${
             isMobileLayout ? "pr-0.5" : "pr-1"
           }`}
@@ -1107,7 +1167,7 @@ export function TryOnResultModal({
         </div>
 
         {/* Main Content */}
-        <div className="relative flex flex-1 flex-col gap-2.5 overflow-y-auto p-3 pb-24 sm:gap-4 sm:p-4 sm:pb-24 md:flex-row md:gap-5 md:overflow-hidden md:p-6 md:pb-6">
+        <div className="relative flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto overscroll-contain p-3 pb-32 sm:gap-4 sm:p-4 sm:pb-32 md:flex-row md:gap-5 md:overflow-hidden md:p-6 md:pb-6">
           {/* Left Sidebar - AI Insights (Desktop) */}
           {resultImage && !loading && !error && (
             <div className="hidden min-h-0 flex-col gap-4 slide-right xl:flex xl:w-[22rem] 2xl:w-[24rem]">
@@ -1173,7 +1233,7 @@ export function TryOnResultModal({
               </div>
 
               {/* Smart Tips Card */}
-              {renderComplimentCard("flex-1 min-h-0")}
+              {renderComplimentCard("flex-1 min-h-0", "default", "desktop")}
             </div>
           )}
 
@@ -1437,10 +1497,16 @@ export function TryOnResultModal({
               )}
             </div>
 
-            {renderComplimentCard("w-full flex-shrink-0 md:hidden", "mobile")}
+            {renderComplimentCard(
+              "w-full flex-shrink-0 md:hidden",
+              "mobile",
+              "mobile",
+            )}
 
             {renderComplimentCard(
               "hidden w-full flex-shrink-0 self-center md:block xl:hidden md:max-w-4xl lg:max-w-5xl",
+              "default",
+              "tablet",
             )}
           </div>
 

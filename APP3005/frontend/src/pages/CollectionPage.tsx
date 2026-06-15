@@ -43,6 +43,7 @@ import {
     type TryOnHistoryItem,
     type TryOnHistoryResponse,
 } from '@/lib/try-on-history';
+import { getProductImageUrl } from '@/lib/product-image';
 import _ from 'lodash';
 import type { PublicProduct } from '@/hooks/useInfinitePublicProducts';
 
@@ -58,12 +59,6 @@ import {
     loginOnboardingSlides,
     workflowDiscoveryGalleryImages,
 } from '@/constants/featureDiscovery';
-
-const getProductImageUrl = (product: PublicProduct): string | null => {
-    const primaryImage = _.find(product.images, (image) => image.is_primary);
-    const fallbackImage = primaryImage ?? _.head(product.images);
-    return fallbackImage?.url ?? product.thumbnail ?? null;
-};
 
 const getAvatarImageUrl = (aura: any): string | null =>
     aura?.tryon_model_url || aura?.model_url || aura?.image_url || null;
@@ -461,12 +456,14 @@ const CollectionPage = () => {
                 }
 
                 const avatarImage = getAvatarImageUrl(aura);
-                const clothingImage = getProductImageUrl(refreshedProduct);
+                const clothingImage = getProductImageUrl(refreshedProduct, {
+                    requireRemote: true,
+                });
                 resolvedProductLabel =
                     refreshedProduct.title || resolvedProductLabel;
 
                 if (!avatarImage || !clothingImage) {
-                    throw new Error('Try-on requires both avatar and clothing images');
+                    throw new Error('Try-on requires your avatar and a public clothing image.');
                 }
 
                 setCurrentGarmentImage(clothingImage);
@@ -479,10 +476,12 @@ const CollectionPage = () => {
                 });
             } else {
                 const avatarImage = getAvatarImageUrl(aura);
-                const clothingImage = getProductImageUrl(product);
+                const clothingImage = getProductImageUrl(product, {
+                    requireRemote: true,
+                });
 
                 if (!avatarImage || !clothingImage) {
-                    throw new Error('Try-on requires both avatar and clothing images');
+                    throw new Error('Try-on requires your avatar and a public clothing image.');
                 }
 
                 setCurrentGarmentImage(clothingImage);
