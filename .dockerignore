@@ -1,35 +1,81 @@
+# ──────────────────────────────────────────────────────────────────────────────
+# Root .dockerignore — the SINGLE ignore file Docker reads when the build
+# context is the repo root (`context: .`), which is the case for ALL four image
+# builds in .github/workflows/cd-k8s.yml.
+#
+# IMPORTANT: A `.dockerignore` placed next to a Dockerfile (e.g.
+# infra/docker/backend/.dockerignore) is NOT read by Docker for a root-context
+# build. Only BuildKit's `<dockerfile-path>.dockerignore` convention or this
+# root file are honored. We therefore keep ONE correct root file here.
+#
+# This is a DENYLIST: everything is included by default; we list what to exclude.
+# A denylist avoids the "re-include every parent directory" foot-gun that the
+# `*` + whitelist idiom suffers from, and guarantees every Dockerfile's COPY
+# instructions can find their sources.
+#
+# Each Dockerfile copies from a different tree, so this file must keep ALL of:
+#   • APP3005/aivestire-backend-tmp/{src,prisma,scripts,package*,tsconfig*,nest-cli}
+#   • APP3005/frontend/**            (Dockerfile copies the whole dir)
+#   • APP3005_AI/Playground/vertexVT/** (body-analyzer)
+#   • APP3005_AI/recommend_demo/{app,scripts,artifacts,*.toml,README,*.csv,reqs}
+# ──────────────────────────────────────────────────────────────────────────────
+
+# ── Version control & editor/CI metadata ──────────────────────────────────────
 .git
 .github
 .codex
-.env
-.env.*
-deploy
-docker
-docs
+.vscode
+.idea
+
+# ── Root-level docs (single-segment glob: only matches repo-root *.md) ─────────
+*.md
 Policies.pdf
-README.md
-DEPLOYMENT_GUIDE.md
-optimization-aura.md
-migration_prisma_commands_sync_Prod.md
-APP3005/node_modules
-APP3005/openapi.json
-APP3005/package-lock.json
-APP3005/package.json
-APP3005/docker-compose.yaml
-APP3005/SETUP_GUIDE.md
-APP3005/terms_condition_creator.md
-APP3005/scripts
-APP3005/frontend/node_modules
-APP3005/frontend/dist
-APP3005/aivestire-backend-tmp/node_modules
-APP3005/aivestire-backend-tmp/dist
-APP3005/aivestire-backend-tmp/test
-APP3005/aivestire-backend-tmp/.env
-APP3005/aivestire-backend-tmp/backup.sql
-APP3005/aivestire-backend-tmp/assets
-APP3005/aivestire-backend-tmp/collection-data
-APP3005/aivestire-backend-tmp/test-collection
-APP3005_AI/*
-!APP3005_AI/recommend_demo/
-APP3005_AI/recommend_demo/*
-!APP3005_AI/recommend_demo/main_train_data.csv
+docs/
+deploy/
+
+# ── Secrets / env — NEVER bake into an image ───────────────────────────────────
+**/.env
+**/.env.*
+*.pem
+*.key
+
+# ── Dependencies & build outputs (all languages, all services) ────────────────
+# NOTE: do NOT exclude **/*.sql — Prisma migrations are .sql and ARE needed.
+**/node_modules/
+**/dist/
+**/build/
+**/.next/
+**/coverage/
+
+# ── Python caches ──────────────────────────────────────────────────────────────
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/.pytest_cache/
+**/.mypy_cache/
+**/.venv/
+**/venv/
+
+# ── Logs & DB dumps ─────────────────────────────────────────────────────────────
+**/*.log
+**/backup.sql
+
+# ── Compose files (not consumed by any image build) ───────────────────────────
+docker-compose*.yml
+docker-compose*.yaml
+
+# ── Backend: heavy assets not needed inside the image ─────────────────────────
+APP3005/aivestire-backend-tmp/test/
+APP3005/aivestire-backend-tmp/assets/
+APP3005/aivestire-backend-tmp/collection-data/
+APP3005/aivestire-backend-tmp/test-collection/
+APP3005/aivestire-backend-tmp/admin-cloth-upload/
+APP3005/scripts/
+
+# ── AI: large training datasets / archives (keep main_train_data.csv) ──────────
+APP3005_AI/recommend_demo/training_main.csv
+APP3005_AI/recommend_demo/training_main_test.csv
+APP3005_AI/recommend_demo/training_main_train.csv
+APP3005_AI/recommend_demo/*.zip
+# ModelDemo & other Playground experiments are not part of any image build.
+APP3005_AI/ModelDemo/
