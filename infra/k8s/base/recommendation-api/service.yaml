@@ -1,0 +1,18 @@
+# infra/k8s/base/recommendation-api/service.yaml
+# ClusterIP — internal only. Backend calls http://recommendation-api:8799
+# NEVER expose externally — AI inference is a private internal API.
+apiVersion: v1
+kind: Service
+metadata:
+  name: recommendation-api
+  namespace: aivestire
+  labels:
+    app: recommendation-api
+    tier: ai
+spec:
+  selector:
+    app: recommendation-api
+  ports:
+    - name: http
+      port: 8799
+      targetPort: http

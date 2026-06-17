@@ -1,0 +1,310 @@
+# ──────────────────────────────────────────────────────────────────────────────
+# CI — Build & Test
+#
+# Responsibilities:
+#   1. Detect which service code actually changed (skip unnecessary work).
+#   2. Build & smoke-test the backend (the only compiled service in CI).
+#   3. Lint backend non-blockingly.
+#
+# Security contract:
+#   - permissions scoped to minimum (contents: read).
+#   - No real secrets needed in CI — only ephemeral CI-safe values.
+#   - Services (postgres, redis) use throwaway CI-only passwords — never real ones.
+#
+# This workflow is the ONLY gate before CD fires (cd-k8s.yml triggers via
+# workflow_run on this workflow's completion).
+# ──────────────────────────────────────────────────────────────────────────────
+name: CI — Build & Test
+
+on:
+  push:
+    branches: [test]
+  pull_request:
+    branches: [test]
+
+# Limit token to read-only; individual jobs request nothing more.
+permissions:
+  contents: read
+
+# Cancel stale CI runs on the same branch/PR when a new push arrives.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ────────────────────────────────────────────────────────────────────────────
+  # Job 0 — Change detection
+  # Tells downstream jobs what actually changed so we skip unnecessary work.
+  # Uses fetch-depth: 0 so dorny/paths-filter can diff against base ref.
+  # ────────────────────────────────────────────────────────────────────────────
+  changes:
+    name: Detect changed paths
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      any-code: ${{ steps.filter.outputs.any-code }}
+
+    steps:
+      - name: Checkout (shallow + history for diff)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect changed paths
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            backend:
+              - 'APP3005/aivestire-backend-tmp/**'
+              - 'infra/docker/backend/Dockerfile'
+            any-code:
+              - 'APP3005/**'
+              - 'APP3005_AI/**'
+              - 'infra/**'
+              - '.github/workflows/ci.yml'
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # Job 1 — Backend: install → build → unit tests → smoke check
+  #
+  # Skipped entirely when no backend files changed (saves ~5 min per push).
+  #
+  # Edge cases handled:
+  #   • start:prod:ci script missing → graceful fallback to start:prod
+  #   • dist/src/main.js missing after build → hard fail
+  #   • Postgres / Redis not ready after 60 s → hard fail with diagnostic output
+  #   • Backend process dies before health check → log tail + port dump
+  #   • Health check timeout → full log dumped
+  # ────────────────────────────────────────────────────────────────────────────
+  test-backend:
+    name: Backend — Build, Test & Smoke
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20      # hard cap — prevents runaway jobs burning minutes
+
+    # ── Ephemeral CI-only infrastructure ──────────────────────────────────────
+    # These passwords are CI-only throwaways and intentionally not real secrets.
+    # Real DB passwords never touch CI.
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: ci_user
+          POSTGRES_PASSWORD: ci_only_not_real
+          POSTGRES_DB: ci_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ci_user -d ci_db"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+    defaults:
+      run:
+        working-directory: APP3005/aivestire-backend-tmp
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: APP3005/aivestire-backend-tmp/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci --prefer-offline
+
+      - name: Build (prisma generate + nest build)
+        run: npm run build
+
+      - name: Assert dist/src/main.js exists
+        run: |
+          if [ ! -f dist/src/main.js ]; then
+            echo "❌ dist/src/main.js missing — nest build silently failed"
+            ls -la dist/ 2>/dev/null || echo "dist/ does not exist"
+            exit 1
+          fi
+          echo "✅ dist/src/main.js present ($(wc -c < dist/src/main.js) bytes)"
+
+      - name: Run unit tests
+        run: npm test --if-present
+
+      # ── Infra readiness ─────────────────────────────────────────────────────
+      # Services declare health-checks above, but runner-level TCP checks give
+      # a clearer failure message than "connection refused" from the app.
+      - name: Wait for Postgres to accept connections
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            if pg_isready -h 127.0.0.1 -p 5432 -U ci_user > /tmp/pg.log 2>&1; then
+              echo "✅ Postgres ready after ${i} probe(s)"; exit 0
+            fi
+            echo "  probe $i/30: not ready yet"; sleep 2
+          done
+          echo "❌ Postgres did not become ready in 60 s"; cat /tmp/pg.log; exit 1
+
+      - name: Wait for Redis to accept connections
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            if redis-cli -h 127.0.0.1 -p 6379 ping | grep -q PONG; then
+              echo "✅ Redis ready after ${i} probe(s)"; exit 0
+            fi
+            echo "  probe $i/30: not ready yet"; sleep 2
+          done
+          echo "❌ Redis did not become ready in 60 s"; exit 1
+
+      # ── API smoke check ──────────────────────────────────────────────────────
+      # Environment uses only CI-safe dummy values — no real credentials.
+      # SKIP_TWILIO / SKIP_SMS_IN_DEV prevent calls to external paid services.
+      - name: API smoke check
+        env:
+          PORT: "3000"
+          DATABASE_URL: postgresql://ci_user:ci_only_not_real@127.0.0.1:5432/ci_db
+          REDIS_HOST: "127.0.0.1"
+          REDIS_PORT: "6379"
+          JWT_SECRET: ci-jwt-only-not-real
+          JWT_EXPIRATION_TIME: 1h
+          JWT_REFRESH_EXPIRATION_TIME: 7d
+          ADMIN_JWT_SECRET: ci-admin-jwt-only-not-real
+          ADMIN_SECRET: ci-admin-only-not-real
+          NODE_ENV: test
+          SKIP_TWILIO: "true"
+          SKIP_SMS_IN_DEV: "true"
+          HEALTH_CHECK_STARTUP_TIMEOUT_MS: "90000"
+          PRISMA_CONNECT_RETRIES: "60"
+          PRISMA_CONNECT_RETRY_DELAY_MS: "1000"
+        run: |
+          set -euo pipefail
+          BACKEND_LOG="$PWD/backend-server.log"
+
+          # ── Resolve start script ─────────────────────────────────────────────
+          # package.json may or may not have start:prod:ci; use it if available.
+          START_SCRIPT="start:prod:ci"
+          if ! node -e \
+            "const p=require('./package.json'); process.exit(p.scripts?.['$START_SCRIPT'] ? 0 : 1)" \
+            2>/dev/null
+          then
+            echo "⚠️  'start:prod:ci' not in package.json — falling back to 'start:prod'"
+            START_SCRIPT="start:prod"
+          fi
+          echo "Using start script: $START_SCRIPT"
+
+          # ── Launch backend in background ─────────────────────────────────────
+          npm run "$START_SCRIPT" > "$BACKEND_LOG" 2>&1 &
+          BACKEND_PID=$!
+
+          # Always kill the backend, even on early exit from this step.
+          cleanup() {
+            if kill -0 "$BACKEND_PID" > /dev/null 2>&1; then
+              kill "$BACKEND_PID" > /dev/null 2>&1 || true
+              wait "$BACKEND_PID" 2>/dev/null || true
+            fi
+          }
+          trap cleanup EXIT
+
+          echo "Backend PID: $BACKEND_PID"
+
+          # ── Run smoke check ──────────────────────────────────────────────────
+          if ! npm run ci:health-check; then
+            echo ""
+            echo "❌ Smoke check FAILED"
+            echo "════ Backend log (last 200 lines) ════"
+            tail -n 200 "$BACKEND_LOG" || true
+            echo "════ Port 3000 listeners ════"
+            ss -tlnp 2>/dev/null | grep 3000 || echo "(nothing on :3000)"
+            echo "════ Node processes ════"
+            ps aux | grep -E '[n]ode|[n]pm' || true
+            exit 1
+          fi
+
+          echo "✅ Smoke check PASSED"
+
+      # Always dump the log so failures are diagnosable from the Actions UI.
+      - name: Upload backend log (always)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-server-log-${{ github.sha }}
+          path: APP3005/aivestire-backend-tmp/backend-server.log
+          if-no-files-found: ignore
+          retention-days: 3
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # Job 2 — Lint (non-blocking, informational only)
+  # Runs in parallel with test-backend; never gates CD.
+  # ────────────────────────────────────────────────────────────────────────────
+  lint-backend:
+    name: Backend — Lint (non-blocking)
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    continue-on-error: true   # lint failure NEVER blocks the pipeline
+
+    defaults:
+      run:
+        working-directory: APP3005/aivestire-backend-tmp
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: APP3005/aivestire-backend-tmp/package-lock.json
+      - run: npm ci --prefer-offline
+      - run: npm run lint --if-present
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # Job 3 — CI status rollup
+  #
+  # workflow_run in cd-k8s.yml watches for THIS workflow to complete with
+  # conclusion == 'success'. A workflow's overall conclusion is 'success' only
+  # when all required jobs pass. This rollup job ensures that even when
+  # test-backend is SKIPPED (no backend change), the workflow still concludes
+  # 'success' so CD can proceed.
+  #
+  # Rules:
+  #   • If test-backend ran and FAILED → this job fails → CD does NOT fire.
+  #   • If test-backend was SKIPPED  → this job passes → CD fires.
+  #   • lint-backend is continue-on-error=true → never contributes to failure.
+  # ────────────────────────────────────────────────────────────────────────────
+  ci-status:
+    name: CI — Status Gate
+    needs: [test-backend, lint-backend]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+
+    steps:
+      - name: Evaluate CI result
+        run: |
+          echo "test-backend result: ${{ needs.test-backend.result }}"
+          echo "lint-backend result: ${{ needs.lint-backend.result }}"
+
+          # 'skipped' means no backend files changed — that's a valid pass.
+          if [[ "${{ needs.test-backend.result }}" == "failure" || \
+                "${{ needs.test-backend.result }}" == "cancelled" ]]; then
+            echo "❌ CI gate FAILED — CD will not deploy"
+            exit 1
+          fi
+
+          echo "✅ CI gate PASSED"

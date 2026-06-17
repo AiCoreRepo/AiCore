@@ -1,0 +1,54 @@
+# infra/k8s/base/kustomization.yaml
+# Base resources — environment-agnostic.
+# Overlays (test, prod, staging) inherit from here.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  # Namespace must come first
+  - namespace.yaml
+
+  # Data layer
+  - postgres/statefulset.yaml
+  - postgres/service.yaml
+  - postgres/backup-cronjob.yaml
+
+  - redis/statefulset.yaml
+  - redis/service.yaml
+
+  # Application layer
+  - backend/deployment.yaml
+  - backend/service.yaml
+
+  - backend-worker/deployment.yaml
+
+  - frontend/deployment.yaml
+  - frontend/service.yaml
+
+  - body-analyzer/deployment.yaml
+  - body-analyzer/service.yaml
+
+  - recommendation-api/deployment.yaml
+  - recommendation-api/service.yaml
+
+  # Ingress + TLS
+  - ingress/clusterissuer.yaml
+  - ingress/ingress.yaml
+
+  # Network segmentation (lock down the data tier)
+  - networkpolicy/networkpolicies.yaml
+
+  # Secrets (SealedSecrets — safe to commit, cluster decrypts them)
+  #
+  # ⚠️  REQUIRED BEFORE FIRST DEPLOY — the workloads above reference these
+  #     Secrets and will CrashLoop / fail to start without them:
+  #       • postgres-secret  (postgres statefulset + backup cronjob)
+  #       • redis-secret     (redis statefulset)
+  #       • backend-secret   (backend deployment + worker)
+  #     Generate each with kubeseal (see secrets/README.md), commit the
+  #     resulting *-sealed-secret.yaml, then uncomment the matching line below.
+  #
+  # - secrets/postgres-sealed-secret.yaml
+  # - secrets/redis-sealed-secret.yaml
+  # - secrets/backend-sealed-secret.yaml
+  - secrets/registry-secret.yaml

@@ -1,0 +1,17 @@
+# infra/k8s/base/redis/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  namespace: aivestire
+  labels:
+    app: redis
+    tier: data
+spec:
+  clusterIP: None   # Headless — Bull connects to stable DNS redis-0.redis.aivestire
+  selector:
+    app: redis
+  ports:
+    - name: redis
+      port: 6379
+      targetPort: 6379

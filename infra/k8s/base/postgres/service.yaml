@@ -1,0 +1,22 @@
+# infra/k8s/base/postgres/service.yaml
+# Headless Service: clusterIP: None
+# This gives the StatefulSet pod a stable DNS name:
+#   postgres-0.postgres.aivestire.svc.cluster.local
+# The backend connects to: postgresql://...@postgres:5432/...
+# Kubernetes resolves `postgres` to the pod IP via the headless service.
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: aivestire
+  labels:
+    app: postgres
+    tier: data
+spec:
+  clusterIP: None   # Headless — DNS resolves directly to pod IP
+  selector:
+    app: postgres
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: 5432

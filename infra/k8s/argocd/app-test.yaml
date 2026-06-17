@@ -1,0 +1,59 @@
+# infra/k8s/argocd/app-test.yaml
+#
+# ArgoCD Application manifest for the `test` environment.
+#
+# Apply this ONCE manually to bootstrap ArgoCD:
+#   kubectl apply -f infra/k8s/argocd/app-test.yaml
+#
+# After that, ArgoCD takes over — it watches the git repo and syncs
+# automatically every time infra/k8s/overlays/test/ changes.
+# ──────────────────────────────────────────────────────────────────────────────
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: aivestire-test
+  namespace: argocd
+  # Finalizer ensures ArgoCD cleans up k8s resources when the Application
+  # is deleted (prevents orphaned pods/services if you ever remove the app).
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+
+  # ── Source: where ArgoCD reads manifests from ─────────────────────────────
+  source:
+    repoURL: https://github.com/AiCoreRepo/AiCore
+    # Watch the `test` branch — same branch the CD pipeline pushes to
+    targetRevision: test
+    # Path within the repo that contains the kustomization.yaml
+    path: infra/k8s/overlays/test
+
+  # ── Destination: where ArgoCD applies manifests to ────────────────────────
+  destination:
+    # Points to the cluster ArgoCD itself runs in
+    server: https://kubernetes.default.svc
+    namespace: aivestire
+
+  # ── Sync policy ───────────────────────────────────────────────────────────
+  syncPolicy:
+    automated:
+      # Delete resources from the cluster that are removed from git
+      prune: true
+      # Revert any manual `kubectl` changes — git is the only source of truth
+      selfHeal: true
+    syncOptions:
+      # Create the `aivestire` namespace if it doesn't exist
+      - CreateNamespace=true
+      # Propagate deletion to owned resources before removing the parent
+      - PrunePropagationPolicy=foreground
+      # Show a useful diff before applying (visible in ArgoCD UI)
+      - ApplyOutOfSyncOnly=true
+
+  # ── Retry on transient failures ──────────────────────────────────────────
+  # Useful when a pod OOMs or a StatefulSet volume isn't ready yet.
+  retry:
+    limit: 3
+    backoff:
+      duration: 10s
+      factor: 2
+      maxDuration: 3m

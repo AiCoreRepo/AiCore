@@ -1,0 +1,122 @@
+# infra/k8s/base/recommendation-api/deployment.yaml
+# ──────────────────────────────────────────────────────────────────────────────
+# Recommendation API — Python FastAPI + PyTorch CPU + CLIP
+#
+# This is the most resource-intensive service on the node.
+#
+# Production decisions:
+#   • 500m/1.5Gi request — CLIP model (ViT-B/32) loads ~600 MB of weights
+#     at startup. 1.5 GB request guarantees this pod gets a node with
+#     enough memory before scheduling.
+#   • 2000m/3Gi limit — CLIP inference + sentence-transformers can spike
+#     to 2-2.5 GB during concurrent recommendation requests.
+#   • startupProbe (90s initial + 20×10s = 290s max):
+#     CLIP model loading + CSV parsing on cold start = 60-90 seconds.
+#     This is the ONLY service where we need such a long startup window.
+#     The plan documents this explicitly. Without this, k8s restarts the
+#     pod in a crash loop before it even finishes loading.
+#   • /openapi.json as health endpoint: available as soon as FastAPI starts
+#     (before model is loaded). We use /openapi.json for startup/readiness.
+#     For liveness (model must be loaded), the recommendation endpoint
+#     itself would be better, but /openapi.json is the safest generic check.
+#   • RECOMMENDATION_COLLECTION_PATH: path to the CSV inside the container
+#     (baked in at build time, matches the COPY in the Dockerfile).
+#   • replicas: 1 — this service alone uses 1.5 GB RAM request.
+#     Running 2 replicas = 3 GB request + 3 GB limit = close to OOM on 12 GB node.
+# ──────────────────────────────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: recommendation-api
+  namespace: aivestire
+  labels:
+    app: recommendation-api
+    tier: ai
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: recommendation-api
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0   # Keep old pod alive until new one is fully ready
+
+  template:
+    metadata:
+      labels:
+        app: recommendation-api
+        tier: ai
+    spec:
+      # 3 min grace period: CLIP model unloads slowly; allow clean shutdown
+      terminationGracePeriodSeconds: 180
+
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+
+      containers:
+        - name: recommendation-api
+          image: REGISTRY/aivestire-recommendation-api:latest
+          ports:
+            - name: http
+              containerPort: 8799
+
+          env:
+            - name: PORT
+              value: "8799"
+            - name: PYTHONUNBUFFERED
+              value: "1"
+            - name: RECOMMENDATION_COLLECTION_PATH
+              value: /app/main_train_data.csv
+
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1536Mi   # 1.5 GB
+            limits:
+              cpu: "2"
+              memory: 3Gi     # 3 GB — CLIP model + CSV + inference headroom
+
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+
+          # ── Startup probe: long window for CLIP model load ─────────────────
+          # 90s initial delay + 20 retries × 10s period = 290s max startup time
+          # This covers the worst case: cold start on a busy node.
+          startupProbe:
+            httpGet:
+              path: /openapi.json
+              port: 8799
+            initialDelaySeconds: 90
+            periodSeconds: 10
+            failureThreshold: 20
+            timeoutSeconds: 10
+
+          # Once started, model stays in memory — fast readiness checks are fine
+          readinessProbe:
+            httpGet:
+              path: /openapi.json
+              port: 8799
+            periodSeconds: 15
+            timeoutSeconds: 10
+            failureThreshold: 3
+
+          livenessProbe:
+            httpGet:
+              path: /openapi.json
+              port: 8799
+            initialDelaySeconds: 0
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
+
+      imagePullSecrets:
+        - name: registry-secret

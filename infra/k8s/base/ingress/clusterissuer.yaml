@@ -1,0 +1,35 @@
+# infra/k8s/base/ingress/clusterissuer.yaml
+# ──────────────────────────────────────────────────────────────────────────────
+# cert-manager ClusterIssuer — Let's Encrypt production
+#
+# Prerequisites:
+#   kubectl apply -f https://github.com/cert-manager/cert-manager/releases/latest/download/cert-manager.yaml
+#
+# Production decisions:
+#   • HTTP-01 challenge (not DNS-01): simpler, no DNS provider credentials needed.
+#     cert-manager creates a temporary HTTP route that Let's Encrypt hits at:
+#     http://<domain>/.well-known/acme-challenge/<token>
+#   • letsencrypt-prod (not staging): staging certs are not trusted by browsers.
+#     Only use staging for testing to avoid rate limits.
+#   • Rate limits: Let's Encrypt allows 5 certificates per domain per week.
+#     Since we use nip.io (94.136.189.250.nip.io), each IP gets its own
+#     rate limit bucket. No issue for a single-node setup.
+#   • Email: replace with actual email to receive expiry warnings from LE.
+# ──────────────────────────────────────────────────────────────────────────────
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod
+spec:
+  acme:
+    # Let's Encrypt production ACME server
+    server: https://acme-v02.api.letsencrypt.org/directory
+    # LE sends cert-expiry warnings here. Change to a team/ops alias if desired.
+    email: gibpdev@wisflux.com
+    privateKeySecretRef:
+      # cert-manager stores the ACME account private key here
+      name: letsencrypt-prod-account-key
+    solvers:
+      - http01:
+          ingress:
+            class: nginx

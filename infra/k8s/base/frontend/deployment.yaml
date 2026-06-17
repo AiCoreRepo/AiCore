@@ -1,0 +1,88 @@
+# infra/k8s/base/frontend/deployment.yaml
+# ──────────────────────────────────────────────────────────────────────────────
+# Frontend — nginx serving Vite/React build
+#
+# Production decisions:
+#   • nginx is stateless — safe for RollingUpdate.
+#   • 50m/128Mi request: nginx is extremely lightweight.
+#     200m/256Mi limit: handles traffic spikes during peak usage.
+#   • Readiness: check nginx is serving HTTP 200 on root.
+#   • No imagePullSecrets on frontend if image is public — but keeping it
+#     consistent with other services (uses same registry-secret).
+# ──────────────────────────────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  namespace: aivestire
+  labels:
+    app: frontend
+    tier: web
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: frontend
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+
+  template:
+    metadata:
+      labels:
+        app: frontend
+        tier: web
+    spec:
+      terminationGracePeriodSeconds: 15
+
+      automountServiceAccountToken: false
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      # NOTE: stock nginx:alpine starts its master as root to spawn workers, so
+      # we don't set runAsNonRoot / drop ALL caps here (that needs SETUID/SETGID
+      # and writable temp paths). To run fully non-root, switch the frontend
+      # image to nginxinc/nginx-unprivileged and listen on a >1024 port.
+
+      containers:
+        - name: frontend
+          image: REGISTRY/aivestire-frontend:latest
+          ports:
+            - name: http
+              containerPort: 8080
+
+          # nginx doesn't need env vars — all routing is in nginx.conf
+          # Backend URL is hardcoded in nginx.conf as http://backend:3000
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+
+          securityContext:
+            allowPrivilegeEscalation: false
+
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 3
+
+      imagePullSecrets:
+        - name: registry-secret

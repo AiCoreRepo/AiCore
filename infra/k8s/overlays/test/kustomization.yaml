@@ -1,0 +1,43 @@
+# infra/k8s/overlays/test/kustomization.yaml
+#
+# Test environment overlay — watched by ArgoCD.
+# The CD pipeline patches `newName`/`newTag` here via `kustomize edit set image`.
+# ──────────────────────────────────────────────────────────────────────────────
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: aivestire
+
+resources:
+  - ../../base
+
+# ── Image tag overrides ────────────────────────────────────────────────────────
+# CD pipeline patches `newName`+`newTag` for each rebuilt service.
+# `name` must match exactly what's in the base deployment YAML `image:` fields.
+images:
+  - name: REGISTRY/aivestire-backend
+    newName: ghcr.io/aicorerepo/aivestire-backend
+    newTag: "latest" # backend
+
+  - name: REGISTRY/aivestire-frontend
+    newName: ghcr.io/aicorerepo/aivestire-frontend
+    newTag: "latest" # frontend
+
+  - name: REGISTRY/aivestire-body-analyzer
+    newName: ghcr.io/aicorerepo/aivestire-body-analyzer
+    newTag: "latest" # body-analyzer
+
+  - name: REGISTRY/aivestire-recommendation-api
+    newName: ghcr.io/aicorerepo/aivestire-recommendation-api
+    newTag: "latest" # recommendation-api
+
+# `labels` (not the deprecated `commonLabels`): with includeSelectors=false these
+# labels are added to resource metadata and pod templates but NOT to selectors.
+# commonLabels injected env labels into spec.selector.matchLabels and Service
+# selectors — those fields are immutable on Deployments/StatefulSets, so any
+# future label change would have forced a delete/recreate of the workload.
+labels:
+  - pairs:
+      environment: test
+      managed-by: argocd
+    includeSelectors: false

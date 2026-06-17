@@ -1,0 +1,77 @@
+# infra/k8s/base/namespace.yaml
+# ──────────────────────────────────────────────────────────────────────────────
+# Namespace: aivestire
+#
+# ResourceQuota enforces hard limits for the entire namespace.
+# On a 6vCPU / 12GB single-node server, we reserve ~8.5 GB and ~4.5 vCPU
+# for app workloads. The rest goes to k3s system, ArgoCD, ingress-nginx.
+#
+# LimitRange sets default requests/limits for any pod that doesn't declare them,
+# preventing runaway pods from starving other services.
+# ──────────────────────────────────────────────────────────────────────────────
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: aivestire
+  labels:
+    name: aivestire
+    # ── Pod Security Admission (built-in, no extra controller needed) ─────────
+    # enforce=baseline: blocks the dangerous stuff (privileged, host namespaces,
+    #   hostPath, added caps) — every workload here already complies.
+    # warn/audit=restricted: surfaces what still needs hardening (postgres &
+    #   frontend can't yet meet `restricted` because they start as root) without
+    #   blocking the deploy. Promote enforce→restricted once those run non-root.
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/audit: restricted
+---
+# ResourceQuota: hard ceiling for all pods in this namespace combined.
+# Prevents a single misbehaving service from consuming the entire node.
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: aivestire-quota
+  namespace: aivestire
+spec:
+  hard:
+    # requests.cpu is the REAL scheduling guarantee (must fit the node's 6 vCPU).
+    # Sum of pod requests ≈ 1.9 vCPU, leaving headroom for system/argocd/nginx
+    # and a rolling-update surge pod.
+    requests.cpu: "4"
+    # limits.cpu is a CEILING, not a reservation — it may safely oversubscribe
+    # the node. Base container limits already sum to ~7.7 cores; a RollingUpdate
+    # of a 2-core AI service (maxSurge=1) momentarily needs ~9.7. The old ceiling
+    # of "8" caused the quota admission controller to REJECT the surge pod, which
+    # silently stalled deploys. 12 gives comfortable surge headroom.
+    limits.cpu: "12"
+    # Total RAM: leaves ~3.5 GB for system/argocd/nginx
+    requests.memory: 8Gi
+    # Base memory limits ≈ 9.25Gi; a recommendation-api surge (+3Gi) peaks ~12.25.
+    limits.memory: 14Gi
+    # Pod count: enough for all services + rolling update surge pods + backup job
+    pods: "30"
+    # PVC count: postgres + redis + postgres-backup = 3 (headroom to 5)
+    persistentvolumeclaims: "5"
+---
+# LimitRange: default for pods that don't declare resources.
+# This is a safety net — all our pods DO declare resources explicitly.
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: aivestire-limitrange
+  namespace: aivestire
+spec:
+  limits:
+    - type: Container
+      default:
+        cpu: 500m
+        memory: 512Mi
+      defaultRequest:
+        cpu: 100m
+        memory: 128Mi
+      max:
+        cpu: "3"
+        memory: 4Gi
+      min:
+        cpu: 10m
+        memory: 32Mi

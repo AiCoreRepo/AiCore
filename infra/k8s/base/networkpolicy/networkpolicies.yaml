@@ -1,0 +1,103 @@
+# infra/k8s/base/networkpolicy/networkpolicies.yaml
+# ──────────────────────────────────────────────────────────────────────────────
+# NetworkPolicies — least-privilege intra-namespace traffic.
+#
+# k3s enforces NetworkPolicy out of the box (it bundles a controller), so these
+# take effect with no extra CNI install.
+#
+# Scope decision: we lock down the two data stores (the crown jewels). Once a
+# pod is selected by ANY NetworkPolicy, all ingress not explicitly allowed is
+# denied — so these turn postgres/redis into "only reachable by the API + worker
+# (+ backup for postgres)" without needing a namespace-wide default-deny that
+# could break the public request path.
+#
+# We DELIBERATELY do NOT restrict body-analyzer / recommendation-api here:
+# their liveness/readiness are httpGet probes sourced from the kubelet (the
+# node), which a podSelector-based rule does NOT match. On k3s that can silently
+# fail the probes and evict the pod. To add those policies, also allow the node
+# CIDR via `ipBlock` (see the commented template at the bottom) and verify
+# probes stay green. Postgres/redis are safe because they use exec probes, which
+# run inside the container and are immune to NetworkPolicy.
+# ──────────────────────────────────────────────────────────────────────────────
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: postgres-allow-app
+  namespace: aivestire
+  labels:
+    app: postgres
+    tier: data
+spec:
+  podSelector:
+    matchLabels:
+      app: postgres
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        # API server + queue worker
+        - podSelector:
+            matchExpressions:
+              - key: tier
+                operator: In
+                values: [api, worker]
+        # The pg_dump backup CronJob pod (app=postgres, tier=data)
+        - podSelector:
+            matchLabels:
+              app: postgres
+      ports:
+        - protocol: TCP
+          port: 5432
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: redis-allow-app
+  namespace: aivestire
+  labels:
+    app: redis
+    tier: data
+spec:
+  podSelector:
+    matchLabels:
+      app: redis
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchExpressions:
+              - key: tier
+                operator: In
+                values: [api, worker]
+      ports:
+        - protocol: TCP
+          port: 6379
+# ──────────────────────────────────────────────────────────────────────────────
+# TEMPLATE (uncomment + set NODE_CIDR, then confirm probes stay Ready) — restrict
+# the AI services to the API/worker/frontend tiers while still allowing kubelet
+# probes from the node. The frontend (tier=web) nginx proxies /ai/* directly, so
+# it MUST be allowed alongside api/worker.
+#
+# ---
+# apiVersion: networking.k8s.io/v1
+# kind: NetworkPolicy
+# metadata:
+#   name: ai-allow-clients
+#   namespace: aivestire
+# spec:
+#   podSelector:
+#     matchLabels:
+#       tier: ai
+#   policyTypes: [Ingress]
+#   ingress:
+#     - from:
+#         - podSelector:
+#             matchExpressions:
+#               - key: tier
+#                 operator: In
+#                 values: [api, worker, web]
+#         - ipBlock:
+#             cidr: NODE_CIDR        # e.g. the node's /32 or pod CIDR for kubelet probes
+#       ports:
+#         - { protocol: TCP, port: 8898 }   # body-analyzer
+#         - { protocol: TCP, port: 8799 }   # recommendation-api
+# ──────────────────────────────────────────────────────────────────────────────

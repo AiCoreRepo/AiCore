@@ -1,0 +1,106 @@
+# infra/k8s/base/body-analyzer/deployment.yaml
+# ──────────────────────────────────────────────────────────────────────────────
+# Body Analyzer — Python FastAPI + MediaPipe
+#
+# Production decisions:
+#   • 500m/1Gi request — MediaPipe runs native CPU inference.
+#     2000m/2Gi limit — allows burst for concurrent body analysis requests.
+#     Body analysis is CPU-bound (pose estimation); 2 CPU cores handles
+#     concurrent requests without OOM.
+#   • startupProbe (30s initial, 10 retries × 10s = 130s max):
+#     MediaPipe loads pose model on first request. The /health endpoint
+#     may respond immediately even before models are cached, so we use
+#     a generous startupProbe to not prematurely restart.
+#   • replicas: 1 — on a 6vCPU node, running 2 body-analyzer pods would
+#     exhaust CPU headroom. Scale horizontally only if node is upgraded.
+#   • PYTHONUNBUFFERED=1 in Dockerfile ensures logs appear immediately in
+#     kubectl logs without buffering.
+# ──────────────────────────────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: body-analyzer
+  namespace: aivestire
+  labels:
+    app: body-analyzer
+    tier: ai
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: body-analyzer
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+
+  template:
+    metadata:
+      labels:
+        app: body-analyzer
+        tier: ai
+    spec:
+      terminationGracePeriodSeconds: 30
+
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+
+      containers:
+        - name: body-analyzer
+          image: REGISTRY/aivestire-body-analyzer:latest
+          ports:
+            - name: http
+              containerPort: 8898
+
+          env:
+            - name: PYTHONUNBUFFERED
+              value: "1"
+
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              cpu: "2"
+              memory: 2Gi
+
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+
+          # Startup probe: generous window for model initialization
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8898
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            failureThreshold: 12   # 15 + 12*10 = 135s max
+            timeoutSeconds: 5
+
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8898
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
+
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8898
+            initialDelaySeconds: 0
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
+
+      imagePullSecrets:
+        - name: registry-secret
