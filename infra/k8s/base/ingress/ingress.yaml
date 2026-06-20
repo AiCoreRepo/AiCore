@@ -1,33 +1,25 @@
 # infra/k8s/base/ingress/ingress.yaml
 # ──────────────────────────────────────────────────────────────────────────────
-# Ingress — ingress-nginx with TLS (Let's Encrypt via cert-manager)
+# Ingress — ingress-nginx, HTTP-only (domain + TLS deferred on purpose)
 #
-# Prerequisites:
-#   kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/\
-#     controller-v1.10.0/deploy/static/provider/cloud/deploy.yaml
-#
-# Domain strategy:
-#   nip.io is a wildcard DNS service: 94.136.189.250.nip.io → 94.136.189.250
-#   This gives us a real FQDN (required for Let's Encrypt) without needing
-#   to buy or configure a domain. Replace with a real domain when available.
+# For first bring-up we serve plain HTTP with NO host restriction and NO
+# cert-manager dependency. Reach the app at:
+#     http://<NODE_IP>/                 (no DNS needed — host-less rule)
+#     http://<NODE_IP>.nip.io/          (also works; nip.io maps the IP)
 #
 # Routing strategy:
-#   ALL traffic → frontend:8080 (the nginx in the frontend container is the
+#   ALL traffic → frontend:8080 (the nginx inside the frontend container is the
 #   single edge router). That nginx then proxies:
-#     /api/*  → backend:3000        (and STRIPS the /api prefix — NestJS has no
-#                                    global /api prefix, so routing /api/* straight
-#                                    to the backend from here would 404)
+#     /api/*  → backend:3000  (STRIPS /api — NestJS has no global /api prefix, so
+#                              sending /api/* straight to the backend would 404)
 #     /ai/body, /ai/recommend → body-analyzer / recommendation-api
-#     /        → SPA (index.html)
+#     /       → SPA (index.html)
 #
-#   We deliberately do NOT add an Ingress rule that sends /api directly to the
-#   backend Service: it would bypass nginx's prefix-strip + /api/api de-dup +
-#   long upstream timeouts, and the backend would 404 every request.
-#
-# Security annotations:
-#   proxy-body-size: 50m  — allows image uploads (try-on, body analysis)
-#   ssl-redirect: true    — force HTTPS everywhere (redirect HTTP → HTTPS)
-#   proxy-read-timeout: 300 — body analysis + recommendation can take 30-60s
+# ── TO ADD A DOMAIN + HTTPS LATER ─────────────────────────────────────────────
+#   1. Install cert-manager, then re-add `ingress/clusterissuer.yaml` to
+#      base/kustomization.yaml.
+#   2. Uncomment the cert-manager + ssl-redirect annotations and the `tls:` block
+#      below, and set `host:` (and the tls host) to your domain or <IP>.nip.io.
 # ──────────────────────────────────────────────────────────────────────────────
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -35,40 +27,29 @@ metadata:
   name: aivestire-ingress
   namespace: aivestire
   annotations:
-    # cert-manager will provision a TLS cert for the hostname below
-    cert-manager.io/cluster-issuer: "letsencrypt-prod"
     # Allow up to 50 MB request body (image uploads for try-on + body analysis)
     nginx.ingress.kubernetes.io/proxy-body-size: "50m"
-    # 300s timeout for AI inference endpoints (body analysis, recommendations)
+    # Generous timeouts for AI inference endpoints (body analysis, recommendations)
     nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
     nginx.ingress.kubernetes.io/proxy-connect-timeout: "60"
     nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
-    # Force HTTPS — redirect all HTTP to HTTPS
-    nginx.ingress.kubernetes.io/ssl-redirect: "true"
-    # NOTE: gzip is intentionally NOT configured via a configuration-snippet here.
-    # ingress-nginx ≥ v1.9 ships with `allow-snippet-annotations: false` by
-    # default, which would REJECT this whole Ingress. gzip is already enabled
-    # globally by the ingress-nginx controller; tune it in the controller
-    # ConfigMap (`use-gzip: "true"`) if you need to, not per-Ingress.
-
+    # ── Re-enable these two once you have a domain + cert-manager ──────────────
+    # cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    # nginx.ingress.kubernetes.io/ssl-redirect: "true"
 spec:
-  # Modern, non-deprecated way to select the controller (replaces the old
-  # kubernetes.io/ingress.class annotation, removed in newer k8s).
+  # Modern controller selector (replaces the old kubernetes.io/ingress.class).
   ingressClassName: nginx
 
-  tls:
-    - hosts:
-        # Replace 94.136.189.250 with the actual server IP.
-        # nip.io resolves *.nip.io to the embedded IP automatically.
-        - 94.136.189.250.nip.io
-      secretName: aivestire-tls   # cert-manager stores the certificate here
+  # ── TLS — commented until a domain + cert-manager are in place ───────────────
+  # tls:
+  #   - hosts:
+  #       - <your-domain-or-IP>.nip.io
+  #     secretName: aivestire-tls
 
   rules:
-    - host: 94.136.189.250.nip.io
-      http:
+    # No `host:` → matches ANY host, so http://<NODE_IP>/ works with zero DNS.
+    - http:
         paths:
-          # Single rule: everything goes to the frontend nginx, which routes
-          # /api/* → backend (prefix-stripped), /ai/* → AI services, / → SPA.
           - path: /
             pathType: Prefix
             backend:

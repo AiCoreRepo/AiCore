@@ -31,8 +31,9 @@ resources:
   - recommendation-api/deployment.yaml
   - recommendation-api/service.yaml
 
-  # Ingress + TLS
-  - ingress/clusterissuer.yaml
+  # Ingress (HTTP-only for now — domain + TLS deferred).
+  # Re-add clusterissuer.yaml after installing cert-manager (see ingress.yaml).
+  # - ingress/clusterissuer.yaml
   - ingress/ingress.yaml
 
   # Network segmentation (lock down the data tier)
