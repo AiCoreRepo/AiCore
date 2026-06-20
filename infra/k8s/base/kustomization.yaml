@@ -38,17 +38,22 @@ resources:
   # Network segmentation (lock down the data tier)
   - networkpolicy/networkpolicies.yaml
 
-  # Secrets (SealedSecrets — safe to commit, cluster decrypts them)
+  # ── Secrets ─────────────────────────────────────────────────────────────────
+  # Real SealedSecrets are intentionally kept OUT of git. The files in secrets/
+  # are PLACEHOLDERS only (no real data). The real, kubeseal-encrypted secrets
+  # live in your private store and are applied to the cluster by hand:
   #
-  # ⚠️  REQUIRED BEFORE FIRST DEPLOY — the workloads above reference these
-  #     Secrets and will CrashLoop / fail to start without them:
-  #       • postgres-secret  (postgres statefulset + backup cronjob)
-  #       • redis-secret     (redis statefulset)
-  #       • backend-secret   (backend deployment + worker)
-  #     Generate each with kubeseal (see secrets/README.md), commit the
-  #     resulting *-sealed-secret.yaml, then uncomment the matching line below.
+  #     kubectl apply -f ~/aivestire-sealed-secrets-private/<file>.yaml
+  #
+  # They are left OUT of this kustomization on purpose so ArgoCD does NOT manage
+  # or prune them (selfHeal would otherwise overwrite a hand-applied secret with
+  # the placeholder). See DEPLOYMENT.md §5 and secrets/README.md.
+  #
+  # ⚠️  REQUIRED BEFORE FIRST DEPLOY — apply these to the cluster or the
+  #     workloads will CrashLoop: postgres-secret, redis-secret, backend-secret,
+  #     registry-secret.
   #
   # - secrets/postgres-sealed-secret.yaml
   # - secrets/redis-sealed-secret.yaml
   # - secrets/backend-sealed-secret.yaml
-  - secrets/registry-secret.yaml
+  # - secrets/registry-secret.yaml
