@@ -92,17 +92,10 @@ spec:
             capabilities:
               drop: [ALL]
 
-          # No HTTP — use exec probe to check the process is alive
-          livenessProbe:
-            exec:
-              command:
-                - sh
-                - -c
-                - "pgrep -f 'worker/main.js' > /dev/null"
-            initialDelaySeconds: 30
-            periodSeconds: 30
-            timeoutSeconds: 5
-            failureThreshold: 3
+          # No liveness probe: the worker IS the container's main process (PID 1),
+          # so if it dies the container exits and Kubernetes restarts it anyway.
+          # (The old `pgrep` exec probe failed because procps isn't in the slim
+          # image, which falsely killed a healthy worker → CrashLoopBackOff.)
 
       imagePullSecrets:
         - name: registry-secret

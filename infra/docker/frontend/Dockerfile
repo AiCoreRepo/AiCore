@@ -62,8 +62,12 @@ HEALTHCHECK --interval=15s --timeout=5s --start-period=10s --retries=3 \
   CMD wget -qO- http://localhost:8080/ > /dev/null 2>&1 || exit 1
 
 # nginx.conf uses variable-based proxy_pass (for /api, /ai/*), which needs a
-# runtime DNS resolver. The committed value (127.0.0.11) is Docker Compose's
-# embedded DNS and does NOT exist in Kubernetes (cluster DNS is e.g. 10.43.0.10),
-# so proxied requests hang. Auto-detect the real nameserver from /etc/resolv.conf
-# at startup so the same image works in BOTH Docker Compose and Kubernetes.
-CMD ["/bin/sh", "-c", "NS=$(awk '/^nameserver/{print $2; exit}' /etc/resolv.conf); [ -n \"$NS\" ] && sed -i \"s/127.0.0.11/$NS/g\" /etc/nginx/conf.d/default.conf; exec nginx -g 'daemon off;'"]
+# runtime DNS resolver. Two things differ between Docker Compose and Kubernetes,
+# so we adapt the config at startup (same image works in both):
+#   1. resolver: Docker uses 127.0.0.11; k8s uses the cluster DNS (e.g. 10.43.0.10).
+#      We read the real nameserver from /etc/resolv.conf.
+#   2. upstream names: nginx's resolver does NOT apply /etc/resolv.conf search
+#      domains, so the short Service names (backend:3000, ...) fail with
+#      "host not found" in k8s. When running in a pod we expand them to FQDNs
+#      (backend.<namespace>.svc.cluster.local). In Docker the short names stay.
+CMD ["/bin/sh", "-c", "C=/etc/nginx/conf.d/default.conf; NS=$(awk '/^nameserver/{print $2; exit}' /etc/resolv.conf); [ -n \"$NS\" ] && sed -i \"s/127.0.0.11/$NS/g\" \"$C\"; F=/var/run/secrets/kubernetes.io/serviceaccount/namespace; if [ -f \"$F\" ]; then K=$(cat \"$F\"); sed -i \"s/backend:3000/backend.$K.svc.cluster.local:3000/g; s/body-analyzer:8898/body-analyzer.$K.svc.cluster.local:8898/g; s/recommendation-api:8799/recommendation-api.$K.svc.cluster.local:8799/g\" \"$C\"; fi; exec nginx -g 'daemon off;'"]
