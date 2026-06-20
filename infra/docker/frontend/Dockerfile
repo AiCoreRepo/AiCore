@@ -61,4 +61,9 @@ EXPOSE 8080
 HEALTHCHECK --interval=15s --timeout=5s --start-period=10s --retries=3 \
   CMD wget -qO- http://localhost:8080/ > /dev/null 2>&1 || exit 1
 
-CMD ["nginx", "-g", "daemon off;"]
+# nginx.conf uses variable-based proxy_pass (for /api, /ai/*), which needs a
+# runtime DNS resolver. The committed value (127.0.0.11) is Docker Compose's
+# embedded DNS and does NOT exist in Kubernetes (cluster DNS is e.g. 10.43.0.10),
+# so proxied requests hang. Auto-detect the real nameserver from /etc/resolv.conf
+# at startup so the same image works in BOTH Docker Compose and Kubernetes.
+CMD ["/bin/sh", "-c", "NS=$(awk '/^nameserver/{print $2; exit}' /etc/resolv.conf); [ -n \"$NS\" ] && sed -i \"s/127.0.0.11/$NS/g\" /etc/nginx/conf.d/default.conf; exec nginx -g 'daemon off;'"]

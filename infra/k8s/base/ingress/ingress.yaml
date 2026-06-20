@@ -27,6 +27,10 @@ metadata:
   name: aivestire-ingress
   namespace: aivestire
   annotations:
+    # Route to the Service ClusterIP (kube-proxy DNAT) instead of directly to pod
+    # endpoints. On this node the host firewall drops direct pod-IP traffic, so
+    # the default endpoint routing returns 502; the ClusterIP/DNAT path works.
+    nginx.ingress.kubernetes.io/service-upstream: "true"
     # Allow up to 50 MB request body (image uploads for try-on + body analysis)
     nginx.ingress.kubernetes.io/proxy-body-size: "50m"
     # Generous timeouts for AI inference endpoints (body analysis, recommendations)
