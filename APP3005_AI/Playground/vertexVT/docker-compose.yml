@@ -3,7 +3,7 @@ services:
     build: .
     container_name: vertex-vt-api
     ports:
-      - "8000:8000"
+      - "0.0.0.0:8000:8000"
     # Load all environment variables from .env file
     # DO NOT use 'environment' section as it overrides with shell env vars
     env_file:

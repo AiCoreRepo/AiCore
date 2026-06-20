@@ -4,7 +4,7 @@ services:
       context: .
     command: ["streamlit", "run", "app/main.py", "--server.port=8505", "--server.address=0.0.0.0"]
     ports:
-      - "8505:8505"
+      - "0.0.0.0:8505:8505"
     environment:
       MILVUS_HOST: milvus
       MILVUS_PORT: "19530"
@@ -30,7 +30,7 @@ services:
       context: .
     command: ["uvicorn", "app.fusion_api:app", "--host", "0.0.0.0", "--port", "8791"]
     ports:
-      - "8791:8791"
+      - "0.0.0.0:8791:8791"
     environment:
       MILVUS_HOST: milvus
       MILVUS_PORT: "19530"
@@ -63,7 +63,7 @@ services:
     volumes:
       - ./etcd:/etcd
     ports:
-      - "2379:2379"
+      - "0.0.0.0:2379:2379"
     restart: unless-stopped
   minio:
     image: minio/minio:RELEASE.2023-03-20T20-16-18Z
@@ -74,8 +74,8 @@ services:
     volumes:
       - ./minio:/minio_data
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "0.0.0.0:9000:9000"
+      - "0.0.0.0:9001:9001"
     restart: unless-stopped
   milvus:
     image: milvusdb/milvus:v2.4.4
@@ -87,8 +87,8 @@ services:
       MINIO_SECRET_KEY: "minioadmin"
       MINIO_USE_SSL: "false"
     ports:
-      - "19530:19530"
-      - "9091:9091"
+      - "0.0.0.0:19530:19530"
+      - "0.0.0.0:9091:9091"
     volumes:
       - ./milvus:/var/lib/milvus
     restart: unless-stopped
@@ -100,7 +100,7 @@ services:
     environment:
       MILVUS_URL: milvus:19530
     ports:
-      - "8017:3000"
+      - "0.0.0.0:8017:3000"
     depends_on:
       - milvus
     restart: unless-stopped

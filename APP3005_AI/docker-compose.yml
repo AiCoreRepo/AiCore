@@ -40,7 +40,7 @@ services:
       context: ./Playground/vertexVT
     container_name: aivestire-vertex-vt-api
     ports:
-      - "8000:8000"
+      - "0.0.0.0:8000:8000"
     env_file:
       - ./Playground/vertexVT/.env
     restart: unless-stopped
@@ -67,7 +67,7 @@ services:
     container_name: aivestire-fusion-reco-api
     command: ["uvicorn", "app.fusion_api:app", "--host", "0.0.0.0", "--port", "8001"]
     ports:
-      - "8001:8001"
+      - "0.0.0.0:8001:8001"
     environment:
       PORT: "8001"
       MILVUS_HOST: milvus
@@ -106,8 +106,8 @@ services:
       MINIO_SECRET_KEY: "minioadmin"
       MINIO_USE_SSL: "false"
     ports:
-      - "19530:19530"
-      - "9091:9091"
+      - "0.0.0.0:19530:19530"
+      - "0.0.0.0:9091:9091"
     volumes:
       - milvus_data:/var/lib/milvus
     restart: unless-stopped
@@ -137,7 +137,7 @@ services:
     volumes:
       - etcd_data:/etcd
     ports:
-      - "2379:2379"
+      - "0.0.0.0:2379:2379"
     restart: unless-stopped
 
   # ---------------------------------------------------------------------------
@@ -154,8 +154,8 @@ services:
     volumes:
       - minio_data:/minio_data
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "0.0.0.0:9000:9000"
+      - "0.0.0.0:9001:9001"
     restart: unless-stopped
 
   # ---------------------------------------------------------------------------
@@ -168,7 +168,7 @@ services:
     environment:
       MILVUS_URL: milvus:19530
     ports:
-      - "8017:3000"
+      - "0.0.0.0:8017:3000"
     depends_on:
       - milvus
     restart: unless-stopped
@@ -183,7 +183,7 @@ services:
       context: ./ModelDemo
     container_name: aivestire-model-demo
     ports:
-      - "8501:8501"
+      - "0.0.0.0:8501:8501"
     restart: unless-stopped
 
   # ---------------------------------------------------------------------------
@@ -198,7 +198,7 @@ services:
     container_name: aivestire-reco-demo
     command: ["streamlit", "run", "app/main.py", "--server.port=8505", "--server.address=0.0.0.0"]
     ports:
-      - "8505:8505"
+      - "0.0.0.0:8505:8505"
     environment:
       MILVUS_HOST: milvus
       MILVUS_PORT: "19530"

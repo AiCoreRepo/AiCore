@@ -20,7 +20,9 @@ services:
       timeout: 5s
       retries: 5
     ports:
-      - "127.0.0.1:5432:5540"
+      - host_ip: 0.0.0.0
+        published: "5432"
+        target: 5540
     networks:
       - app-network
 
@@ -32,7 +34,9 @@ services:
     container_name: redis-server-testcoth2
     command: redis-server --appendonly yes --port 6380
     ports:
-      - "127.0.0.1:6379:6380"
+      - host_ip: 0.0.0.0
+        published: "6379"
+        target: 6380
     volumes:
       - redis_data:/data
     restart: unless-stopped
@@ -53,7 +57,9 @@ services:
       dockerfile: Dockerfile.body-analyzer
     container_name: body-analyzer-api
     ports:
-      - "127.0.0.1:8898:8898"
+      - host_ip: 0.0.0.0
+        published: "8898"
+        target: 8898
     restart: unless-stopped
     networks:
       - app-network
@@ -67,7 +73,9 @@ services:
       dockerfile: Dockerfile.api
     container_name: recommendation-api
     ports:
-      - "127.0.0.1:8799:8799"
+      - host_ip: 0.0.0.0
+        published: "8799"
+        target: 8799
     environment:
       RECOMMENDATION_COLLECTION_PATH: /app/main_train_data.csv
     restart: unless-stopped
@@ -226,7 +234,9 @@ services:
       BACKEND_URL: ${BACKEND_URL:-http://backend:3000}
     container_name: aivestire-frontend
     ports:
-      - "127.0.0.1:3005:8080"
+      - host_ip: 0.0.0.0
+        published: "3005"
+        target: 8080
     depends_on:
       backend:
         condition: service_healthy

@@ -7,7 +7,7 @@ services:
     command: ["uvicorn", "body_analyzer_api:app", "--host", "0.0.0.0", "--port", "8898"]
     container_name: body-analyzer-api
     ports:
-      - "8898:8898"
+      - "0.0.0.0:8898:8898"
     restart: unless-stopped
     networks:
       - ai-network
@@ -18,7 +18,7 @@ services:
       dockerfile: Dockerfile.api
     container_name: recommendation-api
     ports:
-      - "8799:8799"
+      - "0.0.0.0:8799:8799"
     environment:
       RECOMMENDATION_COLLECTION_PATH: /app/main_train_data.csv
     restart: unless-stopped
