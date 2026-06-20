@@ -268,19 +268,20 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Validate required secrets exist
-        # Fail fast with a clear message rather than building an image with an
-        # empty client ID that causes silent OAuth failures in production.
+      - name: Check optional build secrets (non-blocking)
+        # VITE_GOOGLE_CLIENT_ID only enables Google login in the browser bundle.
+        # It is NOT required to build/run the app, so a missing value warns
+        # instead of failing the build — set it later and re-run for Google login.
         # Reference the secret only via an env var — never interpolate a secret
         # directly inside shell test brackets (special chars would break `[ -z ]`
         # and the value could leak into the run-command echo in the logs).
         run: |
           if [ -z "${CLIENT_ID:-}" ]; then
-            echo "❌ VITE_GOOGLE_CLIENT_ID secret is empty or missing."
-            echo "   Set it in: GitHub → Settings → Secrets → Actions"
-            exit 1
+            echo "⚠️  VITE_GOOGLE_CLIENT_ID not set — building WITHOUT Google login."
+            echo "    Add it in GitHub → Settings → Secrets → Actions and re-run to enable it."
+          else
+            echo "✅ VITE_GOOGLE_CLIENT_ID is set (length: ${#CLIENT_ID})"
           fi
-          echo "✅ VITE_GOOGLE_CLIENT_ID is set (length: ${#CLIENT_ID})"
         env:
           CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
 
