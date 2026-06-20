@@ -3,10 +3,9 @@
 #
 # Design principles (L9-grade):
 #
-#   1. TRIGGERED BY CI SUCCESS — uses workflow_run so CD never fires unless
-#      the full CI workflow concluded 'success'. This is the only reliable gate.
-#      (The old "ci-gate re-run" approach duplicated work AND still ran CD if
-#      someone pushed a new commit between CI finishing and CD starting.)
+#   1. TRIGGERED DIRECTLY ON PUSH — builds & pushes on every push to `test`,
+#      NOT gated by any test job. Tests (ci.yml) run independently and never
+#      block a deploy.
 #
 #   2. PER-SERVICE PATH FILTERING — each image is only rebuilt when the code or
 #      its Dockerfile changed. A frontend-only change does not rebuild the
@@ -39,9 +38,10 @@
 name: CD — Build Images & Deploy to K8s
 
 on:
-  workflow_run:
-    workflows: ["CI — Build & Test"]   # matches the `name:` in ci.yml exactly
-    types: [completed]
+  # Build & push directly on every push to `test` — NOT gated by any test job.
+  # (Only the repo's own collaborators can push to this branch, so there is no
+  # fork-PR "pwn request" risk that the old workflow_run trigger had to guard.)
+  push:
     branches: [test]
 
 # One deploy at a time. If a new push fires CD before the old one finishes,
@@ -62,42 +62,12 @@ permissions:
 
 jobs:
   # ────────────────────────────────────────────────────────────────────────────
-  # Job 0 — Guard: ensure CI actually passed (not failed / cancelled).
-  #
-  # workflow_run fires on 'completed' — including failure. This job exits
-  # immediately when CI did not succeed, preventing any downstream work.
-  # ────────────────────────────────────────────────────────────────────────────
-  guard:
-    name: Guard — CI must have passed
-    runs-on: ubuntu-latest
-    timeout-minutes: 2
-    # SECURITY: only deploy for direct PUSHES to `test`. CI also runs on
-    # pull_request (incl. forks); without the event check, a fork PR that passes
-    # CI would trigger this workflow_run — which runs with repo secrets and
-    # contents:write and checks out the PR's head_sha — a classic "pwn request".
-    # Requiring event == 'push' means PRs are tested but never built/deployed.
-    if: >-
-      github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.event == 'push'
-
-    steps:
-      - name: CI conclusion check
-        run: |
-          echo "Triggering workflow: ${{ github.event.workflow_run.name }}"
-          echo "Conclusion:          ${{ github.event.workflow_run.conclusion }}"
-          echo "Head SHA:            ${{ github.event.workflow_run.head_sha }}"
-          echo "Head branch:         ${{ github.event.workflow_run.head_branch }}"
-          echo "✅ CI passed — proceeding to image builds"
-
-  # ────────────────────────────────────────────────────────────────────────────
-  # Job 1 — Detect which services changed in the triggering commit.
-  #
-  # We checkout the exact SHA that CI tested (head_sha from workflow_run).
-  # fetch-depth: 2 is enough for dorny/paths-filter to diff HEAD vs HEAD~1.
+  # Job 1 — Detect which services changed in the pushed commit.
+  # dorny/paths-filter diffs the push (before..after); a service only rebuilds
+  # when its code or Dockerfile changed. Touching cd-k8s.yml rebuilds all four.
   # ────────────────────────────────────────────────────────────────────────────
   detect-changes:
     name: Detect — which services changed
-    needs: guard
     runs-on: ubuntu-latest
     timeout-minutes: 5
 
@@ -113,7 +83,7 @@ jobs:
       - name: Checkout triggering commit
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.workflow_run.head_sha }}
+          ref: ${{ github.sha }}
           fetch-depth: 2
 
       - name: Detect changed paths
@@ -200,13 +170,13 @@ jobs:
       # an invalid image ref via github.repository_owner, so pin the lowercase
       # value here — it must stay in sync with newName in the test overlay.
       REGISTRY: ghcr.io/aicorerepo
-      IMAGE_TAG: ${{ github.event.workflow_run.head_sha }}
+      IMAGE_TAG: ${{ github.sha }}
 
     steps:
       - name: Checkout triggering commit
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.workflow_run.head_sha }}
+          ref: ${{ github.sha }}
 
       - name: Login to GHCR
         uses: docker/login-action@v3
@@ -250,13 +220,13 @@ jobs:
       # an invalid image ref via github.repository_owner, so pin the lowercase
       # value here — it must stay in sync with newName in the test overlay.
       REGISTRY: ghcr.io/aicorerepo
-      IMAGE_TAG: ${{ github.event.workflow_run.head_sha }}
+      IMAGE_TAG: ${{ github.sha }}
 
     steps:
       - name: Checkout triggering commit
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.workflow_run.head_sha }}
+          ref: ${{ github.sha }}
 
       - name: Login to GHCR
         uses: docker/login-action@v3
@@ -324,13 +294,13 @@ jobs:
       # an invalid image ref via github.repository_owner, so pin the lowercase
       # value here — it must stay in sync with newName in the test overlay.
       REGISTRY: ghcr.io/aicorerepo
-      IMAGE_TAG: ${{ github.event.workflow_run.head_sha }}
+      IMAGE_TAG: ${{ github.sha }}
 
     steps:
       - name: Checkout triggering commit
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.workflow_run.head_sha }}
+          ref: ${{ github.sha }}
 
       - name: Login to GHCR
         uses: docker/login-action@v3
@@ -373,13 +343,13 @@ jobs:
       # an invalid image ref via github.repository_owner, so pin the lowercase
       # value here — it must stay in sync with newName in the test overlay.
       REGISTRY: ghcr.io/aicorerepo
-      IMAGE_TAG: ${{ github.event.workflow_run.head_sha }}
+      IMAGE_TAG: ${{ github.sha }}
 
     steps:
       - name: Checkout triggering commit
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.workflow_run.head_sha }}
+          ref: ${{ github.sha }}
 
       - name: Login to GHCR
         uses: docker/login-action@v3
@@ -447,14 +417,14 @@ jobs:
       # an invalid image ref via github.repository_owner, so pin the lowercase
       # value here — it must stay in sync with newName in the test overlay.
       REGISTRY: ghcr.io/aicorerepo
-      IMAGE_TAG: ${{ github.event.workflow_run.head_sha }}
+      IMAGE_TAG: ${{ github.sha }}
 
     steps:
       - name: Checkout test branch (not detached SHA)
         uses: actions/checkout@v4
         with:
           # Checkout the branch so we can push back to it, not a detached HEAD.
-          ref: ${{ github.event.workflow_run.head_branch }}
+          ref: ${{ github.ref_name }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Verify kustomization.yaml exists
@@ -560,7 +530,7 @@ jobs:
           echo "  DEPLOY SUMMARY"
           echo "════════════════════════════════════════════════════"
           echo "  Triggering SHA: ${{ env.IMAGE_TAG }}"
-          echo "  Branch:         ${{ github.event.workflow_run.head_branch }}"
+          echo "  Branch:         ${{ github.ref_name }}"
           echo "  Registry:       ${{ env.REGISTRY }}"
           echo ""
           echo "  Build results:"

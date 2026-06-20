@@ -17,8 +17,8 @@
 name: CI — Build & Test
 
 on:
-  push:
-    branches: [test]
+  # Tests run on PULL REQUESTS only. Pushes to `test` go straight to
+  # build+push (cd-k8s.yml) and are never gated by tests.
   pull_request:
     branches: [test]
 
