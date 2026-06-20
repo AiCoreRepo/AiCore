@@ -12,8 +12,16 @@ metadata:
   labels:
     app: postgres
     tier: data
+  annotations:
+    # Headless→ClusterIP changes the immutable clusterIP field, so have ArgoCD
+    # replace (delete+recreate) the Service instead of a failing apply.
+    argocd.argoproj.io/sync-options: Replace=true
 spec:
-  clusterIP: None   # Headless — DNS resolves directly to pod IP
+  # ClusterIP, NOT headless: on this single k3s node the host firewall drops
+  # direct pod-IP traffic (10.42.0.0/16), but DNAT'd ClusterIP-service traffic
+  # works. A headless service returns the pod IP (the broken path); a ClusterIP
+  # routes via kube-proxy. (Proper long-term fix: open the pod CIDR on the node.)
+  type: ClusterIP
   selector:
     app: postgres
   ports:

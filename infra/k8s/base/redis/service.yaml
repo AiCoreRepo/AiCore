@@ -7,8 +7,14 @@ metadata:
   labels:
     app: redis
     tier: data
+  annotations:
+    # Headless→ClusterIP changes the immutable clusterIP field, so have ArgoCD
+    # replace (delete+recreate) the Service instead of a failing apply.
+    argocd.argoproj.io/sync-options: Replace=true
 spec:
-  clusterIP: None   # Headless — Bull connects to stable DNS redis-0.redis.aivestire
+  # ClusterIP, NOT headless — see postgres/service.yaml. The host firewall on
+  # this node drops direct pod-IP traffic; ClusterIP (kube-proxy DNAT) works.
+  type: ClusterIP
   selector:
     app: redis
   ports:
