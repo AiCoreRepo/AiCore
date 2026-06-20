@@ -41,6 +41,11 @@ on:
   # Build & push directly on every push to `test` — NOT gated by any test job.
   # (Only the repo's own collaborators can push to this branch, so there is no
   # fork-PR "pwn request" risk that the old workflow_run trigger had to guard.)
+  #
+  # NOTE: this MUST be `push` (not `workflow_run`). A workflow_run-triggered
+  # workflow only runs when its file lives on the repo DEFAULT branch
+  # (Development) — this file only lives on `test`, so the old trigger meant CD
+  # never ran at all. `push` runs from the file on the branch being pushed.
   push:
     branches: [test]
 
