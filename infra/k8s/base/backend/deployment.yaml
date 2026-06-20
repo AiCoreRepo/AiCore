@@ -109,6 +109,11 @@ spec:
           env:
             - name: NODE_ENV
               value: production
+            # Twilio/SMS disabled until real credentials are provided — the SDK
+            # rejects a non-"AC" account SID at construction and crashes Nest.
+            # Set to "false" (and put real creds in backend-secret) to enable SMS.
+            - name: SKIP_TWILIO
+              value: "true"
             - name: REDIS_HOST
               value: redis
             - name: REDIS_PORT
