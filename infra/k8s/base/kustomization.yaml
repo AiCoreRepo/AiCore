@@ -37,7 +37,12 @@ resources:
   - ingress/ingress.yaml
 
   # Network segmentation (lock down the data tier)
-  - networkpolicy/networkpolicies.yaml
+  # TEMPORARILY DISABLED: k3s's built-in NetworkPolicy controller was not
+  # honoring the tier-based `from` rule and blocked backend->postgres:5432
+  # (verified: a tier=api pod could not reach 10.42.0.22:5432). Re-enable only
+  # after validating a policy that works on this cluster (e.g. matchLabels peers
+  # + the node/pod CIDR for kubelet probes).
+  # - networkpolicy/networkpolicies.yaml
 
   # ── Secrets ─────────────────────────────────────────────────────────────────
   # Real SealedSecrets are intentionally kept OUT of git. The files in secrets/
