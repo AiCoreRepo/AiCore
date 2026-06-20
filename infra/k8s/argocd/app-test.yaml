@@ -48,12 +48,9 @@ spec:
       - PrunePropagationPolicy=foreground
       # Show a useful diff before applying (visible in ArgoCD UI)
       - ApplyOutOfSyncOnly=true
-
-  # ── Retry on transient failures ──────────────────────────────────────────
-  # Useful when a pod OOMs or a StatefulSet volume isn't ready yet.
-  retry:
-    limit: 3
-    backoff:
-      duration: 10s
-      factor: 2
-      maxDuration: 3m
+    retry:
+      limit: 3
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m
