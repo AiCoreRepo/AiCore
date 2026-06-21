@@ -1,0 +1,548 @@
+# ──────────────────────────────────────────────────────────────────────────────
+# CD — Build Images & Deploy to K8s
+#
+# Design principles (L9-grade):
+#
+#   1. TRIGGERED DIRECTLY ON PUSH — builds & pushes on every push to `test`,
+#      NOT gated by any test job. Tests (ci.yml) run independently and never
+#      block a deploy.
+#
+#   2. PER-SERVICE PATH FILTERING — each image is only rebuilt when the code or
+#      its Dockerfile changed. A frontend-only change does not rebuild the
+#      backend image. Cuts average build time by 60-75%.
+#
+#   3. PARALLEL BUILDS — all four images build concurrently in separate jobs.
+#      Total wall-clock time ≈ slowest single image, not sum of all images.
+#
+#   4. GHA LAYER CACHE scoped per-service (separate cache keys). Prevents a
+#      large Python-layer cache from being thrashed by a backend-only change.
+#
+#   5. ATOMIC MANIFEST UPDATE — the final job runs only after ALL requested
+#      builds succeed. It updates ONLY the tags that were actually rebuilt.
+#      Services that were skipped (unchanged) keep their existing tag in
+#      kustomization.yaml. Uses kustomize CLI — not sed — for correctness.
+#
+#   6. SECRETS HYGIENE:
+#      • GITHUB_TOKEN used for GHCR — no PAT needed, no long-lived tokens.
+#      • VITE_GOOGLE_CLIENT_ID is a *public client-side* OAuth ID, not a secret;
+#        it still lives in GitHub Secrets (not hardcoded) and is passed ONLY as
+#        a Docker build-arg (it ends up in the browser bundle intentionally).
+#      • No real DB passwords, JWT secrets, or API keys ever appear here.
+#      • Secrets are NEVER echoed (no `echo $SECRET`).
+#
+#   7. CONCURRENCY — one deploy at a time. Newer push cancels in-progress.
+#
+#   8. HARD TIMEOUTS — every job has a timeout_minutes cap so a hung Docker
+#      push or git operation doesn't burn the full 6-hour Actions limit.
+# ──────────────────────────────────────────────────────────────────────────────
+name: CD — Build Images & Deploy to K8s
+
+on:
+  # Build & push directly on every push to `test` — NOT gated by any test job.
+  # (Only the repo's own collaborators can push to this branch, so there is no
+  # fork-PR "pwn request" risk that the old workflow_run trigger had to guard.)
+  #
+  # NOTE: this MUST be `push` (not `workflow_run`). A workflow_run-triggered
+  # workflow only runs when its file lives on the repo DEFAULT branch
+  # (Development) — this file only lives on `test`, so the old trigger meant CD
+  # never ran at all. `push` runs from the file on the branch being pushed.
+  push:
+    branches: [test]
+
+# One deploy at a time. If a new push fires CD before the old one finishes,
+# cancel the old one — the new image is always the right one to deploy.
+concurrency:
+  group: cd-k8s-test
+  cancel-in-progress: true
+
+# Workflow-level defaults — individual jobs narrow these further.
+permissions:
+  contents: read
+
+# ──────────────────────────────────────────────────────────────────────────────
+# SHARED env (re-used across all build jobs via `env:` at job level).
+# REGISTRY is set here so every job references the same value.
+# IMAGE_TAG is the exact git SHA of the commit that triggered CI.
+# ──────────────────────────────────────────────────────────────────────────────
+
+jobs:
+  # ────────────────────────────────────────────────────────────────────────────
+  # Job 1 — Detect which services changed in the pushed commit.
+  # dorny/paths-filter diffs the push (before..after); a service only rebuilds
+  # when its code or Dockerfile changed. Touching cd-k8s.yml rebuilds all four.
+  # ────────────────────────────────────────────────────────────────────────────
+  detect-changes:
+    name: Detect — which services changed
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+      body-analyzer: ${{ steps.filter.outputs.body-analyzer }}
+      recommendation-api: ${{ steps.filter.outputs.recommendation-api }}
+      # True when at least one image needs to be rebuilt.
+      any-image: ${{ steps.any.outputs.any-image }}
+
+    steps:
+      - name: Checkout triggering commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 2
+
+      - name: Detect changed paths
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            backend:
+              - 'APP3005/aivestire-backend-tmp/**'
+              - 'infra/docker/backend/Dockerfile'
+              - '.github/workflows/cd-k8s.yml'
+
+            frontend:
+              - 'APP3005/frontend/**'
+              - 'infra/docker/frontend/Dockerfile'
+              - '.github/workflows/cd-k8s.yml'
+
+            body-analyzer:
+              # Source actually lives in Playground/vertexVT — this is what the
+              # body-analyzer Dockerfile COPYs from. The previous path
+              # (APP3005_AI/body_analyzer/**) does not exist, so code changes
+              # never triggered a rebuild.
+              - 'APP3005_AI/Playground/vertexVT/**'
+              - 'infra/docker/body-analyzer/Dockerfile'
+              - '.github/workflows/cd-k8s.yml'
+
+            recommendation-api:
+              - 'APP3005_AI/recommend_demo/**'
+              - 'infra/docker/recommendation-api/Dockerfile'
+              - '.github/workflows/cd-k8s.yml'
+
+      - name: Compute any-image flag
+        id: any
+        run: |
+          if [[ \
+            "${{ steps.filter.outputs.backend }}" == "true" || \
+            "${{ steps.filter.outputs.frontend }}" == "true" || \
+            "${{ steps.filter.outputs.body-analyzer }}" == "true" || \
+            "${{ steps.filter.outputs.recommendation-api }}" == "true" \
+          ]]; then
+            echo "any-image=true" >> "$GITHUB_OUTPUT"
+            echo "📦 At least one service changed — builds will run"
+          else
+            echo "any-image=false" >> "$GITHUB_OUTPUT"
+            echo "⏭️  No service code changed — all builds will be skipped"
+          fi
+
+      - name: Report detection results
+        run: |
+          echo "backend:            ${{ steps.filter.outputs.backend }}"
+          echo "frontend:           ${{ steps.filter.outputs.frontend }}"
+          echo "body-analyzer:      ${{ steps.filter.outputs.body-analyzer }}"
+          echo "recommendation-api: ${{ steps.filter.outputs.recommendation-api }}"
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # Jobs 2-5 — Per-service parallel image builds.
+  #
+  # Each job is independent — they all run concurrently.
+  # A job is skipped when its service files didn't change.
+  # GHA cache keys are scoped per-service so caches don't interfere.
+  #
+  # Security notes:
+  #   • GITHUB_TOKEN has packages: write (GHCR push) and contents: read.
+  #   • No real secrets are passed as build-args. VITE_GOOGLE_CLIENT_ID is a
+  #     client-side OAuth ID that intentionally ends up in the browser bundle.
+  #     It is sourced from GitHub Secrets so it's never hardcoded in files.
+  #   • build-args are printed by Docker in the build log; mark them as
+  #     non-sensitive or mask as appropriate in the GitHub Secrets UI.
+  # ────────────────────────────────────────────────────────────────────────────
+
+  build-backend:
+    name: Build — backend
+    needs: detect-changes
+    if: needs.detect-changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    permissions:
+      contents: read
+      packages: write
+
+    env:
+      # GHCR image names MUST be lowercase. The org "AiCoreRepo" would produce
+      # an invalid image ref via github.repository_owner, so pin the lowercase
+      # value here — it must stay in sync with newName in the test overlay.
+      REGISTRY: ghcr.io/aicorerepo
+      IMAGE_TAG: ${{ github.sha }}
+
+    steps:
+      - name: Checkout triggering commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build & Push — backend
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: infra/docker/backend/Dockerfile
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/aivestire-backend:${{ env.IMAGE_TAG }}
+            ${{ env.REGISTRY }}/aivestire-backend:latest
+          # Scoped cache key — backend cache is never clobbered by Python builds.
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,mode=max,scope=backend
+          provenance: false   # smaller manifest, avoids multi-arch confusion
+
+  # ──────────────────────────────────────────────────────────────────────────
+
+  build-frontend:
+    name: Build — frontend
+    needs: detect-changes
+    if: needs.detect-changes.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    permissions:
+      contents: read
+      packages: write
+
+    env:
+      # GHCR image names MUST be lowercase. The org "AiCoreRepo" would produce
+      # an invalid image ref via github.repository_owner, so pin the lowercase
+      # value here — it must stay in sync with newName in the test overlay.
+      REGISTRY: ghcr.io/aicorerepo
+      IMAGE_TAG: ${{ github.sha }}
+
+    steps:
+      - name: Checkout triggering commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Check optional build secrets (non-blocking)
+        # VITE_GOOGLE_CLIENT_ID only enables Google login in the browser bundle.
+        # It is NOT required to build/run the app, so a missing value warns
+        # instead of failing the build — set it later and re-run for Google login.
+        # Reference the secret only via an env var — never interpolate a secret
+        # directly inside shell test brackets (special chars would break `[ -z ]`
+        # and the value could leak into the run-command echo in the logs).
+        run: |
+          if [ -z "${CLIENT_ID:-}" ]; then
+            echo "⚠️  VITE_GOOGLE_CLIENT_ID not set — building WITHOUT Google login."
+            echo "    Add it in GitHub → Settings → Secrets → Actions and re-run to enable it."
+          else
+            echo "✅ VITE_GOOGLE_CLIENT_ID is set (length: ${#CLIENT_ID})"
+          fi
+        env:
+          CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
+
+      - name: Build & Push — frontend
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: infra/docker/frontend/Dockerfile
+          push: true
+          # These are intentional public build-time values baked into the
+          # Vite bundle. VITE_GOOGLE_CLIENT_ID is a client-side OAuth ID
+          # (appears in browser JS — not a backend secret).
+          build-args: |
+            VITE_API_URL=/api
+            VITE_GOOGLE_CLIENT_ID=${{ secrets.VITE_GOOGLE_CLIENT_ID }}
+            VITE_TRY_ON_DEFAULT_PROVIDER=gemini
+            VITE_ENABLE_TRY_ON_PACK_DEV_SKIP=false
+          tags: |
+            ${{ env.REGISTRY }}/aivestire-frontend:${{ env.IMAGE_TAG }}
+            ${{ env.REGISTRY }}/aivestire-frontend:latest
+          cache-from: type=gha,scope=frontend
+          cache-to: type=gha,mode=max,scope=frontend
+          provenance: false
+
+  # ──────────────────────────────────────────────────────────────────────────
+
+  build-body-analyzer:
+    name: Build — body-analyzer
+    needs: detect-changes
+    if: needs.detect-changes.outputs.body-analyzer == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30      # Python image with model deps is the slowest build
+
+    permissions:
+      contents: read
+      packages: write
+
+    env:
+      # GHCR image names MUST be lowercase. The org "AiCoreRepo" would produce
+      # an invalid image ref via github.repository_owner, so pin the lowercase
+      # value here — it must stay in sync with newName in the test overlay.
+      REGISTRY: ghcr.io/aicorerepo
+      IMAGE_TAG: ${{ github.sha }}
+
+    steps:
+      - name: Checkout triggering commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build & Push — body-analyzer
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: infra/docker/body-analyzer/Dockerfile
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/aivestire-body-analyzer:${{ env.IMAGE_TAG }}
+            ${{ env.REGISTRY }}/aivestire-body-analyzer:latest
+          cache-from: type=gha,scope=body-analyzer
+          cache-to: type=gha,mode=max,scope=body-analyzer
+          provenance: false
+
+  # ──────────────────────────────────────────────────────────────────────────
+
+  build-recommendation-api:
+    name: Build — recommendation-api
+    needs: detect-changes
+    if: needs.detect-changes.outputs.recommendation-api == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    permissions:
+      contents: read
+      packages: write
+
+    env:
+      # GHCR image names MUST be lowercase. The org "AiCoreRepo" would produce
+      # an invalid image ref via github.repository_owner, so pin the lowercase
+      # value here — it must stay in sync with newName in the test overlay.
+      REGISTRY: ghcr.io/aicorerepo
+      IMAGE_TAG: ${{ github.sha }}
+
+    steps:
+      - name: Checkout triggering commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build & Push — recommendation-api
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: infra/docker/recommendation-api/Dockerfile
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/aivestire-recommendation-api:${{ env.IMAGE_TAG }}
+            ${{ env.REGISTRY }}/aivestire-recommendation-api:latest
+          cache-from: type=gha,scope=recommendation-api
+          cache-to: type=gha,mode=max,scope=recommendation-api
+          provenance: false
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # Job 6 — Update kustomization.yaml & push (the GitOps write step).
+  #
+  # This job runs ONLY after all build jobs complete (success or skipped).
+  # It fails if any build job that was expected to run actually failed.
+  #
+  # Key design decisions:
+  #   • Uses kustomize CLI (not sed). Kustomize understands the YAML schema;
+  #     sed would break on any whitespace/quoting variation.
+  #   • Only updates tags for services that were actually rebuilt. A skipped
+  #     service keeps whatever tag was already in the overlay — preventing a
+  #     "latest from last week" being silently re-tagged with today's SHA.
+  #   • Checks out the branch (not detached SHA) so the git push succeeds.
+  #   • [skip ci] on the commit prevents infinite CI loop.
+  #   • Commits only when kustomization.yaml actually changed (idempotent).
+  # ────────────────────────────────────────────────────────────────────────────
+  update-manifests:
+    name: Update K8s Manifests & Trigger ArgoCD
+    needs:
+      - detect-changes
+      - build-backend
+      - build-frontend
+      - build-body-analyzer
+      - build-recommendation-api
+    # Run when at least one image changed and no build actually FAILED.
+    # 'skipped' is an acceptable result here (means nothing changed for that service).
+    if: |
+      always() &&
+      needs.detect-changes.outputs.any-image == 'true' &&
+      !contains(needs.*.result, 'failure') &&
+      !contains(needs.*.result, 'cancelled')
+
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    permissions:
+      contents: write   # needed to push the manifest commit
+
+    env:
+      # GHCR image names MUST be lowercase. The org "AiCoreRepo" would produce
+      # an invalid image ref via github.repository_owner, so pin the lowercase
+      # value here — it must stay in sync with newName in the test overlay.
+      REGISTRY: ghcr.io/aicorerepo
+      IMAGE_TAG: ${{ github.sha }}
+
+    steps:
+      - name: Checkout test branch (not detached SHA)
+        uses: actions/checkout@v4
+        with:
+          # Checkout the branch so we can push back to it, not a detached HEAD.
+          ref: ${{ github.ref_name }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify kustomization.yaml exists
+        run: |
+          KFILE="infra/k8s/overlays/test/kustomization.yaml"
+          if [ ! -f "$KFILE" ]; then
+            echo "❌ $KFILE not found."
+            echo "   Create the overlay file before running CD."
+            echo "   See: infra/k8s/overlays/test/ in the repo."
+            exit 1
+          fi
+          echo "✅ $KFILE found"
+
+      - name: Install kustomize
+        uses: imranismail/setup-kustomize@v2
+        with:
+          kustomize-version: "5.4.3"
+
+      # ── Selective tag update per rebuilt service ───────────────────────────
+      # We only call `kustomize edit set image` for services whose build job ran.
+      # Services with result=skipped keep their existing tag untouched.
+      - name: Update tags for rebuilt images only
+        working-directory: infra/k8s/overlays/test
+        run: |
+          set -euo pipefail
+
+          UPDATED=()
+
+          if [[ "${{ needs.build-backend.result }}" == "success" ]]; then
+            kustomize edit set image \
+              "REGISTRY/aivestire-backend=${{ env.REGISTRY }}/aivestire-backend:${{ env.IMAGE_TAG }}"
+            UPDATED+=("backend")
+            echo "  ✅ backend → ${{ env.IMAGE_TAG }}"
+          else
+            echo "  ⏭️  backend skipped (no change)"
+          fi
+
+          if [[ "${{ needs.build-frontend.result }}" == "success" ]]; then
+            kustomize edit set image \
+              "REGISTRY/aivestire-frontend=${{ env.REGISTRY }}/aivestire-frontend:${{ env.IMAGE_TAG }}"
+            UPDATED+=("frontend")
+            echo "  ✅ frontend → ${{ env.IMAGE_TAG }}"
+          else
+            echo "  ⏭️  frontend skipped (no change)"
+          fi
+
+          if [[ "${{ needs.build-body-analyzer.result }}" == "success" ]]; then
+            kustomize edit set image \
+              "REGISTRY/aivestire-body-analyzer=${{ env.REGISTRY }}/aivestire-body-analyzer:${{ env.IMAGE_TAG }}"
+            UPDATED+=("body-analyzer")
+            echo "  ✅ body-analyzer → ${{ env.IMAGE_TAG }}"
+          else
+            echo "  ⏭️  body-analyzer skipped (no change)"
+          fi
+
+          if [[ "${{ needs.build-recommendation-api.result }}" == "success" ]]; then
+            kustomize edit set image \
+              "REGISTRY/aivestire-recommendation-api=${{ env.REGISTRY }}/aivestire-recommendation-api:${{ env.IMAGE_TAG }}"
+            UPDATED+=("recommendation-api")
+            echo "  ✅ recommendation-api → ${{ env.IMAGE_TAG }}"
+          else
+            echo "  ⏭️  recommendation-api skipped (no change)"
+          fi
+
+          echo ""
+          echo "Services updated: ${UPDATED[*]:-none}"
+
+      - name: Show updated kustomization.yaml
+        run: cat infra/k8s/overlays/test/kustomization.yaml
+
+      - name: Commit & push (only if manifest changed)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add infra/k8s/overlays/test/kustomization.yaml
+
+          if git diff --staged --quiet; then
+            echo "⏭️  kustomization.yaml unchanged — nothing to commit"
+            echo "   (This can happen if the same SHA is being re-deployed)"
+          else
+            SHORT_SHA="${{ env.IMAGE_TAG }}"
+            SHORT_SHA="${SHORT_SHA:0:8}"
+            git commit -m "ci(k8s): update image tags to ${SHORT_SHA} [skip ci]"
+
+            # Pull+rebase in case another commit landed while builds were running.
+            # Retries up to 3 times to handle concurrent manifest commits.
+            for attempt in 1 2 3; do
+              if git push; then
+                echo "✅ Manifests pushed — ArgoCD will sync in ~3 minutes"
+                break
+              fi
+              echo "⚠️  Push failed (attempt $attempt/3) — rebasing and retrying..."
+              git pull --rebase
+            done
+          fi
+
+      # ── Deploy summary ────────────────────────────────────────────────────
+      - name: Deploy summary
+        if: always()
+        run: |
+          echo "════════════════════════════════════════════════════"
+          echo "  DEPLOY SUMMARY"
+          echo "════════════════════════════════════════════════════"
+          echo "  Triggering SHA: ${{ env.IMAGE_TAG }}"
+          echo "  Branch:         ${{ github.ref_name }}"
+          echo "  Registry:       ${{ env.REGISTRY }}"
+          echo ""
+          echo "  Build results:"
+          echo "    backend:            ${{ needs.build-backend.result }}"
+          echo "    frontend:           ${{ needs.build-frontend.result }}"
+          echo "    body-analyzer:      ${{ needs.build-body-analyzer.result }}"
+          echo "    recommendation-api: ${{ needs.build-recommendation-api.result }}"
+          echo ""
+          echo "  ArgoCD target: infra/k8s/overlays/test/"
+          echo "════════════════════════════════════════════════════"

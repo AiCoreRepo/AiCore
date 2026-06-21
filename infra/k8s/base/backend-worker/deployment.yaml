@@ -1,0 +1,101 @@
+# infra/k8s/base/backend-worker/deployment.yaml
+# ──────────────────────────────────────────────────────────────────────────────
+# Backend Worker — Bull Queue Consumer
+#
+# Same Docker image as the backend API server, different entrypoint.
+# IS_WORKER_PROCESS=true makes the app boot as a worker-only process
+# (no HTTP server, only Bull queue listeners).
+#
+# Production decisions:
+#   • No initContainer (migrations): the backend API's initContainer already
+#     ran migrations. Worker starts right after the API pod is ready.
+#   • No readinessProbe/livenessProbe via HTTP (no HTTP server).
+#     Uses a process-level check instead: verifies the worker process is alive.
+#   • Resources: same as backend API — worker can be memory-intensive
+#     when processing image-heavy queue jobs.
+#   • Restart policy: Always (default) — if the worker crashes, Kubernetes
+#     restarts it. Bull jobs go back to the queue (they're durable in Redis).
+# ──────────────────────────────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend-worker
+  namespace: aivestire
+  labels:
+    app: backend-worker
+    tier: worker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: backend-worker
+  # Recreate strategy: the old worker pod drains its current job before the
+  # new one starts. Safer than RollingUpdate for stateful queue workers.
+  # (RollingUpdate would briefly run two workers, potentially processing
+  # the same job twice if Bull's lock expires during the overlap.)
+  strategy:
+    type: Recreate
+
+  template:
+    metadata:
+      labels:
+        app: backend-worker
+        tier: worker
+    spec:
+      # Give the worker time to finish its current job before SIGTERM
+      terminationGracePeriodSeconds: 120
+
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+
+      containers:
+        - name: backend-worker
+          image: REGISTRY/aivestire-backend:latest
+          command: ["node", "dist/src/worker/main.js"]
+
+          envFrom:
+            - secretRef:
+                name: backend-secret
+
+          env:
+            - name: NODE_ENV
+              value: production
+            # Disable Twilio/SMS until real creds exist (placeholder SID crashes Nest).
+            - name: SKIP_TWILIO
+              value: "true"
+            - name: IS_WORKER_PROCESS
+              value: "true"
+            - name: REDIS_HOST
+              value: redis
+            - name: REDIS_PORT
+              value: "6379"
+            - name: FASTAPI_BODY_ANALYZE_URL
+              value: http://body-analyzer:8898/body_analyze_json
+            - name: FASTAPI_RECOMMENDATION_URL
+              value: http://recommendation-api:8799/recommendation/ai-decide
+
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+
+          # No liveness probe: the worker IS the container's main process (PID 1),
+          # so if it dies the container exits and Kubernetes restarts it anyway.
+          # (The old `pgrep` exec probe failed because procps isn't in the slim
+          # image, which falsely killed a healthy worker → CrashLoopBackOff.)
+
+      imagePullSecrets:
+        - name: registry-secret

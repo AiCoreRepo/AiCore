@@ -1,0 +1,132 @@
+# infra/k8s/base/postgres/backup-cronjob.yaml
+# ──────────────────────────────────────────────────────────────────────────────
+# PostgreSQL logical backups — CronJob + dedicated PVC
+#
+# WHY THIS EXISTS:
+#   Postgres data lives on the k3s `local-path` StorageClass, which is hostPath
+#   on the single node's SSD. There is NO replication and NO redundancy — if the
+#   disk or node dies, the database is gone. A StatefulSet PVC protects against
+#   POD restarts, not against DATA LOSS. This CronJob gives us a recoverable
+#   logical backup (pg_dump) on a schedule.
+#
+#   ⚠️  These dumps land on the SAME node. That protects against accidental
+#       `DROP TABLE` / bad migrations, but NOT against full node loss. For real
+#       durability, ship /backups offsite (rclone/restic to S3/GCS) — see the
+#       commented sidecar idea at the bottom.
+#
+# RESTORE:
+#   kubectl -n aivestire exec -it postgres-0 -- \
+#     sh -c 'gunzip -c /restore/aivestire-YYYYMMDD-HHMMSS.sql.gz | \
+#            psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
+#   (copy the chosen dump into the postgres pod first, or restore from a job)
+# ──────────────────────────────────────────────────────────────────────────────
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-backup
+  namespace: aivestire
+  labels:
+    app: postgres
+    tier: data
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: postgres-backup
+  namespace: aivestire
+  labels:
+    app: postgres
+    tier: data
+spec:
+  # 02:00 every day (cluster timezone). Adjust to your low-traffic window.
+  schedule: "0 2 * * *"
+  # Never run two backups at once; if the prior one is still going, skip.
+  concurrencyPolicy: Forbid
+  # If the controller was down at the scheduled time, only fire if <1h late.
+  startingDeadlineSeconds: 3600
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      # Don't retry forever on a broken backup — surface the failure.
+      backoffLimit: 2
+      # Hard cap so a hung dump can't run for hours.
+      activeDeadlineSeconds: 3600
+      template:
+        metadata:
+          labels:
+            app: postgres
+            tier: data
+        spec:
+          restartPolicy: Never
+          automountServiceAccountToken: false
+          # postgres:15-alpine runs as uid/gid 70 ("postgres"). fsGroup makes the
+          # local-path volume group-writable so the dump can be written as non-root.
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 70
+            runAsGroup: 70
+            fsGroup: 70
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: pg-backup
+              image: postgres:15-alpine   # must match the server major version
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop: [ALL]
+              env:
+                - name: POSTGRES_USER
+                  valueFrom:
+                    secretKeyRef:
+                      name: postgres-secret
+                      key: POSTGRES_USER
+                - name: POSTGRES_DB
+                  valueFrom:
+                    secretKeyRef:
+                      name: postgres-secret
+                      key: POSTGRES_DB
+                # pg_dump reads the password from PGPASSWORD (never on the CLI).
+                - name: PGPASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: postgres-secret
+                      key: POSTGRES_PASSWORD
+              command:
+                - sh
+                - -c
+                - |
+                  set -euo pipefail
+                  TS="$(date +%Y%m%d-%H%M%S)"
+                  OUT="/backups/${POSTGRES_DB}-${TS}.sql.gz"
+                  echo "→ Dumping ${POSTGRES_DB} to ${OUT}"
+                  # -h postgres → headless service resolves to postgres-0
+                  pg_dump -h postgres -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
+                    --no-owner --no-privileges \
+                    | gzip -9 > "$OUT"
+                  echo "→ Backup size: $(du -h "$OUT" | cut -f1)"
+                  echo "→ Pruning dumps older than 7 days"
+                  find /backups -type f -name '*.sql.gz' -mtime +7 -print -delete
+                  echo "✅ Backup complete. Current dumps:"
+                  ls -lh /backups
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 128Mi
+                limits:
+                  cpu: 500m
+                  memory: 512Mi
+              volumeMounts:
+                - name: backup-store
+                  mountPath: /backups
+          volumes:
+            - name: backup-store
+              persistentVolumeClaim:
+                claimName: postgres-backup

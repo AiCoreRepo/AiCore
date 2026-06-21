@@ -1,0 +1,171 @@
+# infra/k8s/base/backend/deployment.yaml
+# ──────────────────────────────────────────────────────────────────────────────
+# Backend — NestJS API Server
+#
+# Production decisions:
+#
+#   initContainer (run-migrations):
+#     Runs `node scripts/run-migrations.mjs` BEFORE the main server starts.
+#     This ensures Prisma migrations are applied exactly once per deployment,
+#     before any traffic reaches the new code. Safe for rolling updates because
+#     only one pod's initContainer runs at a time while old pods continue serving.
+#
+#   RollingUpdate strategy (maxSurge=1, maxUnavailable=0):
+#     • Zero downtime: old pod keeps serving until new pod is healthy.
+#     • maxSurge=1: briefly runs 2 pods (uses ~512 MB extra RAM during deploy).
+#       With 5.5 GB headroom this is safe.
+#
+#   Resources: 250m/512Mi request — 1000m/1Gi limit.
+#     Limit is 2x request for CPU — allows handling traffic spikes.
+#     Memory limit is 1Gi — NestJS with Prisma + large request buffers needs headroom.
+#
+#   readinessProbe (/health, 30s initial delay):
+#     NestJS + Prisma connection takes ~15-20s. 30s initial delay prevents
+#     premature traffic routing that would cause 502s during startup.
+#
+#   livenessProbe (/health, 60s initial delay):
+#     Only starts checking after the app has had time to fully initialize.
+#     A liveness failure causes pod restart — we don't want false restarts.
+#
+#   envFrom (secretRef: backend-secret):
+#     Pulls ALL keys from the Secret as env vars. This is simpler than listing
+#     each key individually and avoids missing new env vars when keys are added.
+# ──────────────────────────────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: aivestire
+  labels:
+    app: backend
+    tier: api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: backend
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0    # Always keep at least 1 pod running during deploys
+
+  template:
+    metadata:
+      labels:
+        app: backend
+        tier: api
+    spec:
+      terminationGracePeriodSeconds: 30
+
+      # ── Security hardening ────────────────────────────────────────────────
+      # This app never calls the Kubernetes API, so don't mount its token
+      # (stops a compromised pod from using it against the API server).
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true          # image USER is uid 10001 (see Dockerfile)
+        runAsUser: 10001
+        runAsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault      # syscall filtering (default-off in k8s)
+
+      # ── Init: run Prisma migrations before main container starts ──────────
+      initContainers:
+        - name: run-migrations
+          image: REGISTRY/aivestire-backend:latest   # same image, different command
+          command: ["node", "scripts/run-migrations.mjs"]
+          envFrom:
+            - secretRef:
+                name: backend-secret
+          env:
+            - name: NODE_ENV
+              value: production
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+
+      # ── Main container ────────────────────────────────────────────────────
+      containers:
+        - name: backend
+          image: REGISTRY/aivestire-backend:latest
+          ports:
+            - name: http
+              containerPort: 3000
+
+          # Pull ALL keys from backend-secret as env vars
+          envFrom:
+            - secretRef:
+                name: backend-secret
+
+          # Explicit env vars that are not secret (safe to inline here)
+          env:
+            - name: NODE_ENV
+              value: production
+            # Twilio/SMS disabled until real credentials are provided — the SDK
+            # rejects a non-"AC" account SID at construction and crashes Nest.
+            # Set to "false" (and put real creds in backend-secret) to enable SMS.
+            - name: SKIP_TWILIO
+              value: "true"
+            - name: REDIS_HOST
+              value: redis
+            - name: REDIS_PORT
+              value: "6379"
+            - name: FASTAPI_BODY_ANALYZE_URL
+              value: http://body-analyzer:8898/body_analyze_json
+            - name: FASTAPI_RECOMMENDATION_URL
+              value: http://recommendation-api:8799/recommendation/ai-decide
+
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+
+          # ── Probes ──────────────────────────────────────────────────────
+          # startupProbe: generous window for first-time startup (migrations + init)
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 20
+            periodSeconds: 5
+            failureThreshold: 24   # 20 + 24*5 = 140s max startup time
+            timeoutSeconds: 3
+
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 0   # startupProbe gates this — runs after startup passes
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+            successThreshold: 1
+
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 0
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 3
+
+      # ── Image pull secret for private GHCR registry ───────────────────────
+      imagePullSecrets:
+        - name: registry-secret

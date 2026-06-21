@@ -1,0 +1,139 @@
+# infra/k8s/base/postgres/statefulset.yaml
+# ──────────────────────────────────────────────────────────────────────────────
+# PostgreSQL 15 — StatefulSet (single replica on single-node k3s)
+#
+# Production decisions:
+#   • StatefulSet (not Deployment): stable DNS name, stable PVC identity.
+#     postgres-0.postgres.aivestire.svc.cluster.local is always the primary.
+#   • local-path StorageClass (k3s built-in): hostPath-based, fast SSD I/O.
+#     50 GB PVC — the 200 GB SSD has room for OS (20 GB), k3s/apps (30 GB),
+#     postgres data (50 GB), and recommendation model artifacts (100 GB headroom).
+#   • Resources tuned for Postgres 15 on 12 GB node:
+#     Request 512 MB — realistic idle usage.
+#     Limit 1.5 GB  — allows shared_buffers to work, prevents OOM kill.
+#   • Data volume mounted at /var/lib/postgresql/data/pgdata to avoid
+#     "data dir is mounted as volume root" pg startup error.
+#   • No host port exposed — only reachable from within the cluster.
+# ──────────────────────────────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: aivestire
+  labels:
+    app: postgres
+    tier: data
+spec:
+  serviceName: postgres   # Must match the headless Service name below
+  replicas: 1             # Single-node — no HA needed
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+        tier: data
+    spec:
+      # Terminate DB cleanly before killing (allows checkpoint flush)
+      terminationGracePeriodSeconds: 60
+
+      automountServiceAccountToken: false
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      # NOTE: the postgres entrypoint must start as root to chown the data dir
+      # and then drops to the postgres user. So we don't force runAsNonRoot or
+      # drop ALL caps (it needs CHOWN/SETUID/SETGID to drop privileges).
+
+      containers:
+        - name: postgres
+          image: postgres:15-alpine
+          ports:
+            - name: postgres
+              containerPort: 5432
+
+          env:
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_PASSWORD
+            - name: POSTGRES_DB
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_DB
+            # Prevent "directory must not contain existing files" error
+            # when mounting a PVC into the default /var/lib/postgresql/data
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+
+          # Tuning for 12 GB node — passed as command args so they override
+          # the default postgresql.conf without needing a ConfigMap.
+          args:
+            - -c
+            - shared_buffers=256MB
+            - -c
+            - max_connections=100
+            - -c
+            - effective_cache_size=768MB
+            - -c
+            - wal_buffers=16MB
+            - -c
+            - checkpoint_completion_target=0.9
+
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 1536Mi  # 1.5 GB — allows Postgres buffer cache to work
+
+          securityContext:
+            allowPrivilegeEscalation: false
+
+          volumeMounts:
+            - name: postgres-data
+              mountPath: /var/lib/postgresql/data
+
+          readinessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - $(POSTGRES_USER)
+                - -d
+                - $(POSTGRES_DB)
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+
+          livenessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - $(POSTGRES_USER)
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 3
+
+  # PVC template — created once per pod, survives pod restarts and rescheduling
+  volumeClaimTemplates:
+    - metadata:
+        name: postgres-data
+      spec:
+        accessModes: [ReadWriteOnce]
+        storageClassName: local-path   # k3s built-in — uses node's SSD directly
+        resources:
+          requests:
+            storage: 50Gi

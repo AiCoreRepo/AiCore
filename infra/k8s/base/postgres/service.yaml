@@ -1,0 +1,30 @@
+# infra/k8s/base/postgres/service.yaml
+# Headless Service: clusterIP: None
+# This gives the StatefulSet pod a stable DNS name:
+#   postgres-0.postgres.aivestire.svc.cluster.local
+# The backend connects to: postgresql://...@postgres:5432/...
+# Kubernetes resolves `postgres` to the pod IP via the headless service.
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: aivestire
+  labels:
+    app: postgres
+    tier: data
+  annotations:
+    # Headless→ClusterIP changes the immutable clusterIP field, so have ArgoCD
+    # replace (delete+recreate) the Service instead of a failing apply.
+    argocd.argoproj.io/sync-options: Replace=true
+spec:
+  # ClusterIP, NOT headless: on this single k3s node the host firewall drops
+  # direct pod-IP traffic (10.42.0.0/16), but DNAT'd ClusterIP-service traffic
+  # works. A headless service returns the pod IP (the broken path); a ClusterIP
+  # routes via kube-proxy. (Proper long-term fix: open the pod CIDR on the node.)
+  type: ClusterIP
+  selector:
+    app: postgres
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: 5432

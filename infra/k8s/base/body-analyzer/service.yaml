@@ -1,0 +1,18 @@
+# infra/k8s/base/body-analyzer/service.yaml
+# ClusterIP — internal only. Backend calls http://body-analyzer:8898/body_analyze_json
+# NEVER expose externally — body analysis is a private internal API.
+apiVersion: v1
+kind: Service
+metadata:
+  name: body-analyzer
+  namespace: aivestire
+  labels:
+    app: body-analyzer
+    tier: ai
+spec:
+  selector:
+    app: body-analyzer
+  ports:
+    - name: http
+      port: 8898
+      targetPort: http
