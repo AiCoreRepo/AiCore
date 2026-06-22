@@ -24,8 +24,8 @@ spec:
   acme:
     # Let's Encrypt production ACME server
     server: https://acme-v02.api.letsencrypt.org/directory
-    # LE sends cert-expiry warnings here. Change to a team/ops alias if desired.
-    email: gibpdev@wisflux.com
+    # LE sends cert-expiry warnings here. Change to your real aivestire ops alias.
+    email: admin@aivestire.com
     privateKeySecretRef:
       # cert-manager stores the ACME account private key here
       name: letsencrypt-prod-account-key
