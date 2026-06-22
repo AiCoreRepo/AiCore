@@ -37,7 +37,11 @@ spec:
     spec:
       terminationGracePeriodSeconds: 15
 
-      automountServiceAccountToken: false
+      # Must stay true: the frontend entrypoint reads the pod's namespace from
+      # /var/run/secrets/kubernetes.io/serviceaccount/namespace to expand the
+      # nginx upstreams to FQDNs (backend.<ns>.svc.cluster.local). The default
+      # ServiceAccount has no RBAC permissions, so mounting its token is low-risk.
+      automountServiceAccountToken: true
       securityContext:
         seccompProfile:
           type: RuntimeDefault
