@@ -252,7 +252,7 @@ kubectl create secret docker-registry registry-secret \
   --docker-server=ghcr.io \
   --docker-username=<GH_USERNAME> \
   --docker-password=<GHCR_PAT> \
-  --docker-email=gibpdev@wisflux.com \
+  --docker-email=admin@aivestire.com \
   --namespace aivestire --dry-run=client -o yaml \
   | kubeseal --format yaml --namespace aivestire \
   > infra/k8s/base/secrets/registry-secret.yaml      # overwrites the placeholder
@@ -309,7 +309,7 @@ The domain and TLS host are hardcoded to `94.136.189.250.nip.io`. If your server
 IP is different, update it in **two files**, commit, and push:
 
 - [`infra/k8s/base/ingress/ingress.yaml`](k8s/base/ingress/ingress.yaml) — `tls.hosts` and `rules.host`
-- (the email in [`clusterissuer.yaml`](k8s/base/ingress/clusterissuer.yaml) is already set to `gibpdev@wisflux.com`)
+- (the email in [`clusterissuer.yaml`](k8s/base/ingress/clusterissuer.yaml) is already set to `admin@aivestire.com`)
 
 `nip.io` magic: `<SERVER_IP>.nip.io` automatically resolves to `<SERVER_IP>` — no
 DNS setup needed. When you buy a real domain later, point an A record at the IP
