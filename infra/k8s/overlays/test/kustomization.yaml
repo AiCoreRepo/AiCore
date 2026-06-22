@@ -20,16 +20,16 @@ resources:
 images:
 - name: REGISTRY/aivestire-backend
   newName: ghcr.io/aicorerepo/aivestire-backend
-  newTag: c1cd3dcf8f1fcb32becfcf83b4aa5b2b531c5956
+  newTag: 20ea05f35efa053ea57ba1710bebf5060df4100c
 - name: REGISTRY/aivestire-body-analyzer
   newName: ghcr.io/aicorerepo/aivestire-body-analyzer
-  newTag: c1cd3dcf8f1fcb32becfcf83b4aa5b2b531c5956
+  newTag: 20ea05f35efa053ea57ba1710bebf5060df4100c
 - name: REGISTRY/aivestire-frontend
   newName: ghcr.io/aicorerepo/aivestire-frontend
-  newTag: c1cd3dcf8f1fcb32becfcf83b4aa5b2b531c5956
+  newTag: 20ea05f35efa053ea57ba1710bebf5060df4100c
 - name: REGISTRY/aivestire-recommendation-api
   newName: ghcr.io/aicorerepo/aivestire-recommendation-api
-  newTag: c1cd3dcf8f1fcb32becfcf83b4aa5b2b531c5956
+  newTag: 20ea05f35efa053ea57ba1710bebf5060df4100c
 
 # `labels` (not the deprecated `commonLabels`): with includeSelectors=false these
 # labels are added to resource metadata and pod templates but NOT to selectors.
