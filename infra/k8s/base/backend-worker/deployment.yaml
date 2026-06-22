@@ -65,9 +65,9 @@ spec:
           env:
             - name: NODE_ENV
               value: production
-            # Disable Twilio/SMS until real creds exist (placeholder SID crashes Nest).
+            # Real Twilio creds in backend-secret → SMS enabled (set "true" to disable).
             - name: SKIP_TWILIO
-              value: "true"
+              value: "false"
             - name: IS_WORKER_PROCESS
               value: "true"
             - name: REDIS_HOST
