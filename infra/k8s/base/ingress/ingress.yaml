@@ -27,6 +27,8 @@ metadata:
   name: aivestire-ingress
   namespace: aivestire
   annotations:
+    # cert-manager provisions + auto-renews the Let's Encrypt cert for the tls hosts.
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
     # Route to the Service ClusterIP (kube-proxy DNAT) instead of directly to pod
     # endpoints. On this node the host firewall drops direct pod-IP traffic, so
     # the default endpoint routing returns 502; the ClusterIP/DNAT path works.
@@ -44,14 +46,28 @@ spec:
   # Modern controller selector (replaces the old kubernetes.io/ingress.class).
   ingressClassName: nginx
 
-  # ── TLS — commented until a domain + cert-manager are in place ───────────────
-  # tls:
-  #   - hosts:
-  #       - <your-domain-or-IP>.nip.io
-  #     secretName: aivestire-tls
+  # cert-manager fills this Secret with the Let's Encrypt cert for the host below.
+  tls:
+    - hosts:
+        - orscope.aivestire.com
+      secretName: aivestire-tls
 
   rules:
-    # No `host:` → matches ANY host, so http://<NODE_IP>/ works with zero DNS.
+    # Primary: the real domain over HTTPS (ingress-nginx auto-redirects HTTP→HTTPS
+    # for hosts that have a cert).
+    - host: orscope.aivestire.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend
+                port:
+                  number: 8080
+
+    # Fallback: host-less HTTP so http://<NODE_IP>/ keeps working during DNS
+    # cut-over. Remove this rule once you're fully on the domain.
     - http:
         paths:
           - path: /

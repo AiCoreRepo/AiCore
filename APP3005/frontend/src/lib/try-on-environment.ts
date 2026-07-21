@@ -15,7 +15,12 @@ const ENV_DEFAULT_TRY_ON_PROVIDER =
       ? TRYON_PROVIDER.VERTEX
       : null;
 
-const PRODUCTION_TRY_ON_HOSTS = new Set(['aivestire.com', 'www.aivestire.com']);
+const PRODUCTION_TRY_ON_HOSTS = new Set([
+  'aivestire.com',
+  'www.aivestire.com',
+  // Current live production domain served via the k8s ingress (Let's Encrypt TLS).
+  'orscope.aivestire.com',
+]);
 const DEV_SKIP_TRY_ON_HOSTS = new Set([
   'dev.aivestire.com',
   'uat.aivestire.com',

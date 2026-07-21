@@ -24,8 +24,8 @@ spec:
   acme:
     # Let's Encrypt production ACME server
     server: https://acme-v02.api.letsencrypt.org/directory
-    # LE sends cert-expiry warnings here. Change to a team/ops alias if desired.
-    email: gibpdev@wisflux.com
+    # LE sends cert-expiry warnings here. Change to your real aivestire ops alias.
+    email: admin@aivestire.com
     privateKeySecretRef:
       # cert-manager stores the ACME account private key here
       name: letsencrypt-prod-account-key
@@ -33,3 +33,11 @@ spec:
       - http01:
           ingress:
             class: nginx
+            # cert-manager spins up a temporary Ingress for the ACME challenge.
+            # Without service-upstream, ingress-nginx routes to the solver POD IP,
+            # which this node's firewall drops (502 → challenge never validates).
+            # Force ClusterIP/DNAT routing, same as the main app Ingress.
+            ingressTemplate:
+              metadata:
+                annotations:
+                  nginx.ingress.kubernetes.io/service-upstream: "true"
