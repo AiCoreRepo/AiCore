@@ -109,17 +109,19 @@ export function AnimatedComplimentText({
     mode === "typing" && isVisible && visibleSegments < segments.length;
 
   return (
-    <div className="relative">
+    <div className="relative min-w-0 max-w-full overflow-visible">
       <span
         aria-hidden="true"
-        className={`invisible block break-words whitespace-pre-wrap ${className}`}
+        className={`invisible block min-w-0 max-w-full break-words whitespace-pre-wrap ${className}`}
+        style={{ overflowWrap: "anywhere", wordBreak: "break-word" }}
       >
         {text}
       </span>
       <span
-        className={`absolute inset-0 block break-words whitespace-pre-wrap transition-all duration-500 ${
+        className={`absolute inset-0 block min-w-0 max-w-full break-words whitespace-pre-wrap transition-all duration-500 ${
           isVisible ? "translate-y-0 opacity-100" : "translate-y-2 opacity-0"
         } ${className}`}
+        style={{ overflowWrap: "anywhere", wordBreak: "break-word" }}
       >
         {displayText}
         {showCaret ? (

@@ -113,6 +113,7 @@ const App = () => (
                       <Route path="/upcoming" element={<UpcomingPage />} />
                       <Route path="/about" element={<AboutPage />} />
                       <Route path="/collection" element={<CollectionPage />} />
+                      <Route path="/mens" element={<Navigate to="/collection?section=mens" replace />} />
                       <Route path="/product/:id" element={<ProductDetailsPage />} />
                       <Route path="/cart" element={
                         <Suspense fallback={<div className="min-h-screen bg-neutral-950 flex items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-2 border-[#D4AF37] border-t-transparent"></div></div>}>

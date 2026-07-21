@@ -24,6 +24,8 @@ COPY APP3005/aivestire-backend-tmp/package*.json ./
 COPY APP3005/aivestire-backend-tmp/prisma ./prisma
 COPY APP3005/aivestire-backend-tmp/scripts ./scripts
 COPY APP3005_AI/recommend_demo/main_train_data.csv /app/seed/main_train_data.csv
+RUN mkdir -p /app/seed/mens
+COPY image.png /app/seed/mens/image.png
 RUN npm install --omit=dev && npm cache clean --force
 RUN npx prisma generate
 

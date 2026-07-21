@@ -5,6 +5,7 @@ import { ValueCards } from "@/components/ValueCards";
 import { ValueFlowSection } from "@/components/ValueFlowSection";
 import { ArtisanTestimonials } from "@/components/ArtisanTestimonials";
 import { Footer } from "@/components/Footer";
+import { HomeVirtualTryOnPopup } from "@/components/home/HomeVirtualTryOnPopup";
 import { useLandingGsap } from "@/hooks/useLandingGsap";
 
 const Index = () => {
@@ -21,6 +22,7 @@ const Index = () => {
                 <ArtisanTestimonials />
             </main>
             <Footer />
+            <HomeVirtualTryOnPopup />
         </div>
     );
 };

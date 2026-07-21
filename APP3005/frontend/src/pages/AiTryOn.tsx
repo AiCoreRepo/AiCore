@@ -354,7 +354,9 @@ const AiTryOn = () => {
 
         if (!avatarImage || !clothingImage) {
           throw new Error(
-            "Try-on requires your avatar and a public clothing image.",
+            !avatarImage
+              ? "Please create or select your Aura avatar before using full virtual try-on."
+              : "This item image is still syncing. Please try another item for AI try-on.",
           );
         }
 
@@ -384,7 +386,9 @@ const AiTryOn = () => {
 
         if (!avatarImage || !clothingImage) {
           throw new Error(
-            "Try-on requires your avatar and a public clothing image.",
+            !avatarImage
+              ? "Please create or select your Aura avatar before using full virtual try-on."
+              : "This item image is still syncing. Please try another item for AI try-on.",
           );
         }
 

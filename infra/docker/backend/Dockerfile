@@ -54,6 +54,8 @@ COPY APP3005/aivestire-backend-tmp/prisma ./prisma
 COPY APP3005/aivestire-backend-tmp/scripts ./scripts
 # CSV seed data used by recommendation seeder script
 COPY APP3005_AI/recommend_demo/main_train_data.csv /app/seed/main_train_data.csv
+RUN mkdir -p /app/seed/mens
+COPY image.png /app/seed/mens/image.png
 
 # Install ONLY production deps, then generate Prisma client for runtime
 RUN npm ci --omit=dev --no-audit --fund=false \

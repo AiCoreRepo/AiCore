@@ -77,5 +77,6 @@ APP3005_AI/recommend_demo/training_main.csv
 APP3005_AI/recommend_demo/training_main_test.csv
 APP3005_AI/recommend_demo/training_main_train.csv
 APP3005_AI/recommend_demo/*.zip
+APP3005_AI/recommend_demo/etcd/
 # ModelDemo & other Playground experiments are not part of any image build.
 APP3005_AI/ModelDemo/

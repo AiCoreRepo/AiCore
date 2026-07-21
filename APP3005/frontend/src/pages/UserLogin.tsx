@@ -25,7 +25,7 @@ const UserLogin = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const { returnUrl, returnState } = location.state || {};
-    const postLoginUrl = returnUrl && returnUrl !== "/" ? returnUrl : "/collection";
+    const postLoginUrl = returnUrl || "/collection";
 
     const {
         register,

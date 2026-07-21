@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { getErrorMessage } from "@/lib/error-utils";
 
 const SHOW_DELAY_MS = 10_000;
+const REGISTER_POPUP_ENABLED = false;
 const SESSION_KEY = "aivestire:register-popup-dismissed";
 const ACTIVITY_EVENTS = [
   "pointerdown",
@@ -30,6 +31,10 @@ function shouldShowOnPath(pathname: string): boolean {
 }
 
 export function InactivityRegisterModal() {
+  return REGISTER_POPUP_ENABLED ? <InactivityRegisterModalInner /> : null;
+}
+
+function InactivityRegisterModalInner() {
   const { user, loading } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();

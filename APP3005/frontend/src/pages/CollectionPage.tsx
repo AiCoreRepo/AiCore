@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
@@ -14,6 +14,7 @@ import { TryOnInterstitialModal } from "@/components/TryOnInterstitialModal";
 import { TryOnResultModal } from '@/components/ai-tryon/TryOnResultModal';
 import { TryOnUpgradePopup } from '@/components/ai-tryon/TryOnUpgradePopup';
 import { AuraPromptDialog } from '@/components/aura/AuraPromptDialog';
+import { GuestTryOnModal } from '@/components/collection/GuestTryOnModal';
 import {
     tryOnWithGemini,
     tryOnWithVertex,
@@ -52,6 +53,7 @@ import { FilterMultiSelect } from '@/components/collection/FilterMultiSelect';
 import { CLOTHING_COLORS, BODY_SHAPES, SKIN_TONES } from '@/constants/product-hierarchy.enums';
 import { Pagination } from "@/components/common/Pagination";
 import { useCategories } from '@/hooks/useCategories';
+import { useToast } from "@/hooks/use-toast";
 import { WorkflowDiscoveryModal } from '@/components/WorkflowDiscoveryModal';
 import {
     clearWorkflowDiscoveryPending,
@@ -83,6 +85,8 @@ const buildGeminiTryOnAdditionalParams = (aura: any) => ({
     maskClothingModel: true,
 });
 
+type CollectionSection = "womens" | "mens";
+
 type TryOnResult = {
     success: boolean;
     resultImage?: string;
@@ -97,6 +101,13 @@ const CollectionPage = () => {
     const showMultipleTryOnProviders = shouldShowMultipleTryOnProviders();
     const defaultTryOnProvider = getDefaultTryOnProvider();
     const { lastAddedProductId, clearLastAddedProductId } = useCart();
+    const { toast } = useToast();
+    const sectionParam = new URLSearchParams(location.search).get("section");
+    const activeCollectionSection: CollectionSection =
+        location.pathname === "/mens" || sectionParam === "mens" ? "mens" : "womens";
+    const isMensSection =
+        activeCollectionSection === "mens";
+    const collectionAudience = isMensSection ? "mens" : "womens";
 
     // Aura Welcome Modal State
     const [showAuraWelcomeModal, setShowAuraWelcomeModal] = useState(false);
@@ -120,6 +131,7 @@ const CollectionPage = () => {
 
     const [selectedTryOnProduct, setSelectedTryOnProduct] = useState<PublicProduct | null>(null);
     const [isTryOnModalOpen, setIsTryOnModalOpen] = useState(false);
+    const [isGuestTryOnModalOpen, setIsGuestTryOnModalOpen] = useState(false);
     const [selectedTryOnProvider, setSelectedTryOnProvider] = useState<TryOnProvider>(defaultTryOnProvider);
 
     // AI Try-On State
@@ -133,6 +145,7 @@ const CollectionPage = () => {
     const [originalTryOnImage, setOriginalTryOnImage] = useState<string | null>(null);
     const [generatedImages, setGeneratedImages] = useState<string[]>([]);
     const [currentGarmentImage, setCurrentGarmentImage] = useState<string | null>(null);
+    const [currentUserPhoto, setCurrentUserPhoto] = useState<string | null>(null);
     const [showFeedbackSheet, setShowFeedbackSheet] = useState(false);
     const [showUpgradePopup, setShowUpgradePopup] = useState(false);
     const [tryOnUsageSnapshot, setTryOnUsageSnapshot] = useState<TryOnUsageSnapshot>(
@@ -147,6 +160,12 @@ const CollectionPage = () => {
     const [selectedTryOnLabel, setSelectedTryOnLabel] = useState<string>('');
 
     useTryOnPurchaseRedirect(fetchUser);
+
+    useEffect(() => {
+        if (location.pathname === "/mens") {
+            navigate("/collection?section=mens", { replace: true });
+        }
+    }, [location.pathname, navigate]);
 
     const resolveProductLabel = (productId: string) => {
         const product = _.find(filteredProducts, (item) => item.product_id === productId);
@@ -196,6 +215,7 @@ const CollectionPage = () => {
 
         setSelectedTryOnProduct(product);
         setCurrentGarmentImage(getProductImageUrl(product) || savedTryOn.productImage);
+        setCurrentUserPhoto(getAvatarImageUrl(aura));
         setTryOnLoading(false);
         setGeneratingAngles(false);
         setTryOnError(null);
@@ -288,16 +308,26 @@ const CollectionPage = () => {
         selectedSizes,
         selectedColors,
         selectedBodyShapes,
-        selectedSkinTones
+        selectedSkinTones,
+        undefined,
+        collectionAudience
     );
 
     const availableFilters = data?.availableFilters;
 
     // Fetch real admin-created categories from the backend
     const { data: categoriesData } = useCategories();
-    const backendCategories = categoriesData && categoriesData.length > 0
-        ? categoriesData.map((c) => c.name)
-        : (availableFilters?.categories ?? []);
+    const backendCategories = useMemo(
+        () =>
+            categoriesData && categoriesData.length > 0
+                ? categoriesData.map((c) => c.name)
+                : (availableFilters?.categories ?? []),
+        [availableFilters?.categories, categoriesData]
+    );
+    useEffect(() => {
+        setSelectedCategories([]);
+        setCurrentPage(1);
+    }, [activeCollectionSection]);
 
     // Scroll-to-last-added-item on back navigation
     useEffect(() => {
@@ -356,7 +386,6 @@ const CollectionPage = () => {
         selectedRatings.length +
         selectedDiscounts.length +
         (priceRange[0] !== 0 || priceRange[1] !== 5000 ? 1 : 0);
-
     const handleTryOn = async (
         product: PublicProduct,
         provider: TryOnProvider = defaultTryOnProvider,
@@ -368,7 +397,10 @@ const CollectionPage = () => {
 
         const token = localStorage.getItem('access_token');
         if (!token) {
-            navigate('/user-login');
+            setSelectedTryOnProduct(product);
+            setSelectedTryOnProvider(provider);
+            setSelectedTryOnLabel(resolveProductLabel(product.product_id));
+            setIsGuestTryOnModalOpen(true);
             return;
         }
 
@@ -388,6 +420,19 @@ const CollectionPage = () => {
             return;
         }
 
+        const clothingImage = getProductImageUrl(product, {
+            requireRemote: true,
+        });
+
+        if (!clothingImage) {
+            toast({
+                title: "Try-on image is not ready",
+                description: "This item needs a public product image before AI try-on. Please try another item.",
+                variant: "destructive",
+            });
+            return;
+        }
+
         // Check permissions - BYPASSED: Allow all users
         if (false && user?.role !== 'ADMIN' && user?.try_on_permission !== 'APPROVED') {
             navigate('/ai-try-on');
@@ -396,6 +441,13 @@ const CollectionPage = () => {
 
         // OPTIMIZATION: Check local aura state first for instant response
         if (aura) {
+            const avatarImage = getAvatarImageUrl(aura);
+
+            if (!avatarImage) {
+                setShowAuraWelcomeModal(true);
+                return;
+            }
+
             setSelectedTryOnProduct(product);
             setSelectedTryOnProvider(provider);
             setSelectedTryOnLabel(resolveProductLabel(product.product_id));
@@ -406,6 +458,22 @@ const CollectionPage = () => {
         // Fallback to network check if local state isn't ready
         const hasValidAura = await auraGate(navigate, '/aura-dashboard');
         if (hasValidAura) {
+            try {
+                const nextAura = await getAura();
+                const avatarImage = getAvatarImageUrl(nextAura);
+
+                if (!avatarImage) {
+                    setShowAuraWelcomeModal(true);
+                    return;
+                }
+
+                setAura(nextAura);
+            } catch (error) {
+                console.error('Failed to refresh Aura before try-on:', error);
+                setShowAuraWelcomeModal(true);
+                return;
+            }
+
             setSelectedTryOnProduct(product);
             setSelectedTryOnProvider(provider);
             setSelectedTryOnLabel(resolveProductLabel(product.product_id));
@@ -436,6 +504,7 @@ const CollectionPage = () => {
             setTryOnError(null);
             setShowFeedbackSheet(false);
             setShowResultModal(true);
+            setCurrentUserPhoto(getAvatarImageUrl(aura));
 
             let result: TryOnResult;
             let resolvedProductLabel =
@@ -463,7 +532,11 @@ const CollectionPage = () => {
                     refreshedProduct.title || resolvedProductLabel;
 
                 if (!avatarImage || !clothingImage) {
-                    throw new Error('Try-on requires your avatar and a public clothing image.');
+                    throw new Error(
+                        !avatarImage
+                            ? 'Please create or select your Aura avatar before using full virtual try-on.'
+                            : 'This item image is still syncing. Please try another item for AI try-on.'
+                    );
                 }
 
                 setCurrentGarmentImage(clothingImage);
@@ -481,7 +554,11 @@ const CollectionPage = () => {
                 });
 
                 if (!avatarImage || !clothingImage) {
-                    throw new Error('Try-on requires your avatar and a public clothing image.');
+                    throw new Error(
+                        !avatarImage
+                            ? 'Please create or select your Aura avatar before using full virtual try-on.'
+                            : 'This item image is still syncing. Please try another item for AI try-on.'
+                    );
                 }
 
                 setCurrentGarmentImage(clothingImage);
@@ -525,6 +602,31 @@ const CollectionPage = () => {
         } finally {
             setTryOnLoading(false);
         }
+    };
+
+    const handleGuestTryOnComplete = ({
+        resultImage: guestResultImage,
+        userPhoto,
+        garmentImage,
+        garmentTitle,
+    }: {
+        resultImage: string;
+        userPhoto: string;
+        garmentImage: string;
+        garmentTitle: string;
+    }) => {
+        setIsGuestTryOnModalOpen(false);
+        setTryOnLoading(false);
+        setGeneratingAngles(false);
+        setTryOnError(null);
+        setFeedbackContext(null);
+        setSelectedTryOnLabel(garmentTitle);
+        setCurrentUserPhoto(userPhoto);
+        setCurrentGarmentImage(garmentImage);
+        setResultImage(guestResultImage);
+        setOriginalTryOnImage(guestResultImage);
+        setGeneratedImages([guestResultImage]);
+        setShowResultModal(true);
     };
 
     const closeResultModal = () => {
@@ -587,7 +689,11 @@ const CollectionPage = () => {
                 <img
                     src={cloudinaryImages.collectionHeader}
                     alt="Crafted for the Confident"
-                    className="w-full h-auto object-contain"
+                    className={
+                        isMensSection
+                            ? "w-full h-40 md:h-56 object-cover object-center"
+                            : "w-full h-auto object-contain"
+                    }
                 />
             </section>
 
@@ -595,9 +701,42 @@ const CollectionPage = () => {
             <section className="bg-[#F8F4EC] border-b border-[#E8DCC4]">
                 <div className="max-w-7xl mx-auto px-6 py-6">
                     <div className="max-w-3xl mx-auto">
+                        <div className="mb-5 flex justify-center gap-2">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setSelectedCategories([]);
+                                    navigate("/collection?section=womens");
+                                }}
+                                className="rounded-full border px-4 py-2 text-xs font-medium uppercase tracking-[0.18em] transition-all"
+                                style={{
+                                    borderColor: !isMensSection ? "#D4AF37" : "#D4C5A9",
+                                    background: !isMensSection ? "#2C2416" : "#FFFFFF",
+                                    color: !isMensSection ? "#F8F4EC" : "#6B5D4F",
+                                }}
+                            >
+                                Women
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setSelectedCategories([]);
+                                    navigate("/collection?section=mens");
+                                }}
+                                className="rounded-full border px-4 py-2 text-xs font-medium uppercase tracking-[0.18em] transition-all"
+                                style={{
+                                    borderColor: isMensSection ? "#D4AF37" : "#D4C5A9",
+                                    background: isMensSection ? "#2C2416" : "#FFFFFF",
+                                    color: isMensSection ? "#F8F4EC" : "#6B5D4F",
+                                }}
+                            >
+                                Men
+                            </button>
+                        </div>
+
                         {/* Compact Search Title */}
                         <h2 className="text-center text-xs uppercase tracking-[0.25em] text-[#6B5D4F] mb-4 font-light">
-                            Discover Your Style
+                            {isMensSection ? "Discover Men's Style" : "Discover Women's Style"}
                         </h2>
 
 
@@ -612,7 +751,11 @@ const CollectionPage = () => {
                                 {/* Input - Smaller, Elegant */}
                                 <input
                                     type="text"
-                                    placeholder="Search by designer, style, or occasion..."
+                                    placeholder={
+                                        isMensSection
+                                            ? "Search men's designers, styles, or occasions..."
+                                            : "Search by designer, style, or occasion..."
+                                    }
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
                                     className="w-full pl-12 pr-12 py-3 bg-white border border-[#D4C5A9] rounded-full text-[#2C2416] placeholder-[#9B8B7E]/60 focus:outline-none focus:border-[#D4AF37] focus:shadow-[0_4px_12px_rgba(212,175,55,0.15)] transition-all duration-300 text-sm font-light"
@@ -835,7 +978,7 @@ const CollectionPage = () => {
             </section>
 
             {/* Products Section */}
-            <main className="py-12">
+            <main id="collection-products" className="py-12 scroll-mt-24">
                 <div className="max-w-7xl mx-auto px-4">
                     {/* Products Grid */}
                     {isLoading ? (
@@ -968,6 +1111,17 @@ const CollectionPage = () => {
                 onConfirm={handleConfirmTryOn}
             />
 
+            <GuestTryOnModal
+                isOpen={isGuestTryOnModalOpen}
+                product={selectedTryOnProduct}
+                onClose={() => setIsGuestTryOnModalOpen(false)}
+                onComplete={handleGuestTryOnComplete}
+                onLogin={() => {
+                    setIsGuestTryOnModalOpen(false);
+                    navigate('/user-login');
+                }}
+            />
+
             <TryOnUpgradePopup
                 isOpen={showUpgradePopup}
                 onClose={() => setShowUpgradePopup(false)}
@@ -985,7 +1139,7 @@ const CollectionPage = () => {
                 comparisonImage={originalTryOnImage}
                 onGenerateMoreAngles={handleGenerateMoreAngles}
                 generatingAngles={generatingAngles}
-                userPhoto={getAvatarImageUrl(aura)}
+                userPhoto={currentUserPhoto || getAvatarImageUrl(aura)}
                 garmentImage={currentGarmentImage || undefined}
                 garmentId={selectedTryOnProduct?.product_id}
                 garmentTitle={selectedTryOnLabel || undefined}

@@ -11,6 +11,56 @@ import { CloudinaryService } from '../common/cloudinary.service';
 import { slugify } from '../common/utils/string.utils';
 import { extractAvailableFilters } from './filter.helpers';
 
+const normalizeAudienceText = (value: unknown): string =>
+  String(value ?? '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+
+const isMensAudienceText = (value: unknown): boolean => {
+  const normalized = normalizeAudienceText(value);
+  if (!normalized) return false;
+
+  return (
+    /\bmen\b/.test(normalized) ||
+    /\bmens\b/.test(normalized) ||
+    /\bmenswear\b/.test(normalized) ||
+    /\bmale\b/.test(normalized) ||
+    /\bgents\b/.test(normalized)
+  );
+};
+
+const productMatchesMensAudience = (product: any): boolean => {
+  if (
+    isMensAudienceText(product.category) ||
+    isMensAudienceText(product.category_rel?.name) ||
+    isMensAudienceText(product.sub_category_rel?.name) ||
+    isMensAudienceText(product.title) ||
+    isMensAudienceText(product.description)
+  ) {
+    return true;
+  }
+
+  const meta = product.metadata as Record<string, unknown> | null;
+  if (!meta || typeof meta !== 'object') return false;
+
+  const audienceFields = [
+    meta.gender,
+    meta.audience,
+    meta.target_gender,
+    meta.targetGender,
+    meta.department,
+    meta.section,
+    meta.collection,
+  ];
+
+  return audienceFields.some((field) =>
+    Array.isArray(field)
+      ? field.some(isMensAudienceText)
+      : isMensAudienceText(field),
+  );
+};
+
 @Injectable()
 export class ProductsService {
   constructor(
@@ -265,6 +315,7 @@ export class ProductsService {
     skinTones?: string,
     availability?: string,
     groupId?: string,
+    audience?: string,
   ) {
     // Fetch all approved products to filter in memory (efficient for < 5000 items)
     const allProducts = await this.prisma.product.findMany({
@@ -316,6 +367,12 @@ export class ProductsService {
     if (category && category !== 'All') {
       const categoryList = category.split(',').map((c) => c.trim().toLowerCase());
       filtered = filtered.filter((p) => p.category && categoryList.includes(p.category.toLowerCase()));
+    }
+
+    if (audience === 'mens') {
+      filtered = filtered.filter(productMatchesMensAudience);
+    } else if (audience === 'womens') {
+      filtered = filtered.filter((p) => !productMatchesMensAudience(p));
     }
 
     // 3. Price Filter
@@ -436,6 +493,7 @@ export class ProductsService {
         sub_category_id: product.sub_category_id,
         category_name: product.category_rel?.name,
         sub_category_name: product.sub_category_rel?.name,
+        metadata: product.metadata,
         is_featured: product.is_featured,
         likes: product.stats?.likes_count || 0,
         reviews: product.stats?.comments_count || 0,

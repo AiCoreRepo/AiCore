@@ -67,9 +67,10 @@ export function usePublicProducts(
     bodyShapes?: string[],
     skinTones?: string[],
     availability?: string[],
+    audience?: string,
 ) {
     return useQuery<PublicProductsResponse>({
-        queryKey: ['public-products', page, limit, search, categories, minPrice, maxPrice, sortBy, sizes, colors, bodyShapes, skinTones, availability],
+        queryKey: ['public-products', page, limit, search, categories, minPrice, maxPrice, sortBy, sizes, colors, bodyShapes, skinTones, availability, audience],
         queryFn: async () => {
             const params = new URLSearchParams({
                 page: page.toString(),
@@ -86,6 +87,7 @@ export function usePublicProducts(
             if (bodyShapes && bodyShapes.length > 0) params.append('bodyShapes', bodyShapes.join(','));
             if (skinTones && skinTones.length > 0) params.append('skinTones', skinTones.join(','));
             if (availability && availability.length > 0) params.append('availability', availability.join(','));
+            if (audience) params.append('audience', audience);
 
             const url = `${import.meta.env.VITE_API_URL ?? 'http://localhost:3000'}/products/approved?${params}`;
 

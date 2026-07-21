@@ -17,6 +17,7 @@ Usage:
   bash payu.sh <local|dev|prod> ps
   bash payu.sh <local|dev|prod> env [services...]
   bash payu.sh <local|dev|prod> seed-test-product
+  bash payu.sh <local|dev|prod> seed-mens-product
   bash payu.sh help
 
 Examples:
@@ -88,6 +89,43 @@ print_service_env() {
     "printenv | grep -E '^(PAYU_ENV|PAYU_KEY|PAYU_SALT|PAYU_VPA_ENV|PAYU_VPA_KEY|PAYU_VPA_SALT|PAYU_SUCCESS_URL|PAYU_FAILURE_URL|FRONTEND_URL|TWILIO_ACCOUNT_SID|TWILIO_PHONE_NUMBER|SKIP_TWILIO|SKIP_SMS_IN_DEV|REDIS_HOST|REDIS_PORT|REDIS_URL)=' | sort | sed -E 's/^(PAYU(_VPA)?_(KEY|SALT)=).+$/\1****/' || true"
 }
 
+wait_for_backend_healthy() {
+  local container_id
+  local health_status
+  container_id="$(compose ps -q backend)"
+
+  if [[ -z "$container_id" ]]; then
+    echo "Backend container not found." >&2
+    return 1
+  fi
+
+  for _ in $(seq 1 80); do
+    health_status="$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' "$container_id" 2>/dev/null || true)"
+    if [[ "$health_status" == "healthy" || "$health_status" == "running" ]]; then
+      return 0
+    fi
+    sleep 3
+  done
+
+  echo "Backend did not become healthy in time." >&2
+  return 1
+}
+
+seed_mens_product() {
+  wait_for_backend_healthy
+  if ! compose exec -T backend /bin/sh -lc 'test -f scripts/seed-mens-image-product.js && test -f /app/seed/mens/image.png'; then
+    echo "Mens seed assets are missing in the backend container. Rebuilding backend image..."
+    if should_no_cache_build; then
+      compose build --no-cache backend backend-worker
+    else
+      compose build backend backend-worker
+    fi
+    compose up -d --force-recreate backend backend-worker
+    wait_for_backend_healthy
+  fi
+  compose exec -T backend node scripts/seed-mens-image-product.js
+}
+
 command="${2:-up}"
 
 case "$command" in
@@ -96,6 +134,9 @@ case "$command" in
       compose build --no-cache backend backend-worker frontend
     fi
     compose up -d --force-recreate backend backend-worker frontend
+    if [[ "$selected_env" == "prod" && "${SEED_MENS_PRODUCT_SKIP:-false}" != "true" ]]; then
+      seed_mens_product
+    fi
     ;;
   down)
     compose down
@@ -138,6 +179,9 @@ case "$command" in
     ;;
   seed-test-product)
     compose exec backend node scripts/seed-one-rupee-product.js
+    ;;
+  seed-mens-product)
+    seed_mens_product
     ;;
   help|-h|--help)
     usage

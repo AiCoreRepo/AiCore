@@ -811,7 +811,7 @@ export function TryOnResultModal({
       <div
         className={`relative min-w-0 rounded-[24px] border border-[rgba(201,165,92,0.18)] md:rounded-[28px] ${
           isMobileLayout
-            ? "max-h-[58dvh] overflow-hidden p-3.5 sm:max-h-[60dvh]"
+            ? "overflow-hidden rounded-[18px] p-3 sm:max-h-[60dvh] sm:overflow-y-auto sm:overscroll-contain sm:rounded-[24px] sm:p-3.5"
             : "flex min-h-[18rem] flex-col overflow-hidden p-4 md:max-h-[40vh] md:p-5 lg:max-h-[42vh]"
         } ${className}`}
         style={{
@@ -833,15 +833,17 @@ export function TryOnResultModal({
           ref={(node) => {
             chatScrollContainersRef.current[scrollKey] = node;
           }}
-          className={`relative min-w-0 flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain ${
+          className={`relative min-w-0 flex min-h-0 flex-1 flex-col ${
+            isMobileLayout ? "overflow-visible" : "overflow-y-auto overscroll-contain"
+          } ${
             isMobileLayout ? "pr-0.5" : "pr-1"
           }`}
         >
           <div
-            className={`mb-3 flex min-w-0 ${isMobileLayout ? "items-start gap-2.5" : "items-center gap-3 md:mb-4"}`}
+            className={`mb-3 flex min-w-0 ${isMobileLayout ? "items-center gap-2.5" : "items-center gap-3 md:mb-4"}`}
           >
             <div
-              className={`flex shrink-0 items-center justify-center ${isMobileLayout ? "h-10 w-10 rounded-[18px]" : "h-11 w-11 rounded-2xl"}`}
+              className={`flex shrink-0 items-center justify-center ${isMobileLayout ? "h-9 w-9 rounded-xl" : "h-11 w-11 rounded-2xl"}`}
               style={{
                 background:
                   "linear-gradient(135deg, rgba(201, 165, 92, 0.22) 0%, rgba(255, 255, 255, 0.92) 100%)",
@@ -854,12 +856,12 @@ export function TryOnResultModal({
             </div>
             <div className="min-w-0">
               <p
-                className={`${isMobileLayout ? "text-[10px] tracking-[0.16em]" : "text-[11px] tracking-[0.2em]"} font-semibold uppercase text-[#8a6936]`}
+                className={`${isMobileLayout ? "text-[9px] tracking-[0.14em]" : "text-[11px] tracking-[0.2em]"} font-semibold uppercase text-[#8a6936]`}
               >
                 Stylist Conversation
               </p>
               <h3
-                className={`${isMobileLayout ? "text-[15px] leading-5" : "text-lg leading-6"} font-serif text-[#2f2416]`}
+                className={`${isMobileLayout ? "text-sm leading-5" : "text-lg leading-6"} font-serif text-[#2f2416]`}
               >
                 A quick verdict on your try-on
               </h3>
@@ -867,13 +869,13 @@ export function TryOnResultModal({
           </div>
 
           <div
-            className={isMobileLayout ? "space-y-3.5" : "space-y-4 md:space-y-[18px]"}
+            className={isMobileLayout ? "space-y-3" : "space-y-4 md:space-y-[18px]"}
           >
             <div
               className={`flex min-w-0 items-start justify-end ${isMobileLayout ? "gap-2" : "gap-3"}`}
             >
               <div
-                className={`chat-pop-right min-w-0 w-fit break-words ${isMobileLayout ? "max-w-[calc(100%-3rem)] rounded-[20px] rounded-tr-md px-3 py-3" : "max-w-[86%] rounded-[24px] rounded-tr-md px-4 py-3.5"}`}
+                className={`chat-pop-right min-w-0 w-fit max-w-full break-words ${isMobileLayout ? "max-w-[calc(100%-3rem)] rounded-[20px] rounded-tr-md px-3 py-3" : "max-w-[86%] rounded-[24px] rounded-tr-md px-4 py-3.5"}`}
                 style={{
                   background:
                     "linear-gradient(135deg, #2f2416 0%, #4a3520 100%)",
@@ -897,7 +899,7 @@ export function TryOnResultModal({
               </div>
 
               <div
-                className={`flex shrink-0 items-center justify-center overflow-hidden ${isMobileLayout ? "h-10 w-10 rounded-[18px]" : "h-11 w-11 rounded-2xl"}`}
+                className={`flex shrink-0 items-center justify-center overflow-hidden ${isMobileLayout ? "h-9 w-9 rounded-xl" : "h-11 w-11 rounded-2xl"}`}
                 style={{
                   background:
                     "linear-gradient(135deg, #e8c98b 0%, #f9f1df 100%)",
@@ -924,7 +926,7 @@ export function TryOnResultModal({
               className={`flex min-w-0 items-start ${isMobileLayout ? "gap-2" : "gap-3"}`}
             >
               <div
-                className={`flex shrink-0 items-center justify-center ${isMobileLayout ? "h-10 w-10 rounded-[18px]" : "h-11 w-11 rounded-2xl"}`}
+                className={`flex shrink-0 items-center justify-center ${isMobileLayout ? "h-9 w-9 rounded-xl" : "h-11 w-11 rounded-2xl"}`}
                 style={{
                   background:
                     "linear-gradient(135deg, #d1aa62 0%, #f2dfba 100%)",
@@ -937,7 +939,7 @@ export function TryOnResultModal({
               </div>
 
               <div
-                className={`chat-pop-left min-w-0 flex-1 break-words ${isMobileLayout ? "rounded-[20px] rounded-tl-md px-3.5 py-3.5" : "rounded-[24px] rounded-tl-md px-4 py-4"}`}
+                className={`chat-pop-left min-w-0 flex-1 max-w-full break-words ${isMobileLayout ? "rounded-[18px] rounded-tl-md px-3 py-3" : "rounded-[24px] rounded-tl-md px-4 py-4"}`}
                 style={{
                   background: "rgba(255, 251, 244, 0.96)",
                   border: "1px solid rgba(138, 105, 54, 0.12)",
@@ -953,7 +955,7 @@ export function TryOnResultModal({
                 {hasCompletedUserPrompt ? (
                   <AnimatedComplimentText
                     text={currentCompliment.message}
-                    className={`mt-2 block font-serif text-[#2f2416] ${isMobileLayout ? "text-[15px] leading-7" : "text-[17px] leading-8 md:text-[19px]"}`}
+                    className={`mt-1.5 block font-serif text-[#2f2416] ${isMobileLayout ? "text-base leading-6" : "text-[17px] leading-8 md:text-[19px]"}`}
                     caretClassName="text-[#9a7b4f]"
                     speedMs={110}
                     startDelayMs={160}
@@ -1167,7 +1169,7 @@ export function TryOnResultModal({
         </div>
 
         {/* Main Content */}
-        <div className="relative flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto overscroll-contain p-3 pb-32 sm:gap-4 sm:p-4 sm:pb-32 md:flex-row md:gap-5 md:overflow-hidden md:p-6 md:pb-6">
+        <div className="relative flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain px-3 pb-[calc(6.75rem+env(safe-area-inset-bottom))] pt-3 sm:gap-4 sm:p-4 sm:pb-32 md:flex-row md:gap-5 md:overflow-hidden md:p-6 md:pb-6">
           {/* Left Sidebar - AI Insights (Desktop) */}
           {resultImage && !loading && !error && (
             <div className="hidden min-h-0 flex-col gap-4 slide-right xl:flex xl:w-[22rem] 2xl:w-[24rem]">
@@ -1241,10 +1243,10 @@ export function TryOnResultModal({
           <div className="relative flex min-h-0 flex-col gap-4 md:flex-1 md:overflow-hidden">
             {/* Image Display */}
             <div
-              className={`relative mx-auto flex w-full shrink-0 items-center justify-center overflow-hidden rounded-[26px] md:mx-0 md:shrink md:flex-1 md:rounded-3xl ${
+              className={`relative mx-auto flex h-[46dvh] min-h-[17rem] max-h-[26rem] w-full shrink-0 items-center justify-center overflow-hidden rounded-[20px] sm:h-auto sm:min-h-0 sm:max-h-none sm:rounded-[26px] md:mx-0 md:shrink md:flex-1 md:rounded-3xl ${
                 isProcessingState
-                  ? "aspect-[4/5] md:aspect-auto md:min-h-0"
-                  : "aspect-[4/5] md:aspect-auto md:min-h-0"
+                  ? "sm:aspect-[4/5] md:aspect-auto md:min-h-0"
+                  : "sm:aspect-[4/5] md:aspect-auto md:min-h-0"
               }`}
               style={{
                 background:
@@ -1587,7 +1589,7 @@ export function TryOnResultModal({
 
         {showMobileActionBar && (
           <div
-            className="absolute inset-x-2.5 bottom-2.5 z-10 rounded-[20px] border border-white/70 bg-white/92 p-2 shadow-[0_18px_48px_rgba(0,0,0,0.14)] backdrop-blur md:hidden"
+            className="absolute inset-x-2.5 bottom-[calc(0.625rem+env(safe-area-inset-bottom))] z-10 rounded-[18px] border border-white/70 bg-white/92 p-2 shadow-[0_18px_48px_rgba(0,0,0,0.14)] backdrop-blur md:hidden"
             style={{
               boxShadow: "0 18px 48px rgba(28, 21, 14, 0.16)",
             }}

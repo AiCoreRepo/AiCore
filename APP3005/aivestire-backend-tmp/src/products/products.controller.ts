@@ -283,6 +283,7 @@ export class ProductsController {
     @Query('skinTones') skinTones?: string,
     @Query('availability') availability?: string,
     @Query('groupId') groupId?: string,
+    @Query('audience') audience?: string,
   ) {
     const pageNum = page ? parseInt(page, 10) : 1;
     const limitNum = limit ? parseInt(limit, 10) : 20;
@@ -303,6 +304,7 @@ export class ProductsController {
       skinTones,
       availability,
       groupId,
+      audience,
     );
   }
 
