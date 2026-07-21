@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { ProductCard } from "@/components/collection/ProductCard";
+import { DesignerMensEdit } from "@/components/collection/DesignerMensEdit";
 import { usePublicProducts } from "@/hooks/useInfinitePublicProducts";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useAuth } from "@/context/AuthContext";
@@ -980,6 +981,8 @@ const CollectionPage = () => {
             {/* Products Section */}
             <main id="collection-products" className="py-12 scroll-mt-24">
                 <div className="max-w-7xl mx-auto px-4">
+                    {isMensSection && <DesignerMensEdit />}
+
                     {/* Products Grid */}
                     {isLoading ? (
                         <div className="text-center py-20">
