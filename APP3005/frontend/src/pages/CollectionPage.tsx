@@ -774,49 +774,6 @@ const CollectionPage = () => {
                 </div>
             </section>
 
-            {/* New collection interest */}
-            <section className="border-b border-[#E8DCC4] bg-[#F8F4EC]">
-                <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 sm:py-5">
-                    <div className="relative overflow-hidden rounded-2xl border border-[#D4AF37]/35 bg-[#2C2416] px-4 py-4 text-[#F8F4EC] shadow-[0_14px_35px_rgba(44,36,22,0.16)] sm:px-6 sm:py-5">
-                        <div className="pointer-events-none absolute -right-12 -top-16 h-40 w-40 rounded-full bg-[#D4AF37]/15 blur-3xl" />
-                        <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                            <div className="flex min-w-0 items-start gap-3">
-                                <span className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#D4AF37]/15 text-[#E7C75B]">
-                                    <Sparkles className="h-5 w-5" />
-                                </span>
-                                <div>
-                                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#DCC16D]">
-                                        Coming soon
-                                    </p>
-                                    <h3 className="mt-1 font-serif text-lg leading-snug sm:text-xl">
-                                        {isMensSection
-                                            ? "3 new categories and 11 new designs are coming soon"
-                                            : "5 new categories and 16 new designs are coming soon"}
-                                    </h3>
-                                    <p className="mt-1 text-xs leading-5 text-white/60">
-                                        Tell us you’re interested and we’ll remember your preference.
-                                    </p>
-                                </div>
-                            </div>
-
-                            <label className="flex min-h-12 cursor-pointer items-center justify-center gap-3 rounded-xl border border-white/20 bg-white/[0.07] px-5 text-sm font-bold transition hover:border-[#D4AF37]/60 hover:bg-white/[0.11] sm:min-w-[190px]">
-                                <input
-                                    type="checkbox"
-                                    checked={collectionInterest[activeCollectionSection]}
-                                    onChange={toggleCollectionInterest}
-                                    className="h-5 w-5 rounded border-white/40 accent-[#D4AF37]"
-                                />
-                                <span>
-                                    {collectionInterest[activeCollectionSection]
-                                        ? "Interest saved"
-                                        : "I’m interested"}
-                                </span>
-                            </label>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
             {/* Premium Filter Bar */}
             {/* Premium Filter Bar */}
             <section className="bg-[#F8F4EC] border-b border-[#E8DCC4] shadow-sm">
@@ -1116,6 +1073,49 @@ const CollectionPage = () => {
                     )}
                 </div>
             </main>
+
+            {/* New collection interest */}
+            <section className="border-y border-[#E8DCC4] bg-[#F8F4EC]">
+                <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
+                    <div className="relative overflow-hidden rounded-2xl border border-[#D4AF37]/35 bg-[#2C2416] px-4 py-4 text-[#F8F4EC] shadow-[0_14px_35px_rgba(44,36,22,0.16)] sm:px-6 sm:py-5">
+                        <div className="pointer-events-none absolute -right-12 -top-16 h-40 w-40 rounded-full bg-[#D4AF37]/15 blur-3xl" />
+                        <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                            <div className="flex min-w-0 items-start gap-3">
+                                <span className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#D4AF37]/15 text-[#E7C75B]">
+                                    <Sparkles className="h-5 w-5" />
+                                </span>
+                                <div>
+                                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#DCC16D]">
+                                        Coming soon
+                                    </p>
+                                    <h3 className="mt-1 font-serif text-lg leading-snug sm:text-xl">
+                                        {isMensSection
+                                            ? "11 new men’s designs across 3 categories"
+                                            : "16 new women’s designs across 5 categories"}
+                                    </h3>
+                                    <p className="mt-1 text-xs leading-5 text-white/60">
+                                        Want to see them? Select “I’m interested”.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <label className="flex min-h-12 cursor-pointer items-center justify-center gap-3 rounded-xl border border-white/20 bg-white/[0.07] px-5 text-sm font-bold transition hover:border-[#D4AF37]/60 hover:bg-white/[0.11] sm:min-w-[190px]">
+                                <input
+                                    type="checkbox"
+                                    checked={collectionInterest[activeCollectionSection]}
+                                    onChange={toggleCollectionInterest}
+                                    className="h-5 w-5 rounded border-white/40 accent-[#D4AF37]"
+                                />
+                                <span>
+                                    {collectionInterest[activeCollectionSection]
+                                        ? "Interest saved"
+                                        : "I’m interested"}
+                                </span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </section>
 
             <Footer />
 
