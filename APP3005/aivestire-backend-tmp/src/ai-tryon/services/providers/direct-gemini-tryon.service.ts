@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenerativeAI, Part } from '@google/generative-ai';
 import _ from 'lodash';
 import { ImageOptimizerService } from '../../../common/image-optimizer.service';
 import { AIProvider, TryOnErrorCode } from '../../enums/ai-provider.enum';
@@ -11,6 +11,8 @@ import {
 } from '../../exceptions/tryon.exceptions';
 import { TryOnException } from '../../exceptions/tryon.exceptions';
 import {
+  buildGeminiGarmentContext,
+  buildGeminiGuestTryOnPrompt,
   buildGeminiTryOnPrompt,
   CONFIG_KEYS,
   ERROR_MESSAGES,
@@ -40,6 +42,7 @@ const ADDITIONAL_PARAM_KEYS = {
   PROMPT: 'prompt',
   OUTPUT_MIME_TYPE: 'outputMimeType',
   MASK_CLOTHING_MODEL: 'maskClothingModel',
+  GARMENT_GENDER: 'garmentGender',
 } as const;
 
 interface GeminiPart {
@@ -53,10 +56,33 @@ interface GeminiContent {
 
 interface GeminiCandidate {
   content?: GeminiContent;
+  finishReason?: string;
+  finishMessage?: string;
+  safetyRatings?: Array<{
+    category?: string;
+    probability?: string;
+    blocked?: boolean;
+  }>;
 }
 
 interface GeminiResponse {
   candidates?: GeminiCandidate[];
+  promptFeedback?: {
+    blockReason?: string;
+    blockReasonMessage?: string;
+    safetyRatings?: Array<{
+      category?: string;
+      probability?: string;
+      blocked?: boolean;
+    }>;
+  };
+  modelVersion?: string;
+  responseId?: string;
+  usageMetadata?: {
+    promptTokenCount?: number;
+    candidatesTokenCount?: number;
+    totalTokenCount?: number;
+  };
 }
 
 interface GeminiGenerateResult {
@@ -211,11 +237,14 @@ export class DirectGeminiTryOnService {
       promptMs = Date.now() - promptStart;
 
       const generationStart = Date.now();
+      const includeDuplicateAvatar =
+        _.get(additionalParams, 'guestTryOn') !== true;
       const primaryImage = await this.generateValidatedTryOnImage(
         this.modelId,
         prompt,
         avatarData,
         clothingData,
+        includeDuplicateAvatar,
       );
       const generationMs = Date.now() - generationStart;
 
@@ -308,7 +337,9 @@ export class DirectGeminiTryOnService {
     }
 
     const normalizedModel = trimmedModel.toLowerCase();
-    if (!normalizedModel.includes('image-preview')) {
+    if (
+      normalizedModel !== GEMINI_TRYON_CONFIG.DEFAULT_MODEL.toLowerCase()
+    ) {
       this.logger.warn(
         `⚠️ Unsupported Gemini try-on model override "${trimmedModel}". Falling back to ${GEMINI_TRYON_CONFIG.DEFAULT_MODEL}`,
       );
@@ -353,12 +384,20 @@ export class DirectGeminiTryOnService {
       additionalParams,
       ADDITIONAL_PARAM_KEYS.PROMPT,
     );
+    const isGuestTryOn = _.get(additionalParams, 'guestTryOn') === true;
     const basePrompt =
       _.isString(promptOverride) && promptOverride.trim()
         ? promptOverride.trim()
-        : buildGeminiTryOnPrompt(_.get(additionalParams, 'aura_attributes'));
+        : isGuestTryOn
+          ? buildGeminiGuestTryOnPrompt()
+          : buildGeminiTryOnPrompt(_.get(additionalParams, 'aura_attributes'));
+    const garmentContext = buildGeminiGarmentContext(
+      _.get(additionalParams, ADDITIONAL_PARAM_KEYS.GARMENT_GENDER),
+    );
 
-    return `${basePrompt}${GEMINI_AI_TRYON_PROMPT_STRICT_SUFFIX}`;
+    return isGuestTryOn
+      ? `${basePrompt}${garmentContext}`
+      : `${basePrompt}${garmentContext}${GEMINI_AI_TRYON_PROMPT_STRICT_SUFFIX}`;
   }
 
   private getOutputMimeType(additionalParams?: Record<string, any>): string {
@@ -383,11 +422,34 @@ export class DirectGeminiTryOnService {
       prompt,
       '',
       `RETRY ${attempt} INSTRUCTION:`,
-      '- The previous attempt was invalid because it matched an input image.',
-      '- Generate a brand-new try-on image.',
-      '- Replace the original outfit from image 1 with the garment from image 2.',
-      '- Do not return either input image, even with tiny edits.',
+      '- Create a fresh fashion preview using the same outfit and wearer references.',
+      '- Replace the original outfit on the person in image 2 with the garment from image 1.',
+      '- Keep the wearer recognizable and show the complete person from head to toe.',
+      '- Use a vertical 2:3 portrait canvas and return one newly rendered image.',
     ].join('\n');
+  }
+
+  private async hasFullBodyPortraitFrame(imageBase64: string): Promise<boolean> {
+    try {
+      const { default: sharp } = await import('sharp');
+      const metadata = await sharp(Buffer.from(imageBase64, 'base64')).metadata();
+      const width = metadata.width || 0;
+      const height = metadata.height || 0;
+
+      if (!width || !height) {
+        return false;
+      }
+
+      return (
+        height / width >=
+        GEMINI_TRYON_OUTPUT_VALIDATION.MIN_FULL_BODY_PORTRAIT_RATIO
+      );
+    } catch (error) {
+      this.logger.warn(
+        `Unable to validate try-on framing: ${error instanceof Error ? error.message : 'unknown error'}`,
+      );
+      return false;
+    }
   }
 
   private async identifyMatchedInput(
@@ -395,13 +457,11 @@ export class DirectGeminiTryOnService {
     avatarImage: string,
     clothingImage: string,
   ): Promise<'avatar' | 'clothing' | null> {
-    const threshold = GEMINI_TRYON_OUTPUT_VALIDATION.MAX_AVATAR_SIMILARITY;
-
     if (
       await this.imageOptimizer.areImagesVisuallySimilar(
         outputImage,
         avatarImage,
-        threshold,
+        GEMINI_TRYON_OUTPUT_VALIDATION.MAX_AVATAR_SIMILARITY,
       )
     ) {
       return 'avatar';
@@ -411,7 +471,7 @@ export class DirectGeminiTryOnService {
       await this.imageOptimizer.areImagesVisuallySimilar(
         outputImage,
         clothingImage,
-        threshold,
+        GEMINI_TRYON_OUTPUT_VALIDATION.MAX_CLOTHING_SIMILARITY,
       )
     ) {
       return 'clothing';
@@ -420,13 +480,41 @@ export class DirectGeminiTryOnService {
     return null;
   }
 
+  private summarizeGeminiResponse(response?: GeminiResponse) {
+    return {
+      candidateCount: response?.candidates?.length ?? 0,
+      blockReason: response?.promptFeedback?.blockReason,
+      blockReasonMessage: response?.promptFeedback?.blockReasonMessage,
+      promptSafetyRatings: response?.promptFeedback?.safetyRatings ?? [],
+      finishReasons:
+        response?.candidates
+          ?.map((candidate) => candidate.finishReason)
+          .filter(Boolean) ?? [],
+      finishMessages:
+        response?.candidates
+          ?.map((candidate) => candidate.finishMessage)
+          .filter(Boolean) ?? [],
+      candidateSafetyRatings:
+        response?.candidates?.flatMap(
+          (candidate) => candidate.safetyRatings ?? [],
+        ) ?? [],
+      modelVersion: response?.modelVersion,
+      responseId: response?.responseId,
+      usageMetadata: response?.usageMetadata,
+    };
+  }
+
   private extractTryOnImage(response: GeminiResponse): string {
-    if (!response || !response.candidates) {
+    const responseSummary = this.summarizeGeminiResponse(response);
+    if (!response || !response.candidates?.length) {
+      this.logger.warn(
+        `Gemini returned no image candidates: ${JSON.stringify(responseSummary)}`,
+      );
       throw new AIServiceException(
         TryOnErrorCode.PROCESSING_FAILED,
         GEMINI_TRYON_ERROR_MESSAGES.INVALID_RESPONSE,
         500,
-        { response },
+        { reason: 'missing-candidates', ...responseSummary },
       );
     }
 
@@ -443,11 +531,14 @@ export class DirectGeminiTryOnService {
     );
 
     if (!imageDataList.length) {
+      this.logger.warn(
+        `Gemini candidates contained no image data: ${JSON.stringify(responseSummary)}`,
+      );
       throw new AIServiceException(
         TryOnErrorCode.PROCESSING_FAILED,
         GEMINI_TRYON_ERROR_MESSAGES.NO_IMAGE_DATA,
         500,
-        { response },
+        { reason: 'missing-image-data', ...responseSummary },
       );
     }
 
@@ -462,6 +553,7 @@ export class DirectGeminiTryOnService {
     prompt: string,
     avatarData: GeminiInlineData,
     clothingData: GeminiInlineData,
+    includeDuplicateAvatar: boolean,
   ): Promise<string> {
     const avatarDataUri = buildDataUri(avatarData.data, avatarData.mimeType);
     const clothingDataUri = buildDataUri(clothingData.data, clothingData.mimeType);
@@ -480,17 +572,56 @@ export class DirectGeminiTryOnService {
 
       const attemptPrompt = this.buildRetryPrompt(prompt, attempt);
       const attemptTimeoutMs = Math.min(this.geminiTimeoutMs, remainingBudgetMs);
-      const outputBase64 = await this.generateTryOnWithModel(
-        modelId,
-        attemptPrompt,
-        avatarData,
-        clothingData,
-        attemptTimeoutMs,
-      );
+      let outputBase64: string;
+      try {
+        outputBase64 = await this.generateTryOnWithModel(
+          modelId,
+          attemptPrompt,
+          avatarData,
+          clothingData,
+          attemptTimeoutMs,
+          includeDuplicateAvatar,
+        );
+      } catch (error) {
+        const isRetryableEmptyResponse =
+          error instanceof AIServiceException &&
+          error.errorCode === TryOnErrorCode.PROCESSING_FAILED;
+        if (!isRetryableEmptyResponse || attempt >= MAX_RETRIES) {
+          throw error;
+        }
+
+        this.logger.warn(
+          `Gemini try-on attempt ${attempt} returned no usable image. Retrying...`,
+        );
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+        delayMs *= RETRY_BACKOFF_MULTIPLIER;
+        continue;
+      }
       const outputDataUri = buildDataUri(
         outputBase64,
         GEMINI_TRYON_CONFIG.DEFAULT_MIME_TYPE,
       );
+      const hasFullBodyFrame =
+        await this.hasFullBodyPortraitFrame(outputBase64);
+
+      if (!hasFullBodyFrame) {
+        this.logger.warn(
+          `Gemini try-on attempt ${attempt} was not a full-body portrait frame. Retrying...`,
+        );
+
+        if (attempt < MAX_RETRIES) {
+          await new Promise((resolve) => setTimeout(resolve, delayMs));
+          delayMs *= RETRY_BACKOFF_MULTIPLIER;
+          continue;
+        }
+
+        throw new AIServiceException(
+          TryOnErrorCode.PROCESSING_FAILED,
+          'Gemini did not return a complete head-to-toe portrait. Please try again.',
+          500,
+          { attempts: MAX_RETRIES, reason: 'invalid-full-body-framing' },
+        );
+      }
 
       const matchedInput = await this.identifyMatchedInput(
         outputDataUri,
@@ -531,6 +662,7 @@ export class DirectGeminiTryOnService {
     avatarData: GeminiInlineData,
     clothingData: GeminiInlineData,
     timeoutMs: number,
+    includeDuplicateAvatar: boolean,
   ): Promise<string> {
     if (!this.genAI) {
       throw new AIServiceException(
@@ -548,21 +680,31 @@ export class DirectGeminiTryOnService {
       } as any,
     });
 
-    const generationPromise = model.generateContent([
-      {
-        inlineData: {
-          data: avatarData.data,
-          mimeType: avatarData.mimeType,
-        },
-      },
+    const contentParts: Part[] = [
+      { text: prompt },
       {
         inlineData: {
           data: clothingData.data,
           mimeType: clothingData.mimeType,
         },
       },
-      { text: prompt },
-    ]);
+      {
+        inlineData: {
+          data: avatarData.data,
+          mimeType: avatarData.mimeType,
+        },
+      },
+    ];
+    if (includeDuplicateAvatar) {
+      contentParts.push({
+        inlineData: {
+          data: avatarData.data,
+          mimeType: avatarData.mimeType,
+        },
+      });
+    }
+
+    const generationPromise = model.generateContent(contentParts);
 
     const result = await this.withTimeout(generationPromise, timeoutMs);
     const response = (result as GeminiGenerateResult).response;
@@ -613,22 +755,36 @@ export class DirectGeminiTryOnService {
         ),
       );
 
-      const blurred = await image
+      const topRegion = await image
         .clone()
-        .blur(GEMINI_CLOTHING_MODEL_MASK.BLUR_SIGMA)
-        .toBuffer();
-
-      const blurredTop = await sharp(blurred)
         .extract({
           left: 0,
           top: 0,
           width: metadata.width,
           height: maskHeight,
         })
+        .resize({
+          width: GEMINI_CLOTHING_MODEL_MASK.PIXEL_BLOCK_SIZE,
+          height: Math.max(
+            1,
+            Math.round(
+              GEMINI_CLOTHING_MODEL_MASK.PIXEL_BLOCK_SIZE *
+                (maskHeight / metadata.width),
+            ),
+          ),
+          fit: 'fill',
+        })
+        .resize({
+          width: metadata.width,
+          height: maskHeight,
+          fit: 'fill',
+          kernel: 'nearest',
+        })
+        .blur(GEMINI_CLOTHING_MODEL_MASK.BLUR_SIGMA)
         .toBuffer();
 
       const composited = await image
-        .composite([{ input: blurredTop, top: 0, left: 0 }])
+        .composite([{ input: topRegion, top: 0, left: 0 }])
         .toBuffer();
 
       return {

@@ -178,18 +178,12 @@ export const Navbar = () => {
                                         {link.name}
                                         {/* Hover/Active underline */}
                                         <span
-                                            className="absolute bottom-0 left-1/2 -translate-x-1/2 h-[1px] bg-[#D4AF37] transition-all duration-300"
-                                            style={{
-                                                width: active ? "100%" : "0%",
-                                                opacity: active ? 1 : 0.5,
-                                            }}
+                                            className={`absolute bottom-0 left-1/2 h-[1px] -translate-x-1/2 bg-[#D4AF37] transition-all duration-300 ${
+                                                active
+                                                    ? "w-full opacity-100"
+                                                    : "w-0 opacity-50 group-hover:w-full group-hover:opacity-100"
+                                            }`}
                                         />
-                                        <style>{`
-                                            .group:hover span {
-                                                width: 100% !important;
-                                                opacity: 1 !important;
-                                            }
-                                        `}</style>
                                     </Link>
                                 ) : (
                                     <a

@@ -1,11 +1,14 @@
 import {
   Body,
+  BadRequestException,
   Controller,
   Get,
+  Headers,
   HttpCode,
   HttpStatus,
   Param,
   Post,
+  Query,
   Request,
   UseGuards,
 } from '@nestjs/common';
@@ -28,6 +31,8 @@ import {
   TryOnHistoryItem,
   TryOnHistoryService,
 } from '../services/tryon-history.service';
+import { PrismaService } from '../../prisma/prisma.service';
+import { GuestTryOnClaimService } from '../services/guest-tryon-claim.service';
 
 @ApiTags('AI Try-On')
 @Controller('v1/tryon')
@@ -37,7 +42,66 @@ export class TryOnController {
     private readonly directVertexService: DirectVertexTryOnService,
     private readonly tryOnQueueService: TryOnQueueService,
     private readonly tryOnHistoryService: TryOnHistoryService,
+    private readonly prisma: PrismaService,
+    private readonly guestTryOnClaimService: GuestTryOnClaimService,
   ) {}
+
+  @Get('guest/static-looks')
+  @ApiOperation({ summary: 'Get the pre-generated guest try-on collection' })
+  async getGuestStaticLooks(@Query('gender') gender = 'female') {
+    const normalizedGender = gender.toLowerCase() === 'male' ? 'male' : 'female';
+    const products = await this.prisma.product.findMany({
+      where: {
+        is_deleted: false,
+        AND: [
+          { metadata: { path: ['guest_tryon_demo'], equals: true } },
+          {
+            metadata: {
+              path: ['guest_tryon_gender'],
+              equals: normalizedGender,
+            },
+          },
+        ],
+      },
+      include: {
+        images: { orderBy: { order_index: 'asc' }, take: 1 },
+      },
+      orderBy: { created_at: 'asc' },
+      take: 3,
+    });
+
+    const looks = products
+      .map((product) => {
+        const metadata =
+          product.metadata && typeof product.metadata === 'object'
+            ? (product.metadata as Record<string, unknown>)
+            : {};
+        return {
+          id: String(metadata.demo_look_id || product.product_id),
+          productId: product.product_id,
+          title: product.title,
+          subtitle: product.description || '',
+          price: new Intl.NumberFormat('en-IN', {
+            style: 'currency',
+            currency: product.currency,
+            maximumFractionDigits: 0,
+          }).format(product.price_cents / 100),
+          collectionImage: product.images[0]?.url || '',
+          staticResultImage: String(metadata.static_tryon_url || ''),
+          modelImage: String(metadata.static_model_url || ''),
+        };
+      })
+      .filter(
+        (look) =>
+          look.collectionImage && look.staticResultImage && look.modelImage,
+      );
+
+    return {
+      gender: normalizedGender,
+      modelImage: looks[0]?.modelImage || '',
+      looks,
+    };
+  }
 
   private createQueuedTryOnResponse(
     jobId: string,
@@ -96,6 +160,10 @@ export class TryOnController {
     userId: string,
     request: TryOnRequestDto,
   ): Promise<TryOnHistoryItem | null> {
+    if (request.additionalParams?.forceRegenerate === true) {
+      return null;
+    }
+
     if (!request.productId || !request.auraId) {
       return null;
     }
@@ -104,6 +172,82 @@ export class TryOnController {
       userId,
       request.productId,
       request.auraId,
+    );
+  }
+
+  private getGuestUserId(guestSession?: string): string {
+    const normalized = guestSession?.trim();
+    if (!normalized || !/^[a-zA-Z0-9_-]{16,80}$/.test(normalized)) {
+      throw new BadRequestException('A valid guest session is required');
+    }
+    return `guest:${normalized}`;
+  }
+
+  @Post('guest/gemini/start')
+  @HttpCode(HttpStatus.ACCEPTED)
+  @ApiOperation({ summary: 'Queue one anonymous guest try-on' })
+  async startGuestTryOn(
+    @Body() request: TryOnRequestDto,
+    @Headers('x-guest-session') guestSession?: string,
+  ): Promise<TryOnQueuedResponseDto> {
+    const guestUserId = this.getGuestUserId(guestSession);
+    if (await this.tryOnQueueService.hasJobForRequestUser(guestUserId)) {
+      throw new BadRequestException(
+        'Your free guest try-on is already used. Sign in to try more.',
+      );
+    }
+    const job = await this.tryOnQueueService.addDirectTryOnJob({
+      type: 'direct',
+      provider: AIProvider.GEMINI_AI,
+      requestUserId: guestUserId,
+      avatarImage: request.avatarImage,
+      clothingImage: request.clothingImage,
+      additionalParams: {
+        ...(request.additionalParams || {}),
+        maskClothingModel: true,
+        forceRegenerate: true,
+        guestTryOn: true,
+      },
+      guestAvatarFirst: true,
+    });
+
+    return this.createQueuedTryOnResponse(
+      job.id.toString(),
+      'Guest try-on job queued successfully',
+    );
+  }
+
+  @Get('guest/job/:jobId')
+  @ApiOperation({ summary: 'Get anonymous guest try-on status' })
+  async getGuestTryOnJobStatus(
+    @Param('jobId') jobId: string,
+    @Headers('x-guest-session') guestSession?: string,
+  ): Promise<TryOnJobStatusResponseDto> {
+    return this.tryOnQueueService.getJobStatus(
+      jobId,
+      this.getGuestUserId(guestSession),
+    );
+  }
+
+  @Post('guest/claim')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary: 'Claim a completed guest Aura and try-on after authentication',
+  })
+  async claimGuestTryOn(
+    @Body() body: { jobId?: string },
+    @Headers('x-guest-session') guestSession: string | undefined,
+    @Request() req,
+  ) {
+    const jobId = body.jobId?.trim();
+    if (!jobId || !/^[a-zA-Z0-9:_-]{1,100}$/.test(jobId)) {
+      throw new BadRequestException('A valid guest try-on job is required');
+    }
+
+    return this.guestTryOnClaimService.claim(
+      req.user.user_id,
+      this.getGuestUserId(guestSession),
+      jobId,
     );
   }
 

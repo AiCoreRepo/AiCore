@@ -1,4 +1,4 @@
-import { IsOptional, IsNumber, IsString, Min, Max, IsNotEmpty } from 'class-validator';
+import { IsOptional, IsNumber, IsString, Min, Max, IsNotEmpty, IsIn } from 'class-validator';
 import { Transform } from 'class-transformer';
 
 export class CreateAuraDto {
@@ -22,6 +22,7 @@ export class CreateAuraDto {
 
   @IsOptional()
   @IsString()
+  @IsIn(['female', 'male'])
   gender?: string;
 
   @IsString()

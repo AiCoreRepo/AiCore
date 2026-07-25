@@ -6,6 +6,7 @@ import { ProcessingModal } from "@/components/aura/ProcessingModal";
 import { AuraSuccessState } from "@/components/aura/AuraSuccessState";
 import { useAuraJobPolling } from "@/hooks/useAuraJobPolling";
 import { FeedbackContextType } from "@/lib/api";
+import { resumeGuestTryOnAfterAuth } from "@/lib/guest-tryon-handoff";
 
 interface BodyAttributes {
   height?: number;
@@ -26,6 +27,7 @@ interface AuraCreationFeedbackContext {
 
 interface AuraDashboardLocationState {
   prefilledDob?: string;
+  resumeGuestTryOn?: boolean;
 }
 
 const AuraDashboard = () => {
@@ -38,6 +40,7 @@ const AuraDashboard = () => {
   const navigate = useNavigate();
   const locationState = location.state as AuraDashboardLocationState | null;
   const prefilledDob = locationState?.prefilledDob;
+  const shouldResumeGuestTryOn = Boolean(locationState?.resumeGuestTryOn);
 
   // Use real job polling hook
   const { jobStatus, isPolling } = useAuraJobPolling(jobId, !!jobId);
@@ -135,13 +138,25 @@ const AuraDashboard = () => {
     window.dispatchEvent(new Event('aura-updated'));
 
     // Redirect to profile page
-    setTimeout(() => {
+    setTimeout(async () => {
       setIsProcessing(false);
       setJobId(null);
       const feedbackContext = {
         ...creationContext,
         referenceId: jobStatus?.result?.auraId || creationContext?.referenceId,
       };
+
+      if (shouldResumeGuestTryOn) {
+        try {
+          const resume = await resumeGuestTryOnAfterAuth(true);
+          if (resume.kind === "navigate") {
+            navigate(resume.to, { state: resume.state });
+            return;
+          }
+        } catch (error) {
+          console.error("Could not resume guest try-on after Aura creation:", error);
+        }
+      }
 
       navigate("/aura-profile", {
         state: {

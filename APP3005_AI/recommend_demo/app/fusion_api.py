@@ -145,6 +145,7 @@ class RecommendBase64Request(BaseModel):
     skin_tone: SkinTone
     occasion: Occasion
     top_k: int = Field(..., gt=0, le=25)
+    gender: Optional[str] = None
     model_path: str = "artifacts/fusion_mlp.pt"
     preprocess_path: str = "artifacts/fusion_preprocess.json"
     collection_path: str = DEFAULT_COLLECTION_PATH
@@ -165,6 +166,7 @@ class AIDecideRequest(BaseModel):
     skin_tone: str = Field(..., min_length=1, json_schema_extra={"enum": SKIN_TONE_OPTIONS})
     occasion: str = Field(..., min_length=1, json_schema_extra={"enum": OCCASION_OPTIONS})
     top_k: int = Field(..., gt=0, le=25)
+    gender: Optional[str] = None
     collection_path: str = DEFAULT_COLLECTION_PATH
 
 
@@ -201,6 +203,26 @@ def _normalize_occasion_value(value: str) -> str:
 
 def _normalize_skin_tone_value(value: str) -> str:
     return value.strip().lower()
+
+
+def _normalize_audience(value: Optional[str]) -> Optional[str]:
+    cleaned = str(value or "").strip().lower().replace("_", " ").replace("-", " ")
+    if cleaned in {"male", "man", "men", "mens", "men's"}:
+        return "mens"
+    if cleaned in {"female", "woman", "women", "womens", "women's"}:
+        return "womens"
+    return None
+
+
+def _matches_audience(item: Dict, gender: Optional[str]) -> bool:
+    requested = _normalize_audience(gender)
+    if requested is None:
+        return True
+    item_audience = _normalize_audience(item.get("audience") or item.get("gender"))
+    if requested == "mens":
+        return item_audience == "mens"
+    # Legacy collection rows predate audience metadata and are womenswear.
+    return item_audience != "mens"
 
 
 def _is_url(value: str) -> bool:
@@ -606,6 +628,7 @@ def _run_recommendation(
     user_image: Image.Image,
     *,
     age: float,
+    gender: Optional[str],
     size: str,
     body_shape: str,
     skin_tone: str,
@@ -644,6 +667,12 @@ def _run_recommendation(
 
         collection = _load_collection(Path(collection_path))
         total_count = len(collection)
+        requested_audience = _normalize_audience(gender)
+        collection = [item for item in collection if _matches_audience(item, gender)]
+        if not collection:
+            raise ValueError(
+                f"No collection items match audience={requested_audience or 'all'}."
+            )
         user_filters = {
             "occasion": _normalize_occasion_value(str(occasion)),
             "body_shape": _normalize_body_shape_value(str(body_shape)),
@@ -657,8 +686,10 @@ def _run_recommendation(
                 "body_shape": str(body_shape),
                 "skin_tone": str(skin_tone),
                 "occasion": str(occasion),
+                "gender": str(gender) if gender else None,
             },
             "normalized": user_filters,
+            "audience": requested_audience,
         }
 
         annotated: List[Dict] = []
@@ -866,6 +897,7 @@ def recommend(
     skin_tone: SkinTone = Form(...),
     occasion: Occasion = Form(...),
     top_k: int = Form(..., gt=0, le=25),
+    gender: Optional[str] = Form(None),
     model_path: str = Form("artifacts/fusion_mlp.pt"),
     preprocess_path: str = Form("artifacts/fusion_preprocess.json"),
     collection_path: str = Form(DEFAULT_COLLECTION_PATH),
@@ -886,6 +918,7 @@ def recommend(
     return _run_recommendation(
         user_image,
         age=age,
+        gender=gender,
         size=size.value,
         body_shape=body_shape.value,
         skin_tone=skin_tone.value,
@@ -913,6 +946,7 @@ def recommend_base64(payload: RecommendBase64Request):
     return _run_recommendation(
         user_image,
         age=payload.age,
+        gender=payload.gender,
         size=payload.size.value,
         body_shape=payload.body_shape.value,
         skin_tone=payload.skin_tone.value,
@@ -943,6 +977,7 @@ async def ai_decide(payload: AIDecideRequest):
         _run_recommendation,
         user_image,
         age=float(payload.age),
+        gender=payload.gender,
         size=str(payload.size),
         body_shape=str(payload.body_shape),
         skin_tone=str(payload.skin_tone),
@@ -974,6 +1009,7 @@ async def ai_decide_upload(
     skin_tone: SkinTone = Form(...),
     occasion: Occasion = Form(...),
     top_k: int = Form(..., gt=0, le=25),
+    gender: Optional[str] = Form(None),
     collection_path: str = Form(DEFAULT_COLLECTION_PATH),
 ):
     start_time = time.monotonic()
@@ -989,6 +1025,7 @@ async def ai_decide_upload(
         _run_recommendation,
         user_image,
         age=float(age),
+        gender=gender,
         size=size.value,
         body_shape=body_shape.value,
         skin_tone=skin_tone.value,

@@ -17,6 +17,7 @@ export interface DirectTryOnJobData {
   avatarImage: string;
   clothingImage: string;
   additionalParams?: Record<string, any>;
+  guestAvatarFirst?: boolean;
   productId?: string;
   auraId?: string;
 }
@@ -29,6 +30,11 @@ export interface TryOnJobStatusResponse {
   progress: number;
   result?: TryOnResponseDto;
   error?: string;
+}
+
+export interface CompletedTryOnJob {
+  data: TryOnJobData;
+  result: TryOnResponseDto;
 }
 
 @Injectable()
@@ -47,6 +53,15 @@ export class TryOnQueueService {
       removeOnComplete: false,
       removeOnFail: false,
     });
+  }
+
+  async hasJobForRequestUser(requestUserId: string): Promise<boolean> {
+    const jobs = await this.tryOnQueue.getJobs([
+      JOB_STATUS.WAITING,
+      JOB_STATUS.ACTIVE,
+      JOB_STATUS.COMPLETED,
+    ]);
+    return jobs.some((job) => job.data.requestUserId === requestUserId);
   }
 
   async getJobStatus(
@@ -76,5 +91,23 @@ export class TryOnQueueService {
       result: job.returnvalue as TryOnResponseDto | undefined,
       error: job.failedReason,
     };
+  }
+
+  async getCompletedJobForRequestUser(
+    jobId: string,
+    requestUserId: string,
+  ): Promise<CompletedTryOnJob | null> {
+    const job = await this.tryOnQueue.getJob(jobId);
+    if (!job || job.data.requestUserId !== requestUserId) {
+      return null;
+    }
+
+    const state = await job.getState();
+    const result = job.returnvalue as TryOnResponseDto | undefined;
+    if (state !== JOB_STATUS.COMPLETED || !result?.success) {
+      return null;
+    }
+
+    return { data: job.data, result };
   }
 }

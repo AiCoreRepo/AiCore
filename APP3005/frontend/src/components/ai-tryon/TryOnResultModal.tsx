@@ -89,11 +89,17 @@ export function TryOnResultModal({
   const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
   const [feedbackError, setFeedbackError] = useState("");
   const [hasCompletedUserPrompt, setHasCompletedUserPrompt] = useState(false);
+  const [isMobileShayariCollapsed, setIsMobileShayariCollapsed] =
+    useState(false);
+  const [isMobileFeedbackOpen, setIsMobileFeedbackOpen] = useState(false);
   const wasOpenRef = useRef(false);
   const previousLoadingRef = useRef(false);
   const feedbackRevealTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
+  const mobileShayariCollapseTimerRef = useRef<ReturnType<
+    typeof setTimeout
+  > | null>(null);
   const lightboxHistoryActiveRef = useRef(false);
   const chatScrollContainersRef = useRef<Record<string, HTMLDivElement | null>>(
     {},
@@ -154,6 +160,10 @@ export function TryOnResultModal({
         clearTimeout(feedbackRevealTimerRef.current);
         feedbackRevealTimerRef.current = null;
       }
+      if (mobileShayariCollapseTimerRef.current) {
+        clearTimeout(mobileShayariCollapseTimerRef.current);
+        mobileShayariCollapseTimerRef.current = null;
+      }
       setHasShownCompliment(false);
       setCurrentCompliment(null);
       setImageRevealed(false);
@@ -169,6 +179,8 @@ export function TryOnResultModal({
       setFeedbackSubmitted(false);
       setFeedbackError("");
       setHasCompletedUserPrompt(false);
+      setIsMobileShayariCollapsed(false);
+      setIsMobileFeedbackOpen(false);
       setCurrentImageIndex(activeImageIndex);
     }
 
@@ -184,6 +196,9 @@ export function TryOnResultModal({
     return () => {
       if (feedbackRevealTimerRef.current) {
         clearTimeout(feedbackRevealTimerRef.current);
+      }
+      if (mobileShayariCollapseTimerRef.current) {
+        clearTimeout(mobileShayariCollapseTimerRef.current);
       }
     };
   }, []);
@@ -343,6 +358,18 @@ export function TryOnResultModal({
     }
 
     hasTriggeredComplimentCompleteRef.current = true;
+    const prefersReducedMotion =
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (!prefersReducedMotion) {
+      if (mobileShayariCollapseTimerRef.current) {
+        clearTimeout(mobileShayariCollapseTimerRef.current);
+      }
+      mobileShayariCollapseTimerRef.current = setTimeout(() => {
+        setIsMobileShayariCollapsed(true);
+        mobileShayariCollapseTimerRef.current = null;
+      }, 3000);
+    }
     if (feedbackContext) {
       if (feedbackRevealTimerRef.current) {
         clearTimeout(feedbackRevealTimerRef.current);
@@ -368,6 +395,20 @@ export function TryOnResultModal({
       document.body.style.overflow = previousOverflow;
     };
   }, [isOpen, isLightboxOpen]);
+
+  useEffect(() => {
+    if (!isMobileFeedbackOpen) return;
+
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.stopPropagation();
+        setIsMobileFeedbackOpen(false);
+      }
+    };
+
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [isMobileFeedbackOpen]);
 
   useEffect(() => {
     if (!isOpen || !resultImage || loading || error) {
@@ -811,7 +852,7 @@ export function TryOnResultModal({
       <div
         className={`relative min-w-0 rounded-[24px] border border-[rgba(201,165,92,0.18)] md:rounded-[28px] ${
           isMobileLayout
-            ? "overflow-hidden rounded-[18px] p-3 sm:max-h-[60dvh] sm:overflow-y-auto sm:overscroll-contain sm:rounded-[24px] sm:p-3.5"
+            ? "max-h-[38dvh] overflow-y-auto overscroll-contain rounded-[16px] p-2.5 sm:max-h-[50dvh] sm:rounded-[20px] sm:p-3"
             : "flex min-h-[18rem] flex-col overflow-hidden p-4 md:max-h-[40vh] md:p-5 lg:max-h-[42vh]"
         } ${className}`}
         style={{
@@ -840,10 +881,10 @@ export function TryOnResultModal({
           }`}
         >
           <div
-            className={`mb-3 flex min-w-0 ${isMobileLayout ? "items-center gap-2.5" : "items-center gap-3 md:mb-4"}`}
+            className={`flex min-w-0 ${isMobileLayout ? "mb-2 items-center gap-2" : "mb-3 items-center gap-3 md:mb-4"}`}
           >
             <div
-              className={`flex shrink-0 items-center justify-center ${isMobileLayout ? "h-9 w-9 rounded-xl" : "h-11 w-11 rounded-2xl"}`}
+              className={`flex shrink-0 items-center justify-center ${isMobileLayout ? "h-8 w-8 rounded-lg" : "h-11 w-11 rounded-2xl"}`}
               style={{
                 background:
                   "linear-gradient(135deg, rgba(201, 165, 92, 0.22) 0%, rgba(255, 255, 255, 0.92) 100%)",
@@ -861,7 +902,7 @@ export function TryOnResultModal({
                 Stylist Conversation
               </p>
               <h3
-                className={`${isMobileLayout ? "text-sm leading-5" : "text-lg leading-6"} font-serif text-[#2f2416]`}
+                className={`${isMobileLayout ? "text-[13px] leading-4" : "text-lg leading-6"} font-serif text-[#2f2416]`}
               >
                 A quick verdict on your try-on
               </h3>
@@ -955,7 +996,7 @@ export function TryOnResultModal({
                 {hasCompletedUserPrompt ? (
                   <AnimatedComplimentText
                     text={currentCompliment.message}
-                    className={`mt-1.5 block font-serif text-[#2f2416] ${isMobileLayout ? "text-base leading-6" : "text-[17px] leading-8 md:text-[19px]"}`}
+                    className={`mt-1.5 block font-serif text-[#2f2416] ${isMobileLayout ? "text-sm leading-5" : "text-[17px] leading-8 md:text-[19px]"}`}
                     caretClassName="text-[#9a7b4f]"
                     speedMs={110}
                     startDelayMs={160}
@@ -1068,7 +1109,7 @@ export function TryOnResultModal({
             `}</style>
 
       <div
-        className="relative flex h-[100dvh] w-full max-w-7xl flex-col overflow-hidden rounded-none modal-appear sm:h-[96vh] sm:rounded-[28px] md:h-[94vh]"
+        className="relative flex h-[100dvh] w-full max-w-[1600px] flex-col overflow-hidden rounded-none modal-appear sm:h-[96vh] sm:w-[96vw] sm:rounded-[28px] md:h-[94vh]"
         style={{
           background: "linear-gradient(135deg, #fdfbf7 0%, #f7f4ef 100%)",
           boxShadow:
@@ -1096,51 +1137,6 @@ export function TryOnResultModal({
               </p>
             </div>
 
-            {/* Compact Process Pills */}
-            <div
-              className="hidden md:flex items-center gap-2.5 px-5 py-2.5 rounded-full"
-              style={{
-                background: "linear-gradient(135deg, #d4b896 0%, #c9a55c 100%)",
-                boxShadow: "0 4px 12px rgba(201, 165, 92, 0.25)",
-              }}
-            >
-              <div
-                className="w-8 h-8 rounded-full overflow-hidden ring-2 ring-white/60 flex items-center justify-center"
-                style={{ background: "#e8c98b" }}
-              >
-                {userPhoto ? (
-                  <img
-                    src={userPhoto}
-                    alt={displayUserName}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <span className="text-sm font-bold text-[#6b4f26]">
-                    {userInitial}
-                  </span>
-                )}
-              </div>
-
-              <X className="w-4 h-4 text-white/90" />
-
-              <div
-                className="w-8 h-8 rounded-full overflow-hidden ring-2 ring-white/60 flex items-center justify-center"
-                style={{ background: "#ffffff" }}
-              >
-                {garmentImage ? (
-                  <img
-                    src={garmentImage}
-                    alt="Item"
-                    className="w-full h-full object-contain p-0.5"
-                  />
-                ) : (
-                  <ShoppingBag className="w-4 h-4 text-[#c9a55c]" />
-                )}
-              </div>
-
-              <Sparkles className="w-4 h-4 text-white ml-1" />
-              <span className="text-xs font-semibold text-white">READY</span>
-            </div>
           </div>
 
           <button
@@ -1243,7 +1239,7 @@ export function TryOnResultModal({
           <div className="relative flex min-h-0 flex-col gap-4 md:flex-1 md:overflow-hidden">
             {/* Image Display */}
             <div
-              className={`relative mx-auto flex h-[46dvh] min-h-[17rem] max-h-[26rem] w-full shrink-0 items-center justify-center overflow-hidden rounded-[20px] sm:h-auto sm:min-h-0 sm:max-h-none sm:rounded-[26px] md:mx-0 md:shrink md:flex-1 md:rounded-3xl ${
+              className={`relative mx-auto flex h-[calc(100dvh-10.25rem)] min-h-[24rem] max-h-none w-full shrink-0 items-center justify-center overflow-hidden rounded-[20px] sm:h-[calc(100dvh-11rem)] sm:min-h-[30rem] sm:rounded-[26px] md:mx-0 md:h-auto md:min-h-0 md:shrink md:flex-1 md:rounded-3xl ${
                 isProcessingState
                   ? "sm:aspect-[4/5] md:aspect-auto md:min-h-0"
                   : "sm:aspect-[4/5] md:aspect-auto md:min-h-0"
@@ -1422,7 +1418,7 @@ export function TryOnResultModal({
               {resultImage && !loading && !error && (
                 <div className="absolute inset-0 p-2.5 sm:p-3 md:p-4">
                   <div
-                    className="relative h-full w-full overflow-hidden rounded-[20px] md:rounded-[26px]"
+                    className="relative flex h-full w-full overflow-hidden rounded-[20px] md:grid md:grid-cols-1 md:rounded-[26px]"
                     style={{
                       background:
                         "radial-gradient(circle at top, rgba(255,255,255,0.72) 0%, rgba(255,255,255,0.2) 24%, rgba(244,233,208,0.92) 100%)",
@@ -1430,6 +1426,7 @@ export function TryOnResultModal({
                         "inset 0 0 0 1px rgba(255,255,255,0.68), 0 16px 34px rgba(118,87,37,0.12)",
                     }}
                   >
+                    <div className="relative h-full min-w-full overflow-hidden rounded-[16px] bg-white md:min-w-0 md:rounded-[22px]">
                     {hasMultipleGeneratedImages && (
                       <div className="absolute left-2.5 right-2.5 top-2.5 z-10 flex items-center justify-between gap-2 sm:left-3 sm:right-3 sm:top-3 md:left-4 md:right-4 md:top-4">
                         <span className="rounded-full bg-[rgba(44,36,22,0.68)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-white backdrop-blur">
@@ -1494,16 +1491,65 @@ export function TryOnResultModal({
                         />
                       </div>
                     )}
+                    </div>
                   </div>
+
+                  {currentCompliment && (
+                    <div className="pointer-events-none absolute inset-x-2.5 bottom-2.5 z-30 md:hidden">
+                      <div className="flex justify-end">
+                        {isMobileShayariCollapsed ? (
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              setIsMobileShayariCollapsed(false);
+                            }}
+                            className="pointer-events-auto flex min-h-11 items-center gap-2 rounded-full border border-white/30 bg-black/55 px-4 py-2 text-xs font-semibold text-white shadow-[0_10px_30px_rgba(0,0,0,0.28)] backdrop-blur-md transition-opacity"
+                            aria-label="View stylist message"
+                          >
+                            <Sparkles className="h-4 w-4 text-[#F2D7A5]" />
+                            View message
+                          </button>
+                        ) : (
+                          <div className="pointer-events-auto relative ml-auto max-h-[26dvh] w-[92%] max-w-[24rem] overflow-y-auto rounded-2xl border border-white/25 bg-gradient-to-t from-black/80 via-black/65 to-black/45 px-4 pb-4 pt-3 text-white shadow-[0_16px_40px_rgba(0,0,0,0.3)] backdrop-blur-md">
+                            <button
+                              type="button"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                if (mobileShayariCollapseTimerRef.current) {
+                                  clearTimeout(
+                                    mobileShayariCollapseTimerRef.current,
+                                  );
+                                  mobileShayariCollapseTimerRef.current = null;
+                                }
+                                setIsMobileShayariCollapsed(true);
+                              }}
+                              className="absolute right-2 top-2 flex h-11 w-11 items-center justify-center rounded-full text-white/80 transition active:bg-white/10"
+                              aria-label="Minimize stylist message"
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                            <div className="mb-2 flex items-center gap-2 pr-10 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#F2D7A5]">
+                              <Sparkles className="h-3.5 w-3.5" />
+                              AiVestire Fashion Expert
+                            </div>
+                            <AnimatedComplimentText
+                              text={currentCompliment.message}
+                              className="block pr-2 font-serif text-sm leading-6 text-white"
+                              caretClassName="text-[#F2D7A5]"
+                              speedMs={110}
+                              startDelayMs={160}
+                              unit="word"
+                              onComplete={handleComplimentComplete}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
-
-            {renderComplimentCard(
-              "w-full flex-shrink-0 md:hidden",
-              "mobile",
-              "mobile",
-            )}
 
             {renderComplimentCard(
               "hidden w-full flex-shrink-0 self-center md:block xl:hidden md:max-w-4xl lg:max-w-5xl",
@@ -1594,7 +1640,7 @@ export function TryOnResultModal({
               boxShadow: "0 18px 48px rgba(28, 21, 14, 0.16)",
             }}
           >
-            <div className="grid grid-cols-3 gap-2">
+            <div className={`grid gap-1.5 ${feedbackContext ? "grid-cols-4" : "grid-cols-3"}`}>
               <button
                 onClick={handleDownload}
                 disabled={!resultImage || loading}
@@ -1635,6 +1681,59 @@ export function TryOnResultModal({
                 )}
                 <span>{generatingAngles ? "Working" : "New Angle"}</span>
               </button>
+
+              {feedbackContext && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowInlineFeedback(true);
+                    setIsMobileFeedbackOpen(true);
+                  }}
+                  disabled={!resultImage || loading}
+                  className="flex min-h-11 flex-col items-center justify-center gap-1 rounded-2xl border border-[rgba(0,0,0,0.08)] bg-white px-1 py-2.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-[#2c2c2c] transition active:scale-95 disabled:opacity-40"
+                  aria-label="Open try-on feedback"
+                >
+                  <MessageSquareText className="h-5 w-5" />
+                  <span>Feedback</span>
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {isMobileFeedbackOpen && feedbackContext && (
+          <div
+            className="fixed inset-0 z-[90] flex items-end bg-black/55 backdrop-blur-sm md:hidden"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Virtual try-on feedback"
+            onClick={() => setIsMobileFeedbackOpen(false)}
+          >
+            <div
+              className="max-h-[82dvh] w-full overflow-hidden rounded-t-[28px] border-t border-[#D4AF37]/25 bg-[#FCFAF6] shadow-[0_-20px_60px_rgba(0,0,0,0.25)]"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="flex items-center justify-between border-b border-[#D4AF37]/15 px-4 py-3">
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#8A6936]">
+                    Your opinion matters
+                  </p>
+                  <h2 className="font-serif text-lg text-[#2F2416]">
+                    Try-on feedback
+                  </h2>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsMobileFeedbackOpen(false)}
+                  className="flex h-11 w-11 items-center justify-center rounded-full border border-[#D4AF37]/20 bg-white text-[#2F2416]"
+                  aria-label="Close feedback"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+              <div className="max-h-[calc(82dvh-4.5rem)] overflow-y-auto overscroll-contain px-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
+                {renderFeedbackConversation("mobile")}
+              </div>
             </div>
           </div>
         )}

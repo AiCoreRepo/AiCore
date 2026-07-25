@@ -1,7 +1,7 @@
 import { useState, type KeyboardEvent } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Eye, EyeOff } from "lucide-react";
 import { AuthLayout } from "@/components/auth/AuthLayout";
 import { AuraPromptDialog } from "@/components/aura/AuraPromptDialog";
@@ -16,6 +16,11 @@ import { userSignup, googleAuth, getAuraStatus, login as loginApi } from "@/lib/
 import { useGoogleLogin } from "@react-oauth/google";
 import { getErrorMessage } from "@/lib/error-utils";
 import { cloudinaryImages } from "@/constants/cloudinaryImages";
+import {
+    clearGuestTryOnHandoff,
+    readGuestTryOnHandoff,
+    resumeGuestTryOnAfterAuth,
+} from "@/lib/guest-tryon-handoff";
 
 const UserSignup = () => {
     const heroImage = cloudinaryImages.auth.userModel;
@@ -24,6 +29,7 @@ const UserSignup = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [pendingAuraDob, setPendingAuraDob] = useState<string>("");
     const navigate = useNavigate();
+    const location = useLocation();
     const { toast } = useToast();
     // OTP BYPASSED: commented out - not needed currently
     // const { sendOTP } = useOTP();
@@ -58,6 +64,36 @@ const UserSignup = () => {
 
         if (isDeleteKey && touchesPrefix) {
             event.preventDefault();
+        }
+    };
+
+    const continueAfterSignup = async () => {
+        const auraStatus = await getAuraStatus();
+        try {
+            const resume = await resumeGuestTryOnAfterAuth(auraStatus.hasAura);
+            if (resume.kind === "navigate") {
+                navigate(resume.to, { state: resume.state });
+                return;
+            }
+            if (resume.kind === "requires-aura") {
+                setShowAuraPrompt(true);
+                return;
+            }
+        } catch (error) {
+            toast({
+                title: "Try-On Saved for Retry",
+                description: getErrorMessage(
+                    error,
+                    "We could not attach your guest try-on yet. Your handoff is still saved in this tab.",
+                ),
+                variant: "destructive",
+            });
+        }
+
+        if (auraStatus.hasAura) {
+            navigate('/collection');
+        } else {
+            setShowAuraPrompt(true);
         }
     };
 
@@ -136,15 +172,7 @@ const UserSignup = () => {
             window.dispatchEvent(new Event('auth-refresh'));
             window.dispatchEvent(new Event('aura-updated'));
 
-            // Check if user already has an Aura
-            const auraStatus = await getAuraStatus();
-
-            if (auraStatus.hasAura) {
-                navigate('/collection');
-            } else {
-                // Show Aura prompt modal
-                setShowAuraPrompt(true);
-            }
+            await continueAfterSignup();
         } catch (error: unknown) {
             let message = getErrorMessage(error, "Something went wrong. Please try again.");
 
@@ -194,15 +222,7 @@ const UserSignup = () => {
                 window.dispatchEvent(new Event('auth-refresh'));
                 window.dispatchEvent(new Event('aura-updated'));
 
-                // Check if user already has an Aura
-                const auraStatus = await getAuraStatus();
-
-                if (auraStatus.hasAura) {
-                    navigate('/collection');
-                } else {
-                    // Show Aura prompt modal instead of directly navigating
-                    setShowAuraPrompt(true);
-                }
+                await continueAfterSignup();
             } catch (error: unknown) {
                 toast({
                     title: "Google Sign-Up Failed",
@@ -226,13 +246,22 @@ const UserSignup = () => {
     const handleAuraAccept = () => {
         setShowAuraPrompt(false);
         navigate("/aura-dashboard", {
-            state: pendingAuraDob ? { prefilledDob: pendingAuraDob } : undefined,
+            state: {
+                ...(pendingAuraDob ? { prefilledDob: pendingAuraDob } : {}),
+                resumeGuestTryOn: Boolean(readGuestTryOnHandoff()),
+            },
         });
     };
 
     const handleAuraDecline = () => {
         setShowAuraPrompt(false);
-        navigate("/collection");
+        const handoff = readGuestTryOnHandoff();
+        clearGuestTryOnHandoff();
+        navigate(
+            handoff
+                ? `/collection?section=${handoff.gender === "male" ? "mens" : "womens"}`
+                : "/collection",
+        );
     };
 
     return (
@@ -419,7 +448,11 @@ const UserSignup = () => {
                     <div className="text-center">
                         <p className="text-neutral-500 text-sm">
                             Already have an account?{" "}
-                            <Link to="/user-login" className="text-luxury-gold hover:text-luxury-cream transition-colors font-semibold">
+                            <Link
+                                to="/user-login"
+                                state={location.state}
+                                className="text-luxury-gold hover:text-luxury-cream transition-colors font-semibold"
+                            >
                                 Sign in instead
                             </Link>
                         </p>

@@ -6,6 +6,65 @@ import {
 } from './dto/recommendation-response.dto';
 import { PrismaService } from '../prisma/prisma.service';
 
+export interface RecommendationProfile {
+  ageRange?: string | null;
+  skinTone?: string | null;
+  gender?: string | null;
+  bodyShape?: string | null;
+  size?: string | null;
+}
+
+const normalizeToken = (value?: string | null): string =>
+  String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[_-]+/g, ' ')
+    .replace(/\s+/g, ' ');
+
+export const normalizeRecommendationAudience = (
+  gender?: string | null,
+): 'mens' | 'womens' | null => {
+  const value = normalizeToken(gender);
+  if (['male', 'man', 'men', 'mens', "men's"].includes(value)) return 'mens';
+  if (['female', 'woman', 'women', 'womens', "women's"].includes(value))
+    return 'womens';
+  return null;
+};
+
+export const productMatchesRecommendationAudience = (
+  metadata: unknown,
+  gender?: string | null,
+): boolean => {
+  const requestedAudience = normalizeRecommendationAudience(gender);
+  if (!requestedAudience) return true;
+
+  const productMetadata =
+    metadata && typeof metadata === 'object'
+      ? (metadata as Record<string, unknown>)
+      : {};
+  const productAudience = normalizeRecommendationAudience(
+    String(productMetadata.audience || productMetadata.gender || ''),
+  );
+
+  if (requestedAudience === 'mens') return productAudience === 'mens';
+  // The legacy 200-item collection predates the audience field and is womenswear.
+  return productAudience !== 'mens';
+};
+
+const matchesAttribute = (values: unknown, target?: string | null): boolean => {
+  const normalizedTarget = normalizeToken(target);
+  if (!normalizedTarget || values == null) return false;
+  const candidates = Array.isArray(values) ? values : [values];
+  return candidates.some((value) => {
+    const normalizedValue = normalizeToken(String(value));
+    return (
+      normalizedValue === normalizedTarget ||
+      normalizedValue.includes(normalizedTarget) ||
+      normalizedTarget.includes(normalizedValue)
+    );
+  });
+};
+
 @Injectable()
 export class DummyRecommendationService {
   private readonly logger = new Logger(DummyRecommendationService.name);
@@ -14,11 +73,12 @@ export class DummyRecommendationService {
 
   async getDummyRecommendations(
     occasion: Occasion,
-    userAgeRange?: string | null,
-    userSkinTone?: string | null,
+    profile: RecommendationProfile = {},
   ): Promise<RecommendationsResponseDto> {
+    const { ageRange, skinTone, gender, bodyShape, size } = profile;
+    const requestedAudience = normalizeRecommendationAudience(gender);
     this.logger.log(
-      ` Getting DB-based recommendations for occasion: ${occasion}`,
+      `Getting DB-based recommendations for occasion=${occasion}, audience=${requestedAudience || 'all'}`,
     );
 
     try {
@@ -27,6 +87,7 @@ export class DummyRecommendationService {
         where: {
           status: 'APPROVED',
           is_deleted: false,
+          inventory_count: { gt: 0 },
         },
         include: {
           images: {
@@ -42,7 +103,13 @@ export class DummyRecommendationService {
         take: 300, // Fetch even more comparisons
       });
 
-      this.logger.log(`🔍 Fetched ${allProducts.length} products to filter`);
+      const audienceProducts = allProducts.filter((product) =>
+        productMatchesRecommendationAudience(product.metadata, gender),
+      );
+
+      this.logger.log(
+        `🔍 Fetched ${allProducts.length} products; ${audienceProducts.length} match audience=${requestedAudience || 'all'}`,
+      );
 
       // Debug: Log the metadata of the first 3 products to see structure
       if (allProducts.length > 0) {
@@ -53,7 +120,7 @@ export class DummyRecommendationService {
 
       // --- SCORING & FILTERING LOGIC ---
 
-      const scoredProducts = allProducts.map((product) => {
+      const scoredProducts = audienceProducts.map((product) => {
         let score = 0;
         const debugReasons: string[] = [];
 
@@ -63,26 +130,17 @@ export class DummyRecommendationService {
 
         // 1. Occasion Check (Weighted High - Essential)
         // Check metadata first
-        const occasionsValue = metadata
-          ? metadata.occasions ||
-            metadata.occasion ||
-            metadata.Occasion ||
-            metadata['@Occasion']
-          : null;
-        const searchOccasion = occasion.toLowerCase();
-        let matchesOccasion = false;
-
-        if (occasionsValue) {
-          if (Array.isArray(occasionsValue)) {
-            matchesOccasion = occasionsValue.some((o: string) =>
-              o.toLowerCase().includes(searchOccasion),
-            );
-          } else if (typeof occasionsValue === 'string') {
-            matchesOccasion = occasionsValue
-              .toLowerCase()
-              .includes(searchOccasion);
-          }
-        }
+        const occasionsValue =
+          product.occasions?.length > 0
+            ? product.occasions
+            : metadata
+              ? metadata.occasions ||
+                metadata.occasion ||
+                metadata.Occasion ||
+                metadata['@Occasion']
+              : null;
+        const searchOccasion = normalizeToken(occasion);
+        let matchesOccasion = matchesAttribute(occasionsValue, occasion);
 
         // Fallback: Check Title/Description if metadata missing or didn't match
         if (!matchesOccasion) {
@@ -126,8 +184,8 @@ export class DummyRecommendationService {
         }
 
         // 2. Age Check (STRICT)
-        if (userAgeRange) {
-          const uAge = String(userAgeRange).toLowerCase();
+        if (ageRange) {
+          const uAge = String(ageRange).toLowerCase();
           const isUserYoung =
             uAge.includes('18') ||
             uAge.includes('20') ||
@@ -202,27 +260,51 @@ export class DummyRecommendationService {
         }
 
         // 3. Skin Tone Check
-        if (userSkinTone && metadata) {
+        if (skinTone) {
           const productSkin =
-            metadata.skin_tone ||
-            metadata['Skin tone'] ||
-            metadata['@Skin tone'];
+            product.skin_tones?.length > 0
+              ? product.skin_tones
+              : metadata?.skin_tone ||
+                metadata?.['Skin tone'] ||
+                metadata?.['@Skin tone'];
           if (productSkin) {
-            const searchTone = userSkinTone.toLowerCase();
-            let matchesSkin = false;
-            if (Array.isArray(productSkin)) {
-              matchesSkin = productSkin.some((t: string) =>
-                t.toLowerCase().includes(searchTone),
-              );
-            } else if (typeof productSkin === 'string') {
-              matchesSkin = productSkin.toLowerCase().includes(searchTone);
-            }
-
-            if (matchesSkin) {
+            if (matchesAttribute(productSkin, skinTone)) {
               score += 10;
               debugReasons.push('Skin Tone Match');
             }
           }
+        }
+
+        // 4. Body shape and size use the product's dedicated recommendation fields.
+        const productBodyShapes =
+          product.body_shapes?.length > 0
+            ? product.body_shapes
+            : metadata?.body_shape || metadata?.['@Recommended Body shape'];
+        if (bodyShape && matchesAttribute(productBodyShapes, bodyShape)) {
+          score += 15;
+          debugReasons.push('Body Shape Match');
+        }
+
+        const productSizes =
+          product.sizes?.length > 0
+            ? product.sizes
+            : metadata?.size || metadata?.recommended_size;
+        if (size && matchesAttribute(productSizes, size)) {
+          score += 10;
+          debugReasons.push('Size Match');
+        }
+
+        // Gen Z products should rank ahead for the young-adult Aura they target.
+        const productStyles = metadata?.style;
+        const isYoungAdult = Boolean(
+          ageRange &&
+            /(?:18|20|21|22|23|24|25|26|27|28|29|30|31|32|33|34|35)/.test(
+              ageRange,
+            ),
+        );
+        if (isYoungAdult && matchesAttribute(productStyles, 'Gen Z')) {
+          score += 12;
+          debugReasons.push('Gen Z Age/Style Match');
         }
 
         return { product, score, debugReasons };
@@ -269,7 +351,9 @@ export class DummyRecommendationService {
         const usedIds = new Set(
           sortedProducts.slice(0, 36).map((p) => p.product_id),
         );
-        const remaining = allProducts.filter((p) => !usedIds.has(p.product_id));
+        const remaining = audienceProducts.filter(
+          (p) => !usedIds.has(p.product_id),
+        );
         // Shuffle remaining to ensure variety
         remaining.sort(() => 0.5 - Math.random());
 

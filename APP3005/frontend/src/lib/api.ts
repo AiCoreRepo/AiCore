@@ -5,6 +5,31 @@ import {
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
 
+export interface GuestStaticTryOnLook {
+  id: string;
+  productId: string;
+  title: string;
+  subtitle: string;
+  price: string;
+  collectionImage: string;
+  staticResultImage: string;
+  modelImage: string;
+}
+
+export async function getGuestStaticTryOnLooks(
+  gender: "female" | "male" = "female",
+): Promise<{
+  gender: "female" | "male";
+  modelImage: string;
+  looks: GuestStaticTryOnLook[];
+}> {
+  const response = await fetch(
+    `${BASE_URL}/v1/tryon/guest/static-looks?gender=${gender}`,
+  );
+  if (!response.ok) throw new Error("Guest try-on collection could not be loaded.");
+  return response.json();
+}
+
 export interface ApiError extends Error {
   status?: number;
   code?: string;
@@ -1134,6 +1159,39 @@ async function pollTryOnJobResult(
   );
 }
 
+async function pollGuestTryOnJobResult(
+  jobId: string,
+  guestSession: string,
+): Promise<TryOnResultPayload> {
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < TRY_ON_JOB_TIMEOUT_MS) {
+    const res = await fetch(`${BASE_URL}/v1/tryon/guest/job/${jobId}`, {
+      headers: { "X-Guest-Session": guestSession },
+    });
+    if (!res.ok) {
+      handleApiError(res, await res.text(), "Guest try-on failed");
+    }
+    const payload = (await res.json()) as TryOnJobStatusResponse;
+    if (payload.status === "completed" && payload.result) {
+      return {
+        ...payload.result,
+        metadata: {
+          ...(payload.result.metadata || {}),
+          guestJobId: jobId,
+        },
+      };
+    }
+    if (payload.status === "failed") {
+      throw new Error(payload.error || "Guest try-on failed");
+    }
+    if (payload.status === "not_found") {
+      throw new Error("Guest try-on job could not be found.");
+    }
+    await delay(TRY_ON_JOB_POLL_INTERVAL_MS);
+  }
+  throw new Error("Guest try-on is taking longer than expected.");
+}
+
 async function resolveQueuedTryOnResponse(
   res: Response,
   token: string,
@@ -1251,6 +1309,73 @@ export async function tryOnWithGemini(data: {
   });
 
   return resolveQueuedTryOnResponse(res, token, "Try-on failed");
+}
+
+export async function tryOnAsGuest(data: {
+  avatarImage: string;
+  clothingImage: string;
+  guestSession: string;
+  additionalParams?: Record<string, unknown>;
+}) {
+  assertSupportedTryOnHost();
+  const res = await fetch(`${BASE_URL}/v1/tryon/guest/gemini/start`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Guest-Session": data.guestSession,
+    },
+    body: JSON.stringify({
+      avatarImage: data.avatarImage,
+      clothingImage: data.clothingImage,
+      additionalParams: data.additionalParams,
+    }),
+  });
+  if (!res.ok) {
+    handleApiError(res, await res.text(), "Guest try-on failed");
+  }
+  const payload = (await res.json()) as TryOnQueuedResponse;
+  const jobId = payload.jobId || payload.job_id;
+  if (!jobId) throw new Error("Guest try-on did not return a job id.");
+  return pollGuestTryOnJobResult(jobId, data.guestSession);
+}
+
+export interface ClaimGuestTryOnResponse {
+  success: boolean;
+  alreadyClaimed: boolean;
+  auraId: string;
+  avatarUrl: string;
+  tryOnId?: string;
+  productId?: string;
+  productTitle?: string;
+  resultImageUrl: string;
+}
+
+export async function claimGuestTryOn(data: {
+  guestSession: string;
+  jobId: string;
+}): Promise<ClaimGuestTryOnResponse> {
+  const token = localStorage.getItem("access_token");
+  if (!token) {
+    throw new Error("Please sign in to save your guest try-on.");
+  }
+
+  const response = await fetch(`${BASE_URL}/v1/tryon/guest/claim`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+      "X-Guest-Session": data.guestSession,
+    },
+    body: JSON.stringify({ jobId: data.jobId }),
+  });
+  if (!response.ok) {
+    handleApiError(
+      response,
+      await response.text(),
+      "Your guest try-on could not be saved.",
+    );
+  }
+  return response.json();
 }
 
 // Try-on with Vertex AI using async queue polling

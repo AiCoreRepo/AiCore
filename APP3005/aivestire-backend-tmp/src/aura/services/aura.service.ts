@@ -110,6 +110,8 @@ export class AuraService {
       );
     }
 
+    const avatarGender = attributes.gender === 'male' ? 'male' : 'female';
+
     try {
       const base64Image = `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
 
@@ -120,7 +122,7 @@ export class AuraService {
           height_cm: attributes.height,
           weight_kg: attributes.weight,
           skin_tone: attributes.skinTone,
-          gender: attributes.gender,
+          gender: avatarGender,
           body_shape: attributes.bodyShape,
           body_type: attributes.bodyType, // Added mapping
           body_size: attributes.bodySize, // Added mapping for body size
@@ -143,7 +145,7 @@ export class AuraService {
           height: attributes.height ?? 170,
           weight: attributes.weight ?? 70,
           skinTone: attributes.skinTone,
-          gender: attributes.gender || 'unspecified',
+          gender: avatarGender,
           bodyShape: attributes.bodyShape,
           bodySize: attributes.bodySize,
           ageRange: attributes.ageRange || '25-35',

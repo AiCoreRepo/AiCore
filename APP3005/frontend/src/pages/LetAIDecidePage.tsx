@@ -137,7 +137,9 @@ const buildGeminiTryOnAdditionalParams = (aura: AuraData | null) => ({
                 : {}),
         }
         : undefined,
-    maskClothingModel: false,
+    // Hide the catalog model's face so only the selected Aura supplies identity.
+    maskClothingModel: true,
+    forceRegenerate: true,
 });
 
 const LetAIDecidePage = () => {
@@ -334,17 +336,6 @@ const LetAIDecidePage = () => {
         const token = localStorage.getItem('access_token');
         if (!token) {
             navigate('/user-login');
-            return;
-        }
-
-        const reusableTryOn = getLatestBaseTryOnForCurrentAvatar(
-            tryOnHistory,
-            product.product_id,
-            aura,
-        );
-
-        if (reusableTryOn) {
-            openSavedTryOn(reusableTryOn, product);
             return;
         }
 

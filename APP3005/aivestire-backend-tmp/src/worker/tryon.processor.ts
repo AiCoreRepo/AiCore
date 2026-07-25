@@ -12,6 +12,7 @@ import type { TryOnResponseDto } from '../ai-tryon/dto/tryon-response.dto';
 import { TRYON_WORKER_CONCURRENCY } from '../ai-tryon/constants/tryon.constants';
 import { TryOnErrorCode } from '../ai-tryon/enums/ai-provider.enum';
 import { TryOnException } from '../ai-tryon/exceptions/tryon.exceptions';
+import { GeminiAIService } from '../common/gemini-ai.service';
 import {
   getAuraAttributeSnapshotFromRecord,
   normalizeAuraAvatarHistory,
@@ -38,6 +39,7 @@ export class TryOnProcessor {
     private readonly directVertexService: DirectVertexTryOnService,
     private readonly prisma: PrismaService,
     private readonly cloudinary: CloudinaryService,
+    private readonly geminiAI: GeminiAIService,
   ) {
     this.logger.log(
       `✅ [TryOnProcessor] Try-on concurrency configured: ${TRYON_WORKER_CONCURRENCY}`,
@@ -98,17 +100,73 @@ export class TryOnProcessor {
   private async processTryOnWithFallback(
     data: TryOnJobData,
   ): Promise<TryOnResponseDto> {
+    let avatarImage = data.avatarImage;
+    let guestAvatarUrl: string | undefined;
+
+    if (data.guestAvatarFirst) {
+      const guestGender =
+        data.additionalParams?.garmentGender === 'male' ? 'male' : 'female';
+      this.logger.log(
+        `Creating ${guestGender} guest Aura avatar before virtual try-on`,
+      );
+      const generatedAvatar = await this.geminiAI.generateAvatarImage({
+        imageUrl: '',
+        sourceImageData: data.avatarImage,
+        attributes: {
+          height: 0,
+          weight: 0,
+          skinTone: '',
+          gender: guestGender,
+          bodyShape: '',
+          bodySize: '',
+          ageRange: '',
+          hairStyle: '',
+        },
+      });
+      if (!generatedAvatar.success || !generatedAvatar.imageBase64) {
+        throw new Error(
+          generatedAvatar.error ||
+            'Guest avatar creation did not return an image',
+        );
+      }
+
+      const generatedAvatarDataUri =
+        `data:image/png;base64,${generatedAvatar.imageBase64}`;
+      const avatarUpload = await this.cloudinary.uploadWithMetadata(
+        generatedAvatarDataUri,
+        {
+          imageType: 'avatar',
+          avatarVariant: 'guest-generated',
+          guestSession: data.requestUserId,
+          gender: guestGender,
+          identitySource: 'uploaded-image',
+          generationSource: 'gemini-aura',
+        },
+        'avatars/guest',
+      );
+      guestAvatarUrl = avatarUpload.secureUrl;
+      avatarImage = guestAvatarUrl;
+      this.logger.log(
+        'Guest Aura avatar created and selected as the try-on wearer',
+      );
+    }
+
     const primaryService =
       data.provider === AIProvider.GEMINI_AI
         ? this.directGeminiService
         : this.directVertexService;
 
     try {
-      return (await primaryService.processTryOn(
-        data.avatarImage,
+      const result = (await primaryService.processTryOn(
+        avatarImage,
         data.clothingImage,
         data.additionalParams,
       )) as TryOnResponseDto;
+      result.metadata = {
+        ...(result.metadata || {}),
+        ...(guestAvatarUrl ? { guestAvatarUrl } : {}),
+      };
+      return result;
     } catch (error) {
       if (!(await this.shouldFallbackToVertex(data.provider, error))) {
         throw error;
@@ -121,7 +179,7 @@ export class TryOnProcessor {
       );
 
       const fallbackResult = (await this.directVertexService.processTryOn(
-        data.avatarImage,
+        avatarImage,
         data.clothingImage,
         data.additionalParams,
       )) as TryOnResponseDto;

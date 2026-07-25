@@ -1,14 +1,19 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { AURA_GEMINI_TIMEOUT } from '../ai-tryon/constants/tryon.constants';
+import {
+  AURA_GEMINI_TIMEOUT,
+  GEMINI_TRYON_CONFIG,
+} from '../ai-tryon/constants/tryon.constants';
 
-const GEMINI_REFERENCE_TRYON_IMAGE_URL =
+const GEMINI_FEMALE_REFERENCE_TRYON_IMAGE_URL =
   'https://res.cloudinary.com/dgbmqarp0/image/upload/v1773814263/Pasted_image_28_d0kt0b.png';
+const GEMINI_MALE_REFERENCE_TRYON_IMAGE_URL =
+  'https://res.cloudinary.com/dxfxicebq/image/upload/v1784959798/aivestire/tryon/guest-demo-male/male1-collection.png';
 
 // [Speed-Opt-1] Module-level cache — the reference clothing image is ~1.9MB fetched
 // via HTTP on every job. Cache it once per worker-process lifetime (survives job re-runs).
-let cachedReferenceImage: { mimeType: string; data: string } | null = null;
+const cachedReferenceImages = new Map<string, GeminiInlineImage>();
 
 interface GeminiInlineImage {
   mimeType: string;
@@ -54,9 +59,9 @@ export class GeminiAIService {
       console.warn(' GEMINI_API_KEY not configured');
     } else {
       this.genAI = new GoogleGenerativeAI(apiKey);
-      // gemini-3.1-flash-image-preview: supports image output (required for avatar generation)
+      // Gemini 3.1 Flash Image supports image output required for Aura generation.
       this.imageModel = this.genAI.getGenerativeModel({
-        model: 'gemini-3.1-flash-image-preview',
+        model: GEMINI_TRYON_CONFIG.DEFAULT_MODEL,
         generationConfig: {
           temperature: 0.2,
           // [Speed-Opt-3] Tell Gemini to only return an image — skips text token generation
@@ -64,7 +69,7 @@ export class GeminiAIService {
         } as any,
       });
       console.log(
-        '✅ Using gemini-3.1-flash-image-preview for avatar (Aura) generation',
+        `✅ Using ${GEMINI_TRYON_CONFIG.DEFAULT_MODEL} for avatar (Aura) generation`,
       );
       console.log(
         `✅ [GeminiAI] Aura Gemini timeout configured: ${this.auraGeminiTimeoutMs}ms`,
@@ -98,7 +103,7 @@ export class GeminiAIService {
 
     try {
       console.log(
-        '🎨 Generating professional avatar with gemini-3.1-flash-image-preview...',
+        `🎨 Generating professional avatar with ${GEMINI_TRYON_CONFIG.DEFAULT_MODEL}...`,
       );
 
       console.log('📥 [GeminiAI] Fetching source image...');
@@ -116,13 +121,28 @@ export class GeminiAIService {
       // First call fetches + shrinks (~512×512); subsequent calls return instantly.
       console.log('📥 [GeminiAI] Fetching reference try-on clothing image...');
       const referenceFetchStart = Date.now();
-      if (!cachedReferenceImage) {
-        console.log(' [GeminiAI] Reference image cache miss — fetching & shrinking...');
-        cachedReferenceImage = await this.fetchAndShrinkReferenceImage();
+      const avatarGender =
+        request.attributes.gender?.trim().toLowerCase() === 'male'
+          ? 'male'
+          : 'female';
+      const referenceImageUrl =
+        avatarGender === 'male'
+          ? GEMINI_MALE_REFERENCE_TRYON_IMAGE_URL
+          : GEMINI_FEMALE_REFERENCE_TRYON_IMAGE_URL;
+      let clothingImage = cachedReferenceImages.get(avatarGender);
+      if (!clothingImage) {
+        console.log(
+          ` [GeminiAI] ${avatarGender} reference cache miss — fetching & shrinking...`,
+        );
+        clothingImage = await this.fetchAndShrinkReferenceImage(
+          referenceImageUrl,
+        );
+        cachedReferenceImages.set(avatarGender, clothingImage);
       } else {
-        console.log(' [GeminiAI] Reference image served from cache ⚡');
+        console.log(
+          ` [GeminiAI] ${avatarGender} reference image served from cache ⚡`,
+        );
       }
-      const clothingImage = cachedReferenceImage;
       referenceFetchMs = Date.now() - referenceFetchStart;
       console.log(
         `✅ [GeminiAI] Reference clothing image ready: ${clothingImage.data.length} chars`,
@@ -285,8 +305,10 @@ export class GeminiAIService {
    * Sending the full ~1.9MB image to Gemini wastes prefill budget. 512×512 is enough
    * for the model to understand the clothing style, colour, and silhouette.
    */
-  private async fetchAndShrinkReferenceImage(): Promise<GeminiInlineImage> {
-    const response = await fetch(GEMINI_REFERENCE_TRYON_IMAGE_URL);
+  private async fetchAndShrinkReferenceImage(
+    referenceImageUrl: string,
+  ): Promise<GeminiInlineImage> {
+    const response = await fetch(referenceImageUrl);
     if (!response.ok) {
       throw new Error(
         `Failed to fetch reference clothing image (${response.status})`,
@@ -414,6 +436,8 @@ export class GeminiAIService {
         ...(hairStyle ? { hair_style: formatAttr(hairStyle) } : {}),
       },
       instructions: {
+        gender:
+          'The gender in person_attributes is authoritative for the generated avatar. When it is male, create a clearly male avatar wearing the male reference outfit. When it is female, create a clearly female avatar wearing the female reference outfit. Never silently default a male request to a female avatar.',
         identity:
           "Preserve the person's exact face features, skin tone, hairline, hairstyle, hair length, hair volume, hair texture, and body type exactly. Keep the same identity from Image 1 without beautifying, reshaping, or simplifying the face or hair. If the source image is cropped, zoomed, or half-body, expand the canvas and reconstruct the missing framing so the complete head and full hair silhouette are visible naturally. Use the provided person_attributes to reconstruct the full body naturally if only a selfie or half-body is given. If height is provided in person_attributes, that height is authoritative and must override any apparent proportions from Image 1 or Image 2. Maintain natural human anatomy and realistic proportions throughout, including a correct head-to-body ratio, centered neck placement, aligned shoulders, and proportional torso, arms, hands, legs, and feet.",
         clothing:

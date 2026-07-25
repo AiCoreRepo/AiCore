@@ -205,8 +205,7 @@ export class RecommendationService {
         );
         return this.dummyRecommendationService.getDummyRecommendations(
           dto.occasion,
-          aura?.age_range || null,
-          aura?.skin_tone || null,
+          this.buildRecommendationProfile(aura, dto),
         );
       }
 
@@ -216,8 +215,7 @@ export class RecommendationService {
         );
         return this.dummyRecommendationService.getDummyRecommendations(
           dto.occasion,
-          aura?.age_range || null,
-          aura?.skin_tone || null,
+          this.buildRecommendationProfile(aura, dto),
         );
       }
 
@@ -241,14 +239,16 @@ export class RecommendationService {
       }
 
       this.logger.log(`📥 Downloading Aura image: ${recommendationImageUrl}`);
-      const imageBase64 =
-        await this.downloadImageAsBase64(recommendationImageUrl);
+      const imageBase64 = await this.downloadImageAsBase64(
+        recommendationImageUrl,
+      );
 
       // Extract age from Aura age_range (e.g., "26-35" -> 30)
-      const age = this.extractAgeFromAura(aura);
+      const age = dto.age || this.extractAgeFromAura(aura);
 
       // Extract size from Aura (default to M if not available)
-      const size = this.normalizeSize(this.extractSizeFromAura(aura)) || 'M';
+      const size =
+        this.normalizeSize(dto.size || this.extractSizeFromAura(aura)) || 'M';
       const requestedTopK = dto.top_k || 12;
       const topK = Math.min(requestedTopK, 25);
 
@@ -263,8 +263,9 @@ export class RecommendationService {
         image_base64: imageBase64,
         age: age,
         size: size,
-        body_shape: this.normalizeBodyShape(aura.body_shape),
-        skin_tone: this.normalizeSkinTone(aura.skin_tone),
+        body_shape: this.normalizeBodyShape(dto.body_shape || aura.body_shape),
+        skin_tone: this.normalizeSkinTone(dto.skin_tone || aura.skin_tone),
+        gender: aura.gender || undefined,
         occasion: this.normalizeOccasion(dto.occasion),
         top_k: topK,
         collection_path: this.recommendationCollectionPath,
@@ -316,12 +317,9 @@ export class RecommendationService {
           `⚠️ ML service unavailable or misconfigured (code=${error?.code ?? 'unknown'}, status=${error?.response?.status ?? 'none'}), falling back to DB-based recommendations`,
         );
 
-        const ageRange = aura?.age_range || null;
-        const skinTone = aura?.skin_tone || null;
         return this.dummyRecommendationService.getDummyRecommendations(
           dto.occasion,
-          ageRange,
-          skinTone,
+          this.buildRecommendationProfile(aura, dto),
         );
       }
 
@@ -496,9 +494,17 @@ export class RecommendationService {
    * Extract size from Aura
    */
   private extractSizeFromAura(aura: Aura): string | null {
-    // If Aura has size information, extract it
-    // For now, return null to use default
-    return null;
+    return aura.body_size || null;
+  }
+
+  private buildRecommendationProfile(aura: Aura, dto: GetRecommendationsDto) {
+    return {
+      ageRange: dto.age ? String(dto.age) : aura.age_range || null,
+      skinTone: dto.skin_tone || aura.skin_tone || null,
+      gender: aura.gender || null,
+      bodyShape: dto.body_shape || aura.body_shape || null,
+      size: dto.size || this.extractSizeFromAura(aura),
+    };
   }
 
   private normalizeBodyShape(value?: string | null): string {

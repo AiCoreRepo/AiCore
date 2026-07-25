@@ -206,11 +206,12 @@ export const AuraFormCard = ({ onCreateAura, isProcessing, prefilledDob }: AuraF
 
     const [photoFile, setPhotoFile] = useState<File | null>(null);
     const [photoPreview, setPhotoPreview] = useState<string | null>(null);
-    const [attributes, setAttributes] = useState<BodyAttributes>({ gender: "female" });
+    const [attributes, setAttributes] = useState<BodyAttributes>({});
     const [dob, setDob] = useState<string>(initialDobValue);
     const [dobInput, setDobInput] = useState<string>(formatDobForInput(initialDobValue));
     const [dobError, setDobError] = useState<string>("");
     const [showDobDialog, setShowDobDialog] = useState(false);
+    const [showGenderWarning, setShowGenderWarning] = useState(false);
     const [attributeErrors, setAttributeErrors] = useState<Partial<Record<RequiredBodyAttribute, string>>>({});
 
     // AI Analysis state
@@ -221,7 +222,6 @@ export const AuraFormCard = ({ onCreateAura, isProcessing, prefilledDob }: AuraF
     const getBaseAttributes = (dobValue = dob): BodyAttributes => {
         const calculatedRange = calculateAgeRangeFromDob(dobValue);
         return {
-            gender: "female",
             ...(calculatedRange ? { ageRange: calculatedRange } : {}),
         };
     };
@@ -233,7 +233,7 @@ export const AuraFormCard = ({ onCreateAura, isProcessing, prefilledDob }: AuraF
         setDobInput(formatDobForInput(prefilledDob));
         const calculatedRange = calculateAgeRangeFromDob(prefilledDob);
         if (calculatedRange) {
-            setAttributes(prev => ({ ...prev, ageRange: calculatedRange, gender: "female" }));
+            setAttributes(prev => ({ ...prev, ageRange: calculatedRange }));
         }
     }, [prefilledDob]);
 
@@ -246,7 +246,7 @@ export const AuraFormCard = ({ onCreateAura, isProcessing, prefilledDob }: AuraF
             setDobInput(formatDobForInput(initialDob));
             const calculatedRange = calculateAgeRangeFromDob(initialDob);
             if (calculatedRange) {
-                setAttributes(prev => ({ ...prev, ageRange: calculatedRange, gender: "female" }));
+                setAttributes(prev => ({ ...prev, ageRange: calculatedRange }));
             }
         }
     }, [prefilledDob, user?.dob, user?.email]);
@@ -356,7 +356,6 @@ export const AuraFormCard = ({ onCreateAura, isProcessing, prefilledDob }: AuraF
                     skinTone: mappedSkinTone || prev.skinTone,
                     bodyShape: hasDetectedBodyShape ? (mappedBodyShape || prev.bodyShape) : prev.bodyShape,
                     ageRange: prev.ageRange || calculateAgeRangeFromDob(dob),
-                    gender: "female",
                 }));
 
                 if (!result.fullBody && !hasDetectedBodyShape) {
@@ -371,7 +370,7 @@ export const AuraFormCard = ({ onCreateAura, isProcessing, prefilledDob }: AuraF
                 // Ensure age range is still populated even if analysis fails
                 const ageRange = calculateAgeRangeFromDob(dob);
                 if (ageRange) {
-                    setAttributes(prev => ({ ...prev, ageRange, gender: "female" }));
+                    setAttributes(prev => ({ ...prev, ageRange }));
                 }
             }
         } catch (error: any) {
@@ -381,7 +380,7 @@ export const AuraFormCard = ({ onCreateAura, isProcessing, prefilledDob }: AuraF
             // Ensure age range is still populated
             const ageRange = calculateAgeRangeFromDob(dob);
             if (ageRange) {
-                setAttributes(prev => ({ ...prev, ageRange, gender: "female" }));
+                setAttributes(prev => ({ ...prev, ageRange }));
             }
         } finally {
             clearTimeout(failsafeTimeout);
@@ -396,14 +395,11 @@ export const AuraFormCard = ({ onCreateAura, isProcessing, prefilledDob }: AuraF
         setCurrentStep("upload");
     };
 
-    const handleCreateAura = () => {
+    const createAuraWithGender = (gender: "female" | "male") => {
         if (!photoFile) return;
 
-        const missingRequiredAttributeErrors = getRequiredAttributeErrors(attributes);
-        if (Object.keys(missingRequiredAttributeErrors).length > 0) {
-            setAttributeErrors(missingRequiredAttributeErrors);
-            return;
-        }
+        setShowGenderWarning(false);
+        setAttributes(prev => ({ ...prev, gender }));
 
         const effectiveDob = dob || prefilledDob || (user?.email ? getStoredDob(user.email) : "");
 
@@ -421,12 +417,30 @@ export const AuraFormCard = ({ onCreateAura, isProcessing, prefilledDob }: AuraF
 
         const finalAttributes: BodyAttributes = {
             ...attributes,
-            gender: "female",
+            gender,
             ageRange: calculatedAgeRange,
         };
 
+        setAttributes(finalAttributes);
         console.log('🚀 Creating Aura with attributes:', finalAttributes);
         onCreateAura(photoFile, finalAttributes);
+    };
+
+    const handleCreateAura = () => {
+        if (!photoFile) return;
+
+        const missingRequiredAttributeErrors = getRequiredAttributeErrors(attributes);
+        if (Object.keys(missingRequiredAttributeErrors).length > 0) {
+            setAttributeErrors(missingRequiredAttributeErrors);
+            return;
+        }
+
+        if (attributes.gender !== "female" && attributes.gender !== "male") {
+            setShowGenderWarning(true);
+            return;
+        }
+
+        createAuraWithGender(attributes.gender);
     };
 
     const handleDobSave = () => {
@@ -458,7 +472,7 @@ export const AuraFormCard = ({ onCreateAura, isProcessing, prefilledDob }: AuraF
         setDobInput(formatDobForInput(parsedDob));
         setDobError("");
         setShowDobDialog(false);
-        setAttributes(prev => ({ ...prev, ageRange: calculatedRange, gender: "female" }));
+        setAttributes(prev => ({ ...prev, ageRange: calculatedRange }));
 
         if (user?.email) {
             setStoredDob(user.email, parsedDob);
@@ -969,6 +983,34 @@ export const AuraFormCard = ({ onCreateAura, isProcessing, prefilledDob }: AuraF
                             className="bg-luxury-gold hover:bg-luxury-gold/90 text-luxury-black"
                         >
                             Save DOB
+                        </Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={showGenderWarning} onOpenChange={setShowGenderWarning}>
+                <DialogContent className="max-w-md border-gold/30 bg-white">
+                    <DialogHeader>
+                        <DialogTitle className="text-charcoal">Choose your avatar gender</DialogTitle>
+                        <DialogDescription className="text-charcoal/70">
+                            You did not select a gender. Would you like to continue with a female avatar or create a male avatar?
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => createAuraWithGender("female")}
+                            className="min-h-12 border-gold/40 text-charcoal hover:bg-gold/10"
+                        >
+                            Continue with female
+                        </Button>
+                        <Button
+                            type="button"
+                            onClick={() => createAuraWithGender("male")}
+                            className="min-h-12 bg-charcoal text-white hover:bg-charcoal/90"
+                        >
+                            Create male avatar
                         </Button>
                     </div>
                 </DialogContent>

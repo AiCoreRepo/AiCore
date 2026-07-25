@@ -15,6 +15,11 @@ import { useGoogleLogin } from "@react-oauth/google";
 import { getErrorMessage } from "@/lib/error-utils";
 import { cloudinaryImages } from "@/constants/cloudinaryImages";
 import { markWorkflowDiscoveryPending } from "@/constants/featureDiscovery";
+import {
+    clearGuestTryOnHandoff,
+    readGuestTryOnHandoff,
+    resumeGuestTryOnAfterAuth,
+} from "@/lib/guest-tryon-handoff";
 
 const UserLogin = () => {
     const heroImage = cloudinaryImages.auth.userModel;
@@ -34,6 +39,38 @@ const UserLogin = () => {
     } = useForm<LoginFormData>({
         resolver: zodResolver(loginSchema),
     });
+
+    const continueAfterLogin = async () => {
+        const auraStatus = await getAuraStatus();
+        markWorkflowDiscoveryPending();
+
+        try {
+            const resume = await resumeGuestTryOnAfterAuth(auraStatus.hasAura);
+            if (resume.kind === "navigate") {
+                navigate(resume.to, { state: resume.state });
+                return;
+            }
+            if (resume.kind === "requires-aura") {
+                setShowAuraPrompt(true);
+                return;
+            }
+        } catch (error) {
+            toast({
+                title: "Try-On Saved for Retry",
+                description: getErrorMessage(
+                    error,
+                    "We could not attach your guest try-on yet. Your handoff is still saved in this tab.",
+                ),
+                variant: "destructive",
+            });
+        }
+
+        if (auraStatus.hasAura || returnState?.openHomeVirtualTryOn) {
+            navigate(postLoginUrl, { state: returnState });
+        } else {
+            setShowAuraPrompt(true);
+        }
+    };
 
     const onSubmit = async (data: LoginFormData) => {
         setIsLoading(true);
@@ -76,21 +113,7 @@ const UserLogin = () => {
             // Notify Navbar to refresh Aura status
             window.dispatchEvent(new Event('aura-updated'));
 
-            // Check if user already has an Aura
-            const auraStatus = await getAuraStatus();
-            markWorkflowDiscoveryPending();
-
-            if (auraStatus.hasAura) {
-                // User already has Aura
-                if (returnUrl && returnUrl !== "/") {
-                    navigate(postLoginUrl, { state: returnState });
-                } else {
-                    navigate(postLoginUrl);
-                }
-            } else {
-                // No Aura, show creation prompt
-                setShowAuraPrompt(true);
-            }
+            await continueAfterLogin();
         } catch (error: unknown) {
             toast({
                 title: "Login Failed",
@@ -135,19 +158,7 @@ const UserLogin = () => {
                 window.dispatchEvent(new Event('auth-refresh'));
                 window.dispatchEvent(new Event('aura-updated'));
 
-                // Check if user already has an Aura
-                const auraStatus = await getAuraStatus();
-                markWorkflowDiscoveryPending();
-
-                if (auraStatus.hasAura) {
-                    if (returnUrl && returnUrl !== "/") {
-                        navigate(postLoginUrl, { state: returnState });
-                    } else {
-                        navigate(postLoginUrl);
-                    }
-                } else {
-                    setShowAuraPrompt(true);
-                }
+                await continueAfterLogin();
             } catch (error: unknown) {
                 toast({
                     title: "Google Sign-In Failed",
@@ -170,16 +181,23 @@ const UserLogin = () => {
 
     const handleAuraAccept = () => {
         setShowAuraPrompt(false);
-        navigate("/aura-dashboard");
+        navigate("/aura-dashboard", {
+            state: {
+                resumeGuestTryOn: Boolean(readGuestTryOnHandoff()),
+            },
+        });
     };
 
     const handleAuraDecline = () => {
         setShowAuraPrompt(false);
-        if (returnUrl && returnUrl !== "/") {
-            navigate(postLoginUrl, { state: returnState });
-        } else {
-            navigate(postLoginUrl);
-        }
+        const handoff = readGuestTryOnHandoff();
+        clearGuestTryOnHandoff();
+        navigate(
+            handoff
+                ? `/collection?section=${handoff.gender === "male" ? "mens" : "womens"}`
+                : postLoginUrl,
+            handoff ? undefined : { state: returnState },
+        );
     };
 
     return (

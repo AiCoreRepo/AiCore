@@ -83,6 +83,13 @@ type AutoTryOnNavigationState = {
   autoTryOnProductId?: string;
   autoTryOnProvider?: TryOnProvider;
   autoTryOnProduct?: TryOnProduct;
+  claimedGuestTryOn?: {
+    resultImage: string;
+    tryOnId?: string;
+    productId?: string;
+    productTitle?: string;
+    garmentImage?: string;
+  };
 };
 
 const getAvatarImageUrl = (aura: AuraData | null): string | null =>
@@ -105,7 +112,9 @@ const buildGeminiTryOnAdditionalParams = (aura: AuraData | null) => ({
           : {}),
       }
     : undefined,
-  maskClothingModel: false,
+  // Hide the catalog model's face so only the selected Aura supplies identity.
+  maskClothingModel: true,
+  forceRegenerate: true,
 });
 
 const AiTryOn = () => {
@@ -156,6 +165,9 @@ const AiTryOn = () => {
     );
   const [pendingAutoTryOnProduct, setPendingAutoTryOnProduct] =
     useState<TryOnProduct | null>(navigationState?.autoTryOnProduct || null);
+  const [pendingClaimedGuestTryOn, setPendingClaimedGuestTryOn] = useState(
+    navigationState?.claimedGuestTryOn || null,
+  );
 
   useTryOnPurchaseRedirect(fetchUser);
 
@@ -303,17 +315,6 @@ const AiTryOn = () => {
       return;
     }
 
-    const reusableTryOn = getLatestBaseTryOnForCurrentAvatar(
-      tryOnHistory,
-      productId,
-      aura,
-    );
-
-    if (reusableTryOn) {
-      openSavedTryOn(reusableTryOn, sourceProduct);
-      return;
-    }
-
     if (!hasFreeTryOnsRemaining) {
       openUpgradePopup();
       return;
@@ -437,6 +438,31 @@ const AiTryOn = () => {
       setSelectedProduct(null);
     }
   };
+
+  useEffect(() => {
+    if (!aura || !pendingClaimedGuestTryOn) return;
+
+    const claimed = pendingClaimedGuestTryOn;
+    setPendingClaimedGuestTryOn(null);
+    setResultImage(claimed.resultImage);
+    setOriginalTryOnImage(claimed.resultImage);
+    setGeneratedImages([claimed.resultImage]);
+    setCurrentProductId(claimed.productId || null);
+    setCurrentGarmentImage(claimed.garmentImage || null);
+    setFeedbackContext({
+      type: "VIRTUAL_TRYON",
+      referenceId: claimed.tryOnId,
+      label: claimed.productTitle || "Guest Try-On",
+    });
+    setShowResultModal(true);
+    void loadTryOnHistory();
+    navigate(location.pathname, { replace: true });
+  }, [
+    aura,
+    pendingClaimedGuestTryOn,
+    navigate,
+    location.pathname,
+  ]);
 
   useEffect(() => {
     if (!aura || !pendingAutoTryOnProductId || tryOnLoading) return;

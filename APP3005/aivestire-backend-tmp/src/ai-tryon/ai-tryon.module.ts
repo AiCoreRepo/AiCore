@@ -10,6 +10,8 @@ import { TryOnQueueService } from '../queues/tryon-queue.service';
 import { BodyAnalyzerModule } from '../body-analyzer/body-analyzer.module';
 import { PrismaModule } from '../prisma/prisma.module';
 import { TryOnHistoryService } from './services/tryon-history.service';
+import { CloudinaryService } from '../common/cloudinary.service';
+import { GuestTryOnClaimService } from './services/guest-tryon-claim.service';
 
 /**
  * AiTryOnModule
@@ -33,6 +35,8 @@ import { TryOnHistoryService } from './services/tryon-history.service';
     ImageOptimizerService,
     TryOnQueueService,
     TryOnHistoryService,
+    CloudinaryService,
+    GuestTryOnClaimService,
   ],
   exports: [
     DirectGeminiTryOnService,
@@ -42,4 +46,3 @@ import { TryOnHistoryService } from './services/tryon-history.service';
   ],
 })
 export class AiTryOnModule {}
-

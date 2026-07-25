@@ -1,174 +1,531 @@
-import { ChangeEvent, useEffect, useMemo, useState } from "react";
+import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   Camera,
+  Check,
   CheckCircle2,
   ImagePlus,
-  LogIn,
+  Loader2,
+  Lock,
+  Maximize2,
+  RotateCcw,
   Sparkles,
   Upload,
+  UserRound,
+  UserPlus,
   X,
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 
 import { useAuth } from "@/context/AuthContext";
+import { getGuestStaticTryOnLooks, tryOnAsGuest, tryOnWithGemini } from "@/lib/api";
+import { normalizeTryOnResultImage } from "@/lib/try-on-history";
+import {
+  readGuestTryOnHandoff,
+  saveGuestTryOnHandoff,
+} from "@/lib/guest-tryon-handoff";
 
 const POPUP_DISMISSED_KEY = "aivestire:home-virtual-tryon-dismissed";
 const SESSION_AVATAR_KEY = "aivestire:home-tryon-avatar";
 const SESSION_AVATAR_LOOK_KEY = "aivestire:home-tryon-avatar-look";
+const SESSION_GUEST_AVATAR_LINK_KEY = "aivestire:home-tryon-avatar-link";
+const GUEST_TRY_ON_USED_KEY =
+  "aivestire_guest_try_on_used:gemini31-avatar-v2";
+const GUEST_SESSION_KEY =
+  "aivestire_guest_try_on_session:gemini31-avatar-v2";
 
-type TryOnMode = "static" | "upload";
+const FALLBACK_MODEL_IMAGE = "/guesttryon/model.png";
+
+type TryOnMode = "demo" | "upload";
+type TryOnPhase = "ready" | "loading" | "result";
+type GuestCollectionGender = "female" | "male";
 
 interface HomeTryOnLook {
   id: string;
+  productId?: string;
   title: string;
   subtitle: string;
+  price: string;
   collectionImage: string;
   staticResultImage: string;
 }
 
-const HOME_TRY_ON_LOOKS: HomeTryOnLook[] = [
+const FALLBACK_HOME_TRY_ON_LOOKS: HomeTryOnLook[] = [
   {
-    id: "terracotta-heritage",
-    title: "Terracotta Heritage Set",
-    subtitle: "Warm handwork for festive evenings",
-    collectionImage: "/images/product-1.png",
-    staticResultImage: "/images/product-1.png",
+    id: "item1",
+    title: "Ivory Threadwork Kurta",
+    subtitle: "Ivory kurta with relaxed cocoa trousers",
+    price: "₹2,899",
+    collectionImage: "/guesttryon/item1.png",
+    staticResultImage: "/guesttryon/item1.png",
   },
   {
-    id: "emerald-lehenga",
-    title: "Emerald Lehenga",
-    subtitle: "Statement green with antique gold detail",
-    collectionImage: "/images/product-2.png",
-    staticResultImage: "/images/tryon-realistic.png",
+    id: "item2",
+    title: "Olive Breeze Shirt Set",
+    subtitle: "Flowing olive shirt with soft ivory trousers",
+    price: "₹2,899",
+    collectionImage: "/guesttryon/item2.png",
+    staticResultImage: "/guesttryon/item2.png",
   },
   {
-    id: "ivory-kurta",
-    title: "Ivory Kurta Set",
-    subtitle: "Clean everyday elegance",
-    collectionImage: "/images/product-3.png",
-    staticResultImage: "/images/product-3.png",
+    id: "item3",
+    title: "Teal Woven Saree",
+    subtitle: "Elegant teal drape with a woven border",
+    price: "₹2,899",
+    collectionImage: "/guesttryon/item3.png",
+    staticResultImage: "/guesttryon/item3.png",
   },
 ];
 
-const readSessionAvatar = () => {
+const assetDataUrlCache = new Map<string, string>();
+const imagePreloadCache = new Map<string, Promise<void>>();
+
+const naturalizeVisibleMessage = (message: string) =>
+  message
+    .replaceAll("try-on", "try on")
+    .replaceAll("Try-on", "Try on")
+    .replaceAll("sign-in", "sign in")
+    .replaceAll("full-body", "full body");
+
+const preloadImage = (source: string): Promise<void> => {
+  if (!source) return Promise.reject(new Error("Image source is missing."));
+
+  const cached = imagePreloadCache.get(source);
+  if (cached) return cached;
+
+  const pending = new Promise<void>((resolve, reject) => {
+    const image = new window.Image();
+    image.onload = () => resolve();
+    image.onerror = () => reject(new Error("An image could not be preloaded."));
+    image.src = source;
+
+    if (image.complete && image.naturalWidth > 0) {
+      resolve();
+    }
+  });
+
+  imagePreloadCache.set(source, pending);
+  pending.catch(() => imagePreloadCache.delete(source));
+  return pending;
+};
+
+const preloadGuestCollection = (
+  modelImage: string,
+  looks: HomeTryOnLook[],
+) =>
+  Promise.all([
+    preloadImage(modelImage),
+    ...looks.flatMap((look) => [
+      preloadImage(look.collectionImage),
+      preloadImage(look.staticResultImage),
+    ]),
+  ]);
+
+const imageSourceToDataUrl = async (source: string): Promise<string> => {
+  if (source.startsWith("data:")) return source;
+  const cached = assetDataUrlCache.get(source);
+  if (cached) return cached;
+
+  const response = await fetch(source);
+  if (!response.ok) {
+    throw new Error("The selected try on image could not be loaded.");
+  }
+  const blob = await response.blob();
+  const dataUrl = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(new Error("The selected try on image could not be read."));
+    reader.readAsDataURL(blob);
+  });
+  assetDataUrlCache.set(source, dataUrl);
+  return dataUrl;
+};
+
+const readSessionValue = (key: string) => {
   try {
-    return sessionStorage.getItem(SESSION_AVATAR_KEY) || "";
+    return sessionStorage.getItem(key) || "";
   } catch {
     return "";
   }
 };
 
-const readSessionAvatarLook = () => {
+const writeSessionValue = (key: string, value: string) => {
   try {
-    return sessionStorage.getItem(SESSION_AVATAR_LOOK_KEY) || "";
+    sessionStorage.setItem(key, value);
   } catch {
-    return "";
+    // A large uploaded image can exceed browser storage. The current preview still works.
   }
+};
+
+const getGuestSession = () => {
+  let value = localStorage.getItem(GUEST_SESSION_KEY);
+  if (!value) {
+    value = crypto.randomUUID().replace(/-/g, "");
+    localStorage.setItem(GUEST_SESSION_KEY, value);
+  }
+  return value;
 };
 
 export function HomeVirtualTryOnPopup() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [open, setOpen] = useState(false);
-  const [mode, setMode] = useState<TryOnMode>("static");
-  const [selectedLookId, setSelectedLookId] = useState(HOME_TRY_ON_LOOKS[0].id);
-  const [staticPreviewReady, setStaticPreviewReady] = useState(false);
+  const [staticModelImage, setStaticModelImage] = useState(FALLBACK_MODEL_IMAGE);
+  const [homeTryOnLooks, setHomeTryOnLooks] = useState(FALLBACK_HOME_TRY_ON_LOOKS);
+  const [initialAssetsReady, setInitialAssetsReady] = useState(false);
+  const [collectionGender, setCollectionGender] = useState<GuestCollectionGender>("female");
+  const [collectionLoading, setCollectionLoading] = useState(false);
+  const [mode, setMode] = useState<TryOnMode>("demo");
+  const [phase, setPhase] = useState<TryOnPhase>("ready");
+  const [selectedLookId, setSelectedLookId] = useState(FALLBACK_HOME_TRY_ON_LOOKS[0].id);
   const [uploadedAvatar, setUploadedAvatar] = useState("");
-  const [avatarPreviewReady, setAvatarPreviewReady] = useState(false);
-  const [fileError, setFileError] = useState("");
+  const [resultImage, setResultImage] = useState("");
+  const [tryOnSourceImage, setTryOnSourceImage] = useState("");
+  const [message, setMessage] = useState("");
+  const [expandedImage, setExpandedImage] = useState<{ src: string; alt: string } | null>(null);
+  const [guestTryOnUsed, setGuestTryOnUsed] = useState(
+    () => localStorage.getItem(GUEST_TRY_ON_USED_KEY) === "true",
+  );
+  const staticTimerRef = useRef<number | null>(null);
 
   const selectedLook = useMemo(
     () =>
-      HOME_TRY_ON_LOOKS.find((look) => look.id === selectedLookId) ||
-      HOME_TRY_ON_LOOKS[0],
-    [selectedLookId],
+      homeTryOnLooks.find((look) => look.id === selectedLookId) ||
+      homeTryOnLooks[0],
+    [homeTryOnLooks, selectedLookId],
   );
 
   useEffect(() => {
-    const sessionAvatar = readSessionAvatar();
-    const sessionLookId = readSessionAvatarLook();
-
+    const sessionAvatar =
+      readSessionValue(SESSION_GUEST_AVATAR_LINK_KEY) ||
+      readSessionValue(SESSION_AVATAR_KEY);
+    const sessionLookId = readSessionValue(SESSION_AVATAR_LOOK_KEY);
     if (sessionAvatar) {
       setUploadedAvatar(sessionAvatar);
-      setAvatarPreviewReady(true);
       setMode("upload");
     }
-
-    if (sessionLookId) {
+    if (FALLBACK_HOME_TRY_ON_LOOKS.some((look) => look.id === sessionLookId)) {
       setSelectedLookId(sessionLookId);
     }
 
-    const shouldForceOpen =
-      Boolean(sessionAvatar && user) ||
-      Boolean((location.state as { openHomeVirtualTryOn?: boolean } | null)?.openHomeVirtualTryOn);
-
-    if (!shouldForceOpen && sessionStorage.getItem(POPUP_DISMISSED_KEY) === "true") {
+    if (authLoading || !initialAssetsReady) return;
+    if (user) {
+      setOpen(false);
       return;
     }
 
-    const timer = window.setTimeout(() => setOpen(true), shouldForceOpen ? 350 : 1400);
+    const shouldForceOpen =
+      Boolean(
+        (location.state as { openHomeVirtualTryOn?: boolean } | null)
+          ?.openHomeVirtualTryOn,
+      );
+    if (
+      !shouldForceOpen &&
+      readSessionValue(POPUP_DISMISSED_KEY) === "true"
+    ) {
+      return;
+    }
+    const timer = window.setTimeout(
+      () => setOpen(true),
+      shouldForceOpen ? 300 : 1200,
+    );
     return () => window.clearTimeout(timer);
-  }, [location.state, user]);
+  }, [authLoading, initialAssetsReady, location.state, user]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const prepareInitialCollection = async () => {
+      let modelImage = FALLBACK_MODEL_IMAGE;
+      let looks = FALLBACK_HOME_TRY_ON_LOOKS;
+
+      try {
+        const data = await getGuestStaticTryOnLooks("female");
+        if (data.modelImage && data.looks.length === 3) {
+          await preloadGuestCollection(data.modelImage, data.looks);
+          modelImage = data.modelImage;
+          looks = data.looks;
+        }
+      } catch {
+        // Keep the local guest collection as a resilient fallback.
+        await Promise.allSettled(
+          [
+            FALLBACK_MODEL_IMAGE,
+            ...FALLBACK_HOME_TRY_ON_LOOKS.flatMap((look) => [
+              look.collectionImage,
+              look.staticResultImage,
+            ]),
+          ].map(preloadImage),
+        );
+      }
+
+      if (cancelled) return;
+      setStaticModelImage(modelImage);
+      setHomeTryOnLooks(looks);
+      setInitialAssetsReady(true);
+    };
+
+    void prepareInitialCollection();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const selectCollectionGender = async (gender: GuestCollectionGender) => {
+    if (gender === collectionGender || collectionLoading) return;
+    resetResult();
+    setCollectionLoading(true);
+    setMessage("");
+    try {
+      const data = await getGuestStaticTryOnLooks(gender);
+      if (!data.modelImage || data.looks.length !== 3) {
+        throw new Error(`The ${gender} guest collection is not ready.`);
+      }
+      await preloadGuestCollection(data.modelImage, data.looks);
+      setCollectionGender(gender);
+      setStaticModelImage(data.modelImage);
+      setHomeTryOnLooks(data.looks);
+      setSelectedLookId(data.looks[0].id);
+    } catch (error) {
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : "This guest collection could not be loaded.",
+      );
+    } finally {
+      setCollectionLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!open) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        if (expandedImage) {
+          setExpandedImage(null);
+          return;
+        }
+        if (staticTimerRef.current !== null) {
+          window.clearTimeout(staticTimerRef.current);
+          staticTimerRef.current = null;
+        }
+        writeSessionValue(POPUP_DISMISSED_KEY, "true");
+        setPhase("ready");
+        setResultImage("");
+        setMessage("");
+        setOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [expandedImage, open]);
+
+  const resetResult = () => {
+    if (staticTimerRef.current !== null) {
+      window.clearTimeout(staticTimerRef.current);
+      staticTimerRef.current = null;
+    }
+    setPhase("ready");
+    setResultImage("");
+    setTryOnSourceImage("");
+    setMessage("");
+    setExpandedImage(null);
+  };
 
   const closePopup = () => {
-    sessionStorage.setItem(POPUP_DISMISSED_KEY, "true");
+    resetResult();
+    writeSessionValue(POPUP_DISMISSED_KEY, "true");
     setOpen(false);
+  };
+
+  const selectMode = (nextMode: TryOnMode) => {
+    setMode(nextMode);
+    resetResult();
   };
 
   const handleLookSelect = (lookId: string) => {
     setSelectedLookId(lookId);
-    setStaticPreviewReady(false);
-    setAvatarPreviewReady(false);
-
-    if (uploadedAvatar) {
-      sessionStorage.setItem(SESSION_AVATAR_LOOK_KEY, lookId);
-    }
+    writeSessionValue(SESSION_AVATAR_LOOK_KEY, lookId);
+    resetResult();
   };
 
   const handleUpload = (event: ChangeEvent<HTMLInputElement>) => {
+    if (guestTryOnUsed && !user) {
+      event.target.value = "";
+      setMessage("Your photo is locked after the completed try on. Sign up to continue.");
+      return;
+    }
     const file = event.target.files?.[0];
-    setFileError("");
-
-    if (!file) {
-      return;
-    }
-
+    setMessage("");
+    if (!file) return;
     if (!file.type.startsWith("image/")) {
-      setFileError("Upload an image file to create your session avatar.");
+      setMessage("Please choose a JPG, PNG, or WebP image.");
       return;
     }
-
     if (file.size > 6 * 1024 * 1024) {
-      setFileError("Use an image below 6MB.");
+      setMessage("Please choose an image smaller than 6 MB.");
       return;
     }
-
     const reader = new FileReader();
     reader.onload = () => {
       const image = String(reader.result || "");
       setUploadedAvatar(image);
-      setAvatarPreviewReady(false);
-      sessionStorage.setItem(SESSION_AVATAR_KEY, image);
-      sessionStorage.setItem(SESSION_AVATAR_LOOK_KEY, selectedLook.id);
+      writeSessionValue(SESSION_AVATAR_KEY, image);
+      resetResult();
     };
     reader.readAsDataURL(file);
   };
 
-  const handleLogin = () => {
-    closePopup();
-    navigate("/user-login", {
+  const handleSignup = () => {
+    const existingHandoff = readGuestTryOnHandoff();
+    if (
+      phase === "result" &&
+      (!existingHandoff || existingHandoff.mode !== "upload")
+    ) {
+      saveGuestTryOnHandoff({
+        mode,
+        gender: collectionGender,
+        look: {
+          id: selectedLook.id,
+          productId: selectedLook.productId,
+          title: selectedLook.title,
+          subtitle: selectedLook.subtitle,
+          price: selectedLook.price,
+          collectionImage: selectedLook.collectionImage,
+        },
+      });
+    }
+    setOpen(false);
+    navigate("/user-signup", {
       state: {
         returnUrl: "/",
         returnState: { openHomeVirtualTryOn: true },
+        fromGuestTryOn: true,
       },
     });
   };
 
+  const handleTryOn = async () => {
+    setMessage("");
+    const originalInputImage =
+      mode === "demo" ? staticModelImage : uploadedAvatar;
+    if (mode === "demo") {
+      setTryOnSourceImage(originalInputImage);
+      setPhase("loading");
+      staticTimerRef.current = window.setTimeout(() => {
+        setResultImage(selectedLook.staticResultImage);
+        setPhase("result");
+        staticTimerRef.current = null;
+      }, 1400);
+      return;
+    }
+    if (mode === "upload" && !uploadedAvatar) {
+      setMessage("Upload a clear photo facing the camera first.");
+      return;
+    }
+    if (guestTryOnUsed && !user) {
+      setMessage("Your free guest try on is used. Sign in to try more looks.");
+      return;
+    }
+    try {
+      setTryOnSourceImage(originalInputImage);
+      setPhase("loading");
+      const guestSession = getGuestSession();
+      const [avatarImage, clothingImage] = await Promise.all([
+        imageSourceToDataUrl(originalInputImage),
+        imageSourceToDataUrl(selectedLook.collectionImage),
+      ]);
+      const result = user
+        ? await tryOnWithGemini({
+            avatarImage,
+            clothingImage,
+            additionalParams: {
+              maskClothingModel: true,
+              forceRegenerate: true,
+            },
+          })
+        : await tryOnAsGuest({
+            avatarImage,
+            clothingImage,
+            guestSession,
+            additionalParams: {
+              garmentGender: collectionGender,
+              selectedLookId: selectedLook.productId || selectedLook.id,
+            },
+          });
+      if (!result.success || !result.resultImage) {
+        throw new Error(
+          naturalizeVisibleMessage(result.message || "Try on could not be created."),
+        );
+      }
+      const normalized = normalizeTryOnResultImage(result.resultImage);
+      if (!normalized) throw new Error("Try on returned an invalid image.");
+      await preloadImage(normalized);
+      const guestAvatarUrl =
+        typeof result.metadata?.guestAvatarUrl === "string"
+          ? result.metadata.guestAvatarUrl
+          : "";
+      if (!user) {
+        localStorage.setItem(GUEST_TRY_ON_USED_KEY, "true");
+        setGuestTryOnUsed(true);
+        if (mode === "upload" && guestAvatarUrl) {
+          setUploadedAvatar(guestAvatarUrl);
+          writeSessionValue(SESSION_GUEST_AVATAR_LINK_KEY, guestAvatarUrl);
+        }
+        writeSessionValue(SESSION_AVATAR_LOOK_KEY, selectedLook.id);
+        const guestJobId =
+          typeof result.metadata?.guestJobId === "string"
+            ? result.metadata.guestJobId
+            : "";
+        if (mode === "upload" && guestAvatarUrl && guestJobId) {
+          saveGuestTryOnHandoff({
+            mode: "upload",
+            gender: collectionGender,
+            guestSession,
+            guestJobId,
+            guestAvatarUrl,
+            look: {
+              id: selectedLook.id,
+              productId: selectedLook.productId,
+              title: selectedLook.title,
+              subtitle: selectedLook.subtitle,
+              price: selectedLook.price,
+              collectionImage: selectedLook.collectionImage,
+            },
+          });
+        }
+      }
+      setResultImage(normalized);
+      setPhase("result");
+    } catch (error) {
+      setPhase("ready");
+      setMessage(
+        error instanceof Error
+          ? naturalizeVisibleMessage(error.message)
+          : "Something went wrong. Please try again.",
+      );
+    }
+  };
+
+  const sourceImage = mode === "demo" ? staticModelImage : uploadedAvatar;
+  const beforeImage = tryOnSourceImage || sourceImage;
+  const isUploadMissing = mode === "upload" && !uploadedAvatar;
+  const shouldLockLook = (lookId: string) =>
+    mode === "upload" &&
+    guestTryOnUsed &&
+    !user &&
+    lookId !== selectedLook.id;
+
   return (
     <AnimatePresence>
-      {open && (
+      {open && !authLoading && !user && (
         <>
           <motion.div
             className="fixed inset-0 z-[130] bg-black/70 backdrop-blur-sm"
@@ -177,257 +534,253 @@ export function HomeVirtualTryOnPopup() {
             exit={{ opacity: 0 }}
             onClick={closePopup}
           />
-
-          <div className="fixed inset-0 z-[131] flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-[131] flex items-end justify-center sm:items-center sm:p-4">
             <motion.section
-              aria-label="Home virtual try-on"
-              className="relative grid max-h-[92vh] w-full max-w-6xl overflow-hidden rounded-2xl border border-white/15 bg-[#F8F1E6] shadow-[0_32px_90px_rgba(0,0,0,0.55)] lg:grid-cols-[0.92fr_1.08fr]"
-              initial={{ opacity: 0, y: 24, scale: 0.98 }}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="home-tryon-title"
+              className="relative flex h-[100dvh] w-full max-w-5xl flex-col overflow-hidden bg-[#FCFAF6] shadow-[0_32px_90px_rgba(0,0,0,0.55)] sm:h-auto sm:max-h-[96dvh] sm:rounded-3xl lg:h-[min(850px,96dvh)]"
+              initial={{ opacity: 0, y: 28, scale: 0.98 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 18, scale: 0.98 }}
-              transition={{ duration: 0.28, ease: "easeOut" }}
+              exit={{ opacity: 0, y: 20, scale: 0.98 }}
             >
-              <button
-                type="button"
-                aria-label="Close virtual try-on popup"
-                className="absolute right-4 top-4 z-20 inline-flex h-10 w-10 items-center justify-center rounded-full border border-black/10 bg-white/90 text-stone-700 transition hover:bg-white"
-                onClick={closePopup}
-              >
-                <X className="h-4 w-4" />
-              </button>
-
-              <div className="flex max-h-[92vh] flex-col overflow-y-auto border-b border-black/10 p-5 sm:p-6 lg:border-b-0 lg:border-r lg:p-8">
-                <div className="mb-5 inline-flex w-fit items-center gap-2 rounded-full border border-[#D4AF37]/40 bg-white/70 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-[#8A6821]">
-                  <Sparkles className="h-3.5 w-3.5" />
-                  Virtual Try-On
-                </div>
-
-                <h2 className="font-serif text-3xl leading-tight text-[#2C2416] sm:text-4xl">
-                  Preview a collection look from home.
-                </h2>
-                <p className="mt-3 text-sm leading-6 text-[#6B5D4F]">
-                  Pick one of three collection pieces, then choose a quick static
-                  preview or upload an image to create a session avatar.
-                </p>
-
-                {user && uploadedAvatar && (
-                  <div className="mt-5 flex items-center gap-3 rounded-lg border border-[#D4AF37]/35 bg-white/75 p-3">
-                    <img
-                      src={uploadedAvatar}
-                      alt="Session avatar"
-                      className="h-14 w-14 rounded-lg object-cover"
-                    />
-                    <div>
-                      <p className="text-sm font-semibold text-[#2C2416]">
-                        Session avatar ready
-                      </p>
-                      <p className="text-xs leading-5 text-[#6B5D4F]">
-                        You are logged in, so the avatar created before login is
-                        still visible in this session.
-                      </p>
-                    </div>
+              <header className="flex shrink-0 items-start justify-between border-b border-[#E8DCC4] px-4 py-3 sm:px-6 sm:py-4">
+                <div className="pr-8">
+                  <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.2em] text-[#9A7437]">
+                    <Sparkles className="h-3.5 w-3.5" />
+                    Virtual Try On
                   </div>
-                )}
-
-                <div className="mt-6 grid grid-cols-2 gap-2 rounded-lg bg-[#E9DDC8] p-1">
-                  <button
-                    type="button"
-                    className={`flex items-center justify-center gap-2 rounded-md px-3 py-2.5 text-sm font-semibold transition ${
-                      mode === "static"
-                        ? "bg-[#2C2416] text-[#F8F1E6]"
-                        : "text-[#5E503F] hover:bg-white/60"
-                    }`}
-                    onClick={() => setMode("static")}
-                  >
-                    <ImagePlus className="h-4 w-4" />
-                    Static
-                  </button>
-                  <button
-                    type="button"
-                    className={`flex items-center justify-center gap-2 rounded-md px-3 py-2.5 text-sm font-semibold transition ${
-                      mode === "upload"
-                        ? "bg-[#2C2416] text-[#F8F1E6]"
-                        : "text-[#5E503F] hover:bg-white/60"
-                    }`}
-                    onClick={() => setMode("upload")}
-                  >
-                    <Camera className="h-4 w-4" />
-                    Upload
-                  </button>
+                  <h2 id="home-tryon-title" className="mt-1 font-serif text-xl leading-tight text-[#2C2416] sm:text-3xl">
+                    See the outfit before you choose it
+                  </h2>
+                  <p className="mt-1 hidden max-w-4xl text-xs leading-5 text-[#6B5D4F] sm:block sm:text-sm">
+                    Pick an outfit and see how it looks. Start with our model or upload your own photo.
+                  </p>
                 </div>
+                <button type="button" onClick={closePopup} aria-label="Close virtual try on" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#DED3C3] bg-white text-[#5F5345] hover:bg-[#F5EFE5]">
+                  <X className="h-4 w-4" />
+                </button>
+              </header>
 
-                <div className="mt-6 grid gap-3">
-                  {HOME_TRY_ON_LOOKS.map((look) => (
-                    <button
-                      type="button"
-                      key={look.id}
-                      className={`grid grid-cols-[74px_1fr] gap-3 rounded-lg border bg-white p-2 text-left transition ${
-                        selectedLook.id === look.id
-                          ? "border-[#D4AF37] shadow-[0_12px_28px_rgba(44,36,22,0.12)]"
-                          : "border-[#E0D0B7] hover:border-[#C7A34D]"
-                      }`}
-                      onClick={() => handleLookSelect(look.id)}
-                    >
-                      <img
-                        src={look.collectionImage}
-                        alt={look.title}
-                        className="h-24 w-full rounded-md object-cover object-top"
-                      />
-                      <span className="flex min-w-0 flex-col justify-center">
-                        <span className="text-sm font-semibold text-[#2C2416]">
-                          {look.title}
-                        </span>
-                        <span className="mt-1 text-xs leading-5 text-[#6B5D4F]">
-                          {look.subtitle}
-                        </span>
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="max-h-[92vh] overflow-y-auto bg-[#211A12] p-5 text-[#F8F1E6] sm:p-6 lg:p-8">
-                <div className="grid gap-5 xl:grid-cols-[1fr_0.9fr]">
-                  <div>
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#D4AF37]">
-                      Selected Collection
-                    </p>
-                    <h3 className="mt-2 font-serif text-2xl text-white">
-                      {selectedLook.title}
-                    </h3>
-                    <div className="mt-4 overflow-hidden rounded-lg border border-white/10 bg-black/20">
-                      <img
-                        src={selectedLook.collectionImage}
-                        alt={selectedLook.title}
-                        className="h-72 w-full object-cover object-top sm:h-80"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    {mode === "static" ? (
-                      <div className="flex h-full flex-col">
-                        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#D4AF37]">
-                          Static Preview
-                        </p>
-                        <div className="mt-4 overflow-hidden rounded-lg border border-[#D4AF37]/30 bg-[#F8F1E6] text-[#2C2416]">
-                          {staticPreviewReady ? (
-                            <img
-                              src={selectedLook.staticResultImage}
-                              alt={`${selectedLook.title} static try-on`}
-                              className="h-80 w-full object-cover object-top"
-                            />
-                          ) : (
-                            <div className="flex h-80 flex-col items-center justify-center px-5 text-center">
-                              <ImagePlus className="h-10 w-10 text-[#C7A34D]" />
-                              <p className="mt-4 text-lg font-semibold">
-                                Ready to render
-                              </p>
-                              <p className="mt-2 text-sm leading-6 text-[#6B5D4F]">
-                                Tap try on to show the static model image mapped
-                                to your selected collection item.
-                              </p>
-                            </div>
-                          )}
-                        </div>
-                        <button
-                          type="button"
-                          className="mt-4 inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[#D4AF37] px-5 text-sm font-bold uppercase tracking-[0.14em] text-[#211A12] transition hover:bg-[#E0BE54]"
-                          onClick={() => setStaticPreviewReady(true)}
-                        >
-                          Try On
-                          <Sparkles className="h-4 w-4" />
-                        </button>
+              <div className="grid min-h-0 flex-1 overflow-y-auto lg:grid-cols-[1.05fr_0.95fr] lg:overflow-hidden">
+                <div className="p-4 sm:p-4 lg:overflow-hidden">
+                  <section>
+                    <div className="mb-3 flex items-center gap-3">
+                      <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#2C2416] text-xs font-bold text-white">1</span>
+                      <div>
+                        <h3 className="text-sm font-bold text-[#2C2416]">Who are you dressing?</h3>
+                        <p className="text-xs text-[#7A6B5B]">Try instantly or use your own photo.</p>
                       </div>
-                    ) : (
-                      <div className="flex h-full flex-col">
-                        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#D4AF37]">
-                          Upload Avatar
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <button type="button" onClick={() => selectMode("demo")} className={`rounded-xl border p-2.5 text-left transition ${mode === "demo" ? "border-[#B78C32] bg-[#FBF4E4] ring-1 ring-[#D4AF37]" : "border-[#E1D7C8] bg-white hover:border-[#C8B89F]"}`}>
+                        <span className="flex items-center gap-2 text-sm font-bold text-[#2C2416]"><UserRound className="h-4 w-4 text-[#9A7437]" /> Use our model</span>
+                        <span className="mt-1 block text-[11px] leading-4 text-[#6B5D4F]">Instant preview · no sign in</span>
+                      </button>
+                      <button type="button" onClick={() => selectMode("upload")} className={`rounded-xl border p-2.5 text-left transition ${mode === "upload" ? "border-[#B78C32] bg-[#FBF4E4] ring-1 ring-[#D4AF37]" : "border-[#E1D7C8] bg-white hover:border-[#C8B89F]"}`}>
+                        <span className="flex items-center gap-2 text-sm font-bold text-[#2C2416]"><Camera className="h-4 w-4 text-[#9A7437]" /> Use my photo</span>
+                        <span className="mt-1 block text-[11px] leading-4 text-[#6B5D4F]">One AI preview · no sign in</span>
+                      </button>
+                    </div>
+                  </section>
+
+                  <section className="mt-3">
+                    <div className="mb-2 flex items-center justify-between gap-3 rounded-xl border border-[#E1D7C8] bg-white p-1.5">
+                      <span className="hidden pl-2 text-[11px] font-bold uppercase tracking-[0.14em] text-[#8A765F] sm:block">
+                        Collection
+                      </span>
+                      <div className="grid flex-1 grid-cols-2 gap-1 sm:max-w-[270px]">
+                        {(["female", "male"] as const).map((gender) => (
+                          <button
+                            key={gender}
+                            type="button"
+                            onClick={() => selectCollectionGender(gender)}
+                            disabled={collectionLoading}
+                            aria-pressed={collectionGender === gender}
+                            className={`flex min-h-11 items-center justify-center rounded-lg px-4 text-xs font-bold capitalize transition ${
+                              collectionGender === gender
+                                ? "bg-[#2C2416] text-white shadow-sm"
+                                : "text-[#6B5D4F] hover:bg-[#F5EFE5]"
+                            } disabled:cursor-wait disabled:opacity-60`}
+                          >
+                            {collectionLoading && collectionGender !== gender ? (
+                              <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                            ) : null}
+                            {gender}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="mb-3 flex items-center gap-3">
+                      <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#2C2416] text-xs font-bold text-white">2</span>
+                      <div>
+                        <h3 className="text-sm font-bold text-[#2C2416]">Pick an outfit</h3>
+                        <p className="text-xs text-[#7A6B5B]">
+                          Three {collectionGender === "male" ? "men’s" : "women’s"} looks from the collection.
                         </p>
-
-                        {!uploadedAvatar ? (
-                          <label className="mt-4 flex h-80 cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed border-[#D4AF37]/50 bg-white/5 px-5 text-center transition hover:bg-white/10">
-                            <Upload className="h-10 w-10 text-[#D4AF37]" />
-                            <span className="mt-4 text-base font-semibold">
-                              Upload image
+                      </div>
+                    </div>
+                    <div className="-mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-2 sm:mx-0 sm:grid sm:grid-cols-3 sm:overflow-visible sm:px-0 sm:pb-1">
+                      {homeTryOnLooks.map((look) => {
+                        const selected = look.id === selectedLook.id;
+                        const locked = shouldLockLook(look.id);
+                        return (
+                          <button type="button" key={look.id} disabled={locked} onClick={() => handleLookSelect(look.id)} aria-pressed={selected} className={`group relative w-[72vw] max-w-[240px] shrink-0 snap-center overflow-hidden rounded-xl border bg-white text-left transition sm:w-auto sm:max-w-none ${selected ? "border-[#B78C32] ring-2 ring-[#D4AF37]/50" : "border-[#E1D7C8] hover:-translate-y-0.5 hover:border-[#C8B89F]"} ${locked ? "cursor-not-allowed grayscale" : ""}`}>
+                            {selected && <span className="absolute right-2 top-2 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-[#2C2416] text-white"><Check className="h-3.5 w-3.5" /></span>}
+                            {locked && <span className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-[#241D15]/70 text-center text-white backdrop-blur-[1px]"><Lock className="h-5 w-5" /><span className="mt-1 text-[10px] font-bold uppercase tracking-wider">Sign in to unlock</span></span>}
+                            <span
+                              role="button"
+                              tabIndex={0}
+                              aria-label={`View ${look.title} full screen`}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                setExpandedImage({ src: look.collectionImage, alt: `${look.title} full body collection look` });
+                              }}
+                              onKeyDown={(event) => {
+                                if (event.key === "Enter" || event.key === " ") {
+                                  event.preventDefault();
+                                  event.stopPropagation();
+                                  setExpandedImage({ src: look.collectionImage, alt: `${look.title} full body collection look` });
+                                }
+                              }}
+                              className={`absolute left-2 top-2 z-30 flex h-8 min-h-8 w-8 min-w-8 max-w-8 flex-none items-center justify-center rounded-full border border-white/50 bg-black/25 text-white shadow-md backdrop-blur-sm ${locked ? "hidden" : ""}`}
+                              style={{ width: "2rem", minWidth: "2rem", maxWidth: "2rem" }}
+                            >
+                              <Maximize2 className="h-3.5 w-3.5" />
                             </span>
-                            <span className="mt-2 text-sm leading-6 text-white/60">
-                              This creates a temporary avatar for the current
-                              browser session.
+                            <img src={look.collectionImage} alt={`${look.title} full body collection look`} className="h-36 w-full bg-[#F1EADF] object-contain object-center sm:h-40 lg:h-[clamp(9rem,19vh,10.5rem)]" />
+                            <span className="block p-2">
+                              <span className="block min-h-8 text-xs font-bold leading-4 text-[#2C2416] sm:text-sm">{look.title}</span>
+                              <span className="mt-0.5 hidden truncate whitespace-nowrap text-[10px] leading-4 text-[#786A5B] sm:block">{look.subtitle}</span>
+                              <span className="mt-1 block text-[11px] font-semibold text-[#9A7437]">{look.price}</span>
                             </span>
-                            <input
-                              type="file"
-                              accept="image/*"
-                              className="sr-only"
-                              onChange={handleUpload}
-                            />
-                          </label>
-                        ) : avatarPreviewReady ? (
-                          <div className="mt-4 overflow-hidden rounded-lg border border-[#D4AF37]/30 bg-[#F8F1E6] text-[#2C2416]">
-                            <div className="grid h-80 grid-cols-2">
-                              <img
-                                src={uploadedAvatar}
-                                alt="Uploaded session avatar"
-                                className="h-full w-full object-cover object-top"
-                              />
-                              <img
-                                src={selectedLook.staticResultImage}
-                                alt={`${selectedLook.title} avatar try-on`}
-                                className="h-full w-full object-cover object-top"
-                              />
-                            </div>
-                            <div className="flex items-center gap-2 px-4 py-3 text-sm font-semibold">
-                              <CheckCircle2 className="h-4 w-4 text-[#C7A34D]" />
-                              Avatar try-on preview created
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="mt-4 overflow-hidden rounded-lg border border-white/10 bg-white/5">
-                            <img
-                              src={uploadedAvatar}
-                              alt="Uploaded session avatar"
-                              className="h-80 w-full object-cover object-top"
-                            />
-                          </div>
-                        )}
-
-                        {fileError && (
-                          <p className="mt-3 text-sm font-medium text-red-200">
-                            {fileError}
-                          </p>
-                        )}
-
-                        <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                          <button
-                            type="button"
-                            disabled={!uploadedAvatar}
-                            className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[#D4AF37] px-4 text-sm font-bold uppercase tracking-[0.12em] text-[#211A12] transition hover:bg-[#E0BE54] disabled:cursor-not-allowed disabled:opacity-45"
-                            onClick={() => {
-                              setAvatarPreviewReady(true);
-                              sessionStorage.setItem(
-                                SESSION_AVATAR_LOOK_KEY,
-                                selectedLook.id,
-                              );
-                            }}
-                          >
-                            Try On
-                            <Sparkles className="h-4 w-4" />
                           </button>
-                          <button
-                            type="button"
-                            className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 text-sm font-semibold uppercase tracking-[0.12em] text-white transition hover:bg-white/15"
-                            onClick={handleLogin}
-                          >
-                            Login
-                            <LogIn className="h-4 w-4" />
-                          </button>
+                        );
+                      })}
+                    </div>
+                  </section>
+                </div>
+
+                <div className="flex min-h-[500px] flex-col bg-[#241D15] p-4 pb-[max(1rem,env(safe-area-inset-bottom))] text-white sm:p-5 lg:min-h-0 lg:overflow-hidden">
+                  <div className="mb-3 flex items-center gap-3">
+                    <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#D4AF37] text-xs font-bold text-[#241D15]">3</span>
+                    <div>
+                      <h3 className="text-sm font-bold">See your result</h3>
+                      <p className="text-xs text-white/55">{mode === "demo" ? "Ready in a few seconds." : "AI fits the selected outfit to your photo."}</p>
+                    </div>
+                  </div>
+
+                  <div className="relative min-h-0 flex-1 overflow-hidden rounded-2xl border border-white/10 bg-[#EEE5D7]">
+                    {phase === "loading" ? (
+                      <div className="flex h-full min-h-[360px] flex-col items-center justify-center px-8 text-center text-[#2C2416]">
+                        <Loader2 className="h-10 w-10 animate-spin text-[#A77B22]" />
+                        <p className="mt-4 font-serif text-xl">Creating your look…</p>
+                        <p className="mt-2 text-xs leading-5 text-[#6B5D4F]">{mode === "demo" ? "Loading the prepared preview." : "Our AI is fitting the outfit to your photo. This can take up to a minute."}</p>
+                      </div>
+                    ) : phase === "result" && resultImage ? (
+                      <div className="relative grid h-full min-h-[420px] grid-cols-2 gap-px bg-white/20">
+                        <figure className="relative min-w-0 bg-[#EEE5D7]">
+                          <span className="absolute left-2 top-2 z-10 rounded-full bg-black/75 px-2 py-1 text-[9px] font-bold uppercase tracking-wider text-white">{mode === "demo" ? "Original model" : "Your uploaded photo"}</span>
+                          <button type="button" onClick={() => setExpandedImage({ src: beforeImage, alt: mode === "demo" ? "Original model" : "Your uploaded photo" })} className="absolute right-2 top-2 z-20 flex h-8 w-8 items-center justify-center rounded-full border border-white/50 bg-black/25 text-white shadow-md backdrop-blur-sm transition hover:bg-black/45" aria-label="View original image full screen"><Maximize2 className="h-3.5 w-3.5" /></button>
+                          <img src={beforeImage} alt={mode === "demo" ? "Original model" : "Your uploaded photo"} className="h-full min-h-[420px] w-full object-contain object-center" />
+                        </figure>
+                        <figure className="relative min-w-0 bg-[#EEE5D7]">
+                          <span className="absolute left-2 top-2 z-10 rounded-full bg-[#D4AF37] px-2 py-1 text-[9px] font-bold uppercase tracking-wider text-[#241D15]">Final try on</span>
+                          <button type="button" onClick={() => setExpandedImage({ src: resultImage, alt: `${selectedLook.title} try on result` })} className="absolute right-2 top-2 z-20 flex h-8 w-8 items-center justify-center rounded-full border border-white/50 bg-black/25 text-white shadow-md backdrop-blur-sm transition hover:bg-black/45" aria-label="View try on result full screen"><Maximize2 className="h-3.5 w-3.5" /></button>
+                          <img src={resultImage} alt={`${selectedLook.title} try on result`} className="h-full min-h-[420px] w-full object-contain object-center" />
+                        </figure>
+                        <div className="absolute inset-x-3 bottom-3 flex items-center justify-between rounded-xl bg-black/70 px-3 py-2 text-xs backdrop-blur-sm">
+                          <span className="flex items-center gap-2 font-semibold"><CheckCircle2 className="h-4 w-4 text-[#E4C45D]" /> Your preview is ready</span>
+                          <button type="button" onClick={resetResult} className="flex items-center gap-1 text-white/75 hover:text-white"><RotateCcw className="h-3.5 w-3.5" /> Reset</button>
                         </div>
+                      </div>
+                    ) : isUploadMissing ? (
+                      <label className="flex h-full min-h-[360px] cursor-pointer flex-col items-center justify-center px-8 text-center text-[#2C2416] transition hover:bg-white/30">
+                        <span className="flex h-14 w-14 items-center justify-center rounded-full bg-white shadow-sm"><Upload className="h-6 w-6 text-[#A77B22]" /></span>
+                        <span className="mt-4 text-base font-bold">Upload a full body photo</span>
+                        <span className="mt-2 max-w-xs text-xs leading-5 text-[#6B5D4F]">Face the camera, keep your arms visible, and use good lighting for the best result.</span>
+                        <span className="mt-4 rounded-full bg-[#2C2416] px-5 py-2 text-xs font-bold text-white">Choose photo</span>
+                        <input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={handleUpload} />
+                      </label>
+                    ) : (
+                      <div className="relative h-full min-h-[360px]">
+                        <button type="button" onClick={() => setExpandedImage({ src: sourceImage, alt: mode === "demo" ? "Demo model before try on" : "Your uploaded photo" })} className="absolute right-3 top-3 z-20 flex h-10 w-10 items-center justify-center rounded-full border border-white/50 bg-black/25 text-white shadow-lg backdrop-blur-sm transition hover:scale-105 hover:bg-black/45" aria-label="View model image full screen"><Maximize2 className="h-4 w-4" /></button>
+                        <img src={sourceImage} alt={mode === "demo" ? "Demo model before try on" : "Your uploaded photo"} className="h-full min-h-[360px] w-full object-contain object-center" />
+                        {mode === "upload" && (
+                          guestTryOnUsed && !user ? (
+                            <button
+                              type="button"
+                              disabled
+                              aria-label="Photo locked after completed try on"
+                              className="absolute bottom-3 right-3 flex cursor-not-allowed items-center gap-1.5 rounded-full bg-black/70 px-3 py-2 text-[11px] font-semibold text-white/65 backdrop-blur-sm"
+                            >
+                              <Lock className="h-3.5 w-3.5" />
+                              Photo locked
+                            </button>
+                          ) : (
+                            <label className="absolute bottom-3 right-3 cursor-pointer rounded-full bg-black/70 px-3 py-2 text-[11px] font-semibold text-white backdrop-blur-sm hover:bg-black/80">
+                              Change photo
+                              <input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={handleUpload} />
+                            </label>
+                          )
+                        )}
                       </div>
                     )}
+                  </div>
+
+                  {message && <p role="alert" className="mt-3 rounded-lg border border-red-300/20 bg-red-300/10 px-3 py-2 text-xs leading-5 text-red-100">{message}</p>}
+
+                  <div className="mt-4">
+                    <div className="grid gap-2 sm:grid-cols-[minmax(0,0.72fr)_minmax(0,1.28fr)]">
+                      <button type="button" onClick={handleTryOn} disabled={phase === "loading" || isUploadMissing} className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#D4AF37] px-3 text-sm font-bold text-[#241D15] transition hover:bg-[#E1BE4A] disabled:cursor-not-allowed disabled:opacity-45">
+                        {phase === "loading" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                        {phase === "result" ? "Try Again" : "Try On"}
+                      </button>
+                      <button type="button" onClick={handleSignup} className="flex h-12 w-full items-center justify-center gap-2 whitespace-nowrap rounded-xl border border-[#D4AF37] bg-white/5 px-3 text-xs font-bold text-[#E4C45D] transition hover:bg-[#D4AF37] hover:text-[#241D15]">
+                        <UserPlus className="h-4 w-4 shrink-0" /> Sign Up for More Fashion Trends
+                      </button>
+                    </div>
+                    <p className="mt-2 text-center text-[10px] leading-4 text-white/45">
+                      {phase === "result" && !user
+                        ? "Create your account to save this look and discover more styles."
+                        : mode === "demo"
+                        ? "One model with three full body outfit previews."
+                        : guestTryOnUsed && !user
+                          ? "Your photo and selected outfit are ready for sign in."
+                          : "We create your avatar first, then apply the selected outfit."}
+                    </p>
                   </div>
                 </div>
               </div>
             </motion.section>
+
+            {expandedImage && (
+              <div
+                className="fixed inset-0 z-[160] flex items-center justify-center bg-black/95 p-3 backdrop-blur-sm sm:p-6"
+                role="dialog"
+                aria-modal="true"
+                aria-label={`${expandedImage.alt} full-screen image`}
+                onClick={() => setExpandedImage(null)}
+              >
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setExpandedImage(null);
+                  }}
+                  className="absolute right-4 top-[max(1rem,env(safe-area-inset-top))] z-10 flex h-11 w-11 items-center justify-center rounded-full border border-white/30 bg-black/65 text-white shadow-xl transition hover:bg-white hover:text-black"
+                  aria-label="Close full-screen image"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+                <img
+                  src={expandedImage.src}
+                  alt={expandedImage.alt}
+                  className="max-h-[94dvh] max-w-[96vw] object-contain"
+                  onClick={(event) => event.stopPropagation()}
+                />
+              </div>
+            )}
           </div>
         </>
       )}

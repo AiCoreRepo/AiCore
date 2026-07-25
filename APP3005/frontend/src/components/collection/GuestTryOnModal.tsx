@@ -1,335 +1,302 @@
-import { ChangeEvent, useMemo, useState } from "react";
-import { ArrowLeft, ArrowRight, CheckCircle2, ImagePlus, Sparkles, Upload, UserRound } from "lucide-react";
+import { ChangeEvent, useEffect, useState } from "react";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
+import { Loader2, LogIn, Maximize2, Sparkles, Upload, X } from "lucide-react";
 import { getProductImageUrl } from "@/lib/product-image";
+import { normalizeTryOnResultImage } from "@/lib/try-on-history";
+import { tryOnAsGuest } from "@/lib/api";
+import { LOADING_QUOTES } from "@/components/ai-tryon/loading-quotes";
+import { saveGuestTryOnHandoff } from "@/lib/guest-tryon-handoff";
 import type { PublicProduct } from "@/hooks/useInfinitePublicProducts";
 
-const GUEST_TRY_ON_USED_KEY = "aivestire_guest_try_on_used";
+const GUEST_USED_KEY = "aivestire_guest_try_on_used:gemini31-avatar-v2";
+const GUEST_SESSION_KEY =
+  "aivestire_guest_try_on_session:gemini31-avatar-v2";
 
-const SAMPLE_USER_IMAGES = [
-    "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?q=80&w=900&auto=format&fit=crop",
-    "https://images.unsplash.com/photo-1529139574466-a303027c1d8b?q=80&w=900&auto=format&fit=crop",
-    "https://images.unsplash.com/photo-1517841905240-472988babdf9?q=80&w=900&auto=format&fit=crop",
-];
-
-const escapeSvgText = (value: string) =>
-    value
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;");
-
-const buildStaticTryOnPreview = ({
-    userImage,
-    garmentImage,
-    productTitle,
-}: {
-    userImage: string;
-    garmentImage: string;
-    productTitle: string;
-}) => {
-    const title = escapeSvgText(productTitle || "Selected Look");
-    const svg = `
-<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1440" viewBox="0 0 1080 1440">
-  <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#fbf7ef"/>
-      <stop offset="1" stop-color="#eee0c5"/>
-    </linearGradient>
-    <clipPath id="personClip"><rect x="100" y="145" width="410" height="790" rx="30"/></clipPath>
-    <clipPath id="garmentClip"><rect x="570" y="145" width="410" height="790" rx="30"/></clipPath>
-  </defs>
-  <rect width="1080" height="1440" fill="url(#bg)"/>
-  <rect x="54" y="62" width="972" height="1316" rx="54" fill="#fffaf1" stroke="#d4af37" stroke-width="3"/>
-  <text x="540" y="108" text-anchor="middle" font-family="Arial, sans-serif" font-size="30" font-weight="700" fill="#2c2416">Virtual Try-On Preview</text>
-  <image href="${userImage}" x="100" y="145" width="410" height="790" preserveAspectRatio="xMidYMid slice" clip-path="url(#personClip)"/>
-  <image href="${garmentImage}" x="570" y="145" width="410" height="790" preserveAspectRatio="xMidYMid slice" clip-path="url(#garmentClip)"/>
-  <rect x="100" y="145" width="410" height="790" rx="30" fill="none" stroke="#2c2416" stroke-opacity="0.1" stroke-width="3"/>
-  <rect x="570" y="145" width="410" height="790" rx="30" fill="none" stroke="#2c2416" stroke-opacity="0.1" stroke-width="3"/>
-  <path d="M510 520 C548 520 548 560 570 560" stroke="#d4af37" stroke-width="8" fill="none" stroke-linecap="round"/>
-  <circle cx="540" cy="540" r="34" fill="#2c2416"/>
-  <text x="540" y="550" text-anchor="middle" font-family="Arial, sans-serif" font-size="30" font-weight="700" fill="#d4af37">AI</text>
-  <text x="305" y="985" text-anchor="middle" font-family="Arial, sans-serif" font-size="24" font-weight="700" fill="#2c2416">Your Photo</text>
-  <text x="775" y="985" text-anchor="middle" font-family="Arial, sans-serif" font-size="24" font-weight="700" fill="#2c2416">Selected Outfit</text>
-  <rect x="128" y="1058" width="824" height="132" rx="28" fill="#2c2416"/>
-  <text x="540" y="1118" text-anchor="middle" font-family="Arial, sans-serif" font-size="30" font-weight="700" fill="#f8f4ec">${title}</text>
-  <text x="540" y="1166" text-anchor="middle" font-family="Arial, sans-serif" font-size="22" fill="#d4af37">Static guest preview complete</text>
-  <text x="540" y="1264" text-anchor="middle" font-family="Arial, sans-serif" font-size="24" fill="#6b5d4f">Log in to generate the full AI drape on your saved avatar.</text>
-</svg>`;
-
-    return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+const getGuestSession = () => {
+  let value = localStorage.getItem(GUEST_SESSION_KEY);
+  if (!value) {
+    value = crypto.randomUUID().replace(/-/g, "");
+    localStorage.setItem(GUEST_SESSION_KEY, value);
+  }
+  return value;
 };
 
 interface GuestTryOnModalProps {
-    isOpen: boolean;
-    product: PublicProduct | null;
-    onClose: () => void;
-    onComplete: (payload: {
-        resultImage: string;
-        userPhoto: string;
-        garmentImage: string;
-        garmentTitle: string;
-    }) => void;
-    onLogin: () => void;
+  isOpen: boolean;
+  product: PublicProduct | null;
+  garmentGender?: "male" | "female";
+  onClose: () => void;
+  onLogin: () => void;
 }
 
-export const hasUsedGuestTryOn = () =>
-    localStorage.getItem(GUEST_TRY_ON_USED_KEY) === "true";
+export function GuestTryOnModal({
+  isOpen,
+  product,
+  garmentGender,
+  onClose,
+  onLogin,
+}: GuestTryOnModalProps) {
+  const [photo, setPhoto] = useState("");
+  const [result, setResult] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [currentQuoteIndex, setCurrentQuoteIndex] = useState(0);
+  const [error, setError] = useState("");
+  const [alreadyUsed, setAlreadyUsed] = useState(false);
+  const [expandedImage, setExpandedImage] = useState<{ src: string; alt: string } | null>(null);
+  const garmentImage = product
+    ? getProductImageUrl(product, { requireRemote: true }) || ""
+    : "";
 
-export const GuestTryOnModal = ({
-    isOpen,
-    product,
-    onClose,
-    onComplete,
-    onLogin,
-}: GuestTryOnModalProps) => {
-    const [step, setStep] = useState(0);
-    const [userPhoto, setUserPhoto] = useState("");
-    const [selectedSample, setSelectedSample] = useState(0);
-    const [fileError, setFileError] = useState("");
-    const garmentImage = product ? getProductImageUrl(product) || product.thumbnail || "" : "";
-    const alreadyUsed = useMemo(() => hasUsedGuestTryOn(), [isOpen]);
-    const canContinue = Boolean(userPhoto || SAMPLE_USER_IMAGES[selectedSample]);
-    const resolvedUserPhoto = userPhoto || SAMPLE_USER_IMAGES[selectedSample];
+  useEffect(() => {
+    if (!isOpen) return;
+    setAlreadyUsed(localStorage.getItem(GUEST_USED_KEY) === "true");
+    setPhoto("");
+    setResult("");
+    setError("");
+    setCurrentQuoteIndex(0);
+    setExpandedImage(null);
+  }, [isOpen, product?.product_id]);
 
-    if (!isOpen || !product) return null;
+  useEffect(() => {
+    if (!loading) return;
+    const interval = window.setInterval(() => {
+      setCurrentQuoteIndex((current) => (current + 1) % LOADING_QUOTES.length);
+    }, 3000);
+    return () => window.clearInterval(interval);
+  }, [loading]);
 
-    const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0];
-        setFileError("");
-        if (!file) return;
-        if (!file.type.startsWith("image/")) {
-            setFileError("Please upload an image file.");
-            return;
-        }
-        if (file.size > 6 * 1024 * 1024) {
-            setFileError("Please upload an image below 6MB.");
-            return;
-        }
-
-        const reader = new FileReader();
-        reader.onload = () => setUserPhoto(String(reader.result || ""));
-        reader.readAsDataURL(file);
+  useEffect(() => {
+    if (!expandedImage) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setExpandedImage(null);
     };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [expandedImage]);
 
-    const finishPreview = () => {
-        const resultImage = buildStaticTryOnPreview({
-            userImage: resolvedUserPhoto,
-            garmentImage,
-            productTitle: product.title,
+  const expandButton = (src: string, alt: string) => (
+    <button
+      type="button"
+      onClick={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        setExpandedImage({ src, alt });
+      }}
+      className="absolute right-3 top-3 z-20 flex h-10 w-10 items-center justify-center rounded-full border border-white/70 bg-white/95 text-[#2C2416] shadow-lg transition hover:scale-105 focus:outline-none focus:ring-2 focus:ring-[#D4AF37]"
+      aria-label={`View ${alt} full screen`}
+      title="View full screen"
+    >
+      <Maximize2 className="h-4 w-4" />
+    </button>
+  );
+
+  const handleUpload = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    setError("");
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setError("Please upload a JPG, PNG, or WebP image.");
+      return;
+    }
+    if (file.size > 6 * 1024 * 1024) {
+      setError("Please upload an image smaller than 6 MB.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => setPhoto(String(reader.result || ""));
+    reader.readAsDataURL(file);
+  };
+
+  const runGuestTryOn = async () => {
+    if (!photo || !garmentImage || loading) return;
+    setLoading(true);
+    setCurrentQuoteIndex(0);
+    setError("");
+    try {
+      const guestSession = getGuestSession();
+      const response = await tryOnAsGuest({
+        avatarImage: photo,
+        clothingImage: garmentImage,
+        guestSession,
+        additionalParams: {
+          garmentGender,
+          selectedLookId: product?.product_id,
+        },
+      });
+      const image = normalizeTryOnResultImage(response.resultImage);
+      if (!response.success || !image) {
+        throw new Error(response.message || "Try-on could not be created.");
+      }
+      setResult(image);
+      setAlreadyUsed(true);
+      localStorage.setItem(GUEST_USED_KEY, "true");
+      const guestJobId =
+        typeof response.metadata?.guestJobId === "string"
+          ? response.metadata.guestJobId
+          : "";
+      const guestAvatarUrl =
+        typeof response.metadata?.guestAvatarUrl === "string"
+          ? response.metadata.guestAvatarUrl
+          : "";
+      if (guestJobId && guestAvatarUrl && product) {
+        saveGuestTryOnHandoff({
+          mode: "upload",
+          gender: garmentGender === "male" ? "male" : "female",
+          guestSession,
+          guestJobId,
+          guestAvatarUrl,
+          look: {
+            id: product.product_id,
+            productId: product.product_id,
+            title: product.title,
+            collectionImage: garmentImage,
+          },
         });
+      }
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Guest try-on failed.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-        localStorage.setItem(GUEST_TRY_ON_USED_KEY, "true");
-        onComplete({
-            resultImage,
-            userPhoto: resolvedUserPhoto,
-            garmentImage,
-            garmentTitle: product.title,
-        });
-        setStep(0);
-        setUserPhoto("");
-    };
-
-    return (
-        <div className="fixed inset-0 z-[75] flex items-center justify-center bg-black/65 p-4 backdrop-blur-sm">
-            <div className="w-full max-w-3xl overflow-hidden rounded-2xl bg-[#F8F4EC] shadow-2xl">
-                <div className="flex items-center justify-between border-b border-[#E8DCC4] px-5 py-4">
-                    <div>
-                        <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-[#9B7A22]">
-                            Guest Virtual Try-On
-                        </p>
-                        <h2 className="mt-1 text-xl font-semibold text-[#2C2416]">
-                            {alreadyUsed ? "Create an account to continue" : "Preview this look"}
-                        </h2>
-                    </div>
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        className="rounded-full border border-[#D4C5A9] bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#6B5D4F]"
-                    >
-                        Close
-                    </button>
-                </div>
-
-                {alreadyUsed ? (
-                    <div className="px-6 py-10 text-center">
-                        <CheckCircle2 className="mx-auto h-12 w-12 text-[#D4AF37]" />
-                        <h3 className="mt-4 text-2xl font-semibold text-[#2C2416]">
-                            Your free guest try-on is used
-                        </h3>
-                        <p className="mx-auto mt-3 max-w-lg text-sm leading-6 text-[#6B5D4F]">
-                            Log in to use your saved avatar, view clearer AI try-ons, and keep your results.
-                        </p>
-                        <button
-                            type="button"
-                            onClick={onLogin}
-                            className="mt-7 rounded-full bg-[#2C2416] px-7 py-3 text-sm font-semibold uppercase tracking-[0.18em] text-[#F8F4EC]"
-                        >
-                            Login for Full Try-On
-                        </button>
-                    </div>
-                ) : (
-                    <>
-                        <div className="grid grid-cols-3 border-b border-[#E8DCC4] bg-white/60">
-                            {["Choose photo", "Check outfit", "Preview"].map((label, index) => (
-                                <div
-                                    key={label}
-                                    className="flex items-center justify-center gap-2 px-3 py-3 text-xs font-semibold uppercase tracking-[0.14em]"
-                                    style={{ color: index === step ? "#2C2416" : "#9B8B7E" }}
-                                >
-                                    <span
-                                        className="flex h-6 w-6 items-center justify-center rounded-full text-[11px]"
-                                        style={{
-                                            background: index <= step ? "#D4AF37" : "#EEE4D3",
-                                            color: "#2C2416",
-                                        }}
-                                    >
-                                        {index + 1}
-                                    </span>
-                                    {label}
-                                </div>
-                            ))}
-                        </div>
-
-                        <div className="p-6">
-                            {step === 0 && (
-                                <div className="grid gap-5 md:grid-cols-[1fr_1.2fr]">
-                                    <label className="flex min-h-[260px] cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-[#D4AF37] bg-white p-6 text-center">
-                                        <Upload className="h-10 w-10 text-[#D4AF37]" />
-                                        <span className="mt-4 text-sm font-semibold text-[#2C2416]">
-                                            Upload your photo
-                                        </span>
-                                        <span className="mt-2 text-xs leading-5 text-[#6B5D4F]">
-                                            Front-facing image works best. Guests get one static preview.
-                                        </span>
-                                        <input
-                                            type="file"
-                                            accept="image/*"
-                                            className="sr-only"
-                                            onChange={handleFileChange}
-                                        />
-                                        {fileError && (
-                                            <span className="mt-3 text-xs font-medium text-red-600">
-                                                {fileError}
-                                            </span>
-                                        )}
-                                    </label>
-
-                                    <div>
-                                        <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-[#6B5D4F]">
-                                            Or try a sample
-                                        </p>
-                                        <div className="grid grid-cols-3 gap-3">
-                                            {SAMPLE_USER_IMAGES.map((image, index) => (
-                                                <button
-                                                    key={image}
-                                                    type="button"
-                                                    onClick={() => {
-                                                        setSelectedSample(index);
-                                                        setUserPhoto("");
-                                                    }}
-                                                    className="overflow-hidden rounded-xl border bg-white"
-                                                    style={{
-                                                        borderColor:
-                                                            !userPhoto && selectedSample === index
-                                                                ? "#D4AF37"
-                                                                : "#E8DCC4",
-                                                    }}
-                                                >
-                                                    <img
-                                                        src={image}
-                                                        alt={`Sample ${index + 1}`}
-                                                        className="h-36 w-full object-cover"
-                                                    />
-                                                </button>
-                                            ))}
-                                        </div>
-                                        {resolvedUserPhoto && (
-                                            <div className="mt-4 flex items-center gap-2 rounded-lg bg-white px-3 py-2 text-sm text-[#2C2416]">
-                                                <UserRound className="h-4 w-4 text-[#D4AF37]" />
-                                                Photo selected
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            )}
-
-                            {step === 1 && (
-                                <div className="grid gap-5 md:grid-cols-2">
-                                    <div className="rounded-xl bg-white p-3">
-                                        <img
-                                            src={resolvedUserPhoto}
-                                            alt="Selected user"
-                                            className="h-[380px] w-full rounded-lg object-cover"
-                                        />
-                                        <p className="mt-3 text-center text-xs font-semibold uppercase tracking-[0.16em] text-[#6B5D4F]">
-                                            Your photo
-                                        </p>
-                                    </div>
-                                    <div className="rounded-xl bg-white p-3">
-                                        <img
-                                            src={garmentImage}
-                                            alt={product.title}
-                                            className="h-[380px] w-full rounded-lg object-cover"
-                                        />
-                                        <p className="mt-3 text-center text-xs font-semibold uppercase tracking-[0.16em] text-[#6B5D4F]">
-                                            {product.title}
-                                        </p>
-                                    </div>
-                                </div>
-                            )}
-
-                            {step === 2 && (
-                                <div className="rounded-xl bg-white p-5 text-center">
-                                    <Sparkles className="mx-auto h-10 w-10 text-[#D4AF37]" />
-                                    <h3 className="mt-4 text-2xl font-semibold text-[#2C2416]">
-                                        Ready to create your preview
-                                    </h3>
-                                    <p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-[#6B5D4F]">
-                                        This guest mode creates one clear static preview. Log in afterward for the full AI try-on using your Aura avatar.
-                                    </p>
-                                    <div className="mt-6 flex items-center justify-center gap-3">
-                                        <ImagePlus className="h-5 w-5 text-[#D4AF37]" />
-                                        <span className="text-sm font-medium text-[#2C2416]">
-                                            One free guest preview
-                                        </span>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-
-                        <div className="flex items-center justify-between border-t border-[#E8DCC4] px-6 py-4">
-                            <button
-                                type="button"
-                                onClick={() => (step === 0 ? onClose() : setStep((value) => value - 1))}
-                                className="flex items-center gap-2 rounded-full border border-[#D4C5A9] bg-white px-5 py-2.5 text-sm font-medium text-[#6B5D4F]"
-                            >
-                                <ArrowLeft className="h-4 w-4" />
-                                {step === 0 ? "Cancel" : "Back"}
-                            </button>
-                            {step < 2 ? (
-                                <button
-                                    type="button"
-                                    disabled={!canContinue}
-                                    onClick={() => setStep((value) => value + 1)}
-                                    className="flex items-center gap-2 rounded-full bg-[#2C2416] px-6 py-2.5 text-sm font-semibold text-[#F8F4EC] disabled:opacity-50"
-                                >
-                                    Next
-                                    <ArrowRight className="h-4 w-4" />
-                                </button>
-                            ) : (
-                                <button
-                                    type="button"
-                                    onClick={finishPreview}
-                                    className="flex items-center gap-2 rounded-full bg-[#D4AF37] px-6 py-2.5 text-sm font-bold text-[#2C2416]"
-                                >
-                                    Show Preview
-                                    <Sparkles className="h-4 w-4" />
-                                </button>
-                            )}
-                        </div>
-                    </>
-                )}
+  return (
+    <DialogPrimitive.Root open={isOpen && Boolean(product)} onOpenChange={(open) => !open && onClose()}>
+      <DialogPrimitive.Portal>
+        <DialogPrimitive.Overlay className="fixed inset-0 z-[75] bg-black/70 backdrop-blur-sm" />
+        <DialogPrimitive.Content className="fixed inset-0 z-[76] flex h-[100dvh] w-full flex-col overflow-hidden bg-[#FCFAF6] shadow-2xl outline-none sm:inset-auto sm:left-1/2 sm:top-1/2 sm:h-auto sm:max-h-[94vh] sm:w-[96vw] sm:max-w-5xl sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-3xl">
+          <header className="flex shrink-0 items-center justify-between gap-3 border-b border-[#E8DCC4] px-3 py-3 sm:px-5 sm:py-4">
+            <div className="min-w-0">
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#98752E]">One free guest try-on</p>
+              <DialogPrimitive.Title className="truncate font-serif text-lg text-[#2C2416] sm:text-2xl">
+                {loading
+                  ? "Creating your look"
+                  : result
+                    ? "Your try-on is ready"
+                    : "Upload your full-body photo"}
+              </DialogPrimitive.Title>
             </div>
-        </div>
-    );
-};
+            <DialogPrimitive.Close className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border bg-white">
+              <X className="h-4 w-4" />
+            </DialogPrimitive.Close>
+          </header>
+
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-3 sm:p-6">
+            {loading ? (
+              <div className="flex min-h-[420px] flex-col items-center justify-center rounded-2xl bg-gradient-to-br from-[#FCFAF6] via-[#F7F0E4] to-[#EFE2CF] px-6 text-center sm:min-h-[560px]">
+                <span className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-[#C9A55C] to-[#D4B896] shadow-[0_10px_28px_rgba(201,165,92,0.35)]">
+                  <Sparkles className="h-8 w-8 animate-pulse text-white" />
+                </span>
+                <h3 className="mt-5 font-serif text-2xl font-bold text-[#2C2416]">
+                  Creating Your Look
+                </h3>
+                <p
+                  className="mt-3 min-h-12 max-w-md text-sm leading-6 text-[#6B5D4F]"
+                  aria-live="polite"
+                >
+                  {LOADING_QUOTES[currentQuoteIndex]}
+                </p>
+                <div className="mt-5 h-1.5 w-full max-w-xs overflow-hidden rounded-full bg-[#DCCDB7]">
+                  <span className="block h-full w-2/3 animate-pulse rounded-full bg-[#C9A55C]" />
+                </div>
+                <p className="mt-4 text-xs text-[#87745D]">
+                  Keep this window open while we fit the outfit to your photo.
+                </p>
+              </div>
+            ) : alreadyUsed && !result ? (
+              <div className="flex min-h-[420px] flex-col items-center justify-center text-center">
+                <Sparkles className="h-12 w-12 text-[#D4AF37]" />
+                <h3 className="mt-4 font-serif text-3xl text-[#2C2416]">Want to try another look?</h3>
+                <p className="mt-2 max-w-md text-sm text-[#6B5D4F]">Sign in to save your Aura and continue with more virtual try-ons.</p>
+                <button onClick={onLogin} className="mt-6 flex h-12 items-center gap-2 rounded-xl bg-[#D4AF37] px-7 font-bold text-[#2C2416]">
+                  <LogIn className="h-4 w-4" /> Sign in to try more
+                </button>
+              </div>
+            ) : result ? (
+              <div className="grid gap-3 md:min-h-[560px] md:grid-cols-2">
+                <figure className="relative min-h-[360px] overflow-hidden rounded-2xl bg-[#EEE5D7] sm:min-h-[480px] md:min-h-[560px]">
+                  <span className="absolute left-3 top-3 z-10 rounded-full bg-black/75 px-3 py-1 text-xs font-bold text-white">Your uploaded photo</span>
+                  {expandButton(photo, "uploaded full-body model")}
+                  <img src={photo} alt="Uploaded full-body model" className="absolute inset-0 h-full w-full object-contain" />
+                </figure>
+                <figure className="relative min-h-[360px] overflow-hidden rounded-2xl bg-[#EEE5D7] sm:min-h-[480px] md:min-h-[560px]">
+                  <span className="absolute left-3 top-3 z-10 rounded-full bg-[#D4AF37] px-3 py-1 text-xs font-bold text-[#2C2416]">Your AI try-on</span>
+                  {expandButton(result, "guest virtual try-on result")}
+                  <img src={result} alt="Guest virtual try-on result" className="absolute inset-0 h-full w-full object-contain" />
+                </figure>
+              </div>
+            ) : (
+              <div className="grid gap-3 sm:gap-4 md:grid-cols-2">
+                <label className="relative flex min-h-[360px] cursor-pointer flex-col items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed border-[#D4AF37] bg-white sm:min-h-[480px] md:min-h-[560px]">
+                  {photo ? (
+                    <>
+                      {expandButton(photo, "selected full-body photo")}
+                      <img src={photo} alt="Selected full-body photo" className="absolute inset-0 h-full w-full object-contain" />
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="h-12 w-12 text-[#D4AF37]" />
+                      <strong className="mt-4 text-lg text-[#2C2416]">Choose your photo</strong>
+                      <span className="mt-2 max-w-xs text-center text-sm text-[#6B5D4F]">Use a clear, front-facing, head-to-toe image.</span>
+                    </>
+                  )}
+                  <input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={handleUpload} />
+                </label>
+                <figure className="relative min-h-[360px] overflow-hidden rounded-2xl bg-white sm:min-h-[480px] md:min-h-[560px]">
+                  <span className="absolute left-3 top-3 z-10 rounded-full bg-black/75 px-3 py-1 text-xs font-bold text-white">Selected collection outfit</span>
+                  {expandButton(garmentImage, product?.title || "selected outfit")}
+                  <img src={garmentImage} alt={product?.title || "Selected outfit"} className="absolute inset-0 h-full w-full object-contain" />
+                </figure>
+              </div>
+            )}
+            {error && <p className="mt-3 rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+          </div>
+
+          {!alreadyUsed && !result && (
+            <footer className="shrink-0 border-t border-[#E8DCC4] bg-[#FCFAF6] p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:p-4">
+              <button disabled={!photo || loading} onClick={runGuestTryOn} className="flex h-13 w-full items-center justify-center gap-2 rounded-xl bg-[#D4AF37] px-5 py-3.5 font-bold text-[#2C2416] disabled:opacity-45">
+                {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}
+                {loading ? "Creating your try-on…" : "Try on free — no sign-in"}
+              </button>
+            </footer>
+          )}
+          {result && (
+            <footer className="shrink-0 border-t border-[#E8DCC4] bg-[#FCFAF6] p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:p-4">
+              <button onClick={onLogin} className="flex h-13 w-full items-center justify-center gap-2 rounded-xl bg-[#2C2416] px-5 py-3.5 font-bold text-white">
+                <LogIn className="h-5 w-5" /> Sign in to try more
+              </button>
+            </footer>
+          )}
+
+          {expandedImage && (
+            <div
+              className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 p-3 backdrop-blur-sm sm:p-6"
+              role="dialog"
+              aria-modal="true"
+              aria-label={`${expandedImage.alt} full-screen image`}
+              onClick={() => setExpandedImage(null)}
+            >
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setExpandedImage(null);
+                }}
+                className="absolute right-4 top-[max(1rem,env(safe-area-inset-top))] z-10 flex h-11 w-11 items-center justify-center rounded-full border border-white/30 bg-black/65 text-white shadow-xl"
+                aria-label="Close full-screen image"
+              >
+                <X className="h-6 w-6" />
+              </button>
+              <img
+                src={expandedImage.src}
+                alt={expandedImage.alt}
+                className="max-h-[94dvh] max-w-[96vw] object-contain"
+                onClick={(event) => event.stopPropagation()}
+              />
+            </div>
+          )}
+        </DialogPrimitive.Content>
+      </DialogPrimitive.Portal>
+    </DialogPrimitive.Root>
+  );
+}

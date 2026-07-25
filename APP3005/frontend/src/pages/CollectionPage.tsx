@@ -3,19 +3,17 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { ProductCard } from "@/components/collection/ProductCard";
-import { DesignerMensEdit } from "@/components/collection/DesignerMensEdit";
 import { usePublicProducts } from "@/hooks/useInfinitePublicProducts";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useAuth } from "@/context/AuthContext";
 import { useCart } from "@/context/CartContext";
 import { useTryOnPurchaseRedirect } from '@/hooks/useTryOnPurchaseRedirect';
 import { auraGate } from "@/utils/auraGate";
-import { ChevronDown, Heart, Search, X, SlidersHorizontal, ArrowUpDown } from "lucide-react";
-import { TryOnInterstitialModal } from "@/components/TryOnInterstitialModal";
+import { ChevronDown, Heart, Search, X, SlidersHorizontal, ArrowUpDown, Sparkles } from "lucide-react";
 import { TryOnResultModal } from '@/components/ai-tryon/TryOnResultModal';
 import { TryOnUpgradePopup } from '@/components/ai-tryon/TryOnUpgradePopup';
-import { AuraPromptDialog } from '@/components/aura/AuraPromptDialog';
 import { GuestTryOnModal } from '@/components/collection/GuestTryOnModal';
+import { AuraPromptDialog } from '@/components/aura/AuraPromptDialog';
 import {
     tryOnWithGemini,
     tryOnWithVertex,
@@ -84,9 +82,23 @@ const buildGeminiTryOnAdditionalParams = (aura: any) => ({
         }
         : undefined,
     maskClothingModel: true,
+    forceRegenerate: true,
 });
 
 type CollectionSection = "womens" | "mens";
+
+const COMING_SOON_INTEREST_KEYS: Record<CollectionSection, string> = {
+    womens: "aivestire:collection-interest:womens",
+    mens: "aivestire:collection-interest:mens",
+};
+
+const getStoredCollectionInterest = (section: CollectionSection): boolean => {
+    try {
+        return localStorage.getItem(COMING_SOON_INTEREST_KEYS[section]) === "true";
+    } catch {
+        return false;
+    }
+};
 
 type TryOnResult = {
     success: boolean;
@@ -109,6 +121,28 @@ const CollectionPage = () => {
     const isMensSection =
         activeCollectionSection === "mens";
     const collectionAudience = isMensSection ? "mens" : "womens";
+    const [collectionInterest, setCollectionInterest] = useState<Record<CollectionSection, boolean>>(
+        () => ({
+            womens: getStoredCollectionInterest("womens"),
+            mens: getStoredCollectionInterest("mens"),
+        }),
+    );
+
+    const toggleCollectionInterest = () => {
+        const nextInterested = !collectionInterest[activeCollectionSection];
+        setCollectionInterest((current) => ({
+            ...current,
+            [activeCollectionSection]: nextInterested,
+        }));
+        try {
+            localStorage.setItem(
+                COMING_SOON_INTEREST_KEYS[activeCollectionSection],
+                String(nextInterested),
+            );
+        } catch {
+            // The current-page selection still works if storage is unavailable.
+        }
+    };
 
     // Aura Welcome Modal State
     const [showAuraWelcomeModal, setShowAuraWelcomeModal] = useState(false);
@@ -131,9 +165,7 @@ const CollectionPage = () => {
     const [showFilters, setShowFilters] = useState(false);
 
     const [selectedTryOnProduct, setSelectedTryOnProduct] = useState<PublicProduct | null>(null);
-    const [isTryOnModalOpen, setIsTryOnModalOpen] = useState(false);
     const [isGuestTryOnModalOpen, setIsGuestTryOnModalOpen] = useState(false);
-    const [selectedTryOnProvider, setSelectedTryOnProvider] = useState<TryOnProvider>(defaultTryOnProvider);
 
     // AI Try-On State
     const [aura, setAura] = useState<any>(null);
@@ -399,20 +431,8 @@ const CollectionPage = () => {
         const token = localStorage.getItem('access_token');
         if (!token) {
             setSelectedTryOnProduct(product);
-            setSelectedTryOnProvider(provider);
             setSelectedTryOnLabel(resolveProductLabel(product.product_id));
             setIsGuestTryOnModalOpen(true);
-            return;
-        }
-
-        const reusableTryOn = getLatestBaseTryOnForCurrentAvatar(
-            tryOnHistory,
-            product.product_id,
-            aura,
-        );
-
-        if (reusableTryOn) {
-            openSavedTryOn(reusableTryOn, product);
             return;
         }
 
@@ -450,9 +470,8 @@ const CollectionPage = () => {
             }
 
             setSelectedTryOnProduct(product);
-            setSelectedTryOnProvider(provider);
             setSelectedTryOnLabel(resolveProductLabel(product.product_id));
-            setIsTryOnModalOpen(true);
+            void executeTryOn(product, provider);
             return;
         }
 
@@ -476,16 +495,8 @@ const CollectionPage = () => {
             }
 
             setSelectedTryOnProduct(product);
-            setSelectedTryOnProvider(provider);
             setSelectedTryOnLabel(resolveProductLabel(product.product_id));
-            setIsTryOnModalOpen(true);
-        }
-    };
-
-    const handleConfirmTryOn = () => {
-        if (selectedTryOnProduct) {
-            setIsTryOnModalOpen(false);
-            executeTryOn(selectedTryOnProduct, selectedTryOnProvider);
+            void executeTryOn(product, provider);
         }
     };
 
@@ -603,31 +614,6 @@ const CollectionPage = () => {
         } finally {
             setTryOnLoading(false);
         }
-    };
-
-    const handleGuestTryOnComplete = ({
-        resultImage: guestResultImage,
-        userPhoto,
-        garmentImage,
-        garmentTitle,
-    }: {
-        resultImage: string;
-        userPhoto: string;
-        garmentImage: string;
-        garmentTitle: string;
-    }) => {
-        setIsGuestTryOnModalOpen(false);
-        setTryOnLoading(false);
-        setGeneratingAngles(false);
-        setTryOnError(null);
-        setFeedbackContext(null);
-        setSelectedTryOnLabel(garmentTitle);
-        setCurrentUserPhoto(userPhoto);
-        setCurrentGarmentImage(garmentImage);
-        setResultImage(guestResultImage);
-        setOriginalTryOnImage(guestResultImage);
-        setGeneratedImages([guestResultImage]);
-        setShowResultModal(true);
     };
 
     const closeResultModal = () => {
@@ -784,6 +770,49 @@ const CollectionPage = () => {
                                 </p>
                             </div>
                         )}
+                    </div>
+                </div>
+            </section>
+
+            {/* New collection interest */}
+            <section className="border-b border-[#E8DCC4] bg-[#F8F4EC]">
+                <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 sm:py-5">
+                    <div className="relative overflow-hidden rounded-2xl border border-[#D4AF37]/35 bg-[#2C2416] px-4 py-4 text-[#F8F4EC] shadow-[0_14px_35px_rgba(44,36,22,0.16)] sm:px-6 sm:py-5">
+                        <div className="pointer-events-none absolute -right-12 -top-16 h-40 w-40 rounded-full bg-[#D4AF37]/15 blur-3xl" />
+                        <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                            <div className="flex min-w-0 items-start gap-3">
+                                <span className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#D4AF37]/15 text-[#E7C75B]">
+                                    <Sparkles className="h-5 w-5" />
+                                </span>
+                                <div>
+                                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#DCC16D]">
+                                        Coming soon
+                                    </p>
+                                    <h3 className="mt-1 font-serif text-lg leading-snug sm:text-xl">
+                                        {isMensSection
+                                            ? "3 new categories and 11 new designs are coming soon"
+                                            : "5 new categories and 16 new designs are coming soon"}
+                                    </h3>
+                                    <p className="mt-1 text-xs leading-5 text-white/60">
+                                        Tell us you’re interested and we’ll remember your preference.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <label className="flex min-h-12 cursor-pointer items-center justify-center gap-3 rounded-xl border border-white/20 bg-white/[0.07] px-5 text-sm font-bold transition hover:border-[#D4AF37]/60 hover:bg-white/[0.11] sm:min-w-[190px]">
+                                <input
+                                    type="checkbox"
+                                    checked={collectionInterest[activeCollectionSection]}
+                                    onChange={toggleCollectionInterest}
+                                    className="h-5 w-5 rounded border-white/40 accent-[#D4AF37]"
+                                />
+                                <span>
+                                    {collectionInterest[activeCollectionSection]
+                                        ? "Interest saved"
+                                        : "I’m interested"}
+                                </span>
+                            </label>
+                        </div>
                     </div>
                 </div>
             </section>
@@ -981,8 +1010,6 @@ const CollectionPage = () => {
             {/* Products Section */}
             <main id="collection-products" className="py-12 scroll-mt-24">
                 <div className="max-w-7xl mx-auto px-4">
-                    {isMensSection && <DesignerMensEdit />}
-
                     {/* Products Grid */}
                     {isLoading ? (
                         <div className="text-center py-20">
@@ -1108,29 +1135,25 @@ const CollectionPage = () => {
                 onDecline={() => setShowAuraWelcomeModal(false)}
             />
 
-            <TryOnInterstitialModal
-                isOpen={isTryOnModalOpen}
-                onClose={() => setIsTryOnModalOpen(false)}
-                onConfirm={handleConfirmTryOn}
-            />
-
-            <GuestTryOnModal
-                isOpen={isGuestTryOnModalOpen}
-                product={selectedTryOnProduct}
-                onClose={() => setIsGuestTryOnModalOpen(false)}
-                onComplete={handleGuestTryOnComplete}
-                onLogin={() => {
-                    setIsGuestTryOnModalOpen(false);
-                    navigate('/user-login');
-                }}
-            />
-
             <TryOnUpgradePopup
                 isOpen={showUpgradePopup}
                 onClose={() => setShowUpgradePopup(false)}
                 onPurchaseComplete={fetchUser}
                 tryOnsUsed={tryOnUsageSnapshot.tryOnsUsed}
                 maxTryOns={tryOnUsageSnapshot.maxTryOns}
+            />
+
+            <GuestTryOnModal
+                isOpen={isGuestTryOnModalOpen}
+                product={selectedTryOnProduct}
+                garmentGender={isMensSection ? "male" : "female"}
+                onClose={() => setIsGuestTryOnModalOpen(false)}
+                onLogin={() => {
+                    setIsGuestTryOnModalOpen(false);
+                    navigate('/user-login', {
+                        state: { returnUrl: `${location.pathname}${location.search}` },
+                    });
+                }}
             />
 
             <TryOnResultModal

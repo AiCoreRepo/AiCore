@@ -1,5 +1,6 @@
-import { Heart, Star, Eye, MessageCircle, ChevronLeft, ChevronRight, ShoppingCart } from "lucide-react";
+import { Heart, Star, Eye, MessageCircle, ChevronLeft, ChevronRight, ShoppingCart, Maximize2, X } from "lucide-react";
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { CommentsModal } from "./CommentsModal";
 // import { ProductDetailsModal } from "./ProductDetailsModal";
 import { likeProduct, getProductLikes } from "../../lib/api";
@@ -60,6 +61,7 @@ export const ProductCard = ({
     const [isWishlistToggling, setIsWishlistToggling] = useState(false);
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
     const [isAddingToCart, setIsAddingToCart] = useState(false);
+    const [isImageFullscreen, setIsImageFullscreen] = useState(false);
 
     const isInWishlistState = isInWishlist(product.product_id);
 
@@ -125,6 +127,26 @@ export const ProductCard = ({
         primaryTryOnLabel ?? (onTryOnGemini ? 'Vertex Try On' : 'Try On');
     const resolvedSecondaryTryOnLabel = secondaryTryOnLabel ?? 'Gemini Try On';
     const processingButtonLabel = 'View Progress';
+    const currentImageUrl =
+        productImages[currentImageIndex]?.url ||
+        'https://via.placeholder.com/400x500/F5F0E6/D4AF37?text=No+Image';
+
+    useEffect(() => {
+        if (!isImageFullscreen) return;
+
+        const previousOverflow = document.body.style.overflow;
+        const closeOnEscape = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') setIsImageFullscreen(false);
+        };
+
+        document.body.style.overflow = 'hidden';
+        window.addEventListener('keydown', closeOnEscape);
+
+        return () => {
+            document.body.style.overflow = previousOverflow;
+            window.removeEventListener('keydown', closeOnEscape);
+        };
+    }, [isImageFullscreen]);
 
     return (
         <>
@@ -170,19 +192,32 @@ export const ProductCard = ({
                     </button>
 
                     {/* Product Image Carousel */}
-                    <div className="relative overflow-hidden group/images">
+                    <div className="relative overflow-hidden bg-[#F5F0E6] group/images">
                         <img
-                            src={productImages[currentImageIndex]?.url || 'https://via.placeholder.com/400x500/F5F0E6/D4AF37?text=No+Image'}
+                            src={currentImageUrl}
                             alt={product.title}
                             loading="lazy"
                             width={400}
                             height={500}
-                            className="w-full h-[320px] object-cover transition-transform duration-700 group-hover:scale-110"
+                            className="w-full h-[420px] object-contain object-center transition-transform duration-700 group-hover:scale-[1.03]"
                             onError={(e) => {
                                 const target = e.target as HTMLImageElement;
                                 target.src = 'https://via.placeholder.com/400x500/F5F0E6/D4AF37?text=Image+Not+Found';
                             }}
                         />
+
+                        <button
+                            type="button"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setIsImageFullscreen(true);
+                            }}
+                            className="absolute left-3 top-3 z-20 flex h-10 w-10 items-center justify-center rounded-full border border-white/70 bg-white/95 text-gray-800 shadow-lg transition hover:scale-110 hover:bg-white focus:outline-none focus:ring-2 focus:ring-[#D4AF37] focus:ring-offset-2"
+                            aria-label={`View ${product.title} full screen`}
+                            title="View full screen"
+                        >
+                            <Maximize2 className="h-4 w-4" strokeWidth={2.2} />
+                        </button>
 
                         {/* Image Navigation Dots */}
                         {productImages.length > 1 && (
@@ -301,7 +336,7 @@ export const ProductCard = ({
 
                     {/* Featured Badge */}
                     {product.is_featured && (
-                        <div className="absolute top-3 left-3">
+                        <div className="absolute top-16 left-3">
                             <div
                                 className="px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider"
                                 style={{
@@ -381,6 +416,43 @@ export const ProductCard = ({
                     )}
                 </div>
             </div>
+
+            {isImageFullscreen && createPortal(
+                <div
+                    className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/95 p-3 backdrop-blur-sm sm:p-6"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-label={`${product.title} full-screen image`}
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        setIsImageFullscreen(false);
+                    }}
+                >
+                    <button
+                        type="button"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            setIsImageFullscreen(false);
+                        }}
+                        className="absolute right-4 top-4 z-10 flex h-11 w-11 items-center justify-center rounded-full border border-white/25 bg-black/60 text-white shadow-xl transition hover:scale-105 hover:bg-white hover:text-black focus:outline-none focus:ring-2 focus:ring-white sm:right-6 sm:top-6"
+                        aria-label="Close full-screen image"
+                    >
+                        <X className="h-6 w-6" />
+                    </button>
+
+                    <img
+                        src={currentImageUrl}
+                        alt={product.title}
+                        className="max-h-[94vh] max-w-[96vw] object-contain"
+                        onClick={(e) => e.stopPropagation()}
+                    />
+
+                    <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent px-5 pb-5 pt-16 text-center text-sm font-medium text-white sm:pb-7">
+                        {product.title}
+                    </div>
+                </div>,
+                document.body,
+            )}
 
             {/* Product Details Modal Removed - Now navigating to new page */}
             {/* <ProductDetailsModal

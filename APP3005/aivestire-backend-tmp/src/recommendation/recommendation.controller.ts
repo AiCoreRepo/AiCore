@@ -168,6 +168,9 @@ export class RecommendationController {
     // Try to get user's Aura for age-based and skin tone filtering
     let userAgeRange: string | null = null;
     let userSkinTone: string | null = null;
+    let userGender: string | null = null;
+    let userBodyShape: string | null = null;
+    let userSize: string | null = null;
 
     try {
       const aura = await this.recommendationService['prisma'].aura.findUnique({
@@ -175,6 +178,9 @@ export class RecommendationController {
         select: {
           age_range: true,
           skin_tone: true,
+          gender: true,
+          body_shape: true,
+          body_size: true,
         },
       });
 
@@ -187,6 +193,9 @@ export class RecommendationController {
           userSkinTone = aura.skin_tone;
           this.logger.log(`🎨 Found user skin tone: ${userSkinTone}`);
         }
+        userGender = aura.gender;
+        userBodyShape = aura.body_shape;
+        userSize = aura.body_size;
       } else {
         this.logger.log(
           '⚠️  No Aura found, showing all age groups and skin tones',
@@ -200,8 +209,13 @@ export class RecommendationController {
 
     return this.dummyRecommendationService.getDummyRecommendations(
       dto.occasion,
-      userAgeRange,
-      userSkinTone,
+      {
+        ageRange: dto.age ? String(dto.age) : userAgeRange,
+        skinTone: dto.skin_tone || userSkinTone,
+        gender: userGender,
+        bodyShape: dto.body_shape || userBodyShape,
+        size: dto.size || userSize,
+      },
     );
   }
 }

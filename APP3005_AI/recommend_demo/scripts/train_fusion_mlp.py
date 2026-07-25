@@ -500,6 +500,18 @@ def collection_records_from_main_df(df: pd.DataFrame) -> List[Dict[str, object]]
         style = _clean_text(row.get("Style"))
         if style:
             record["style"] = style
+        audience = _clean_text(row.get("audience"))
+        if audience:
+            record["audience"] = audience
+        gender = _clean_text(row.get("gender"))
+        if gender:
+            record["gender"] = gender
+        title = _clean_text(row.get("title"))
+        if title:
+            record["title"] = title
+        price_cents = _clean_text(row.get("price_cents"))
+        if price_cents:
+            record["price_cents"] = price_cents
         image_url = _clean_text(row.get("image_url"))
         if image_url:
             record["image_url"] = image_url

@@ -70,6 +70,43 @@ export const BodyAttributesForm = ({ attributes, onChange, errors = {} }: BodyAt
                 <div className="flex-1 h-px bg-gradient-to-r from-gold/30 to-transparent" />
             </div>
 
+            {/* Avatar gender */}
+            <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.03 }}
+                className="relative"
+            >
+                <div className="mb-2 flex items-center justify-between gap-2 sm:mb-2.5">
+                    <label className={guideHeaderLabelClass}>Avatar Gender</label>
+                    <span className="text-[10px] font-medium text-charcoal/50">Choose the avatar you want created</span>
+                </div>
+                <div className="grid grid-cols-2 gap-2 rounded-2xl border-2 border-gold/20 bg-white/60 p-1.5">
+                    {[
+                        { value: "female", label: "Female avatar" },
+                        { value: "male", label: "Male avatar" },
+                    ].map((option) => {
+                        const selected = attributes.gender === option.value;
+                        return (
+                            <button
+                                key={option.value}
+                                type="button"
+                                aria-pressed={selected}
+                                onClick={() => handleChange("gender", option.value)}
+                                className={`flex min-h-12 items-center justify-center gap-2 rounded-xl px-3 text-sm font-bold transition-all ${
+                                    selected
+                                        ? "bg-charcoal text-white shadow-md ring-2 ring-gold/40"
+                                        : "text-charcoal/65 hover:bg-gold/10 hover:text-charcoal"
+                                }`}
+                            >
+                                <User className="h-4 w-4" />
+                                {option.label}
+                            </button>
+                        );
+                    })}
+                </div>
+            </motion.div>
+
             {/* Height */}
             <motion.div
                 initial={{ opacity: 0, y: 20 }}

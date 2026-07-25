@@ -1,4 +1,6 @@
 import {
+  buildGeminiGarmentContext,
+  buildGeminiGuestTryOnPrompt,
   buildGeminiTryOnPrompt,
   GEMINI_CLOTHING_MODEL_MASK,
 } from './tryon.constants';
@@ -25,6 +27,9 @@ describe('buildGeminiTryOnPrompt', () => {
     expect(prompt).toContain(
       'The second image is the real person/avatar whose identity must remain unchanged in the final result.',
     );
+    expect(prompt).toContain(
+      'The third image is an identical duplicate of the real person/avatar, supplied only as a strong identity anchor.',
+    );
     expect(prompt).toContain(`- Height: 175 cm (5'9")`);
     expect(prompt).toContain('- Body shape: athletic');
     expect(prompt).toContain('- Body size: medium');
@@ -43,6 +48,9 @@ describe('buildGeminiTryOnPrompt', () => {
     );
     expect(prompt).toContain(
       'Preserve the exact same face, skin tone, hairline, hairstyle, hair length, hair volume, hair texture, and body proportions of the second image.',
+    );
+    expect(prompt).toContain(
+      'Treat the second and third images as the authoritative and identical wearer references.',
     );
     expect(prompt).toContain(
       'Do not replace, beautify, reshape, or blend the second-image face or body with the clothing-model or mannequin identity from the first image.',
@@ -87,7 +95,37 @@ describe('buildGeminiTryOnPrompt', () => {
     );
   });
 
-  it('disables clothing-model masking by default to preserve garment details', () => {
-    expect(GEMINI_CLOTHING_MODEL_MASK.ENABLED_BY_DEFAULT).toBe(false);
+  it('masks the clothing model by default to prevent catalog identity leakage', () => {
+    expect(GEMINI_CLOTHING_MODEL_MASK.ENABLED_BY_DEFAULT).toBe(true);
+  });
+});
+
+describe('buildGeminiGarmentContext', () => {
+  it('labels a male outfit without changing the uploaded wearer identity', () => {
+    const context = buildGeminiGarmentContext('male');
+
+    expect(context).toContain('outfit reference from the male collection');
+    expect(context).toContain(
+      'It must never replace or alter the wearer identity, face, body, skin tone, or gender',
+    );
+  });
+
+  it('ignores unknown client supplied audience values', () => {
+    expect(buildGeminiGarmentContext('unexpected')).toBe('');
+  });
+});
+
+describe('buildGeminiGuestTryOnPrompt', () => {
+  it('keeps the uploaded wearer authoritative with a concise edit request', () => {
+    const prompt = buildGeminiGuestTryOnPrompt();
+
+    expect(prompt).toContain(
+      'The first image is the outfit reference. The second image is the wearer reference.',
+    );
+    expect(prompt).toContain(
+      'Keep the wearer recognizable with the same facial appearance',
+    );
+    expect(prompt).toContain('Do not use the catalog model as the wearer');
+    expect(prompt).not.toContain('ABSOLUTELY');
   });
 });
