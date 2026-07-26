@@ -5,7 +5,7 @@ export const PULKIT_DEMO_EMAILS = [
 ] as const;
 
 export const PULKIT_DEMO_AVATAR_URL =
-  'https://res.cloudinary.com/dxfxicebq/image/upload/f_auto,q_auto:best,w_923,e_sharpen:70/v1785062918/aivestire/demo/pulkit/pulkit-avatar';
+  'https://res.cloudinary.com/dxfxicebq/image/upload/f_auto,q_100,w_924,e_sharpen:70/v1785082730/aivestire/demo/pulkit/pulkit-avatar';
 
 export const PULKIT_DEMO_PRODUCT_SLUGS = [
   'male-collection-look-2',

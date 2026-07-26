@@ -597,10 +597,6 @@ const CollectionPage = () => {
                 isPulkitDemoUser(user.email)
                     ? getPulkitDemoTryOnUrl(product.title)
                     : null;
-            const pulkitStaticAngle = pulkitStaticResult
-                ? getPulkitDemoAngleUrl(product.title)
-                : null;
-
             if (pulkitStaticResult) {
                 const clothingImage = getProductImageUrl(product, {
                     requireRemote: true,
@@ -677,11 +673,9 @@ const CollectionPage = () => {
                 const imageData = normalizeTryOnResultImage(result.resultImage);
                 setResultImage(imageData);
                 setOriginalTryOnImage(imageData);
-                setGeneratedImages(
-                    imageData
-                        ? [imageData, pulkitStaticAngle].filter(Boolean) as string[]
-                        : [],
-                );
+                // Static demo starts with only the full primary result. Its
+                // preloaded alternate is revealed by the New Angle button.
+                setGeneratedImages(imageData ? [imageData] : []);
                 fetchUser();
                 if (feedbackCloseTimerRef.current) {
                     clearTimeout(feedbackCloseTimerRef.current);
@@ -733,6 +727,32 @@ const CollectionPage = () => {
 
     const handleGenerateMoreAngles = async () => {
         if (!user || !resultImage || !selectedTryOnProduct) return;
+
+        const pulkitPreloadedAngle =
+            isPulkitDemoUser(user.email)
+                ? getPulkitDemoAngleUrl(selectedTryOnProduct.title)
+                : null;
+        if (pulkitPreloadedAngle) {
+            if (generatedImages.includes(pulkitPreloadedAngle)) {
+                setResultImage(pulkitPreloadedAngle);
+                return;
+            }
+
+            setGeneratingAngles(true);
+            setTryOnError(null);
+            try {
+                await new Promise((resolve) => window.setTimeout(resolve, 1000));
+                setGeneratedImages((previous) => [
+                    ...previous.filter(Boolean),
+                    pulkitPreloadedAngle,
+                ]);
+                setResultImage(pulkitPreloadedAngle);
+            } finally {
+                setGeneratingAngles(false);
+            }
+            return;
+        }
+
         if (!hasFreeTryOnsRemaining) {
             openUpgradePopup();
             return;
@@ -1253,13 +1273,7 @@ const CollectionPage = () => {
                 loading={tryOnLoading}
                 error={tryOnError}
                 comparisonImage={originalTryOnImage}
-                onGenerateMoreAngles={
-                    selectedTryOnProduct &&
-                    isPulkitDemoUser(user?.email) &&
-                    getPulkitDemoTryOnUrl(selectedTryOnProduct.title)
-                        ? undefined
-                        : handleGenerateMoreAngles
-                }
+                onGenerateMoreAngles={handleGenerateMoreAngles}
                 generatingAngles={generatingAngles}
                 userPhoto={currentUserPhoto || getAvatarImageUrl(aura)}
                 garmentImage={currentGarmentImage || undefined}

@@ -8,7 +8,7 @@ const DEMO_EMAILS = [
   'rushabhbelani2212@gmail.com',
 ];
 const AVATAR_URL =
-  'https://res.cloudinary.com/dxfxicebq/image/upload/f_auto,q_auto:best,w_923,e_sharpen:70/v1785062918/aivestire/demo/pulkit/pulkit-avatar';
+  'https://res.cloudinary.com/dxfxicebq/image/upload/f_auto,q_100,w_924,e_sharpen:70/v1785082730/aivestire/demo/pulkit/pulkit-avatar';
 const PRODUCT_IMAGE_ROOT =
   'https://res.cloudinary.com/dxfxicebq/image/upload/f_auto,q_auto:good,w_1200/aivestire/products/mens/updated-collection';
 const ATTRIBUTES = {
