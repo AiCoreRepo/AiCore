@@ -67,7 +67,7 @@ async function main() {
           'Existing Aura database record',
           'Existing try-on history',
           'Cloudinary avatar asset',
-          'Five static Cloudinary try-on results',
+          'Five static Cloudinary try-on results and five alternate angles',
           'Men’s collection products and metadata',
         ],
         next:

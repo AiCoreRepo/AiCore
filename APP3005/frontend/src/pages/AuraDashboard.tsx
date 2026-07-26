@@ -115,14 +115,15 @@ const AuraDashboard = () => {
         setAvatarUrl(data.model_url);
         window.setTimeout(() => {
           setIsProcessing(false);
+          setIsSuccess(true);
           window.dispatchEvent(new Event('aura-updated'));
-          navigate("/aura-profile", {
-            state: {
-              hideAuraLibrary: true,
-              staticDemoReplay: true,
-            },
-          });
-        }, 1800);
+          window.setTimeout(() => {
+            navigate("/collection?section=mens", {
+              replace: true,
+              state: { scrollToProducts: true },
+            });
+          }, 1000);
+        }, 1000);
         return;
       }
 

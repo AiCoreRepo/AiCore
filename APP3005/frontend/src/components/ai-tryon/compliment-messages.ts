@@ -119,31 +119,31 @@ const MALE_DEMO_COMPLIMENTS: Record<string, ComplimentMessage> = {
     "Midnight Tee Set": {
         id: "male_midnight_tee",
         message:
-            "Kaale libaas mein andaaz kuch yun nikhar aaya 🖤, Saadgi ne bhi aaj hero wala rang dikhaya ✨",
+            "Midnight tee mein saadgi ka noor chha gaya 🖤, Aapka andaaz dekha to har dil muskura gaya ✨",
         highlights: ["🖤", "✨"],
     },
     "Mehendi Green Kurta": {
         id: "male_mehendi_kurta",
         message:
-            "Mehendi sa rang, nawabi sa andaaz 💚, Aaj har nazar kahe— janaab, kya baat! ✨",
+            "Mehendi ke rang mein tehzeeb ka asar hai 💚, Is kurte mein janaab ki har ada be-khabar hai ✨",
         highlights: ["💚", "✨"],
     },
     "Sky Blue Relaxed Shirt": {
         id: "male_sky_blue",
         message:
-            "Aasmaani rang aur sukoon bhara style 💙, Janaab chalein to har nazar ruk jaaye a while ✨",
+            "Aasmaani shirt mein sukoon sa utar aaya 💙, Aap chale to mausam bhi nikharta nazar aaya ✨",
         highlights: ["💙", "✨"],
     },
     "Ice Blue Embroidered Bandhgala": {
         id: "male_ice_blue_bandhgala",
         message:
-            "Bandhgale ki shaan, chehre par noor ❄️, Is nawabi andaaz ka jawaab nahi huzoor 👑",
+            "Ice blue bandhgale mein shaan bhi, noor bhi ❄️, Aaj aapke andaaz ke aage feeka hai guroor bhi 👑",
         highlights: ["❄️", "👑"],
     },
     "Midnight Floral Bandhgala": {
         id: "male_midnight_bandhgala",
         message:
-            "Siyah rang par phoolon ka kamaal 🖤, Janaab ka ye andaaz hai bilkul bemisaal 👑",
+            "Siyah bandhgale par phoolon ki zubaan hai 🖤, Aapka ye andaaz hi mehfil ki jaan hai 👑",
         highlights: ["🖤", "👑"],
     },
 };

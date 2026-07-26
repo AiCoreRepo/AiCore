@@ -32,6 +32,7 @@ import {
 import { normalizeAuraAvatarHistory } from '../aura/utils/aura-avatar-history.util';
 import {
   getPulkitStaticTryOnUrl,
+  getPulkitStaticAngleUrlForSlug,
   getPulkitStaticTryOnUrlForSlug,
   isPulkitDemoEmail,
   PULKIT_DEMO_AVATAR_ATTRIBUTES,
@@ -155,13 +156,12 @@ export class AuthService {
         },
       };
 
-      if (existing) {
-        await this.prisma.tryOn.update({
+      const baseTryOn = existing
+        ? await this.prisma.tryOn.update({
           where: { try_on_id: existing.try_on_id },
           data: tryOnData,
-        });
-      } else {
-        await this.prisma.tryOn.create({
+        })
+        : await this.prisma.tryOn.create({
           data: {
             user_id: user.user_id,
             aura_id: aura.aura_id,
@@ -169,6 +169,43 @@ export class AuthService {
             ...tryOnData,
           },
         });
+
+      const angleImageUrl = getPulkitStaticAngleUrlForSlug(product.slug);
+      if (angleImageUrl) {
+        const existingAngle = await this.prisma.tryOn.findFirst({
+          where: {
+            user_id: user.user_id,
+            aura_id: aura.aura_id,
+            product_id: product.product_id,
+            angle: 'three-quarter',
+          },
+          select: { try_on_id: true },
+        });
+        const angleData = {
+          result_image_url: angleImageUrl,
+          provider: 'static-demo',
+          angle: 'three-quarter',
+          base_tryon_id: baseTryOn.try_on_id,
+          processing_metrics: {
+            ...tryOnData.processing_metrics,
+            angle: 'three-quarter',
+          },
+        };
+        if (existingAngle) {
+          await this.prisma.tryOn.update({
+            where: { try_on_id: existingAngle.try_on_id },
+            data: angleData,
+          });
+        } else {
+          await this.prisma.tryOn.create({
+            data: {
+              user_id: user.user_id,
+              aura_id: aura.aura_id,
+              product_id: product.product_id,
+              ...angleData,
+            },
+          });
+        }
       }
     }
   }

@@ -8,7 +8,7 @@ const DEMO_EMAILS = [
   'rushabhbelani2212@gmail.com',
 ];
 const AVATAR_URL =
-  'https://res.cloudinary.com/dxfxicebq/image/upload/f_auto,q_auto:best,w_900,e_sharpen:70/v1785056265/aivestire/demo/pulkit/pulkit-avatar';
+  'https://res.cloudinary.com/dxfxicebq/image/upload/f_auto,q_auto:best,w_923,e_sharpen:70/v1785062918/aivestire/demo/pulkit/pulkit-avatar';
 const PRODUCT_IMAGE_ROOT =
   'https://res.cloudinary.com/dxfxicebq/image/upload/f_auto,q_auto:good,w_1200/aivestire/products/mens/updated-collection';
 const ATTRIBUTES = {
@@ -31,11 +31,10 @@ const FIXED_TRY_ON_SLUGS = [
   'midnight-floral-bandhgala',
 ];
 const FIXED_TRY_ON_VERSIONS = [
-  '1785056304',
-  '1785056324',
-  '1785056344',
-  '1785056381',
-  '1785056414',
+  '1785064774', '1785064779', '1785064785', '1785064795', '1785064808',
+];
+const FIXED_ANGLE_VERSIONS = [
+  '1785064777', '1785064782', '1785064789', '1785064801', '1785064818',
 ];
 const UPDATED_PRODUCTS = [
   ['chocolate-brown-relaxed-shirt', 'Chocolate Brown Relaxed Shirt', 'A chocolate brown open-collar shirt styled with relaxed ivory trousers.', 'Casualwear', 'Chocolate Brown, Ivory'],
@@ -61,7 +60,14 @@ const tryOnUrl = (slug) => {
   const index = FIXED_TRY_ON_SLUGS.indexOf(slug);
   return index < 0
     ? null
-    : `https://res.cloudinary.com/dxfxicebq/image/upload/f_auto,q_auto:best,w_848,e_sharpen:70/v${FIXED_TRY_ON_VERSIONS[index]}/aivestire/demo/pulkit/tryon-${index + 1}-${slug}`;
+    : `https://res.cloudinary.com/dxfxicebq/image/upload/f_auto,q_100,w_1024,e_sharpen:100/v${FIXED_TRY_ON_VERSIONS[index]}/aivestire/demo/pulkit/tryon-${index + 1}-${slug}`;
+};
+
+const angleUrl = (slug) => {
+  const index = FIXED_TRY_ON_SLUGS.indexOf(slug);
+  return index < 0
+    ? null
+    : `https://res.cloudinary.com/dxfxicebq/image/upload/f_auto,q_100,w_1024,e_sharpen:100/v${FIXED_ANGLE_VERSIONS[index]}/aivestire/demo/pulkit/tryon-${index + 1}-angle-${slug}`;
 };
 
 async function syncMensCollection(creator) {
@@ -222,6 +228,42 @@ async function seedDemoAccount(email, products) {
         },
       });
     }
+    const base = existing || await prisma.tryOn.findFirst({
+      where: {
+        user_id: user.user_id,
+        aura_id: aura.aura_id,
+        product_id: product.product_id,
+        angle: null,
+        base_tryon_id: null,
+      },
+    });
+    const existingAngle = await prisma.tryOn.findFirst({
+      where: {
+        user_id: user.user_id,
+        aura_id: aura.aura_id,
+        product_id: product.product_id,
+        angle: 'three-quarter',
+      },
+    });
+    const angleData = {
+      result_image_url: angleUrl(product.slug),
+      provider: 'static-demo',
+      angle: 'three-quarter',
+      base_tryon_id: base.try_on_id,
+      processing_metrics: { ...data.processing_metrics, angle: 'three-quarter' },
+    };
+    if (existingAngle) {
+      await prisma.tryOn.update({ where: { try_on_id: existingAngle.try_on_id }, data: angleData });
+    } else {
+      await prisma.tryOn.create({
+        data: {
+          user_id: user.user_id,
+          aura_id: aura.aura_id,
+          product_id: product.product_id,
+          ...angleData,
+        },
+      });
+    }
   }
 }
 
@@ -245,7 +287,7 @@ async function main() {
     await seedDemoAccount(email, products);
   }
   console.log(
-    `Static men's demo seed complete: ${UPDATED_PRODUCTS.length + PROTECTED_SLUGS.length} products, ${DEMO_EMAILS.length} accounts, ${products.length * DEMO_EMAILS.length} fixed try-ons.`,
+    `Static men's demo seed complete: ${UPDATED_PRODUCTS.length + PROTECTED_SLUGS.length} products, ${DEMO_EMAILS.length} accounts, ${products.length * DEMO_EMAILS.length} base try-ons and ${products.length * DEMO_EMAILS.length} alternate angles.`,
   );
 }
 

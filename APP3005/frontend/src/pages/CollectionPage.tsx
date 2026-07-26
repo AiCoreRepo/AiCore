@@ -62,6 +62,7 @@ import {
 } from '@/constants/featureDiscovery';
 import {
     getPulkitDemoProductPriority,
+    getPulkitDemoAngleUrl,
     getPulkitDemoTryOnUrl,
     isPulkitDemoUser,
     PULKIT_DEMO_TRYON_URLS,
@@ -582,6 +583,9 @@ const CollectionPage = () => {
             setTryOnError(null);
             setShowFeedbackSheet(false);
             setShowResultModal(true);
+            setResultImage(null);
+            setOriginalTryOnImage(null);
+            setGeneratedImages([]);
             setCurrentUserPhoto(getAvatarImageUrl(aura));
 
             let result: TryOnResult;
@@ -591,6 +595,9 @@ const CollectionPage = () => {
                 isPulkitDemoUser(user.email)
                     ? getPulkitDemoTryOnUrl(product.title)
                     : null;
+            const pulkitStaticAngle = pulkitStaticResult
+                ? getPulkitDemoAngleUrl(product.title)
+                : null;
 
             if (pulkitStaticResult) {
                 const clothingImage = getProductImageUrl(product, {
@@ -668,7 +675,11 @@ const CollectionPage = () => {
                 const imageData = normalizeTryOnResultImage(result.resultImage);
                 setResultImage(imageData);
                 setOriginalTryOnImage(imageData);
-                setGeneratedImages(imageData ? [imageData] : []);
+                setGeneratedImages(
+                    imageData
+                        ? [imageData, pulkitStaticAngle].filter(Boolean) as string[]
+                        : [],
+                );
                 fetchUser();
                 if (feedbackCloseTimerRef.current) {
                     clearTimeout(feedbackCloseTimerRef.current);
@@ -760,11 +771,7 @@ const CollectionPage = () => {
                 <img
                     src={cloudinaryImages.collectionHeader}
                     alt="Crafted for the Confident"
-                    className={
-                        isMensSection
-                            ? "w-full h-40 md:h-56 object-cover object-center"
-                            : "w-full h-auto object-contain"
-                    }
+                    className="h-auto w-full object-contain"
                 />
             </section>
 
@@ -1244,7 +1251,13 @@ const CollectionPage = () => {
                 loading={tryOnLoading}
                 error={tryOnError}
                 comparisonImage={originalTryOnImage}
-                onGenerateMoreAngles={handleGenerateMoreAngles}
+                onGenerateMoreAngles={
+                    selectedTryOnProduct &&
+                    isPulkitDemoUser(user?.email) &&
+                    getPulkitDemoTryOnUrl(selectedTryOnProduct.title)
+                        ? undefined
+                        : handleGenerateMoreAngles
+                }
                 generatingAngles={generatingAngles}
                 userPhoto={currentUserPhoto || getAvatarImageUrl(aura)}
                 garmentImage={currentGarmentImage || undefined}

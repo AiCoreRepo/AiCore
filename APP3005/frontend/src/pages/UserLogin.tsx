@@ -46,10 +46,15 @@ const UserLogin = () => {
     const continueAfterLogin = async (email?: string | null) => {
         if (isPulkitAccount(email)) {
             clearGuestTryOnHandoff();
-            navigate("/collection?section=mens", {
-                replace: true,
-                state: { scrollToProducts: true },
-            });
+            const auraStatus = await getAuraStatus();
+            if (!auraStatus.hasAura) {
+                navigate("/aura-dashboard", { replace: true });
+            } else {
+                navigate("/collection?section=mens", {
+                    replace: true,
+                    state: { scrollToProducts: true },
+                });
+            }
             return;
         }
 

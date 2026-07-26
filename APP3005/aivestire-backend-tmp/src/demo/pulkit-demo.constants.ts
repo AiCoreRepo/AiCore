@@ -5,7 +5,7 @@ export const PULKIT_DEMO_EMAILS = [
 ] as const;
 
 export const PULKIT_DEMO_AVATAR_URL =
-  'https://res.cloudinary.com/dxfxicebq/image/upload/f_auto,q_auto:best,w_900,e_sharpen:70/v1785056265/aivestire/demo/pulkit/pulkit-avatar';
+  'https://res.cloudinary.com/dxfxicebq/image/upload/f_auto,q_auto:best,w_923,e_sharpen:70/v1785062918/aivestire/demo/pulkit/pulkit-avatar';
 
 export const PULKIT_DEMO_PRODUCT_SLUGS = [
   'male-collection-look-2',
@@ -16,17 +16,32 @@ export const PULKIT_DEMO_PRODUCT_SLUGS = [
 ] as const;
 
 const PULKIT_DEMO_TRYON_VERSIONS = [
-  '1785056304',
-  '1785056324',
-  '1785056344',
-  '1785056381',
-  '1785056414',
+  '1785064774',
+  '1785064779',
+  '1785064785',
+  '1785064795',
+  '1785064808',
 ] as const;
 
 const PULKIT_DEMO_TRYON_URLS: Record<string, string> = Object.fromEntries(
   PULKIT_DEMO_PRODUCT_SLUGS.map((slug, index) => [
     slug,
-    `https://res.cloudinary.com/dxfxicebq/image/upload/f_auto,q_auto:best,w_848,e_sharpen:70/v${PULKIT_DEMO_TRYON_VERSIONS[index]}/aivestire/demo/pulkit/tryon-${index + 1}-${slug}`,
+    `https://res.cloudinary.com/dxfxicebq/image/upload/f_auto,q_100,w_1024,e_sharpen:100/v${PULKIT_DEMO_TRYON_VERSIONS[index]}/aivestire/demo/pulkit/tryon-${index + 1}-${slug}`,
+  ]),
+);
+
+const PULKIT_DEMO_ANGLE_VERSIONS = [
+  '1785064777',
+  '1785064782',
+  '1785064789',
+  '1785064801',
+  '1785064818',
+] as const;
+
+const PULKIT_DEMO_ANGLE_URLS: Record<string, string> = Object.fromEntries(
+  PULKIT_DEMO_PRODUCT_SLUGS.map((slug, index) => [
+    slug,
+    `https://res.cloudinary.com/dxfxicebq/image/upload/f_auto,q_100,w_1024,e_sharpen:100/v${PULKIT_DEMO_ANGLE_VERSIONS[index]}/aivestire/demo/pulkit/tryon-${index + 1}-angle-${slug}`,
   ]),
 );
 
@@ -60,3 +75,7 @@ export const getPulkitStaticTryOnUrl = (metadata: unknown): string | null => {
 export const getPulkitStaticTryOnUrlForSlug = (
   slug?: string | null,
 ): string | null => (slug ? PULKIT_DEMO_TRYON_URLS[slug] || null : null);
+
+export const getPulkitStaticAngleUrlForSlug = (
+  slug?: string | null,
+): string | null => (slug ? PULKIT_DEMO_ANGLE_URLS[slug] || null : null);
