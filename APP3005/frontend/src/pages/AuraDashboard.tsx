@@ -111,6 +111,21 @@ const AuraDashboard = () => {
         label: "Avatar Creation",
       });
 
+      if (data.static_demo && data.model_url) {
+        setAvatarUrl(data.model_url);
+        window.setTimeout(() => {
+          setIsProcessing(false);
+          window.dispatchEvent(new Event('aura-updated'));
+          navigate("/aura-profile", {
+            state: {
+              hideAuraLibrary: true,
+              staticDemoReplay: true,
+            },
+          });
+        }, 1800);
+        return;
+      }
+
       // Start polling with the job_id from response
       if (data.job_id) {
         console.log('✅ Aura creation started, job_id:', data.job_id);

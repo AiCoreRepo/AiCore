@@ -18,6 +18,10 @@ import {
   getAuraAttributeSnapshotFromRecord,
   normalizeAuraAvatarHistory,
 } from '../utils/aura-avatar-history.util';
+import {
+  isPulkitDemoEmail,
+  PULKIT_DEMO_AVATAR_URL,
+} from '../../demo/pulkit-demo.constants';
 
 @Injectable()
 export class AuraService {
@@ -103,6 +107,59 @@ export class AuraService {
     const existingAura = await this.prisma.aura.findUnique({
       where: { user_id: userId },
     });
+    const user = await this.prisma.user.findUnique({
+      where: { user_id: userId },
+      select: {
+        email: true,
+        max_avatar_regenerations: true,
+      },
+    });
+
+    if (
+      existingAura &&
+      isPulkitDemoEmail(user?.email) &&
+      user?.max_avatar_regenerations === -1
+    ) {
+      const avatarGender = attributes.gender === 'male' ? 'male' : 'female';
+      const restoredAura = await this.prisma.$transaction(async (tx) => {
+        const aura = await tx.aura.update({
+          where: { aura_id: existingAura.aura_id },
+          data: {
+            height_cm: attributes.height,
+            weight_kg: attributes.weight,
+            skin_tone: attributes.skinTone,
+            gender: avatarGender,
+            body_shape: attributes.bodyShape,
+            body_type: attributes.bodyType,
+            body_size: attributes.bodySize,
+            age_range: attributes.ageRange,
+            hair_style: attributes.hairStyle,
+            image_url: PULKIT_DEMO_AVATAR_URL,
+            model_url: PULKIT_DEMO_AVATAR_URL,
+            tryon_model_url: PULKIT_DEMO_AVATAR_URL,
+            status: AuraStatus.READY,
+          },
+        });
+        await tx.user.update({
+          where: { user_id: userId },
+          data: {
+            has_created_aura: true,
+            max_avatar_regenerations: 2,
+          },
+        });
+        return aura;
+      });
+
+      return {
+        aura_id: restoredAura.aura_id,
+        user_id: restoredAura.user_id,
+        image_url: PULKIT_DEMO_AVATAR_URL,
+        model_url: PULKIT_DEMO_AVATAR_URL,
+        status: restoredAura.status,
+        static_demo: true,
+        created_at: restoredAura.created_at,
+      };
+    }
 
     if (existingAura) {
       throw new ConflictException(
@@ -393,24 +450,33 @@ export class AuraService {
   }
 
   async hasAura(userId: string) {
-    const aura = await this.prisma.aura.findUnique({
-      where: { user_id: userId },
-      select: {
-        aura_id: true,
-        status: true,
-        image_url: true,
-        model_url: true,
-        tryon_model_url: true,
-        attributes: true,
-        generated_avatar_urls: true,
-        created_at: true,
-        updated_at: true,
-      },
-    });
+    const [aura, user] = await Promise.all([
+      this.prisma.aura.findUnique({
+        where: { user_id: userId },
+        select: {
+          aura_id: true,
+          status: true,
+          image_url: true,
+          model_url: true,
+          tryon_model_url: true,
+          attributes: true,
+          generated_avatar_urls: true,
+          created_at: true,
+          updated_at: true,
+        },
+      }),
+      this.prisma.user.findUnique({
+        where: { user_id: userId },
+        select: { email: true, max_avatar_regenerations: true },
+      }),
+    ]);
+    const shouldReplayPulkitCreation =
+      isPulkitDemoEmail(user?.email) &&
+      user?.max_avatar_regenerations === -1;
 
     return {
-      hasAura: !!aura,
-      aura: this.formatAuraResponse(aura),
+      hasAura: Boolean(aura) && !shouldReplayPulkitCreation,
+      aura: shouldReplayPulkitCreation ? null : this.formatAuraResponse(aura),
     };
   }
 

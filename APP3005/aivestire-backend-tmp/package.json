@@ -37,6 +37,8 @@
     "script:seed-home-tryon-demo": "node scripts/seed-home-tryon-demo.js",
     "script:generate-guest-tryon-demo": "ts-node -r tsconfig-paths/register scripts/generate-guest-tryon-demo.ts",
     "script:generate-male-guest-tryon-demo": "ts-node -r tsconfig-paths/register scripts/generate-male-guest-tryon-demo.ts",
+    "script:generate-pulkit-static-demo": "ts-node -r tsconfig-paths/register scripts/generate-pulkit-static-demo.ts",
+    "script:reset-pulkit-demo-avatar": "node scripts/reset-pulkit-demo-avatar.js",
     "script:migrate-draft": "ts-node scripts/migrate-products-to-draft.ts",
     "script:cleanup-users": "ts-node scripts/cleanup-users.ts",
     "script:delete-auras": "ts-node scripts/delete-auras.ts",

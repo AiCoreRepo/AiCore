@@ -15,7 +15,7 @@ import {
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { PrismaService } from '../prisma/prisma.service';
-import { UserRole, TryOnPermissionStatus } from '@prisma/client';
+import { AuraStatus, UserRole, TryOnPermissionStatus } from '@prisma/client';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { GoogleAuthDto } from './dto/google-auth.dto';
@@ -30,6 +30,14 @@ import {
   getEffectiveTryOnLimit,
 } from './utils/try-on-limit.util';
 import { normalizeAuraAvatarHistory } from '../aura/utils/aura-avatar-history.util';
+import {
+  getPulkitStaticTryOnUrl,
+  getPulkitStaticTryOnUrlForSlug,
+  isPulkitDemoEmail,
+  PULKIT_DEMO_AVATAR_ATTRIBUTES,
+  PULKIT_DEMO_AVATAR_URL,
+  PULKIT_DEMO_PRODUCT_SLUGS,
+} from '../demo/pulkit-demo.constants';
 
 // Dynamic import for bcrypt to avoid require and type issues
 let bcryptPromise: Promise<typeof import('bcrypt')> | null = null;
@@ -47,6 +55,123 @@ export class AuthService {
     private jwtService: JwtService,
     private otpService: OtpService,
   ) {}
+
+  private async provisionPulkitDemoProfile(user: {
+    user_id: string;
+    email: string;
+  }): Promise<void> {
+    if (!isPulkitDemoEmail(user.email)) {
+      return;
+    }
+
+    const demoState = await this.prisma.user.findUnique({
+      where: { user_id: user.user_id },
+      select: { max_avatar_regenerations: true },
+    });
+    if (demoState?.max_avatar_regenerations === -1) {
+      return;
+    }
+
+    const now = new Date();
+    const avatar = {
+      avatar_id: 'pulkit-static-avatar-v1',
+      model_url: PULKIT_DEMO_AVATAR_URL,
+      tryon_model_url: PULKIT_DEMO_AVATAR_URL,
+      source: 'creation',
+      generation_type: 'original',
+      created_at: now.toISOString(),
+      attributes: PULKIT_DEMO_AVATAR_ATTRIBUTES,
+    };
+    const auraData = {
+      image_url: PULKIT_DEMO_AVATAR_URL,
+      model_url: PULKIT_DEMO_AVATAR_URL,
+      tryon_model_url: PULKIT_DEMO_AVATAR_URL,
+      generated_avatar_urls: [PULKIT_DEMO_AVATAR_URL],
+      ...PULKIT_DEMO_AVATAR_ATTRIBUTES,
+      status: AuraStatus.READY,
+      extra_attributes: {
+        static_demo: true,
+        demo_email: user.email.toLowerCase(),
+      },
+      attributes: {
+        type: 'original',
+        processedAt: now.toISOString(),
+        selected_avatar_id: avatar.avatar_id,
+        avatar_history: [avatar],
+        attributes: PULKIT_DEMO_AVATAR_ATTRIBUTES,
+      },
+    };
+
+    const [, aura] = await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { user_id: user.user_id },
+        data: {
+          try_on_permission: TryOnPermissionStatus.APPROVED,
+          max_try_ons: 10,
+        },
+      }),
+      this.prisma.aura.upsert({
+        where: { user_id: user.user_id },
+        update: auraData,
+        create: { user_id: user.user_id, ...auraData },
+      }),
+    ]);
+
+    const products = await this.prisma.product.findMany({
+      where: {
+        slug: { in: [...PULKIT_DEMO_PRODUCT_SLUGS] },
+        is_deleted: false,
+      },
+      select: { product_id: true, slug: true, metadata: true },
+    });
+
+    for (const product of products) {
+      const resultImageUrl =
+        getPulkitStaticTryOnUrlForSlug(product.slug) ||
+        getPulkitStaticTryOnUrl(product.metadata);
+      if (!resultImageUrl) {
+        continue;
+      }
+
+      const existing = await this.prisma.tryOn.findFirst({
+        where: {
+          user_id: user.user_id,
+          aura_id: aura.aura_id,
+          product_id: product.product_id,
+          angle: null,
+          base_tryon_id: null,
+        },
+        select: { try_on_id: true },
+      });
+      const tryOnData = {
+        result_image_url: resultImageUrl,
+        provider: 'static-demo',
+        processing_metrics: {
+          staticDemo: true,
+          selectedAvatarId: avatar.avatar_id,
+          selectedAvatarModelUrl: PULKIT_DEMO_AVATAR_URL,
+          selectedAvatarTryOnModelUrl: PULKIT_DEMO_AVATAR_URL,
+          processingTimeMs: 0,
+        },
+      };
+
+      if (existing) {
+        await this.prisma.tryOn.update({
+          where: { try_on_id: existing.try_on_id },
+          data: tryOnData,
+        });
+      } else {
+        await this.prisma.tryOn.create({
+          data: {
+            user_id: user.user_id,
+            aura_id: aura.aura_id,
+            product_id: product.product_id,
+            ...tryOnData,
+          },
+        });
+      }
+    }
+  }
 
   private isAtLeastAge(dateOfBirth: Date, minimumAge: number): boolean {
     const today = new Date();
@@ -587,6 +712,8 @@ export class AuthService {
         });
       }
     }
+
+    await this.provisionPulkitDemoProfile(user);
 
     // Issue tokens
     const tokens = await this.issueTokens(user.user_id, user.role);

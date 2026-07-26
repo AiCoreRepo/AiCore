@@ -3,16 +3,12 @@ import { Process, Processor } from '@nestjs/bull';
 import type bull from 'bull';
 import { AIProvider } from '../ai-tryon/enums/ai-provider.enum';
 import { DirectGeminiTryOnService } from '../ai-tryon/services/providers/direct-gemini-tryon.service';
-import { DirectVertexTryOnService } from '../ai-tryon/services/providers/direct-vertex-tryon.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CloudinaryService } from '../common/cloudinary.service';
 import { TryOnJobData } from '../queues/tryon-queue.service';
 import { JOB_NAMES, QUEUE_NAMES } from '../common/constants/queue.constants';
 import type { TryOnResponseDto } from '../ai-tryon/dto/tryon-response.dto';
 import { TRYON_WORKER_CONCURRENCY } from '../ai-tryon/constants/tryon.constants';
-import { TryOnErrorCode } from '../ai-tryon/enums/ai-provider.enum';
-import { TryOnException } from '../ai-tryon/exceptions/tryon.exceptions';
-import { GeminiAIService } from '../common/gemini-ai.service';
 import {
   getAuraAttributeSnapshotFromRecord,
   normalizeAuraAvatarHistory,
@@ -25,7 +21,7 @@ import {
  * The API process adds jobs; this worker process picks them up via Redis.
  *
  * Handles one job type:
- *  - PROCESS_DIRECT_TRY_ON  → calls Gemini or Vertex AI directly
+ *  - PROCESS_DIRECT_TRY_ON  → calls Gemini 3.1 Image directly
  */
 @Injectable()
 @Processor(QUEUE_NAMES.TRY_ON_PROCESSING)
@@ -36,10 +32,8 @@ export class TryOnProcessor {
 
   constructor(
     private readonly directGeminiService: DirectGeminiTryOnService,
-    private readonly directVertexService: DirectVertexTryOnService,
     private readonly prisma: PrismaService,
     private readonly cloudinary: CloudinaryService,
-    private readonly geminiAI: GeminiAIService,
   ) {
     this.logger.log(
       `✅ [TryOnProcessor] Try-on concurrency configured: ${TRYON_WORKER_CONCURRENCY}`,
@@ -65,7 +59,7 @@ export class TryOnProcessor {
     );
 
     try {
-      const result = await this.processTryOnWithFallback(data);
+      const result = await this.processTryOnWithGemini(data);
 
       // Persist for gallery/history (best-effort). We keep returning the original
       // base64/data-uri resultImage so the UI can render immediately.
@@ -97,7 +91,7 @@ export class TryOnProcessor {
     }
   }
 
-  private async processTryOnWithFallback(
+  private async processTryOnWithGemini(
     data: TryOnJobData,
   ): Promise<TryOnResponseDto> {
     let avatarImage = data.avatarImage;
@@ -107,126 +101,39 @@ export class TryOnProcessor {
       const guestGender =
         data.additionalParams?.garmentGender === 'male' ? 'male' : 'female';
       this.logger.log(
-        `Creating ${guestGender} guest Aura avatar before virtual try-on`,
+        `Uploading the original ${guestGender} guest photo as the try-on wearer`,
       );
-      const generatedAvatar = await this.geminiAI.generateAvatarImage({
-        imageUrl: '',
-        sourceImageData: data.avatarImage,
-        attributes: {
-          height: 0,
-          weight: 0,
-          skinTone: '',
-          gender: guestGender,
-          bodyShape: '',
-          bodySize: '',
-          ageRange: '',
-          hairStyle: '',
-        },
-      });
-      if (!generatedAvatar.success || !generatedAvatar.imageBase64) {
-        throw new Error(
-          generatedAvatar.error ||
-            'Guest avatar creation did not return an image',
-        );
-      }
-
-      const generatedAvatarDataUri =
-        `data:image/png;base64,${generatedAvatar.imageBase64}`;
       const avatarUpload = await this.cloudinary.uploadWithMetadata(
-        generatedAvatarDataUri,
+        data.avatarImage,
         {
           imageType: 'avatar',
-          avatarVariant: 'guest-generated',
+          avatarVariant: 'guest-original',
           guestSession: data.requestUserId,
           gender: guestGender,
           identitySource: 'uploaded-image',
-          generationSource: 'gemini-aura',
+          generationSource: 'original-upload',
         },
         'avatars/guest',
       );
       guestAvatarUrl = avatarUpload.secureUrl;
       avatarImage = guestAvatarUrl;
       this.logger.log(
-        'Guest Aura avatar created and selected as the try-on wearer',
+        'Original guest photo uploaded and selected as the try-on wearer',
       );
     }
 
-    const primaryService =
-      data.provider === AIProvider.GEMINI_AI
-        ? this.directGeminiService
-        : this.directVertexService;
-
-    try {
-      const result = (await primaryService.processTryOn(
-        avatarImage,
-        data.clothingImage,
-        data.additionalParams,
-      )) as TryOnResponseDto;
-      result.metadata = {
-        ...(result.metadata || {}),
-        ...(guestAvatarUrl ? { guestAvatarUrl } : {}),
-      };
-      return result;
-    } catch (error) {
-      if (!(await this.shouldFallbackToVertex(data.provider, error))) {
-        throw error;
-      }
-
-      const reason =
-        error instanceof Error ? error.message : 'Unknown Gemini provider error';
-      this.logger.warn(
-        `Gemini try-on failed (${reason}). Falling back to Vertex AI for user ${data.requestUserId}.`,
-      );
-
-      const fallbackResult = (await this.directVertexService.processTryOn(
-        avatarImage,
-        data.clothingImage,
-        data.additionalParams,
-      )) as TryOnResponseDto;
-
-      fallbackResult.metadata = {
-        ...(fallbackResult.metadata || {}),
-        requestedProvider: data.provider,
-        fallbackFrom: AIProvider.GEMINI_AI,
-        fallbackReason: reason,
-      };
-
-      return fallbackResult;
-    }
-  }
-
-  private async shouldFallbackToVertex(
-    provider: AIProvider,
-    error: unknown,
-  ): Promise<boolean> {
-    if (provider !== AIProvider.GEMINI_AI) {
-      return false;
-    }
-
-    if (!(error instanceof TryOnException)) {
-      return false;
-    }
-
-    const fallbackEligibleErrors = new Set<TryOnErrorCode>([
-      TryOnErrorCode.TIMEOUT_ERROR,
-      TryOnErrorCode.AI_SERVICE_ERROR,
-      TryOnErrorCode.SERVICE_UNAVAILABLE,
-      TryOnErrorCode.PROCESSING_FAILED,
-    ]);
-
-    if (!fallbackEligibleErrors.has(error.errorCode)) {
-      return false;
-    }
-
-    const vertexAvailable = await this.directVertexService.isAvailable();
-    if (!vertexAvailable) {
-      this.logger.warn(
-        `Gemini try-on failed with ${error.errorCode}, but Vertex fallback is unavailable.`,
-      );
-      return false;
-    }
-
-    return true;
+    const result = (await this.directGeminiService.processTryOn(
+      avatarImage,
+      data.clothingImage,
+      data.additionalParams,
+    )) as TryOnResponseDto;
+    result.metadata = {
+      ...(result.metadata || {}),
+      requestedProvider: data.provider,
+      modelPolicy: 'gemini-3.1-only',
+      ...(guestAvatarUrl ? { guestAvatarUrl } : {}),
+    };
+    return result;
   }
 
   private async persistTryOnResult(input: {

@@ -106,6 +106,16 @@ export const Navbar = () => {
     const isActive = (href: string) =>
         href === "/" ? location.pathname === "/" : location.pathname === href;
 
+    const openGuestTryOn = () => {
+        setIsMobileMenuOpen(false);
+        navigate("/", {
+            state: {
+                openHomeVirtualTryOn: true,
+                guestTryOnTrigger: Date.now(),
+            },
+        });
+    };
+
     return (
         <>
             {/* ── NAVBAR ── */}
@@ -210,22 +220,39 @@ export const Navbar = () => {
 
                         {/* ── RIGHT ICONS ── */}
                         <div data-gsap="nav-actions" className="flex items-center gap-2.5 sm:gap-3 md:gap-4">
+                            {!isLoggedIn && (
+                                <button
+                                    type="button"
+                                    onClick={openGuestTryOn}
+                                    data-gsap-hover="magnetic-soft"
+                                    className="hidden md:inline-flex items-center gap-2 rounded-full bg-[#D4AF37] px-6 py-2.5 transition-all duration-300 hover:bg-[#E2C45E] hover:shadow-[0_0_24px_rgba(212,175,55,0.25)]"
+                                    style={{
+                                        fontSize: "10px",
+                                        textTransform: "uppercase",
+                                        letterSpacing: "0.22em",
+                                        color: "hsl(30 14% 10%)",
+                                    }}
+                                >
+                                    <Sparkles className="h-3.5 w-3.5" />
+                                    Guest Try-On
+                                </button>
+                            )}
+
                             {/* Join as Creator */}
                             {!isLoggedIn && (
                                 <Link
                                     to="/login"
                                     data-gsap-hover="magnetic-soft"
-                                    className="hidden md:inline-flex items-center gap-2 px-6 py-2.5 rounded-full transition-all duration-300 hover:bg-[#D4AF37]/10"
+                                    className="creator-shine-button hidden md:inline-flex items-center gap-2 px-6 py-2.5 rounded-full transition-all duration-300"
                                     style={{
                                         fontSize: "10px",
                                         textTransform: "uppercase",
                                         letterSpacing: "0.22em",
-                                        border: "1px solid rgba(212,175,55,0.4)",
                                         color: "hsl(44 78% 68%)",
                                     }}
                                 >
                                     <Sparkles className="w-3.5 h-3.5" />
-                                    Join as Creator
+                                    <span>Join as Creator</span>
                                 </Link>
                             )}
 
@@ -414,13 +441,24 @@ export const Navbar = () => {
 
                             {!isLoggedIn && (
                                 <div className="mt-2 flex flex-col gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={openGuestTryOn}
+                                        className="rounded-xl px-4 py-3 text-center text-sm font-semibold transition-all"
+                                        style={{
+                                            background: "linear-gradient(135deg, hsl(44 78% 56%), hsl(40 62% 44%))",
+                                            color: "hsl(30 14% 10%)",
+                                        }}
+                                    >
+                                        Guest Try-On
+                                    </button>
                                     <Link
                                         to="/user-login"
                                         onClick={() => setIsMobileMenuOpen(false)}
                                         className="rounded-xl px-4 py-3 text-center text-sm font-semibold transition-all"
                                         style={{
-                                            background: "linear-gradient(135deg, hsl(44 78% 56%), hsl(40 62% 44%))",
-                                            color: "hsl(30 14% 10%)",
+                                            border: "1px solid rgba(255,255,255,0.2)",
+                                            color: "rgba(255,255,255,0.9)",
                                         }}
                                     >
                                         Login / Sign Up
@@ -428,13 +466,12 @@ export const Navbar = () => {
                                     <Link
                                         to="/login"
                                         onClick={() => setIsMobileMenuOpen(false)}
-                                        className="rounded-xl px-4 py-3 text-center text-sm font-medium transition-all"
+                                        className="creator-shine-button rounded-xl px-4 py-3 text-center text-sm font-medium transition-all"
                                         style={{
-                                            border: "1px solid rgba(212,175,55,0.3)",
                                             color: "hsl(44 78% 62%)",
                                         }}
                                     >
-                                        Join as Creator
+                                        <span>Join as Creator</span>
                                     </Link>
                                 </div>
                             )}

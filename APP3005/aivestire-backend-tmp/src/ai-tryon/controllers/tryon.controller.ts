@@ -33,6 +33,12 @@ import {
 } from '../services/tryon-history.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { GuestTryOnClaimService } from '../services/guest-tryon-claim.service';
+import {
+  getPulkitStaticTryOnUrl,
+  getPulkitStaticTryOnUrlForSlug,
+  isPulkitDemoEmail,
+  PULKIT_DEMO_PRODUCT_SLUGS,
+} from '../../demo/pulkit-demo.constants';
 
 @ApiTags('AI Try-On')
 @Controller('v1/tryon')
@@ -175,6 +181,45 @@ export class TryOnController {
     );
   }
 
+  private async getPulkitDemoTryOn(
+    email: string | undefined,
+    request: TryOnRequestDto,
+    provider: AIProvider,
+  ): Promise<TryOnResponseDto | null> {
+    if (!isPulkitDemoEmail(email) || !request.productId) {
+      return null;
+    }
+
+    const product = await this.prisma.product.findFirst({
+      where: {
+        product_id: request.productId,
+        slug: { in: [...PULKIT_DEMO_PRODUCT_SLUGS] },
+        is_deleted: false,
+      },
+      select: { slug: true, metadata: true },
+    });
+    const resultImage =
+      getPulkitStaticTryOnUrlForSlug(product?.slug) ||
+      getPulkitStaticTryOnUrl(product?.metadata);
+    if (!resultImage) {
+      return null;
+    }
+
+    return {
+      success: true,
+      status: TryOnStatus.SUCCESS,
+      provider,
+      resultImage,
+      processingTimeMs: 0,
+      metadata: {
+        staticDemo: true,
+        runtimeAiCalled: false,
+        requestedProvider: provider,
+      },
+      timestamp: new Date().toISOString(),
+    };
+  }
+
   private getGuestUserId(guestSession?: string): string {
     const normalized = guestSession?.trim();
     if (!normalized || !/^[a-zA-Z0-9_-]{16,80}$/.test(normalized)) {
@@ -276,6 +321,15 @@ export class TryOnController {
     @Body() request: TryOnRequestDto,
     @Request() req,
   ): Promise<TryOnQueuedResponseDto | TryOnResponseDto> {
+    const staticDemo = await this.getPulkitDemoTryOn(
+      req.user.email,
+      request,
+      AIProvider.VERTEX_AI,
+    );
+    if (staticDemo) {
+      return staticDemo;
+    }
+
     const reusableTryOn = await this.getReusableTryOn(
       req.user.user_id,
       request,
@@ -330,6 +384,15 @@ export class TryOnController {
     @Body() request: TryOnRequestDto,
     @Request() req,
   ): Promise<TryOnQueuedResponseDto | TryOnResponseDto> {
+    const staticDemo = await this.getPulkitDemoTryOn(
+      req.user.email,
+      request,
+      AIProvider.GEMINI_AI,
+    );
+    if (staticDemo) {
+      return staticDemo;
+    }
+
     const reusableTryOn = await this.getReusableTryOn(
       req.user.user_id,
       request,

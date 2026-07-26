@@ -413,15 +413,44 @@ export class DirectGeminiTryOnService {
     return GEMINI_TRYON_CONFIG.DEFAULT_MIME_TYPE;
   }
 
-  private buildRetryPrompt(prompt: string, attempt: number): string {
+  private buildRetryPrompt(
+    prompt: string,
+    attempt: number,
+    lastMatchedInput: 'avatar' | 'clothing' | null,
+    includeDuplicateAvatar: boolean,
+  ): string {
     if (attempt <= 1) {
       return prompt;
     }
 
+    const retryReason =
+      lastMatchedInput === 'avatar'
+        ? [
+            '- The previous result incorrectly copied the wearer image without changing the clothes.',
+            '- Make a large, unmistakable clothing change: fully remove the wearer’s original outfit and replace it with the complete garment reference.',
+            '- The face and body identity stay the same, but the clothing must visibly and substantially change.',
+          ]
+        : lastMatchedInput === 'clothing'
+          ? [
+              '- The previous result incorrectly copied the clothing catalog image.',
+              '- Use only the wearer’s face and body identity; transfer the garment without copying the catalog model.',
+            ]
+          : [];
+    const normalizedPrompt = includeDuplicateAvatar
+      ? prompt
+      : prompt
+          .replace(
+            'The third image is an identical duplicate of the real person/avatar, supplied only as a strong identity anchor.\n',
+            '',
+          )
+          .replaceAll('second and third images', 'second image')
+          .replaceAll('second and third image', 'second image');
+
     return [
-      prompt,
+      normalizedPrompt,
       '',
       `RETRY ${attempt} INSTRUCTION:`,
+      ...retryReason,
       '- Create a fresh fashion preview using the same outfit and wearer references.',
       '- Replace the original outfit on the person in image 2 with the garment from image 1.',
       '- Keep the wearer recognizable and show the complete person from head to toe.',
@@ -570,7 +599,14 @@ export class DirectGeminiTryOnService {
         );
       }
 
-      const attemptPrompt = this.buildRetryPrompt(prompt, attempt);
+      const useDuplicateAvatar =
+        includeDuplicateAvatar && lastMatchedInput !== 'avatar';
+      const attemptPrompt = this.buildRetryPrompt(
+        prompt,
+        attempt,
+        lastMatchedInput,
+        useDuplicateAvatar,
+      );
       const attemptTimeoutMs = Math.min(this.geminiTimeoutMs, remainingBudgetMs);
       let outputBase64: string;
       try {
@@ -580,7 +616,8 @@ export class DirectGeminiTryOnService {
           avatarData,
           clothingData,
           attemptTimeoutMs,
-          includeDuplicateAvatar,
+          useDuplicateAvatar,
+          attempt,
         );
       } catch (error) {
         const isRetryableEmptyResponse =
@@ -663,6 +700,7 @@ export class DirectGeminiTryOnService {
     clothingData: GeminiInlineData,
     timeoutMs: number,
     includeDuplicateAvatar: boolean,
+    attempt: number,
   ): Promise<string> {
     if (!this.genAI) {
       throw new AIServiceException(
@@ -675,7 +713,7 @@ export class DirectGeminiTryOnService {
     const model = this.genAI.getGenerativeModel({
       model: modelId,
       generationConfig: {
-        temperature: 0.2,
+        temperature: Math.min(0.45, 0.2 + (attempt - 1) * 0.12),
         responseModalities: ['IMAGE'],
       } as any,
     });

@@ -10,15 +10,22 @@ import { SKIN_TONE_OPTIONS, BODY_SHAPE_OPTIONS } from "@/constants/aura.constant
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import {
+    isPulkitDemoUser,
+    PULKIT_DEMO_AVATAR_URL,
+    PULKIT_DEMO_FORM_DEFAULTS,
+} from "@/constants/pulkitDemo";
 import "./aura-styles.css";
 
 interface BodyAttributes {
     height?: number;
+    weight?: number;
     skinTone?: string;
     gender?: string;
     bodyShape?: string;
     bodySize?: string;
     ageRange?: string;
+    hairStyle?: string;
 }
 
 type RequiredBodyAttribute = "bodyShape" | "bodySize" | "skinTone";
@@ -218,6 +225,36 @@ export const AuraFormCard = ({ onCreateAura, isProcessing, prefilledDob }: AuraF
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [analysisResult, setAnalysisResult] = useState<BodyAnalysisResult | null>(null);
     const [analysisError, setAnalysisError] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (!isPulkitDemoUser(user?.email) || photoFile) return;
+
+        let cancelled = false;
+        setAttributes({ ...PULKIT_DEMO_FORM_DEFAULTS });
+        setPhotoPreview(PULKIT_DEMO_AVATAR_URL);
+
+        void fetch(PULKIT_DEMO_AVATAR_URL)
+            .then((response) => {
+                if (!response.ok) throw new Error("Demo avatar could not be loaded");
+                return response.blob();
+            })
+            .then((blob) => {
+                if (!cancelled) {
+                    setPhotoFile(
+                        new File([blob], "pulkit001.jpeg", {
+                            type: blob.type || "image/jpeg",
+                        }),
+                    );
+                }
+            })
+            .catch((error) => {
+                console.warn("Could not prefill the demo avatar upload:", error);
+            });
+
+        return () => {
+            cancelled = true;
+        };
+    }, [photoFile, user?.email]);
 
     const getBaseAttributes = (dobValue = dob): BodyAttributes => {
         const calculatedRange = calculateAgeRangeFromDob(dobValue);

@@ -39,7 +39,6 @@ const FALLBACK_MODEL_IMAGE = "/guesttryon/model.png";
 type TryOnMode = "demo" | "upload";
 type TryOnPhase = "ready" | "loading" | "result";
 type GuestCollectionGender = "female" | "male";
-type MobileResultView = "before" | "after";
 
 interface HomeTryOnLook {
   id: string;
@@ -182,9 +181,6 @@ export function HomeVirtualTryOnPopup() {
   const [selectedLookId, setSelectedLookId] = useState(FALLBACK_HOME_TRY_ON_LOOKS[0].id);
   const [uploadedAvatar, setUploadedAvatar] = useState("");
   const [resultImage, setResultImage] = useState("");
-  const [tryOnSourceImage, setTryOnSourceImage] = useState("");
-  const [mobileResultView, setMobileResultView] =
-    useState<MobileResultView>("after");
   const [message, setMessage] = useState("");
   const [expandedImage, setExpandedImage] = useState<{ src: string; alt: string } | null>(null);
   const [guestTryOnUsed, setGuestTryOnUsed] = useState(
@@ -337,8 +333,6 @@ export function HomeVirtualTryOnPopup() {
     }
     setPhase("ready");
     setResultImage("");
-    setTryOnSourceImage("");
-    setMobileResultView("after");
     setMessage("");
     setExpandedImage(null);
   };
@@ -421,11 +415,9 @@ export function HomeVirtualTryOnPopup() {
     const originalInputImage =
       mode === "demo" ? staticModelImage : uploadedAvatar;
     if (mode === "demo") {
-      setTryOnSourceImage(originalInputImage);
       setPhase("loading");
       staticTimerRef.current = window.setTimeout(() => {
         setResultImage(selectedLook.staticResultImage);
-        setMobileResultView("after");
         setPhase("result");
         staticTimerRef.current = null;
       }, 1400);
@@ -440,7 +432,6 @@ export function HomeVirtualTryOnPopup() {
       return;
     }
     try {
-      setTryOnSourceImage(originalInputImage);
       setPhase("loading");
       const guestSession = getGuestSession();
       const [avatarImage, clothingImage] = await Promise.all([
@@ -508,7 +499,6 @@ export function HomeVirtualTryOnPopup() {
         }
       }
       setResultImage(normalized);
-      setMobileResultView("after");
       setPhase("result");
     } catch (error) {
       setPhase("ready");
@@ -521,7 +511,6 @@ export function HomeVirtualTryOnPopup() {
   };
 
   const sourceImage = mode === "demo" ? staticModelImage : uploadedAvatar;
-  const beforeImage = tryOnSourceImage || sourceImage;
   const isUploadMissing = mode === "upload" && !uploadedAvatar;
   const shouldLockLook = (lookId: string) =>
     mode === "upload" &&
@@ -697,96 +686,39 @@ export function HomeVirtualTryOnPopup() {
                         <p className="mt-2 text-xs leading-5 text-[#6B5D4F]">{mode === "demo" ? "Loading the prepared preview." : "Our AI is fitting the outfit to your photo. This can take up to a minute."}</p>
                       </div>
                     ) : phase === "result" && resultImage ? (
-                      <>
-                        <div className="relative h-full min-h-0 bg-[#EEE5D7] sm:hidden">
-                          <div className="absolute left-2 top-2 z-30 grid grid-cols-2 rounded-full bg-black/70 p-1 text-[10px] font-bold text-white backdrop-blur-sm">
-                            <button
-                              type="button"
-                              onClick={() => setMobileResultView("before")}
-                              className={`min-h-9 rounded-full px-3 ${
-                                mobileResultView === "before"
-                                  ? "bg-white text-[#2C2416]"
-                                  : "text-white/75"
-                              }`}
-                            >
-                              Before
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setMobileResultView("after")}
-                              className={`min-h-9 rounded-full px-3 ${
-                                mobileResultView === "after"
-                                  ? "bg-[#D4AF37] text-[#241D15]"
-                                  : "text-white/75"
-                              }`}
-                            >
-                              After
-                            </button>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setExpandedImage({
-                                src:
-                                  mobileResultView === "after"
-                                    ? resultImage
-                                    : beforeImage,
-                                alt:
-                                  mobileResultView === "after"
-                                    ? `${selectedLook.title} try on result`
-                                    : mode === "demo"
-                                      ? "Original model"
-                                      : "Your uploaded photo",
-                              })
-                            }
-                            className="absolute right-2 top-2 z-30 flex h-11 w-11 items-center justify-center rounded-full border border-white/50 bg-black/25 text-white shadow-md backdrop-blur-sm"
-                            aria-label={`View ${mobileResultView} image full screen`}
-                          >
-                            <Maximize2 className="h-4 w-4" />
+                      <div className="relative h-full min-h-[300px] bg-[#EEE5D7] sm:min-h-[420px]">
+                        <span className="absolute left-3 top-3 z-10 rounded-full bg-[#D4AF37] px-3 py-1.5 text-[9px] font-bold uppercase tracking-wider text-[#241D15]">
+                          Final virtual try on
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setExpandedImage({
+                              src: resultImage,
+                              alt: `${selectedLook.title} virtual try on result`,
+                            })
+                          }
+                          className="absolute right-3 top-3 z-20 flex h-10 w-10 items-center justify-center rounded-full border border-white/50 bg-black/25 text-white shadow-md backdrop-blur-sm transition hover:scale-105 hover:bg-black/45"
+                          aria-label="View virtual try on result full screen"
+                        >
+                          <Maximize2 className="h-4 w-4" />
+                        </button>
+                        <img
+                          src={resultImage}
+                          alt={`${selectedLook.title} virtual try on result`}
+                          className="h-full min-h-[300px] w-full object-contain object-center sm:min-h-[420px]"
+                        />
+                        <div className="absolute inset-x-3 bottom-3 flex items-center justify-between rounded-xl bg-black/70 px-3 py-2 text-xs text-white backdrop-blur-sm">
+                          <span className="flex items-center gap-2 font-semibold">
+                            <CheckCircle2 className="h-4 w-4 text-[#E4C45D]" />
+                            Your preview is ready
+                          </span>
+                          <button type="button" onClick={resetResult} className="flex min-h-9 items-center gap-1 text-white/75 hover:text-white">
+                            <RotateCcw className="h-3.5 w-3.5" />
+                            Change look
                           </button>
-                          <img
-                            src={
-                              mobileResultView === "after"
-                                ? resultImage
-                                : beforeImage
-                            }
-                            alt={
-                              mobileResultView === "after"
-                                ? `${selectedLook.title} try on result`
-                                : mode === "demo"
-                                  ? "Original model"
-                                  : "Your uploaded photo"
-                            }
-                            className="h-full w-full object-contain object-center"
-                          />
-                          <div className="absolute inset-x-2 bottom-2 flex items-center justify-between rounded-xl bg-black/70 px-3 py-2 text-[11px] backdrop-blur-sm">
-                            <span className="flex items-center gap-1.5 font-semibold">
-                              <CheckCircle2 className="h-4 w-4 text-[#E4C45D]" />
-                              Preview ready
-                            </span>
-                            <button type="button" onClick={resetResult} className="flex min-h-9 items-center gap-1 px-1 text-white/80">
-                              <RotateCcw className="h-3.5 w-3.5" />
-                              Change look
-                            </button>
-                          </div>
                         </div>
-                        <div className="relative hidden h-full min-h-[420px] grid-cols-2 gap-px bg-white/20 sm:grid">
-                        <figure className="relative min-w-0 bg-[#EEE5D7]">
-                          <span className="absolute left-2 top-2 z-10 rounded-full bg-black/75 px-2 py-1 text-[9px] font-bold uppercase tracking-wider text-white">{mode === "demo" ? "Original model" : "Your uploaded photo"}</span>
-                          <button type="button" onClick={() => setExpandedImage({ src: beforeImage, alt: mode === "demo" ? "Original model" : "Your uploaded photo" })} className="absolute right-2 top-2 z-20 flex h-8 w-8 items-center justify-center rounded-full border border-white/50 bg-black/25 text-white shadow-md backdrop-blur-sm transition hover:bg-black/45" aria-label="View original image full screen"><Maximize2 className="h-3.5 w-3.5" /></button>
-                          <img src={beforeImage} alt={mode === "demo" ? "Original model" : "Your uploaded photo"} className="h-full min-h-[420px] w-full object-contain object-center" />
-                        </figure>
-                        <figure className="relative min-w-0 bg-[#EEE5D7]">
-                          <span className="absolute left-2 top-2 z-10 rounded-full bg-[#D4AF37] px-2 py-1 text-[9px] font-bold uppercase tracking-wider text-[#241D15]">Final try on</span>
-                          <button type="button" onClick={() => setExpandedImage({ src: resultImage, alt: `${selectedLook.title} try on result` })} className="absolute right-2 top-2 z-20 flex h-8 w-8 items-center justify-center rounded-full border border-white/50 bg-black/25 text-white shadow-md backdrop-blur-sm transition hover:bg-black/45" aria-label="View try on result full screen"><Maximize2 className="h-3.5 w-3.5" /></button>
-                          <img src={resultImage} alt={`${selectedLook.title} try on result`} className="h-full min-h-[420px] w-full object-contain object-center" />
-                        </figure>
-                        <div className="absolute inset-x-3 bottom-3 flex items-center justify-between rounded-xl bg-black/70 px-3 py-2 text-xs backdrop-blur-sm">
-                          <span className="flex items-center gap-2 font-semibold"><CheckCircle2 className="h-4 w-4 text-[#E4C45D]" /> Your preview is ready</span>
-                          <button type="button" onClick={resetResult} className="flex items-center gap-1 text-white/75 hover:text-white"><RotateCcw className="h-3.5 w-3.5" /> Reset</button>
-                        </div>
-                        </div>
-                      </>
+                      </div>
                     ) : isUploadMissing ? (
                       <label className="flex h-[230px] min-h-[230px] cursor-pointer flex-col items-center justify-center px-8 text-center text-[#2C2416] transition hover:bg-white/30 sm:h-full sm:min-h-[360px]">
                         <span className="flex h-14 w-14 items-center justify-center rounded-full bg-white shadow-sm"><Upload className="h-6 w-6 text-[#A77B22]" /></span>
@@ -829,7 +761,7 @@ export function HomeVirtualTryOnPopup() {
                         {phase === "loading" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
                         {phase === "result" ? "Try Again" : "Try On"}
                       </button>
-                      <button type="button" onClick={handleSignup} className="flex h-12 w-full items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border border-[#D4AF37] bg-white/5 px-2 text-[10px] font-bold text-[#E4C45D] transition hover:bg-[#D4AF37] hover:text-[#241D15] min-[375px]:text-[11px] sm:gap-2 sm:px-3 sm:text-xs">
+                      <button type="button" onClick={handleSignup} className="creator-shine-button flex h-12 w-full items-center justify-center gap-1.5 whitespace-nowrap rounded-xl px-2 text-[10px] font-bold text-[#E4C45D] transition min-[375px]:text-[11px] sm:gap-2 sm:px-3 sm:text-xs">
                         <UserPlus className="h-4 w-4 shrink-0" /> Sign Up for More Fashion Trends
                       </button>
                     </div>

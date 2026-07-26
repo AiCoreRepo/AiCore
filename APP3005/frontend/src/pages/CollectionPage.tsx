@@ -60,6 +60,12 @@ import {
     loginOnboardingSlides,
     workflowDiscoveryGalleryImages,
 } from '@/constants/featureDiscovery';
+import {
+    getPulkitDemoProductPriority,
+    getPulkitDemoTryOnUrl,
+    isPulkitDemoUser,
+    PULKIT_DEMO_TRYON_URLS,
+} from '@/constants/pulkitDemo';
 
 const getAvatarImageUrl = (aura: any): string | null =>
     aura?.tryon_model_url || aura?.model_url || aura?.image_url || null;
@@ -397,6 +403,18 @@ const CollectionPage = () => {
     // This runs client-side on the fetched pages
     const rawProducts = data?.products ?? [];
     const filteredProducts = [...rawProducts].sort((a, b) => {
+        if (isMensSection && isPulkitDemoUser(user?.email)) {
+            const priorityA =
+                getPulkitDemoProductPriority(a.title) ||
+                Number(a.metadata?.pulkit_demo_priority || 0);
+            const priorityB =
+                getPulkitDemoProductPriority(b.title) ||
+                Number(b.metadata?.pulkit_demo_priority || 0);
+            if (priorityA && priorityB) return priorityA - priorityB;
+            if (priorityA) return -1;
+            if (priorityB) return 1;
+        }
+
         const ageA = a.metadata?.model_age ? parseInt(a.metadata.model_age) : 0;
         const ageB = b.metadata?.model_age ? parseInt(b.metadata.model_age) : 0;
 
@@ -408,6 +426,23 @@ const CollectionPage = () => {
         if (!isOldA && isOldB) return -1; // B is old, put it after A
         return 0; // Both same category, keep original sort order (from backend)
     });
+
+    useEffect(() => {
+        if (!isPulkitDemoUser(user?.email) || !isMensSection) return;
+
+        const urls = [
+            getAvatarImageUrl(aura),
+            ...PULKIT_DEMO_TRYON_URLS,
+            ...rawProducts.map((product) => product.metadata?.pulkit_demo_tryon_url),
+        ].filter((url): url is string => typeof url === 'string' && Boolean(url));
+
+        urls.forEach((url) => {
+            const image = new Image();
+            image.decoding = 'async';
+            image.fetchPriority = 'high';
+            image.src = url;
+        });
+    }, [aura, data?.products, isMensSection, user?.email]);
 
     // Count active filters for badge
     const activeFilterCount =
@@ -436,7 +471,11 @@ const CollectionPage = () => {
             return;
         }
 
-        if (!hasFreeTryOnsRemaining) {
+        const isPulkitStaticDemo =
+            isPulkitDemoUser(user?.email) &&
+            Boolean(getPulkitDemoTryOnUrl(product.title));
+
+        if (!isPulkitStaticDemo && !hasFreeTryOnsRemaining) {
             openUpgradePopup();
             return;
         }
@@ -521,8 +560,21 @@ const CollectionPage = () => {
             let result: TryOnResult;
             let resolvedProductLabel =
                 selectedTryOnLabel || resolveProductLabel(product.product_id);
+            const pulkitStaticResult =
+                isPulkitDemoUser(user.email)
+                    ? getPulkitDemoTryOnUrl(product.title)
+                    : null;
 
-            if (provider === TRYON_PROVIDER.GEMINI) {
+            if (pulkitStaticResult) {
+                const clothingImage = getProductImageUrl(product, {
+                    requireRemote: true,
+                });
+                setCurrentGarmentImage(clothingImage);
+                result = {
+                    success: true,
+                    resultImage: pulkitStaticResult,
+                };
+            } else if (provider === TRYON_PROVIDER.GEMINI) {
                 let refreshedProduct = product;
 
                 try {
