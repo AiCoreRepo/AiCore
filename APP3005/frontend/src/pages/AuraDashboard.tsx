@@ -117,12 +117,6 @@ const AuraDashboard = () => {
           setIsProcessing(false);
           setIsSuccess(true);
           window.dispatchEvent(new Event('aura-updated'));
-          window.setTimeout(() => {
-            navigate("/collection?section=mens", {
-              replace: true,
-              state: { scrollToProducts: true },
-            });
-          }, 1000);
         }, 1000);
         return;
       }
@@ -206,7 +200,16 @@ const AuraDashboard = () => {
       ) : (
         <div className="w-full lg:w-1/2 flex items-center justify-center bg-ivory px-4 py-12">
           <div className="w-full max-w-xl">
-            <AuraSuccessState avatarUrl={avatarUrl} />
+            <AuraSuccessState
+              avatarUrl={avatarUrl}
+              actionLabel="Next: View Men's Collection"
+              onContinue={() =>
+                navigate("/collection?section=mens", {
+                  replace: true,
+                  state: { scrollToProducts: true },
+                })
+              }
+            />
           </div>
         </div>
       )}

@@ -6,12 +6,23 @@ import { AuraFramedImage } from "./AuraFramedImage";
 interface AuraSuccessStateProps {
     avatarUrl?: string;
     onViewDetails?: () => void;
+    onContinue?: () => void;
+    actionLabel?: string;
 }
 
-export const AuraSuccessState = ({ avatarUrl, onViewDetails }: AuraSuccessStateProps) => {
+export const AuraSuccessState = ({
+    avatarUrl,
+    onViewDetails,
+    onContinue,
+    actionLabel = "Start Shopping",
+}: AuraSuccessStateProps) => {
     const navigate = useNavigate();
 
     const handleStartShopping = () => {
+        if (onContinue) {
+            onContinue();
+            return;
+        }
         navigate("/");
     };
 
@@ -61,12 +72,12 @@ export const AuraSuccessState = ({ avatarUrl, onViewDetails }: AuraSuccessStateP
                     transition={{ delay: 0.6 }}
                     className="flex justify-center"
                 >
-                    <div className="relative w-full max-w-xs overflow-hidden rounded-[24px] border-2 border-gold bg-[#F5EDDD] shadow-[0_18px_48px_rgba(201,165,95,0.2)] aspect-[2/3]">
+                    <div className="relative w-full max-w-sm overflow-hidden rounded-[24px] border-2 border-gold bg-[#F5EDDD] shadow-[0_18px_48px_rgba(201,165,95,0.2)] aspect-[9/16]">
                         <AuraFramedImage
                             src={avatarUrl}
                             alt="Your Aura Avatar"
                             className="h-full w-full"
-                            foregroundClassName="h-full w-full object-contain object-center"
+                            foregroundClassName="h-full w-full object-cover object-center"
                             loading="eager"
                         />
                     </div>
@@ -90,7 +101,7 @@ export const AuraSuccessState = ({ avatarUrl, onViewDetails }: AuraSuccessStateP
                         border: "1px solid rgba(201, 165, 92, 0.6)",
                     }}
                 >
-                    Start Shopping
+                    {actionLabel}
                     <ArrowRight className="w-5 h-5" />
                 </button>
 

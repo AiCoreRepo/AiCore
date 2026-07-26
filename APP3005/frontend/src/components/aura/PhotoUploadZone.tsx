@@ -334,11 +334,13 @@ export const PhotoUploadZone = ({ onPhotoSelect, photoPreview, onRemove }: Photo
             ) : (
                 <Dialog>
                     <DialogTrigger asChild>
-                        <div className="relative group h-[190px] cursor-pointer overflow-hidden rounded-[22px] border-2 border-gold/40 shadow-lg transition-all duration-300 hover:shadow-xl sm:h-[220px] sm:rounded-2xl">
+                        <div className="relative group h-[300px] cursor-pointer overflow-hidden rounded-[22px] border-2 border-gold/40 bg-white shadow-lg transition-all duration-300 hover:shadow-xl sm:h-[360px] sm:rounded-2xl">
                             <img
                                 src={photoPreview}
-                                alt="Preview"
-                                className="w-full h-full object-cover object-top"
+                                alt="Uploaded portrait preview"
+                                className="h-full w-full object-contain object-top"
+                                loading="eager"
+                                decoding="sync"
                             />
 
                             {/* Gradient Overlay */}
@@ -350,6 +352,10 @@ export const PhotoUploadZone = ({ onPhotoSelect, photoPreview, onRemove }: Photo
                                     <ImageIcon className="w-4 h-4 text-gold" />
                                     <span className="text-xs text-charcoal font-semibold">Click to expand</span>
                                 </div>
+                            </div>
+
+                            <div className="absolute left-3 top-3 rounded-full border border-white/70 bg-charcoal/75 px-3 py-1.5 text-xs font-semibold text-white shadow-md backdrop-blur-sm">
+                                Face preview
                             </div>
 
                             {/* Remove Button */}

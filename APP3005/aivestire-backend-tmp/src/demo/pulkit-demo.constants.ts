@@ -46,9 +46,9 @@ const PULKIT_DEMO_ANGLE_URLS: Record<string, string> = Object.fromEntries(
 );
 
 export const PULKIT_DEMO_AVATAR_ATTRIBUTES = {
-  height_cm: 178,
+  height_cm: 187,
   weight_kg: 74,
-  skin_tone: 'MEDIUM',
+  skin_tone: 'LIGHT',
   gender: 'male',
   body_shape: 'RECTANGLE',
   body_type: 'AVERAGE',

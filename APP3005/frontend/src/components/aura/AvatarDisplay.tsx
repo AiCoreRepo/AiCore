@@ -34,7 +34,7 @@ export const AvatarDisplay: React.FC<AvatarDisplayProps> = ({ imageUrl, userName
                         src={imageUrl}
                         alt={userName ? `${userName}'s Aura` : "User's Aura"}
                         className="avatar-image-wrapper"
-                        foregroundClassName="avatar-image"
+                        foregroundClassName="avatar-image !object-cover object-center"
                         loading="eager"
                     />
                 </div>

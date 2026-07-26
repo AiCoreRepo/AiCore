@@ -11,9 +11,9 @@ export const PULKIT_DEMO_UPLOAD_URL =
   "https://res.cloudinary.com/dxfxicebq/image/upload/f_auto,q_auto:good,w_1600/v1785056564/aivestire/demo/pulkit/pulkit-upload";
 
 export const PULKIT_DEMO_FORM_DEFAULTS = {
-  height: 178,
+  height: 187,
   weight: 74,
-  skinTone: "medium",
+  skinTone: "light",
   gender: "male",
   bodyShape: "rectangle",
   bodySize: "medium",

@@ -48,7 +48,7 @@ const UserLogin = () => {
             clearGuestTryOnHandoff();
             const auraStatus = await getAuraStatus();
             if (!auraStatus.hasAura) {
-                navigate("/aura-dashboard", { replace: true });
+                setShowAuraPrompt(true);
             } else {
                 navigate("/collection?section=mens", {
                     replace: true,

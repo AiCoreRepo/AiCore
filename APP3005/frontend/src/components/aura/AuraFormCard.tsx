@@ -206,6 +206,8 @@ export const AuraFormCard = ({ onCreateAura, isProcessing, prefilledDob }: AuraF
     const analysisRunId = useRef(0);
     const requiresDobCollection = Boolean(user?.needs_dob_collection);
     const initialDobValue = prefilledDob || user?.dob || "";
+    const isPulkitDemoAccount =
+        user?.email?.trim().toLowerCase() === PULKIT_DEMO_EMAIL;
 
     // Step state
     const [currentStep, setCurrentStep] = useState<Step>("upload");
@@ -226,9 +228,9 @@ export const AuraFormCard = ({ onCreateAura, isProcessing, prefilledDob }: AuraF
     const [analysisError, setAnalysisError] = useState<string | null>(null);
 
     useEffect(() => {
-        if (user?.email?.trim().toLowerCase() !== PULKIT_DEMO_EMAIL) return;
+        if (!isPulkitDemoAccount) return;
         setAttributes({ ...PULKIT_DEMO_FORM_DEFAULTS });
-    }, [user?.email]);
+    }, [isPulkitDemoAccount]);
 
     const getBaseAttributes = (dobValue = dob): BodyAttributes => {
         const calculatedRange = calculateAgeRangeFromDob(dobValue);
@@ -333,6 +335,19 @@ export const AuraFormCard = ({ onCreateAura, isProcessing, prefilledDob }: AuraF
     // Proceed to Step 2 - analyze first if possible
     const handleProceedToConfirm = async () => {
         if (!photoFile) return;
+
+        // Pulkit's production demo is deterministic. Keep the exact prefilled
+        // values instead of allowing image analysis to overwrite them.
+        if (isPulkitDemoAccount) {
+            setAttributes((prev) => ({
+                ...PULKIT_DEMO_FORM_DEFAULTS,
+                ...(prev.ageRange ? { ageRange: prev.ageRange } : {}),
+            }));
+            setAnalysisResult(null);
+            setAnalysisError(null);
+            setCurrentStep("confirm");
+            return;
+        }
 
         const runId = analysisRunId.current + 1;
         analysisRunId.current = runId;

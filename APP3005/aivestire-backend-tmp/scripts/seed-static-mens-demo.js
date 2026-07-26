@@ -12,9 +12,9 @@ const AVATAR_URL =
 const PRODUCT_IMAGE_ROOT =
   'https://res.cloudinary.com/dxfxicebq/image/upload/f_auto,q_auto:good,w_1200/aivestire/products/mens/updated-collection';
 const ATTRIBUTES = {
-  height_cm: 178,
+  height_cm: 187,
   weight_kg: 74,
-  skin_tone: 'MEDIUM',
+  skin_tone: 'LIGHT',
   gender: 'male',
   body_shape: 'RECTANGLE',
   body_type: 'AVERAGE',
