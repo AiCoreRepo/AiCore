@@ -206,33 +206,6 @@ const CollectionPage = () => {
         }
     }, [location.pathname, navigate]);
 
-    useEffect(() => {
-        const shouldScroll =
-            Boolean((location.state as { scrollToProducts?: boolean } | null)?.scrollToProducts) &&
-            isMensSection &&
-            !isLoading;
-        if (!shouldScroll) return;
-
-        const timeout = window.setTimeout(() => {
-            document
-                .getElementById("collection-products")
-                ?.scrollIntoView({ behavior: "smooth", block: "start" });
-            navigate(`${location.pathname}${location.search}`, {
-                replace: true,
-                state: null,
-            });
-        }, 150);
-
-        return () => window.clearTimeout(timeout);
-    }, [
-        isLoading,
-        isMensSection,
-        location.pathname,
-        location.search,
-        location.state,
-        navigate,
-    ]);
-
     const resolveProductLabel = (productId: string) => {
         const product = _.find(filteredProducts, (item) => item.product_id === productId);
         return product?.title || product?.name || productId;
@@ -378,6 +351,33 @@ const CollectionPage = () => {
         undefined,
         collectionAudience
     );
+
+    useEffect(() => {
+        const shouldScroll =
+            Boolean((location.state as { scrollToProducts?: boolean } | null)?.scrollToProducts) &&
+            isMensSection &&
+            !isLoading;
+        if (!shouldScroll) return;
+
+        const timeout = window.setTimeout(() => {
+            document
+                .getElementById("collection-products")
+                ?.scrollIntoView({ behavior: "smooth", block: "start" });
+            navigate(`${location.pathname}${location.search}`, {
+                replace: true,
+                state: null,
+            });
+        }, 150);
+
+        return () => window.clearTimeout(timeout);
+    }, [
+        isLoading,
+        isMensSection,
+        location.pathname,
+        location.search,
+        location.state,
+        navigate,
+    ]);
 
     const availableFilters = data?.availableFilters;
 
