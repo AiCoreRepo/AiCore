@@ -589,8 +589,10 @@ const CollectionPage = () => {
             setCurrentUserPhoto(getAvatarImageUrl(aura));
 
             let result: TryOnResult;
+            // Use the garment being opened, not label state left by the
+            // previous modal, so the fixed shayari always matches this dress.
             let resolvedProductLabel =
-                selectedTryOnLabel || resolveProductLabel(product.product_id);
+                product.title || resolveProductLabel(product.product_id);
             const pulkitStaticResult =
                 isPulkitDemoUser(user.email)
                     ? getPulkitDemoTryOnUrl(product.title)

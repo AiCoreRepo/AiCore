@@ -192,6 +192,14 @@ export function TryOnResultModal({
     loading,
   ]);
 
+  // The modal stays mounted between try-ons. Reset its message explicitly
+  // whenever the selected garment changes to prevent a stale shayari.
+  useEffect(() => {
+    setHasShownCompliment(false);
+    setCurrentCompliment(null);
+    hasTriggeredComplimentCompleteRef.current = false;
+  }, [garmentTitle]);
+
   useEffect(() => {
     return () => {
       if (feedbackRevealTimerRef.current) {
