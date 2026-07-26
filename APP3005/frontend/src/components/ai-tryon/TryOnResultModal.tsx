@@ -34,6 +34,7 @@ interface TryOnResultModalProps {
   error: string | null;
   onGenerateMoreAngles?: () => void;
   generatingAngles?: boolean;
+  fastStaticLoading?: boolean;
   userPhoto?: string | null;
   garmentImage?: string | null;
   garmentId?: string;
@@ -63,6 +64,7 @@ export function TryOnResultModal({
   error,
   onGenerateMoreAngles,
   generatingAngles = false,
+  fastStaticLoading = false,
   userPhoto,
   garmentImage,
   garmentId,
@@ -81,6 +83,7 @@ export function TryOnResultModal({
   const [carouselApi, setCarouselApi] = useState<CarouselApi>();
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [showInlineFeedback, setShowInlineFeedback] = useState(false);
+  const [isComplimentComplete, setIsComplimentComplete] = useState(false);
   const [feedbackRating, setFeedbackRating] = useState(0);
   const [feedbackComment, setFeedbackComment] = useState("");
   const [showOptionalFeedbackNote, setShowOptionalFeedbackNote] =
@@ -172,6 +175,7 @@ export function TryOnResultModal({
       setCurrentStep(0);
       progressRef.current = 0;
       setShowInlineFeedback(false);
+      setIsComplimentComplete(false);
       setFeedbackRating(0);
       setFeedbackComment("");
       setShowOptionalFeedbackNote(false);
@@ -197,6 +201,7 @@ export function TryOnResultModal({
   useEffect(() => {
     setHasShownCompliment(false);
     setCurrentCompliment(null);
+    setIsComplimentComplete(false);
     hasTriggeredComplimentCompleteRef.current = false;
   }, [garmentTitle]);
 
@@ -280,8 +285,7 @@ export function TryOnResultModal({
       interval = setInterval(() => {
         let current = progressRef.current;
 
-        // Target: 95% (Stall point - deep in "Finalizing")
-        const target = 95;
+        const target = fastStaticLoading ? 100 : 95;
 
         // Speed Logic:
         // Fast until 30% (Analyzing)
@@ -290,7 +294,11 @@ export function TryOnResultModal({
         // Crawl until 95% (Finalizing)
         let increment = 0;
 
-        if (current < 30) increment = 0.4;
+        if (fastStaticLoading) {
+          // Reach 100% in 0.8s, then keep it visible for the remainder of
+          // the one-second cached-result transition.
+          increment = 2.5;
+        } else if (current < 30) increment = 0.4;
         else if (current < 60) increment = 0.3;
         else if (current < 80) increment = 0.2;
         else if (current < 95) increment = 0.05; // Crawl in final step
@@ -314,7 +322,7 @@ export function TryOnResultModal({
         if (current > 75) step = 3;
 
         setCurrentStep(step);
-      }, 50); // Run every 50ms for smooth updates
+      }, fastStaticLoading ? 20 : 50);
     } else if (!loading && !generatingAngles && resultImage) {
       // SUCCESS: Instantly fill
       progressRef.current = 100;
@@ -325,7 +333,7 @@ export function TryOnResultModal({
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [loading, generatingAngles, resultImage]);
+  }, [loading, generatingAngles, resultImage, fastStaticLoading]);
 
   // Reset state when loading starts or image changes
   useEffect(() => {
@@ -366,27 +374,9 @@ export function TryOnResultModal({
     }
 
     hasTriggeredComplimentCompleteRef.current = true;
-    const prefersReducedMotion =
-      typeof window !== "undefined" &&
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (!prefersReducedMotion) {
-      if (mobileShayariCollapseTimerRef.current) {
-        clearTimeout(mobileShayariCollapseTimerRef.current);
-      }
-      mobileShayariCollapseTimerRef.current = setTimeout(() => {
-        setIsMobileShayariCollapsed(true);
-        mobileShayariCollapseTimerRef.current = null;
-      }, 3000);
-    }
-    if (feedbackContext) {
-      if (feedbackRevealTimerRef.current) {
-        clearTimeout(feedbackRevealTimerRef.current);
-      }
-      feedbackRevealTimerRef.current = setTimeout(() => {
-        setShowInlineFeedback(true);
-        feedbackRevealTimerRef.current = null;
-      }, 550);
-    }
+    // Keep the completed shayari in place. Rating is revealed only after the
+    // user explicitly asks for it, so unread copy is never auto-scrolled away.
+    setIsComplimentComplete(true);
     onComplimentComplete?.();
   };
 
@@ -419,7 +409,13 @@ export function TryOnResultModal({
   }, [isMobileFeedbackOpen]);
 
   useEffect(() => {
-    if (!isOpen || !resultImage || loading || error) {
+    if (
+      !isOpen ||
+      !resultImage ||
+      loading ||
+      error ||
+      !showInlineFeedback
+    ) {
       return;
     }
 
@@ -442,31 +438,18 @@ export function TryOnResultModal({
       containers.forEach(scrollToBottom);
     });
 
-    const observers = containers.map((container) => {
-      const observer = new MutationObserver(() => scrollToBottom(container));
-      observer.observe(container, {
-        childList: true,
-        characterData: true,
-        subtree: true,
-      });
-      return observer;
-    });
-
     return () => {
       window.cancelAnimationFrame(frameId);
-      observers.forEach((observer) => observer.disconnect());
     };
   }, [
-    currentCompliment?.id,
-    error,
     feedbackComment,
     feedbackRating,
     feedbackSubmitted,
-    hasCompletedUserPrompt,
+    showInlineFeedback,
+    error,
     isOpen,
     loading,
     resultImage,
-    showInlineFeedback,
   ]);
 
   useEffect(() => {
@@ -1028,6 +1011,16 @@ export function TryOnResultModal({
             </div>
           </div>
 
+          {feedbackContext && isComplimentComplete && !showInlineFeedback && (
+            <button
+              type="button"
+              onClick={() => setShowInlineFeedback(true)}
+              className="mt-4 w-full rounded-full border border-[#D4B76E]/50 bg-white px-4 py-2.5 text-sm font-semibold text-[#6B5129] shadow-sm transition hover:bg-[#FAF4E8] focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/40"
+            >
+              Rate this look
+            </button>
+          )}
+
           {renderFeedbackConversation(layout)}
         </div>
       </div>
@@ -1357,12 +1350,7 @@ export function TryOnResultModal({
                         Progress
                       </span>
                       <span className="text-xs font-bold text-[#c9a55c]">
-                        {/* Safety: If loading but progress high, show 0 to prevent flash */}
-                        {Math.round(
-                          (loading || generatingAngles) && loadingProgress > 95
-                            ? 0
-                            : loadingProgress,
-                        )}
+                        {Math.round(loadingProgress)}
                         %
                       </span>
                     </div>
@@ -1375,8 +1363,7 @@ export function TryOnResultModal({
                       <div
                         className="h-full transition-all duration-500 ease-out shimmer-effect"
                         style={{
-                          // Safety override here too
-                          width: `${(loading || generatingAngles) && loadingProgress > 95 ? 0 : loadingProgress}%`,
+                          width: `${loadingProgress}%`,
                           background:
                             "linear-gradient(90deg, #c9a55c 0%, #d4b896 50%, #c9a55c 100%)",
                           boxShadow: "0 0 8px rgba(201, 165, 92, 0.5)",

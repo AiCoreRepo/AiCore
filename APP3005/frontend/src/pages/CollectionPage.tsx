@@ -604,7 +604,9 @@ const CollectionPage = () => {
                 setCurrentGarmentImage(clothingImage);
                 // Replay the demo generation experience without calling an AI
                 // provider. The fixed result is revealed after a short loader.
-                await new Promise((resolve) => setTimeout(resolve, 2000));
+                // The modal animates 0 → 100% in 0.9s and holds 100%
+                // briefly before this cached Cloudinary result is revealed.
+                await new Promise((resolve) => setTimeout(resolve, 1000));
                 result = {
                     success: true,
                     resultImage: pulkitStaticResult,
@@ -1275,6 +1277,13 @@ const CollectionPage = () => {
                 comparisonImage={originalTryOnImage}
                 onGenerateMoreAngles={handleGenerateMoreAngles}
                 generatingAngles={generatingAngles}
+                fastStaticLoading={
+                    Boolean(user?.email && isPulkitDemoUser(user.email)) &&
+                    Boolean(
+                        selectedTryOnProduct?.title &&
+                        getPulkitDemoTryOnUrl(selectedTryOnProduct.title)
+                    )
+                }
                 userPhoto={currentUserPhoto || getAvatarImageUrl(aura)}
                 garmentImage={currentGarmentImage || undefined}
                 garmentId={selectedTryOnProduct?.product_id}

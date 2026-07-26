@@ -11,8 +11,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
-    PULKIT_DEMO_EMAIL,
     PULKIT_DEMO_FORM_DEFAULTS,
+    isPulkitDemoUser,
 } from "@/constants/pulkitDemo";
 import "./aura-styles.css";
 
@@ -207,7 +207,7 @@ export const AuraFormCard = ({ onCreateAura, isProcessing, prefilledDob }: AuraF
     const requiresDobCollection = Boolean(user?.needs_dob_collection);
     const initialDobValue = prefilledDob || user?.dob || "";
     const isPulkitDemoAccount =
-        user?.email?.trim().toLowerCase() === PULKIT_DEMO_EMAIL;
+        isPulkitDemoUser(user?.email);
 
     // Step state
     const [currentStep, setCurrentStep] = useState<Step>("upload");

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { HeroImageSection } from "@/components/aura/HeroImageSection";
 import { AuraFormCard } from "@/components/aura/AuraFormCard";
@@ -36,6 +36,8 @@ const AuraDashboard = () => {
   const [avatarUrl, setAvatarUrl] = useState<string | undefined>(undefined);
   const [jobId, setJobId] = useState<string | null>(null);
   const [creationContext, setCreationContext] = useState<AuraCreationFeedbackContext | null>(null);
+  const [staticDemoProgress, setStaticDemoProgress] = useState<number | null>(null);
+  const staticProgressTimerRef = useRef<ReturnType<typeof window.setInterval> | null>(null);
   const location = useLocation();
   const navigate = useNavigate();
   const locationState = location.state as AuraDashboardLocationState | null;
@@ -46,7 +48,7 @@ const AuraDashboard = () => {
   const { jobStatus, isPolling } = useAuraJobPolling(jobId, !!jobId);
 
   // Calculate progress and estimated time from job status
-  const progress = jobStatus?.progress || 0;
+  const progress = staticDemoProgress ?? jobStatus?.progress ?? 0;
   const estimatedTime = Math.max(0, Math.ceil((100 - progress) / 5)); // Rough estimate
 
   const handleCreateAura = async (photoFile: File, attributes: BodyAttributes) => {
@@ -61,6 +63,7 @@ const AuraDashboard = () => {
     }
 
     setIsProcessing(true);
+    setStaticDemoProgress(null);
     setJobId(null); // Reset job ID
     setCreationContext(null);
 
@@ -113,11 +116,27 @@ const AuraDashboard = () => {
 
       if (data.static_demo && data.model_url) {
         setAvatarUrl(data.model_url);
-        window.setTimeout(() => {
-          setIsProcessing(false);
-          setIsSuccess(true);
-          window.dispatchEvent(new Event('aura-updated'));
-        }, 1000);
+        setStaticDemoProgress(0);
+        const startedAt = performance.now();
+        staticProgressTimerRef.current = window.setInterval(() => {
+          const elapsed = performance.now() - startedAt;
+          const nextProgress = Math.min(100, Math.round((elapsed / 900) * 100));
+          setStaticDemoProgress(nextProgress);
+
+          if (nextProgress >= 100) {
+            if (staticProgressTimerRef.current) {
+              window.clearInterval(staticProgressTimerRef.current);
+              staticProgressTimerRef.current = null;
+            }
+            // Hold the completed bar briefly so 100% is visibly rendered
+            // before the cached Cloudinary avatar replaces the loader.
+            window.setTimeout(() => {
+              setIsProcessing(false);
+              setIsSuccess(true);
+              window.dispatchEvent(new Event('aura-updated'));
+            }, 100);
+          }
+        }, 20);
         return;
       }
 
@@ -139,6 +158,14 @@ const AuraDashboard = () => {
       alert(error instanceof Error ? error.message : 'Failed to create Aura. Please try again.');
     }
   };
+
+  useEffect(() => {
+    return () => {
+      if (staticProgressTimerRef.current) {
+        window.clearInterval(staticProgressTimerRef.current);
+      }
+    };
+  }, []);
 
   // Handle job completion
   if (jobStatus?.status === 'completed' && isProcessing) {

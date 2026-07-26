@@ -20,7 +20,7 @@ import {
     readGuestTryOnHandoff,
     resumeGuestTryOnAfterAuth,
 } from "@/lib/guest-tryon-handoff";
-import { PULKIT_DEMO_EMAIL } from "@/constants/pulkitDemo";
+import { isPulkitDemoUser } from "@/constants/pulkitDemo";
 
 const UserLogin = () => {
     const heroImage = cloudinaryImages.auth.userModel;
@@ -33,7 +33,7 @@ const UserLogin = () => {
     const { returnUrl, returnState } = location.state || {};
     const postLoginUrl = returnUrl || "/collection";
     const isPulkitAccount = (email?: string | null) =>
-        email?.trim().toLowerCase() === PULKIT_DEMO_EMAIL;
+        isPulkitDemoUser(email);
 
     const {
         register,
