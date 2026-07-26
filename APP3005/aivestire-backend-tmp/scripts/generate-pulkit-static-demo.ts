@@ -16,7 +16,13 @@ const assetsRoot = path.resolve(__dirname, '..', '..', '..', 'assets');
 const avatarPath = path.join(
   assetsRoot,
   'male_updated_collection',
-  'pulkit001.jpeg',
+  'pulkit-demo-input.jpg',
+);
+const generatedAvatarPath = path.join(
+  assetsRoot,
+  'male_updated_collection',
+  'generated',
+  'pulkit-aivestire-avatar.png',
 );
 const looks = [
   {
@@ -86,7 +92,11 @@ async function main() {
   ]) {
     if (!process.env[key]) throw new Error(`${key} is required`);
   }
-  for (const file of [avatarPath, ...looks.map((look) => look.file)]) {
+  for (const file of [
+    avatarPath,
+    generatedAvatarPath,
+    ...looks.map((look) => look.file),
+  ]) {
     if (!fs.existsSync(file)) throw new Error(`Missing demo image: ${file}`);
   }
 
@@ -96,7 +106,11 @@ async function main() {
     api_secret: process.env.CLOUDINARY_API_SECRET,
   });
 
-  const avatarUpload = await upload(avatarPath, 'pulkit-avatar');
+  if (process.env.SKIP_PULKIT_SOURCE_UPLOAD !== 'true') {
+    const sourceUpload = await upload(avatarPath, 'pulkit-upload');
+    console.log(`Source photo uploaded: ${sourceUpload.secure_url}`);
+  }
+  const avatarUpload = await upload(generatedAvatarPath, 'pulkit-avatar');
   console.log(`Avatar uploaded: ${avatarUpload.secure_url}`);
 
   const tryOn = new DirectGeminiTryOnService(
@@ -104,9 +118,11 @@ async function main() {
     new ImageOptimizerService(),
   );
   const force = process.env.FORCE_REGENERATE_PULKIT_DEMO === 'true';
+  const onlySlug = process.env.PULKIT_DEMO_ONLY_SLUG?.trim();
   const generated: Array<{ slug: string; resultImage: string }> = [];
 
   for (const look of looks) {
+    if (onlySlug && look.slug !== onlySlug) continue;
     const product = await prisma.product.findUnique({
       where: { slug: look.slug },
       select: { product_id: true, title: true, metadata: true },
@@ -123,7 +139,7 @@ async function main() {
     if (!resultImage || force) {
       console.log(`Generating static try-on for ${product.title}...`);
       const result = await tryOn.processTryOn(
-        asDataUri(avatarPath),
+        asDataUri(generatedAvatarPath),
         asDataUri(look.file),
         {
           maskClothingModel: !look.preserveClothingModel,

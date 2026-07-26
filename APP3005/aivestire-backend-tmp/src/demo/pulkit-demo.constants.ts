@@ -5,7 +5,7 @@ export const PULKIT_DEMO_EMAILS = [
 ] as const;
 
 export const PULKIT_DEMO_AVATAR_URL =
-  'https://res.cloudinary.com/dxfxicebq/image/upload/f_auto,q_auto:good,w_960/aivestire/demo/pulkit/pulkit-avatar';
+  'https://res.cloudinary.com/dxfxicebq/image/upload/f_auto,q_auto:best,w_900,e_sharpen:70/v1785056265/aivestire/demo/pulkit/pulkit-avatar';
 
 export const PULKIT_DEMO_PRODUCT_SLUGS = [
   'male-collection-look-2',
@@ -15,10 +15,18 @@ export const PULKIT_DEMO_PRODUCT_SLUGS = [
   'midnight-floral-bandhgala',
 ] as const;
 
+const PULKIT_DEMO_TRYON_VERSIONS = [
+  '1785056304',
+  '1785056324',
+  '1785056344',
+  '1785056381',
+  '1785056414',
+] as const;
+
 const PULKIT_DEMO_TRYON_URLS: Record<string, string> = Object.fromEntries(
   PULKIT_DEMO_PRODUCT_SLUGS.map((slug, index) => [
     slug,
-    `https://res.cloudinary.com/dxfxicebq/image/upload/f_auto,q_auto:good,w_1200/aivestire/demo/pulkit/tryon-${index + 1}-${slug}`,
+    `https://res.cloudinary.com/dxfxicebq/image/upload/f_auto,q_auto:best,w_848,e_sharpen:70/v${PULKIT_DEMO_TRYON_VERSIONS[index]}/aivestire/demo/pulkit/tryon-${index + 1}-${slug}`,
   ]),
 );
 

@@ -5,7 +5,10 @@ export const PULKIT_DEMO_EMAILS = [
 ] as const;
 
 export const PULKIT_DEMO_AVATAR_URL =
-  "https://res.cloudinary.com/dxfxicebq/image/upload/f_auto,q_auto:good,w_960/aivestire/demo/pulkit/pulkit-avatar";
+  "https://res.cloudinary.com/dxfxicebq/image/upload/f_auto,q_auto:best,w_900,e_sharpen:70/v1785056265/aivestire/demo/pulkit/pulkit-avatar";
+
+export const PULKIT_DEMO_UPLOAD_URL =
+  "https://res.cloudinary.com/dxfxicebq/image/upload/f_auto,q_auto:good,w_1600/v1785056564/aivestire/demo/pulkit/pulkit-upload";
 
 export const PULKIT_DEMO_FORM_DEFAULTS = {
   height: 178,
@@ -27,11 +30,11 @@ export const PULKIT_DEMO_PRODUCT_TITLES = [
 ] as const;
 
 export const PULKIT_DEMO_TRYON_URLS = [
-  "https://res.cloudinary.com/dxfxicebq/image/upload/f_auto,q_auto:good,w_1200/aivestire/demo/pulkit/tryon-1-male-collection-look-2",
-  "https://res.cloudinary.com/dxfxicebq/image/upload/f_auto,q_auto:good,w_1200/aivestire/demo/pulkit/tryon-2-male-collection-look-3",
-  "https://res.cloudinary.com/dxfxicebq/image/upload/f_auto,q_auto:good,w_1200/aivestire/demo/pulkit/tryon-3-male-collection-look-1",
-  "https://res.cloudinary.com/dxfxicebq/image/upload/f_auto,q_auto:good,w_1200/aivestire/demo/pulkit/tryon-4-ice-blue-embroidered-bandhgala",
-  "https://res.cloudinary.com/dxfxicebq/image/upload/f_auto,q_auto:good,w_1200/aivestire/demo/pulkit/tryon-5-midnight-floral-bandhgala",
+  "https://res.cloudinary.com/dxfxicebq/image/upload/f_auto,q_auto:best,w_848,e_sharpen:70/v1785056304/aivestire/demo/pulkit/tryon-1-male-collection-look-2",
+  "https://res.cloudinary.com/dxfxicebq/image/upload/f_auto,q_auto:best,w_848,e_sharpen:70/v1785056324/aivestire/demo/pulkit/tryon-2-male-collection-look-3",
+  "https://res.cloudinary.com/dxfxicebq/image/upload/f_auto,q_auto:best,w_848,e_sharpen:70/v1785056344/aivestire/demo/pulkit/tryon-3-male-collection-look-1",
+  "https://res.cloudinary.com/dxfxicebq/image/upload/f_auto,q_auto:best,w_848,e_sharpen:70/v1785056381/aivestire/demo/pulkit/tryon-4-ice-blue-embroidered-bandhgala",
+  "https://res.cloudinary.com/dxfxicebq/image/upload/f_auto,q_auto:best,w_848,e_sharpen:70/v1785056414/aivestire/demo/pulkit/tryon-5-midnight-floral-bandhgala",
 ] as const;
 
 export const getPulkitDemoProductPriority = (title?: string | null) => {

@@ -20,6 +20,7 @@ import {
     readGuestTryOnHandoff,
     resumeGuestTryOnAfterAuth,
 } from "@/lib/guest-tryon-handoff";
+import { PULKIT_DEMO_EMAIL } from "@/constants/pulkitDemo";
 
 const UserLogin = () => {
     const heroImage = cloudinaryImages.auth.userModel;
@@ -31,6 +32,8 @@ const UserLogin = () => {
     const location = useLocation();
     const { returnUrl, returnState } = location.state || {};
     const postLoginUrl = returnUrl || "/collection";
+    const isPulkitAccount = (email?: string | null) =>
+        email?.trim().toLowerCase() === PULKIT_DEMO_EMAIL;
 
     const {
         register,
@@ -40,7 +43,16 @@ const UserLogin = () => {
         resolver: zodResolver(loginSchema),
     });
 
-    const continueAfterLogin = async () => {
+    const continueAfterLogin = async (email?: string | null) => {
+        if (isPulkitAccount(email)) {
+            clearGuestTryOnHandoff();
+            navigate("/collection?section=mens", {
+                replace: true,
+                state: { scrollToProducts: true },
+            });
+            return;
+        }
+
         const auraStatus = await getAuraStatus();
         markWorkflowDiscoveryPending();
 
@@ -102,10 +114,12 @@ const UserLogin = () => {
             }
 
             // Success - user is a buyer
-            toast({
-                title: "Welcome back!",
-                description: "You've successfully signed in.",
-            });
+            if (!isPulkitAccount(result.user?.email || data.email)) {
+                toast({
+                    title: "Welcome back!",
+                    description: "You've successfully signed in.",
+                });
+            }
 
             // Trigger AuthContext to refresh user data
             window.dispatchEvent(new Event('auth-refresh'));
@@ -113,7 +127,7 @@ const UserLogin = () => {
             // Notify Navbar to refresh Aura status
             window.dispatchEvent(new Event('aura-updated'));
 
-            await continueAfterLogin();
+            await continueAfterLogin(result.user?.email || data.email);
         } catch (error: unknown) {
             toast({
                 title: "Login Failed",
@@ -149,16 +163,18 @@ const UserLogin = () => {
                     return;
                 }
 
-                toast({
-                    title: "Welcome back!",
-                    description: "You've successfully signed in.",
-                });
+                if (!isPulkitAccount(result.user?.email)) {
+                    toast({
+                        title: "Welcome back!",
+                        description: "You've successfully signed in.",
+                    });
+                }
 
                 // Trigger auth refresh
                 window.dispatchEvent(new Event('auth-refresh'));
                 window.dispatchEvent(new Event('aura-updated'));
 
-                await continueAfterLogin();
+                await continueAfterLogin(result.user?.email);
             } catch (error: unknown) {
                 toast({
                     title: "Google Sign-In Failed",

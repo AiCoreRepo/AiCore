@@ -14,7 +14,7 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { AnimatedComplimentText } from "@/components/AnimatedComplimentText";
 import { LOADING_QUOTES } from "./loading-quotes";
-import { getRandomCompliment, ComplimentMessage } from "./compliment-messages";
+import { getComplimentForGarment, ComplimentMessage } from "./compliment-messages";
 import { submitFeedback } from "@/lib/api";
 import {
   Carousel,
@@ -333,7 +333,7 @@ export function TryOnResultModal({
 
       if (!hasShownCompliment) {
         const showTimer = setTimeout(() => {
-          setCurrentCompliment(getRandomCompliment());
+          setCurrentCompliment(getComplimentForGarment(garmentTitle));
           setHasShownCompliment(true);
         }, 800);
         return () => {
@@ -344,7 +344,7 @@ export function TryOnResultModal({
 
       return () => clearTimeout(revealTimer);
     }
-  }, [resultImage, loading, error, generatingAngles, hasShownCompliment]);
+  }, [resultImage, loading, error, generatingAngles, hasShownCompliment, garmentTitle]);
 
   const handleComplimentComplete = () => {
     if (

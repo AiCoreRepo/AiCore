@@ -206,6 +206,33 @@ const CollectionPage = () => {
         }
     }, [location.pathname, navigate]);
 
+    useEffect(() => {
+        const shouldScroll =
+            Boolean((location.state as { scrollToProducts?: boolean } | null)?.scrollToProducts) &&
+            isMensSection &&
+            !isLoading;
+        if (!shouldScroll) return;
+
+        const timeout = window.setTimeout(() => {
+            document
+                .getElementById("collection-products")
+                ?.scrollIntoView({ behavior: "smooth", block: "start" });
+            navigate(`${location.pathname}${location.search}`, {
+                replace: true,
+                state: null,
+            });
+        }, 150);
+
+        return () => window.clearTimeout(timeout);
+    }, [
+        isLoading,
+        isMensSection,
+        location.pathname,
+        location.search,
+        location.state,
+        navigate,
+    ]);
+
     const resolveProductLabel = (productId: string) => {
         const product = _.find(filteredProducts, (item) => item.product_id === productId);
         return product?.title || product?.name || productId;
@@ -570,6 +597,9 @@ const CollectionPage = () => {
                     requireRemote: true,
                 });
                 setCurrentGarmentImage(clothingImage);
+                // Replay the demo generation experience without calling an AI
+                // provider. The fixed result is revealed after a short loader.
+                await new Promise((resolve) => setTimeout(resolve, 2000));
                 result = {
                     success: true,
                     resultImage: pulkitStaticResult,
@@ -650,7 +680,9 @@ const CollectionPage = () => {
                     referenceId: result.tryOnId ? String(result.tryOnId) : undefined,
                     label: resolvedProductLabel,
                 });
-                await loadTryOnHistory();
+                if (!pulkitStaticResult) {
+                    await loadTryOnHistory();
+                }
             } else {
                 throw new Error(result.message || 'Try-on failed');
             }
@@ -1038,6 +1070,9 @@ const CollectionPage = () => {
                         <>
                             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
                                 {filteredProducts.map(product => {
+                                    const isStaticDemoProduct =
+                                        isPulkitDemoUser(user?.email) &&
+                                        Boolean(getPulkitDemoTryOnUrl(product.title));
                                     const sameAvatarTryOn =
                                         getLatestBaseTryOnForCurrentAvatar(
                                             tryOnHistory,
@@ -1049,7 +1084,9 @@ const CollectionPage = () => {
                                             tryOnHistory,
                                             product.product_id,
                                         );
-                                    const primaryTryOnLabel = sameAvatarTryOn
+                                    const primaryTryOnLabel = isStaticDemoProduct
+                                        ? 'Try On'
+                                        : sameAvatarTryOn
                                         ? 'View Try On'
                                         : showMultipleTryOnProviders
                                             ? defaultTryOnProvider === TRYON_PROVIDER.GEMINI
@@ -1072,7 +1109,12 @@ const CollectionPage = () => {
                                                 (tryOnLoading || generatingAngles)
                                             }
                                             onTryOn={() =>
-                                                sameAvatarTryOn
+                                                isStaticDemoProduct
+                                                    ? handleTryOn(
+                                                        product,
+                                                        defaultTryOnProvider,
+                                                    )
+                                                    : sameAvatarTryOn
                                                     ? openSavedTryOn(sameAvatarTryOn, product)
                                                     : handleTryOn(
                                                         product,
@@ -1080,7 +1122,9 @@ const CollectionPage = () => {
                                                     )
                                             }
                                             onTryOnGemini={
-                                                !sameAvatarTryOn && anyAvatarTryOn
+                                                isStaticDemoProduct
+                                                    ? undefined
+                                                    : !sameAvatarTryOn && anyAvatarTryOn
                                                     ? () => openSavedTryOn(anyAvatarTryOn, product)
                                                     : showMultipleTryOnProviders && !sameAvatarTryOn
                                                         ? () =>

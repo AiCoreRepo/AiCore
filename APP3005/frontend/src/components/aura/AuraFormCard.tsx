@@ -11,8 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
-    isPulkitDemoUser,
-    PULKIT_DEMO_AVATAR_URL,
+    PULKIT_DEMO_EMAIL,
     PULKIT_DEMO_FORM_DEFAULTS,
 } from "@/constants/pulkitDemo";
 import "./aura-styles.css";
@@ -227,34 +226,9 @@ export const AuraFormCard = ({ onCreateAura, isProcessing, prefilledDob }: AuraF
     const [analysisError, setAnalysisError] = useState<string | null>(null);
 
     useEffect(() => {
-        if (!isPulkitDemoUser(user?.email) || photoFile) return;
-
-        let cancelled = false;
+        if (user?.email?.trim().toLowerCase() !== PULKIT_DEMO_EMAIL) return;
         setAttributes({ ...PULKIT_DEMO_FORM_DEFAULTS });
-        setPhotoPreview(PULKIT_DEMO_AVATAR_URL);
-
-        void fetch(PULKIT_DEMO_AVATAR_URL)
-            .then((response) => {
-                if (!response.ok) throw new Error("Demo avatar could not be loaded");
-                return response.blob();
-            })
-            .then((blob) => {
-                if (!cancelled) {
-                    setPhotoFile(
-                        new File([blob], "mens-static-demo-avatar.jpeg", {
-                            type: blob.type || "image/jpeg",
-                        }),
-                    );
-                }
-            })
-            .catch((error) => {
-                console.warn("Could not prefill the demo avatar upload:", error);
-            });
-
-        return () => {
-            cancelled = true;
-        };
-    }, [photoFile, user?.email]);
+    }, [user?.email]);
 
     const getBaseAttributes = (dobValue = dob): BodyAttributes => {
         const calculatedRange = calculateAgeRangeFromDob(dobValue);

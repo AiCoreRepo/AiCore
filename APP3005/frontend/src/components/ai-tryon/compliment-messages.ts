@@ -115,6 +115,39 @@ export const COMPLIMENT_MESSAGES: ComplimentMessage[] = [
     },
 ];
 
+const MALE_DEMO_COMPLIMENTS: Record<string, ComplimentMessage> = {
+    "Midnight Tee Set": {
+        id: "male_midnight_tee",
+        message:
+            "Kaale libaas mein andaaz kuch yun nikhar aaya 🖤, Saadgi ne bhi aaj hero wala rang dikhaya ✨",
+        highlights: ["🖤", "✨"],
+    },
+    "Mehendi Green Kurta": {
+        id: "male_mehendi_kurta",
+        message:
+            "Mehendi sa rang, nawabi sa andaaz 💚, Aaj har nazar kahe— janaab, kya baat! ✨",
+        highlights: ["💚", "✨"],
+    },
+    "Sky Blue Relaxed Shirt": {
+        id: "male_sky_blue",
+        message:
+            "Aasmaani rang aur sukoon bhara style 💙, Janaab chalein to har nazar ruk jaaye a while ✨",
+        highlights: ["💙", "✨"],
+    },
+    "Ice Blue Embroidered Bandhgala": {
+        id: "male_ice_blue_bandhgala",
+        message:
+            "Bandhgale ki shaan, chehre par noor ❄️, Is nawabi andaaz ka jawaab nahi huzoor 👑",
+        highlights: ["❄️", "👑"],
+    },
+    "Midnight Floral Bandhgala": {
+        id: "male_midnight_bandhgala",
+        message:
+            "Siyah rang par phoolon ka kamaal 🖤, Janaab ka ye andaaz hai bilkul bemisaal 👑",
+        highlights: ["🖤", "👑"],
+    },
+};
+
 const SHOWN_COMPLIMENTS_KEY = "aivestire_shown_compliments";
 
 export const getRandomCompliment = (): ComplimentMessage => {
@@ -142,4 +175,11 @@ export const getRandomCompliment = (): ComplimentMessage => {
         const randomIndex = Math.floor(Math.random() * COMPLIMENT_MESSAGES.length);
         return COMPLIMENT_MESSAGES[randomIndex];
     }
+};
+
+export const getComplimentForGarment = (
+    garmentTitle?: string | null,
+): ComplimentMessage => {
+    const fixed = garmentTitle ? MALE_DEMO_COMPLIMENTS[garmentTitle.trim()] : null;
+    return fixed || getRandomCompliment();
 };

@@ -8,7 +8,7 @@ const DEMO_EMAILS = [
   'rushabhbelani2212@gmail.com',
 ];
 const AVATAR_URL =
-  'https://res.cloudinary.com/dxfxicebq/image/upload/f_auto,q_auto:good,w_960/aivestire/demo/pulkit/pulkit-avatar';
+  'https://res.cloudinary.com/dxfxicebq/image/upload/f_auto,q_auto:best,w_900,e_sharpen:70/v1785056265/aivestire/demo/pulkit/pulkit-avatar';
 const PRODUCT_IMAGE_ROOT =
   'https://res.cloudinary.com/dxfxicebq/image/upload/f_auto,q_auto:good,w_1200/aivestire/products/mens/updated-collection';
 const ATTRIBUTES = {
@@ -29,6 +29,13 @@ const FIXED_TRY_ON_SLUGS = [
   'male-collection-look-1',
   'ice-blue-embroidered-bandhgala',
   'midnight-floral-bandhgala',
+];
+const FIXED_TRY_ON_VERSIONS = [
+  '1785056304',
+  '1785056324',
+  '1785056344',
+  '1785056381',
+  '1785056414',
 ];
 const UPDATED_PRODUCTS = [
   ['chocolate-brown-relaxed-shirt', 'Chocolate Brown Relaxed Shirt', 'A chocolate brown open-collar shirt styled with relaxed ivory trousers.', 'Casualwear', 'Chocolate Brown, Ivory'],
@@ -54,7 +61,7 @@ const tryOnUrl = (slug) => {
   const index = FIXED_TRY_ON_SLUGS.indexOf(slug);
   return index < 0
     ? null
-    : `https://res.cloudinary.com/dxfxicebq/image/upload/f_auto,q_auto:good,w_1200/aivestire/demo/pulkit/tryon-${index + 1}-${slug}`;
+    : `https://res.cloudinary.com/dxfxicebq/image/upload/f_auto,q_auto:best,w_848,e_sharpen:70/v${FIXED_TRY_ON_VERSIONS[index]}/aivestire/demo/pulkit/tryon-${index + 1}-${slug}`;
 };
 
 async function syncMensCollection(creator) {
@@ -146,7 +153,8 @@ async function seedDemoAccount(email, products) {
       try_on_permission: 'APPROVED',
       max_try_ons: 10,
       try_ons_used: 0,
-      has_created_aura: true,
+      has_created_aura: false,
+      max_avatar_regenerations: -1,
     },
   });
   const avatar = {
