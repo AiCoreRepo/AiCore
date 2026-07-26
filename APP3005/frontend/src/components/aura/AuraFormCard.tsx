@@ -241,7 +241,7 @@ export const AuraFormCard = ({ onCreateAura, isProcessing, prefilledDob }: AuraF
             .then((blob) => {
                 if (!cancelled) {
                     setPhotoFile(
-                        new File([blob], "pulkit001.jpeg", {
+                        new File([blob], "mens-static-demo-avatar.jpeg", {
                             type: blob.type || "image/jpeg",
                         }),
                     );

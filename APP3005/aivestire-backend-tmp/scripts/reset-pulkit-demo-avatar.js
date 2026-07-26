@@ -9,32 +9,47 @@ if (typeof process.loadEnvFile === 'function') {
 }
 
 const prisma = new PrismaClient();
-const DEMO_EMAIL = 'pulkitgupta6677@gmail.com';
+const DEMO_EMAILS = [
+  'pulkitgupta6677@gmail.com',
+  'rushabhbelani2212@gmail.com',
+];
 const DEMO_RESET_MARKER = -1;
 
 async function main() {
-  const user = await prisma.user.findUnique({
-    where: { email: DEMO_EMAIL },
+  const emailFlagIndex = process.argv.indexOf('--email');
+  const requestedEmail =
+    emailFlagIndex >= 0 ? process.argv[emailFlagIndex + 1]?.toLowerCase() : null;
+  const emails = requestedEmail ? [requestedEmail] : DEMO_EMAILS;
+
+  if (requestedEmail && !DEMO_EMAILS.includes(requestedEmail)) {
+    throw new Error(`Unsupported static demo account: ${requestedEmail}`);
+  }
+
+  const users = await prisma.user.findMany({
+    where: { email: { in: emails } },
     select: {
       user_id: true,
       email: true,
       aura: { select: { aura_id: true } },
     },
   });
-
-  if (!user) {
+  const missing = emails.filter(
+    (email) => !users.some((user) => user.email.toLowerCase() === email),
+  );
+  if (missing.length) {
     throw new Error(
-      `${DEMO_EMAIL} does not exist in this database. Sign in once before running the reset.`,
+      `Demo account seed is missing for: ${missing.join(', ')}. Run scripts/seed-products.js first.`,
     );
   }
-  if (!user.aura) {
+  const missingAuras = users.filter((user) => !user.aura);
+  if (missingAuras.length) {
     throw new Error(
-      `Pulkit's preloaded Aura is missing. Sign in once to provision it before replaying the demo.`,
+      `Preloaded Aura is missing for: ${missingAuras.map(({ email }) => email).join(', ')}`,
     );
   }
 
-  await prisma.user.update({
-    where: { user_id: user.user_id },
+  await prisma.user.updateMany({
+    where: { email: { in: emails } },
     data: {
       try_ons_used: 0,
       avatar_regenerations_used: 0,
@@ -47,7 +62,7 @@ async function main() {
     JSON.stringify(
       {
         success: true,
-        email: user.email,
+        emails: users.map(({ email }) => email),
         preserved: [
           'Existing Aura database record',
           'Existing try-on history',
@@ -56,7 +71,7 @@ async function main() {
           'Men’s collection products and metadata',
         ],
         next:
-          'Refresh or sign in with Google. Complete the prefilled form to replay the loading screen and restore the same fixed avatar.',
+          'Refresh or sign in with Google. Complete the prefilled form to replay the loading screen and restore the same fixed avatar. Use --email address@example.com to reset only one demo account.',
       },
       null,
       2,

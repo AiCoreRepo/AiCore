@@ -104,7 +104,7 @@ services:
     command:
       [
         "sh", "-c",
-        "set -e; node scripts/bootstrap-service-account.mjs; node scripts/wait-for-services.mjs; node scripts/run-migrations.mjs; node scripts/seed-products.js; node dist/src/main.js"
+        "set -e; node scripts/bootstrap-service-account.mjs; node scripts/wait-for-services.mjs; node scripts/run-migrations.mjs; node scripts/seed-products.js; node scripts/seed-static-mens-demo.js; node dist/src/main.js"
       ]
     env_file:
       # Local .env provides secrets (API keys, JWT, Cloudinary, etc.).

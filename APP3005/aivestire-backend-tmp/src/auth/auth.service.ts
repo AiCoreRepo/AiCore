@@ -74,7 +74,7 @@ export class AuthService {
 
     const now = new Date();
     const avatar = {
-      avatar_id: 'pulkit-static-avatar-v1',
+      avatar_id: 'mens-static-demo-avatar-v1',
       model_url: PULKIT_DEMO_AVATAR_URL,
       tryon_model_url: PULKIT_DEMO_AVATAR_URL,
       source: 'creation',

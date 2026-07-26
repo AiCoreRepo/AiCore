@@ -1,4 +1,8 @@
 export const PULKIT_DEMO_EMAIL = 'pulkitgupta6677@gmail.com';
+export const PULKIT_DEMO_EMAILS = [
+  PULKIT_DEMO_EMAIL,
+  'rushabhbelani2212@gmail.com',
+] as const;
 
 export const PULKIT_DEMO_AVATAR_URL =
   'https://res.cloudinary.com/dxfxicebq/image/upload/f_auto,q_auto:good,w_960/aivestire/demo/pulkit/pulkit-avatar';
@@ -32,7 +36,9 @@ export const PULKIT_DEMO_AVATAR_ATTRIBUTES = {
 } as const;
 
 export const isPulkitDemoEmail = (email?: string | null): boolean =>
-  email?.trim().toLowerCase() === PULKIT_DEMO_EMAIL;
+  PULKIT_DEMO_EMAILS.includes(
+    email?.trim().toLowerCase() as (typeof PULKIT_DEMO_EMAILS)[number],
+  );
 
 export const getPulkitStaticTryOnUrl = (metadata: unknown): string | null => {
   if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) {

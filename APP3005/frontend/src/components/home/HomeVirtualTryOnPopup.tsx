@@ -187,6 +187,8 @@ export function HomeVirtualTryOnPopup() {
     () => localStorage.getItem(GUEST_TRY_ON_USED_KEY) === "true",
   );
   const staticTimerRef = useRef<number | null>(null);
+  const tryOnInFlightRef = useRef(false);
+  const interactionLocked = phase === "loading";
 
   const selectedLook = useMemo(
     () =>
@@ -273,7 +275,7 @@ export function HomeVirtualTryOnPopup() {
   }, []);
 
   const selectCollectionGender = async (gender: GuestCollectionGender) => {
-    if (gender === collectionGender || collectionLoading) return;
+    if (interactionLocked || gender === collectionGender || collectionLoading) return;
     resetResult();
     setCollectionLoading(true);
     setMessage("");
@@ -308,6 +310,7 @@ export function HomeVirtualTryOnPopup() {
           setExpandedImage(null);
           return;
         }
+        if (interactionLocked) return;
         if (staticTimerRef.current !== null) {
           window.clearTimeout(staticTimerRef.current);
           staticTimerRef.current = null;
@@ -324,13 +327,14 @@ export function HomeVirtualTryOnPopup() {
       document.body.style.overflow = previousOverflow;
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [expandedImage, open]);
+  }, [expandedImage, interactionLocked, open]);
 
   const resetResult = () => {
     if (staticTimerRef.current !== null) {
       window.clearTimeout(staticTimerRef.current);
       staticTimerRef.current = null;
     }
+    tryOnInFlightRef.current = false;
     setPhase("ready");
     setResultImage("");
     setMessage("");
@@ -338,23 +342,30 @@ export function HomeVirtualTryOnPopup() {
   };
 
   const closePopup = () => {
+    if (interactionLocked) return;
     resetResult();
     writeSessionValue(POPUP_DISMISSED_KEY, "true");
     setOpen(false);
   };
 
   const selectMode = (nextMode: TryOnMode) => {
+    if (interactionLocked) return;
     setMode(nextMode);
     resetResult();
   };
 
   const handleLookSelect = (lookId: string) => {
+    if (interactionLocked) return;
     setSelectedLookId(lookId);
     writeSessionValue(SESSION_AVATAR_LOOK_KEY, lookId);
     resetResult();
   };
 
   const handleUpload = (event: ChangeEvent<HTMLInputElement>) => {
+    if (interactionLocked) {
+      event.target.value = "";
+      return;
+    }
     if (guestTryOnUsed && !user) {
       event.target.value = "";
       setMessage("Your photo is locked after the completed try on. Sign up to continue.");
@@ -411,14 +422,17 @@ export function HomeVirtualTryOnPopup() {
   };
 
   const handleTryOn = async () => {
+    if (tryOnInFlightRef.current || interactionLocked) return;
     setMessage("");
     const originalInputImage =
       mode === "demo" ? staticModelImage : uploadedAvatar;
     if (mode === "demo") {
+      tryOnInFlightRef.current = true;
       setPhase("loading");
       staticTimerRef.current = window.setTimeout(() => {
         setResultImage(selectedLook.staticResultImage);
         setPhase("result");
+        tryOnInFlightRef.current = false;
         staticTimerRef.current = null;
       }, 1400);
       return;
@@ -432,6 +446,7 @@ export function HomeVirtualTryOnPopup() {
       return;
     }
     try {
+      tryOnInFlightRef.current = true;
       setPhase("loading");
       const guestSession = getGuestSession();
       const [avatarImage, clothingImage] = await Promise.all([
@@ -500,8 +515,10 @@ export function HomeVirtualTryOnPopup() {
       }
       setResultImage(normalized);
       setPhase("result");
+      tryOnInFlightRef.current = false;
     } catch (error) {
       setPhase("ready");
+      tryOnInFlightRef.current = false;
       setMessage(
         error instanceof Error
           ? naturalizeVisibleMessage(error.message)
@@ -513,10 +530,11 @@ export function HomeVirtualTryOnPopup() {
   const sourceImage = mode === "demo" ? staticModelImage : uploadedAvatar;
   const isUploadMissing = mode === "upload" && !uploadedAvatar;
   const shouldLockLook = (lookId: string) =>
-    mode === "upload" &&
-    guestTryOnUsed &&
-    !user &&
-    lookId !== selectedLook.id;
+    interactionLocked ||
+    (mode === "upload" &&
+      guestTryOnUsed &&
+      !user &&
+      lookId !== selectedLook.id);
 
   return (
     <AnimatePresence>
@@ -527,7 +545,9 @@ export function HomeVirtualTryOnPopup() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            onClick={closePopup}
+            onClick={() => {
+              if (!interactionLocked) closePopup();
+            }}
           />
           <div className="fixed inset-0 z-[131] flex items-end justify-center sm:items-center sm:p-4">
             <motion.section
@@ -552,7 +572,7 @@ export function HomeVirtualTryOnPopup() {
                     Pick an outfit and see how it looks. Start with our model or upload your own photo.
                   </p>
                 </div>
-                <button type="button" onClick={closePopup} aria-label="Close virtual try on" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#DED3C3] bg-white text-[#5F5345] hover:bg-[#F5EFE5]">
+                <button type="button" onClick={closePopup} disabled={interactionLocked} aria-label="Close virtual try on" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#DED3C3] bg-white text-[#5F5345] hover:bg-[#F5EFE5] disabled:cursor-not-allowed disabled:opacity-45">
                   <X className="h-4 w-4" />
                 </button>
               </header>
@@ -578,11 +598,11 @@ export function HomeVirtualTryOnPopup() {
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-2 sm:gap-3">
-                      <button type="button" onClick={() => selectMode("demo")} className={`min-h-12 rounded-xl border p-2 text-left transition sm:p-2.5 ${mode === "demo" ? "border-[#B78C32] bg-[#FBF4E4] ring-1 ring-[#D4AF37]" : "border-[#E1D7C8] bg-white hover:border-[#C8B89F]"}`}>
+                      <button type="button" disabled={interactionLocked} onClick={() => selectMode("demo")} className={`min-h-12 rounded-xl border p-2 text-left transition disabled:cursor-not-allowed disabled:opacity-50 sm:p-2.5 ${mode === "demo" ? "border-[#B78C32] bg-[#FBF4E4] ring-1 ring-[#D4AF37]" : "border-[#E1D7C8] bg-white hover:border-[#C8B89F]"}`}>
                         <span className="flex items-center justify-center gap-1.5 text-xs font-bold text-[#2C2416] sm:justify-start sm:gap-2 sm:text-sm"><UserRound className="h-4 w-4 text-[#9A7437]" /> Our model</span>
                         <span className="mt-1 hidden text-[11px] leading-4 text-[#6B5D4F] sm:block">Instant preview · no sign in</span>
                       </button>
-                      <button type="button" onClick={() => selectMode("upload")} className={`min-h-12 rounded-xl border p-2 text-left transition sm:p-2.5 ${mode === "upload" ? "border-[#B78C32] bg-[#FBF4E4] ring-1 ring-[#D4AF37]" : "border-[#E1D7C8] bg-white hover:border-[#C8B89F]"}`}>
+                      <button type="button" disabled={interactionLocked} onClick={() => selectMode("upload")} className={`min-h-12 rounded-xl border p-2 text-left transition disabled:cursor-not-allowed disabled:opacity-50 sm:p-2.5 ${mode === "upload" ? "border-[#B78C32] bg-[#FBF4E4] ring-1 ring-[#D4AF37]" : "border-[#E1D7C8] bg-white hover:border-[#C8B89F]"}`}>
                         <span className="flex items-center justify-center gap-1.5 text-xs font-bold text-[#2C2416] sm:justify-start sm:gap-2 sm:text-sm"><Camera className="h-4 w-4 text-[#9A7437]" /> My photo</span>
                         <span className="mt-1 hidden text-[11px] leading-4 text-[#6B5D4F] sm:block">One AI preview · no sign in</span>
                       </button>
@@ -600,13 +620,13 @@ export function HomeVirtualTryOnPopup() {
                             key={gender}
                             type="button"
                             onClick={() => selectCollectionGender(gender)}
-                            disabled={collectionLoading}
+                            disabled={collectionLoading || interactionLocked}
                             aria-pressed={collectionGender === gender}
                             className={`flex min-h-10 items-center justify-center rounded-lg px-4 text-xs font-bold capitalize transition sm:min-h-11 ${
                               collectionGender === gender
                                 ? "bg-[#2C2416] text-white shadow-sm"
                                 : "text-[#6B5D4F] hover:bg-[#F5EFE5]"
-                            } disabled:cursor-wait disabled:opacity-60`}
+                            } disabled:cursor-not-allowed disabled:opacity-50`}
                           >
                             {collectionLoading && collectionGender !== gender ? (
                               <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
@@ -632,7 +652,7 @@ export function HomeVirtualTryOnPopup() {
                         return (
                           <button type="button" key={look.id} disabled={locked} onClick={() => handleLookSelect(look.id)} aria-pressed={selected} className={`group relative min-w-0 overflow-hidden rounded-xl border bg-white text-left transition ${selected ? "border-[#B78C32] ring-2 ring-[#D4AF37]/50" : "border-[#E1D7C8] hover:-translate-y-0.5 hover:border-[#C8B89F]"} ${locked ? "cursor-not-allowed grayscale" : ""}`}>
                             {selected && <span className="absolute right-2 top-2 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-[#2C2416] text-white"><Check className="h-3.5 w-3.5" /></span>}
-                            {locked && <span className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-[#241D15]/70 text-center text-white backdrop-blur-[1px]"><Lock className="h-5 w-5" /><span className="mt-1 text-[10px] font-bold uppercase tracking-wider">Sign in to unlock</span></span>}
+                            {locked && <span className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-[#241D15]/70 text-center text-white backdrop-blur-[1px]"><Lock className="h-5 w-5" /><span className="mt-1 text-[10px] font-bold uppercase tracking-wider">{interactionLocked ? "Try on in progress" : "Sign in to unlock"}</span></span>}
                             <span
                               role="button"
                               tabIndex={0}
@@ -757,7 +777,7 @@ export function HomeVirtualTryOnPopup() {
 
                   <div className="mt-3 sm:mt-4">
                     <div className="grid grid-cols-[minmax(0,0.65fr)_minmax(0,1.35fr)] gap-2">
-                      <button type="button" onClick={handleTryOn} disabled={phase === "loading" || isUploadMissing} className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#D4AF37] px-3 text-sm font-bold text-[#241D15] transition hover:bg-[#E1BE4A] disabled:cursor-not-allowed disabled:opacity-45">
+                      <button type="button" onClick={handleTryOn} disabled={interactionLocked || isUploadMissing} className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#D4AF37] px-3 text-sm font-bold text-[#241D15] transition hover:bg-[#E1BE4A] disabled:cursor-not-allowed disabled:opacity-45">
                         {phase === "loading" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
                         {phase === "result" ? "Try Again" : "Try On"}
                       </button>
