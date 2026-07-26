@@ -3,6 +3,7 @@ export const PULKIT_DEMO_EMAILS = [
   PULKIT_DEMO_EMAIL,
   "rushabhbelani2212@gmail.com",
 ] as const;
+export const PULKIT_DEMO_DOB = "2000-12-22";
 
 export const PULKIT_DEMO_AVATAR_URL =
   "https://res.cloudinary.com/dxfxicebq/image/upload/f_auto,q_100,w_924,e_sharpen:70/v1785082730/aivestire/demo/pulkit/pulkit-avatar";
@@ -17,7 +18,7 @@ export const PULKIT_DEMO_FORM_DEFAULTS = {
   gender: "male",
   bodyShape: "rectangle",
   bodySize: "medium",
-  ageRange: "26-35",
+  ageRange: "18-25",
   hairStyle: "short_wavy",
 } as const;
 

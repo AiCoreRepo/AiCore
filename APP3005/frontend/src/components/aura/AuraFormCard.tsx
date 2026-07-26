@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
+    PULKIT_DEMO_DOB,
     PULKIT_DEMO_FORM_DEFAULTS,
     isPulkitDemoUser,
 } from "@/constants/pulkitDemo";
@@ -204,10 +205,15 @@ export const AuraFormCard = ({ onCreateAura, isProcessing, prefilledDob }: AuraF
     const { user, loading } = useAuth();
     const navigate = useNavigate();
     const analysisRunId = useRef(0);
-    const requiresDobCollection = Boolean(user?.needs_dob_collection);
-    const initialDobValue = prefilledDob || user?.dob || "";
     const isPulkitDemoAccount =
         isPulkitDemoUser(user?.email);
+    const requiresDobCollection =
+        Boolean(user?.needs_dob_collection) && !isPulkitDemoAccount;
+    const initialDobValue =
+        (isPulkitDemoAccount ? PULKIT_DEMO_DOB : "") ||
+        prefilledDob ||
+        user?.dob ||
+        "";
 
     // Step state
     const [currentStep, setCurrentStep] = useState<Step>("upload");
@@ -229,8 +235,14 @@ export const AuraFormCard = ({ onCreateAura, isProcessing, prefilledDob }: AuraF
 
     useEffect(() => {
         if (!isPulkitDemoAccount) return;
+        setDob(PULKIT_DEMO_DOB);
+        setDobInput(formatDobForInput(PULKIT_DEMO_DOB));
+        if (user?.email) {
+            setStoredDob(user.email, PULKIT_DEMO_DOB);
+        }
         setAttributes({ ...PULKIT_DEMO_FORM_DEFAULTS });
-    }, [isPulkitDemoAccount]);
+        setShowDobDialog(false);
+    }, [isPulkitDemoAccount, user?.email]);
 
     const getBaseAttributes = (dobValue = dob): BodyAttributes => {
         const calculatedRange = calculateAgeRangeFromDob(dobValue);
@@ -253,7 +265,9 @@ export const AuraFormCard = ({ onCreateAura, isProcessing, prefilledDob }: AuraF
     useEffect(() => {
         if (!user?.email) return;
 
-        const initialDob = user?.dob || prefilledDob || getStoredDob(user.email);
+        const initialDob = isPulkitDemoAccount
+            ? PULKIT_DEMO_DOB
+            : user?.dob || prefilledDob || getStoredDob(user.email);
         if (initialDob) {
             setDob(initialDob);
             setDobInput(formatDobForInput(initialDob));
@@ -262,7 +276,7 @@ export const AuraFormCard = ({ onCreateAura, isProcessing, prefilledDob }: AuraF
                 setAttributes(prev => ({ ...prev, ageRange: calculatedRange }));
             }
         }
-    }, [prefilledDob, user?.dob, user?.email]);
+    }, [isPulkitDemoAccount, prefilledDob, user?.dob, user?.email]);
 
     useEffect(() => {
         const effectiveDob = dob || prefilledDob || (user?.email ? getStoredDob(user.email) : "");
@@ -972,7 +986,10 @@ export const AuraFormCard = ({ onCreateAura, isProcessing, prefilledDob }: AuraF
                 </motion.div>
             </div>
 
-            <Dialog open={showDobDialog} onOpenChange={setShowDobDialog}>
+            <Dialog
+                open={!isPulkitDemoAccount && showDobDialog}
+                onOpenChange={setShowDobDialog}
+            >
                 <DialogContent className="max-w-md bg-white border-gold/30">
                     <DialogHeader>
                         <DialogTitle className="text-charcoal">Enter Date of Birth</DialogTitle>

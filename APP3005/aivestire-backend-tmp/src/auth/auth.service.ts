@@ -37,6 +37,7 @@ import {
   isPulkitDemoEmail,
   PULKIT_DEMO_AVATAR_ATTRIBUTES,
   PULKIT_DEMO_AVATAR_URL,
+  PULKIT_DEMO_DOB,
   PULKIT_DEMO_PRODUCT_SLUGS,
 } from '../demo/pulkit-demo.constants';
 
@@ -109,6 +110,7 @@ export class AuthService {
         data: {
           try_on_permission: TryOnPermissionStatus.APPROVED,
           max_try_ons: 10,
+          date_of_birth: PULKIT_DEMO_DOB,
         },
       }),
       this.prisma.aura.upsert({

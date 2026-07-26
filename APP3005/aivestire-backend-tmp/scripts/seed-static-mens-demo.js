@@ -7,6 +7,7 @@ const DEMO_EMAILS = [
   'pulkitgupta6677@gmail.com',
   'rushabhbelani2212@gmail.com',
 ];
+const DEMO_DOB = new Date('2000-12-22T00:00:00.000Z');
 const AVATAR_URL =
   'https://res.cloudinary.com/dxfxicebq/image/upload/f_auto,q_100,w_924,e_sharpen:70/v1785082730/aivestire/demo/pulkit/pulkit-avatar';
 const PRODUCT_IMAGE_ROOT =
@@ -19,7 +20,7 @@ const ATTRIBUTES = {
   body_shape: 'RECTANGLE',
   body_type: 'AVERAGE',
   body_size: 'M',
-  age_range: '26-35',
+  age_range: '18-25',
   hair_style: 'SHORT_WAVY',
   beard: true,
 };
@@ -151,6 +152,7 @@ async function seedDemoAccount(email, products) {
       status: 'active',
       try_on_permission: 'APPROVED',
       max_try_ons: 10,
+      date_of_birth: DEMO_DOB,
     },
     create: {
       email,
@@ -161,6 +163,7 @@ async function seedDemoAccount(email, products) {
       try_ons_used: 0,
       has_created_aura: false,
       max_avatar_regenerations: -1,
+      date_of_birth: DEMO_DOB,
     },
   });
   const avatar = {

@@ -229,7 +229,7 @@ const AuraDashboard = () => {
           <div className="w-full max-w-xl">
             <AuraSuccessState
               avatarUrl={avatarUrl}
-              actionLabel="Next: View Men's Collection"
+              actionLabel="Start Virtual Try-On"
               onContinue={() =>
                 navigate("/collection?section=mens", {
                   replace: true,

@@ -14,6 +14,7 @@ const DEMO_EMAILS = [
   'rushabhbelani2212@gmail.com',
 ];
 const DEMO_RESET_MARKER = -1;
+const DEMO_DOB = new Date('2000-12-22T00:00:00.000Z');
 
 async function main() {
   const emailFlagIndex = process.argv.indexOf('--email');
@@ -55,6 +56,7 @@ async function main() {
       avatar_regenerations_used: 0,
       has_created_aura: false,
       max_avatar_regenerations: DEMO_RESET_MARKER,
+      date_of_birth: DEMO_DOB,
     },
   });
 
